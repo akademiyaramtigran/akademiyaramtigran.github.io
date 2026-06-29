@@ -175,6 +175,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.22.5/babel.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js" crossorigin="anonymous" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>
@@ -1962,6 +1963,65 @@ function compressImage(dataUrl, maxW = 800, maxH = 800, quality = 0.82) {
       }, "image/jpeg", quality);
     };
     img.src = dataUrl;
+  });
+}
+
+/* ─── HD ID-CARD EXPORT (print-ready) ────────────────────────────────────── */
+// Karta nasnameyê → bilindirin çareseriya bilind ya çapkirinê (HD card print).
+// Belge wek PNG'eke şefaf-li-spî tê hilberandin û dakêşandin.
+function downloadIDCardHD(node, student, lang, toast){
+  if(!node){ return; }
+  if(typeof html2canvas === "undefined"){
+    toast && toast(lang==="de"?"⚠ Bitte erneut versuchen (lädt noch)":lang==="en"?"⚠ Please try again (still loading)":"⚠ Ji kerema xwe dîsa biceribîne (hîn bar dibe)");
+    return;
+  }
+  toast && toast(lang==="de"?"📥 Karte wird vorbereitet…":lang==="en"?"📥 Preparing card…":"📥 Kart tê amadekirin…");
+  // Çapa fizîkî ya kartê: ID-1 (CR80) ~53.98mm fireh. Ji bo HD em armanca ~600dpi dikin.
+  // outputWidth ≈ 1600px → nivîs û QR tîr û zelal dimînin.
+  const baseW = node.offsetWidth || 340;
+  const scale = Math.min(8, Math.max(4, 1600 / baseW));
+  html2canvas(node, {
+    scale,
+    backgroundColor: "#ffffff",   // şefafî → spî, ji bo çapkirinê li ser PVC'yê
+    useCORS: true,
+    allowTaint: false,
+    logging: false,
+    imageTimeout: 0,
+    onclone: (doc) => {
+      // Çi tema be jî, çapê her tim guhertoya ronî (light) bigre — ji bo çapa fizîkî baştir e.
+      const el = doc.getElementById("id-card-export");
+      if(el){
+        el.style.setProperty("--surface","#ffffff");
+        el.style.setProperty("--surface2","#f1f5f9");
+        el.style.setProperty("--text","#16293f");
+        el.style.setProperty("--text2","#555555");
+        el.style.setProperty("--border","rgba(0,0,0,.10)");
+        el.style.setProperty("--border2","rgba(0,0,0,.18)");
+        el.style.setProperty("--hero-grad","linear-gradient(160deg,#16293f 0%,#1e3a5f 55%,#274d75 100%)");
+        el.style.boxShadow = "none";   // siya derve di çapê de ne hewce ye
+        el.style.margin = "0";
+      }
+    }
+  }).then(canvas => {
+    canvas.toBlob(blob => {
+      if(!blob){
+        toast && toast(lang==="de"?"⚠ Export fehlgeschlagen":lang==="en"?"⚠ Export failed":"⚠ Dakêşan bi ser neket");
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const safeNo = (student && student.no ? String(student.no) : "kart").replace(/[^A-Za-z0-9_-]/g,"");
+      link.href = url;
+      link.download = "ATA-kart-" + safeNo + ".png";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(()=>URL.revokeObjectURL(url), 4000);
+      toast && toast(lang==="de"?"✅ Karte gespeichert (HD)":lang==="en"?"✅ Card saved (HD)":"✅ Kart hat tomarkirin (HD)");
+    }, "image/png");
+  }).catch(err => {
+    console.warn("ID card export error:", err);
+    toast && toast(lang==="de"?"⚠ Export fehlgeschlagen":lang==="en"?"⚠ Export failed":"⚠ Dakêşan bi ser neket");
   });
 }
 
@@ -11357,6 +11417,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
   const [showBiometric,setShowBiometric]=useState(false);
   const [biometricTarget,setBiometricTarget]=useState(null); // "scanner" | "qr"
   const [showChangePass,setShowChangePass]=useState(false);
+  const idCardRef=useRef(null);
   const a=AREA_MAP[student.area]||AREA_MAP["genel"]||{color:"#16293f",bg:"rgba(22,41,63,0.08)",icon:"🎓",name:{ku:"",en:"",de:"",desc:{ku:"",en:"",de:""}}};
   const mySchedule=schedule.filter(s=>{
     if(!s.area||!student.area) return false;
@@ -11988,11 +12049,10 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
             {/* Karta nasnameyê */}
             <Card style={{marginBottom:10}}>
               <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:12}}>🪪 {lang==="de"?"Studierendenausweis":lang==="en"?"Student ID Card":"Karta Nasnameyê"}</div>
-              <StudentIDCard student={{...student,photo:student.photo}} lang={lang} t={t}/>
-              <button onClick={()=>{
-                const el=document.createElement("canvas");
-                toast("📥 Kart tê amadekirin...");
-              }} style={{width:"100%",marginTop:12,padding:"10px",background:"#16293f",color:"#ffffff",border:"none",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer"}}>
+              <div ref={idCardRef} id="id-card-export">
+                <StudentIDCard student={{...student,photo:student.photo}} lang={lang} t={t}/>
+              </div>
+              <button onClick={()=>downloadIDCardHD(idCardRef.current, student, lang, toast)} style={{width:"100%",marginTop:12,padding:"10px",background:"#16293f",color:"#ffffff",border:"none",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer"}}>
                 {lang==="de"?"⬇ Karte Herunterladen":lang==="en"?"⬇ Download Card":"⬇ Kart Dakêşe"}
               </button>
             </Card>
