@@ -650,6 +650,8 @@
   --bg1:#ffffff;
   --bg2:#ffffff;
   --bg3:#ffffff;
+  --surface:#ffffff;   /* kart/panel yüzeyi (sabit #ffffff yerine) */
+  --surface2:#f1f5f9;  /* ikincil/iç yüzey (sabit #f8fafc/#f1f5f9 yerine) */
   --text:#16293f;
   --text2:#555555;
   --border:rgba(0,0,0,.10);
@@ -671,6 +673,33 @@
   --radius:14px;
   --radius-lg:18px;
 }
+
+/* ══ KOYU TEMA — html.theme-dark (useTheme bu sınıfı açıp kapatır) ══ */
+html.theme-dark {
+  --hero-grad:linear-gradient(160deg,#0c1727 0%,#16293f 60%,#1e3a5f 100%);
+  --bg1:#141d30;
+  --bg2:#1b2740;
+  --bg3:#0c1422;
+  --surface:#18233a;
+  --surface2:#121a2c;
+  --text:#eef1f8;
+  --text2:#9aa8c6;
+  --border:rgba(255,255,255,.10);
+  --border2:rgba(255,255,255,.17);
+  --red:#f87171;       --red-bg:rgba(248,113,113,.14);   --red-soft:#ef4444;
+  --green:#4ade80;     --green-bg:rgba(74,222,128,.14);
+  --gold:#fbbf24;      --gold-bg:rgba(251,191,36,.15);
+  --navy:#16293f;      --navy2:#2c4f7c;
+  --accent:#cdddf5;    --accent-dim:rgba(120,150,200,.16);
+  --accent2:#5b86c4;
+  --glass-bg:rgba(20,29,48,0.98);
+  --glass-border:rgba(255,255,255,0.12);
+  --shadow:0 8px 32px rgba(0,0,0,0.55);
+  --shadow-sm:0 2px 8px rgba(0,0,0,0.45);
+  --shadow-card:0 1px 3px rgba(0,0,0,0.5),0 4px 16px rgba(0,0,0,0.32);
+}
+html.theme-dark .area-card { background:var(--surface); }
+
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body,#root{
   height:100%;width:100%;
@@ -2282,7 +2311,7 @@ v3.0
     <>
       <div onClick={onClose} style={{ position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:800,backdropFilter:"blur(3px)" }}/>
       <div style={{ position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",
-        width:"100%",background:"#ffffff",
+        width:"100%",background:"var(--surface)",
         borderRadius:"24px 24px 0 0",zIndex:801,
         maxHeight:"80vh",display:"flex",flexDirection:"column",
         boxShadow:"0 -8px 40px rgba(0,0,0,.3)" }}>
@@ -2420,7 +2449,7 @@ function GDPRBanner({ lang, onAccept }) {
     <div style={{
       position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)",
       width:"100%", zIndex:9500,
-      background:"#ffffff", borderTop:"1px solid var(--border2)",
+      background:"var(--surface)", borderTop:"1px solid var(--border2)",
       padding:"14px 16px 24px", boxShadow:"0 -8px 32px rgba(0,0,0,.4)",
       animation:"slideUp .3s ease"
     }}>
@@ -2487,7 +2516,7 @@ function AccessibleSheet({open, onClose, title, children, describedBy}) {
           position:"fixed",bottom:0,left:"50%",
           transform:"translateX(-50%) translateY("+(open?0:110)+"%)",
           width:"100%",
-          background:"#ffffff",
+          background:"var(--surface)",
           borderRadius:"26px 26px 0 0",
           padding:"0 16px 36px",
           zIndex:201,maxHeight:"90vh",
@@ -3570,13 +3599,13 @@ function BirthdayModal({open,name,lang,onClose}){
       <div onClick={e=>e.stopPropagation()} style={{
         position:"relative",
         width:"calc(100% - 48px)",maxWidth:340,
-        background:"#ffffff",borderRadius:24,
+        background:"var(--surface)",borderRadius:24,
         padding:"32px 24px 24px",textAlign:"center",
         boxShadow:"0 20px 60px rgba(0,0,0,0.35)",
         animation:"birthdayPop .5s var(--ease)"
       }}>
         <div style={{fontSize:56,lineHeight:1,marginBottom:12}}>🎂</div>
-        <div style={{fontSize:19,fontWeight:800,color:"#16293f",marginBottom:8}}>{Lx.title}</div>
+        <div style={{fontSize:19,fontWeight:800,color:"var(--text)",marginBottom:8}}>{Lx.title}</div>
         <div style={{fontSize:14,color:"#64748b",lineHeight:1.5,marginBottom:22}}>{Lx.sub}</div>
         <button onClick={onClose} style={{
           width:"100%",padding:"13px",background:"#16293f",color:"#ffffff",
@@ -3624,7 +3653,7 @@ function Sheet({open,onClose,title,children}){
         position:"fixed",bottom:0,left:"50%",
         transform:"translateX(-50%) translateY("+(open?0:110)+"%)",
         width:"100%",
-        background:"#ffffff",
+        background:"var(--surface)",
         borderRadius:"26px 26px 0 0",
         padding:"0 16px 36px",
         zIndex:201,maxHeight:"90vh",
@@ -3670,7 +3699,7 @@ function StudentIDCard({student, lang, t}){
   return(
     <div style={{
       width:"100%",margin:"0 auto",
-      background:"#ffffff",
+      background:"var(--surface)",
       borderRadius:20,overflow:"hidden",
       boxShadow:"0 8px 28px rgba(0,0,0,0.16)",
       fontFamily:"inherit",
@@ -3719,15 +3748,15 @@ function StudentIDCard({student, lang, t}){
 
         {/* Info */}
         <div style={{flex:1,minWidth:0}}>
-          <div style={{color:"#16293f",fontSize:15,fontWeight:800,marginBottom:10,lineHeight:1.2,letterSpacing:"-0.01em"}}>{student.name}</div>
+          <div style={{color:"var(--text)",fontSize:15,fontWeight:800,marginBottom:10,lineHeight:1.2,letterSpacing:"-0.01em"}}>{student.name}</div>
           <div style={{display:"grid",gap:6}}>
             <div>
               <div style={{fontSize:7,color:"#777777",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:1}}>{t.cardArea}</div>
-              <div style={{fontSize:11,color:"#16293f",fontWeight:700}}>{areaName(student.area,lang)}</div>
+              <div style={{fontSize:11,color:"var(--text)",fontWeight:700}}>{areaName(student.area,lang)}</div>
             </div>
             <div>
               <div style={{fontSize:7,color:"#777777",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:1}}>{lang==="de"?"Studierendennr.":lang==="en"?"Student No":"Jm. Xwendekar"}</div>
-              <div style={{fontSize:13,color:"#16293f",fontWeight:800,fontFamily:"monospace",letterSpacing:"0.08em",background:"#f0f0f0",display:"inline-block",padding:"2px 7px",borderRadius:6,border:"1px solid #d5d5d5"}}>{student.no}</div>
+              <div style={{fontSize:13,color:"var(--text)",fontWeight:800,fontFamily:"monospace",letterSpacing:"0.08em",background:"#f0f0f0",display:"inline-block",padding:"2px 7px",borderRadius:6,border:"1px solid #d5d5d5"}}>{student.no}</div>
             </div>
             <div>
               <div style={{fontSize:7,color:"#777777",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:1}}>{t.cardYear}</div>
@@ -3740,12 +3769,12 @@ function StudentIDCard({student, lang, t}){
       {/* QR strip - personal QR of this student — beyaz zemin üzerinde lacivert çerçeveli kutu */}
       <div style={{background:"#f8f8f8",padding:"12px 16px 14px",borderTop:"1px solid #e0e0e0",position:"relative",zIndex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
         {/* Personal QR - generated from student no */}
-        <div style={{background:"#fff",padding:10,borderRadius:14,boxShadow:"0 4px 14px rgba(0,0,0,0.10)",border:"3px solid #16293f"}}>
+        <div style={{background:"var(--surface)",padding:10,borderRadius:14,boxShadow:"0 4px 14px rgba(0,0,0,0.10)",border:"3px solid #16293f"}}>
           <StudentQRCode no={student.no} size={100}/>
         </div>
         <div style={{textAlign:"center"}}>
-          <div style={{fontSize:14,color:"#16293f",fontWeight:800,fontFamily:"monospace",letterSpacing:"0.10em"}}>{student.no}</div>
-          <button onClick={async(e)=>{e.stopPropagation();await copyToClipboard(student.no);hapticLight();}} aria-label="Jimara kopî bike / Copy number" style={{background:"#ffffff",border:"1px solid #999999",borderRadius:6,padding:"2px 8px",fontSize:10,cursor:"pointer",color:"#16293f",marginLeft:4}}>📋</button>
+          <div style={{fontSize:14,color:"var(--text)",fontWeight:800,fontFamily:"monospace",letterSpacing:"0.10em"}}>{student.no}</div>
+          <button onClick={async(e)=>{e.stopPropagation();await copyToClipboard(student.no);hapticLight();}} aria-label="Jimara kopî bike / Copy number" style={{background:"var(--surface)",border:"1px solid #999999",borderRadius:6,padding:"2px 8px",fontSize:10,cursor:"pointer",color:"var(--text)",marginLeft:4}}>📋</button>
         </div>
       </div>
 
@@ -3891,13 +3920,13 @@ function ForgotScreen({t, lang, onBack, onSuccess, students, teachers, onDataCha
         {foundUser && step!=="no" && (
           <div style={{marginTop:8,display:"inline-flex",alignItems:"center",gap:6,background:"rgba(255,255,255,0.12)",borderRadius:20,padding:"5px 14px"}}>
             <span style={{fontSize:15}}>{foundUser.type==="student"?"🎓":"👨‍🏫"}</span>
-            <span style={{color:"#16293f",fontSize:12,fontWeight:700,fontFamily:"monospace"}}>{foundUser.obj.no}</span>
+            <span style={{color:"var(--text)",fontSize:12,fontWeight:700,fontFamily:"monospace"}}>{foundUser.obj.no}</span>
             <span style={{color:"#64748b",fontSize:12}}>{foundUser.obj.name}</span>
           </div>
         )}
       </div>
 
-      <div style={{background:"#ffffff",borderRadius:"28px 28px 0 0",flex:1,overflow:"auto",padding:"24px 20px 48px"}}>
+      <div style={{background:"var(--surface)",borderRadius:"28px 28px 0 0",flex:1,overflow:"auto",padding:"24px 20px 48px"}}>
 
         {/* ADIM 1: Numara gir */}
         {step==="no" && (
@@ -3929,7 +3958,7 @@ function ForgotScreen({t, lang, onBack, onSuccess, students, teachers, onDataCha
                   <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:4}}>
                     {lang==="ku"?"Şîfreya nû bê çêkirin û ji emailê re bê şandin":lang==="en"?"A new password will be generated and sent to the email":"Ein neues Passwort wird generiert und per E-Mail gesendet"}
                   </div>
-                  <div style={{fontSize:12,color:"var(--text2)",fontFamily:"monospace",background:"#ffffff",padding:"8px 12px",borderRadius:8,marginTop:8}}>
+                  <div style={{fontSize:12,color:"var(--text2)",fontFamily:"monospace",background:"var(--surface)",padding:"8px 12px",borderRadius:8,marginTop:8}}>
                     {foundUser.obj.email.replace(/(.{2})(.*)(@.*)/, (_, a, b, c) => a + "•".repeat(Math.min(b.length,6)) + c)}
                   </div>
                 </div>
@@ -4129,8 +4158,8 @@ function AddStudentSheet({open,onClose,defaultArea,students,t,lang,toast,onSave}
           <div style={{marginBottom:12}}>
             <div style={{fontSize:10,color:"rgba(255,255,255,0.5)",marginBottom:4}}>{lang==="en"?"Username (Student No)":lang==="de"?"Benutzername":"Navê Bikarhêner (Jimara Xwendekar)"}</div>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <div style={{flex:1,fontFamily:"monospace",fontSize:16,fontWeight:800,color:"#16293f",letterSpacing:"0.12em"}}>{savedCreds.no}</div>
-              <button onClick={async()=>{await copyToClipboard(savedCreds.no);hapticLight();}} style={{background:"rgba(79,142,247,0.12)",border:"1px solid rgba(79,142,247,0.3)",borderRadius:6,padding:"4px 8px",fontSize:11,color:"#16293f",cursor:"pointer"}}>📋</button>
+              <div style={{flex:1,fontFamily:"monospace",fontSize:16,fontWeight:800,color:"var(--text)",letterSpacing:"0.12em"}}>{savedCreds.no}</div>
+              <button onClick={async()=>{await copyToClipboard(savedCreds.no);hapticLight();}} style={{background:"rgba(79,142,247,0.12)",border:"1px solid rgba(79,142,247,0.3)",borderRadius:6,padding:"4px 8px",fontSize:11,color:"var(--text)",cursor:"pointer"}}>📋</button>
             </div>
           </div>
           <div style={{borderTop:"1px solid rgba(255,255,255,0.1)",paddingTop:12}}>
@@ -4227,7 +4256,7 @@ function AddStudentSheet({open,onClose,defaultArea,students,t,lang,toast,onSave}
             <>• Fotokopiya Nasnameyê<br/>• Belgeya Nasnameya Sivîl / Jidayikbûnê<br/>• Belgeya Rûniştinê<br/>• Wêne (2 heb)</>
           )}
         </div>
-        <div onClick={()=>docFileRef.current.click()} style={{border:"1.5px dashed var(--border2)",borderRadius:8,padding:"12px",textAlign:"center",cursor:"pointer",marginBottom:8,background:"#ffffff"}}>
+        <div onClick={()=>docFileRef.current.click()} style={{border:"1.5px dashed var(--border2)",borderRadius:8,padding:"12px",textAlign:"center",cursor:"pointer",marginBottom:8,background:"var(--surface)"}}>
           <div style={{fontSize:20,marginBottom:4}}>📁</div>
           <div style={{fontSize:12,color:"var(--text2)"}}>{t.uploadDoc||"Belge Yükle"} (PDF, JPG, PNG)</div>
         </div>
@@ -4248,7 +4277,7 @@ function AddStudentSheet({open,onClose,defaultArea,students,t,lang,toast,onSave}
       </div>
 
       <FieldWrap label={t.studentNoPreview}>
-        <div style={{fontFamily:"monospace",fontSize:16,fontWeight:700,color:"#16293f",padding:"10px 14px",background:"#f8fafc",borderRadius:8,border:"0.5px solid var(--border2)",letterSpacing:"0.08em"}}>
+        <div style={{fontFamily:"monospace",fontSize:16,fontWeight:700,color:"var(--text)",padding:"10px 14px",background:"var(--surface2)",borderRadius:8,border:"0.5px solid var(--border2)",letterSpacing:"0.08em"}}>
           {previewNo()}
         </div>
       </FieldWrap>
@@ -4333,8 +4362,8 @@ function AddTeacherSheet({open,onClose,defaultArea,teachers,t,lang,toast,onSave}
           <div style={{marginBottom:12}}>
             <div style={{fontSize:10,color:"rgba(255,255,255,0.5)",marginBottom:4}}>{lang==="en"?"Username (Teacher No)":lang==="de"?"Benutzername":"Navê Bikarhêner (Jimara Mamoste)"}</div>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <div style={{flex:1,fontFamily:"monospace",fontSize:16,fontWeight:800,color:"#16293f",letterSpacing:"0.12em"}}>{savedCreds.no}</div>
-              <button onClick={async()=>{await copyToClipboard(savedCreds.no);hapticLight();}} style={{background:"rgba(79,142,247,0.12)",border:"1px solid rgba(79,142,247,0.3)",borderRadius:6,padding:"4px 8px",fontSize:11,color:"#16293f",cursor:"pointer"}}>📋</button>
+              <div style={{flex:1,fontFamily:"monospace",fontSize:16,fontWeight:800,color:"var(--text)",letterSpacing:"0.12em"}}>{savedCreds.no}</div>
+              <button onClick={async()=>{await copyToClipboard(savedCreds.no);hapticLight();}} style={{background:"rgba(79,142,247,0.12)",border:"1px solid rgba(79,142,247,0.3)",borderRadius:6,padding:"4px 8px",fontSize:11,color:"var(--text)",cursor:"pointer"}}>📋</button>
             </div>
           </div>
           <div style={{borderTop:"1px solid rgba(255,255,255,0.1)",paddingTop:12}}>
@@ -4379,7 +4408,7 @@ function AddTeacherSheet({open,onClose,defaultArea,teachers,t,lang,toast,onSave}
           <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",background:"var(--bg2)",borderRadius:10,border:"1.5px solid var(--border2)"}}>
             <span style={{fontSize:18}}>{AREA_MAP[area]?.icon}</span>
             <span style={{flex:1,fontSize:14,fontWeight:600,color:"var(--text)"}}>{areaName(area,lang)}</span>
-            <span style={{fontSize:10,color:"var(--text2)",padding:"2px 8px",borderRadius:6,background:"#ffffff"}}>🔒 {lang==="ku"?"Kilkkirî":lang==="en"?"Locked":"Gesperrt"}</span>
+            <span style={{fontSize:10,color:"var(--text2)",padding:"2px 8px",borderRadius:6,background:"var(--surface)"}}>🔒 {lang==="ku"?"Kilkkirî":lang==="en"?"Locked":"Gesperrt"}</span>
           </div>
         ) : (
           <select style={selectStyle} value={area} onChange={e=>setArea(e.target.value)}>
@@ -4502,7 +4531,7 @@ function AddLessonSheet({open,onClose,defaultArea,t,lang,toast,onSave}){
           {extraDates.length>0 && (
             <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:4}}>
               {extraDates.map(d=>(
-                <span key={d} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"4px 10px",background:"rgba(22,41,63,0.10)",borderRadius:20,fontSize:11,fontWeight:600,color:"#16293f",border:"1px solid rgba(22,41,63,0.2)"}}>
+                <span key={d} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"4px 10px",background:"rgba(22,41,63,0.10)",borderRadius:20,fontSize:11,fontWeight:600,color:"var(--text)",border:"1px solid rgba(22,41,63,0.2)"}}>
                   📅 {d}
                   <button onClick={()=>removeDate(d)} style={{background:"none",border:"none",cursor:"pointer",color:"#e53935",fontWeight:900,fontSize:13,lineHeight:1,padding:0,marginLeft:2}}>×</button>
                 </span>
@@ -4659,8 +4688,8 @@ function EditStudentSheet({student,onClose,t,lang,toast,onSave}){
         </div>
         <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}>
           <span style={{fontSize:10,color:"rgba(255,255,255,0.5)",minWidth:60}}>{lang==="en"?"Student No":lang==="de"?"Schüler-Nr.":"Jimara"}</span>
-          <span style={{flex:1,fontFamily:"monospace",fontSize:14,fontWeight:800,color:"#16293f",letterSpacing:"0.1em"}}>{student.no}</span>
-          <button onClick={async()=>{await copyToClipboard(student.no);hapticLight();toast("📋");}} style={{background:"rgba(79,142,247,0.12)",border:"1px solid rgba(79,142,247,0.3)",borderRadius:6,padding:"3px 7px",fontSize:11,color:"#16293f",cursor:"pointer"}}>📋</button>
+          <span style={{flex:1,fontFamily:"monospace",fontSize:14,fontWeight:800,color:"var(--text)",letterSpacing:"0.1em"}}>{student.no}</span>
+          <button onClick={async()=>{await copyToClipboard(student.no);hapticLight();toast("📋");}} style={{background:"rgba(79,142,247,0.12)",border:"1px solid rgba(79,142,247,0.3)",borderRadius:6,padding:"3px 7px",fontSize:11,color:"var(--text)",cursor:"pointer"}}>📋</button>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:6}}>
           <span style={{fontSize:10,color:"rgba(255,255,255,0.5)",minWidth:60}}>{lang==="en"?"Password":lang==="de"?"Passwort":"Şîfre"}</span>
@@ -4771,8 +4800,8 @@ function EditTeacherSheet({teacher,onClose,t,lang,toast,onSave}){
         </div>
         <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}>
           <span style={{fontSize:10,color:"rgba(255,255,255,0.5)",minWidth:60}}>{lang==="en"?"Teacher No":lang==="de"?"Lehrer-Nr.":"Jimara"}</span>
-          <span style={{flex:1,fontFamily:"monospace",fontSize:14,fontWeight:800,color:"#16293f",letterSpacing:"0.1em"}}>{teacher.no}</span>
-          <button onClick={async()=>{await copyToClipboard(teacher.no);hapticLight();toast("📋");}} style={{background:"rgba(79,142,247,0.12)",border:"1px solid rgba(79,142,247,0.3)",borderRadius:6,padding:"3px 7px",fontSize:11,color:"#16293f",cursor:"pointer"}}>📋</button>
+          <span style={{flex:1,fontFamily:"monospace",fontSize:14,fontWeight:800,color:"var(--text)",letterSpacing:"0.1em"}}>{teacher.no}</span>
+          <button onClick={async()=>{await copyToClipboard(teacher.no);hapticLight();toast("📋");}} style={{background:"rgba(79,142,247,0.12)",border:"1px solid rgba(79,142,247,0.3)",borderRadius:6,padding:"3px 7px",fontSize:11,color:"var(--text)",cursor:"pointer"}}>📋</button>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:6}}>
           <span style={{fontSize:10,color:"rgba(255,255,255,0.5)",minWidth:60}}>{lang==="en"?"Password":lang==="de"?"Passwort":"Şîfre"}</span>
@@ -4839,13 +4868,13 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
   return(
     <>
       <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:200}}/>
-      <div style={{position:"fixed",bottom:0,left:0,right:0,width:"100%",background:"#ffffff",borderRadius:"24px 24px 0 0",zIndex:201,maxHeight:"90vh",display:"flex",flexDirection:"column"}}>
-        <div style={{background:"#ffffff",borderRadius:"24px 24px 0 0",padding:"16px 16px 0",flexShrink:0,borderBottom:"1px solid rgba(15,23,42,.08)"}}>
+      <div style={{position:"fixed",bottom:0,left:0,right:0,width:"100%",background:"var(--surface)",borderRadius:"24px 24px 0 0",zIndex:201,maxHeight:"90vh",display:"flex",flexDirection:"column"}}>
+        <div style={{background:"var(--surface)",borderRadius:"24px 24px 0 0",padding:"16px 16px 0",flexShrink:0,borderBottom:"1px solid rgba(15,23,42,.08)"}}>
           <div style={{width:36,height:3,background:"rgba(15,23,42,0.15)",borderRadius:2,margin:"0 auto 14px"}}/>
           <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
             <span style={{fontSize:36}}>{a.icon}</span>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:18,fontWeight:700,color:"#16293f"}}>{areaName(areaKey,lang)}</div>
+              <div style={{fontSize:18,fontWeight:700,color:"var(--text)"}}>{areaName(areaKey,lang)}</div>
               {isGenel
                 ? <div style={{fontSize:11,color:"#64748b",lineHeight:1.4}}>{t.commonAreaSub||"Hemû xwendekar"}</div>
                 : <div style={{fontSize:12,color:"#64748b"}}>{aStudents.length} {t.totalStudents.toLowerCase()} · {aTeachers.length} {t.totalTeachers.toLowerCase()}</div>
@@ -4927,8 +4956,8 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
                 : aSchedule.map(ls=>(
                   <div key={ls.id} style={{display:"flex",gap:10,marginBottom:8,alignItems:"center"}}>
                     <div style={{fontSize:10,color:"var(--text2)",minWidth:40,paddingTop:9}}>{ls.start}</div>
-                    <div style={{flex:1,background:"#f8fafc",borderRadius:8,padding:"9px 11px",borderLeft:"3px solid "+a.color}}>
-                      <div style={{fontSize:13,fontWeight:600,color:"#16293f"}}>{ls.name}</div>
+                    <div style={{flex:1,background:"var(--surface2)",borderRadius:8,padding:"9px 11px",borderLeft:"3px solid "+a.color}}>
+                      <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{ls.name}</div>
                       <div style={{fontSize:11,color:a.color,marginTop:2}}>{ls.loc} · {ls.start}–{ls.end}</div>
                       <div style={{fontSize:10,color:a.color+"99",marginTop:1}}>{t.days[ls.day]||ls.day}</div>
                     </div>
@@ -4947,7 +4976,7 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
       {selectedStudent&&(
         <>
           <div onClick={()=>setSelectedStudent(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:300}}/>
-          <div style={{position:"fixed",bottom:0,left:0,right:0,width:"100%",background:"#ffffff",borderRadius:"24px 24px 0 0",zIndex:301,padding:"20px 16px 32px",maxHeight:"80vh",overflowY:"auto"}}>
+          <div style={{position:"fixed",bottom:0,left:0,right:0,width:"100%",background:"var(--surface)",borderRadius:"24px 24px 0 0",zIndex:301,padding:"20px 16px 32px",maxHeight:"80vh",overflowY:"auto"}}>
             <div style={{width:36,height:3,background:"var(--border2)",borderRadius:2,margin:"0 auto 18px"}}/>
             <div style={{marginBottom:20}}><StudentIDCard student={selectedStudent} lang={lang} t={t}/></div>
             <button onClick={()=>{setEditingStudent(selectedStudent);setSelectedStudent(null);}} style={{width:"100%",padding:12,background:"#16293f",color:"#ffffff",border:"none",borderRadius:8,fontSize:14,cursor:"pointer",marginBottom:8}}>✏️ {t.edit||"Edit"}</button>
@@ -4967,7 +4996,7 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
       {deleteConfirm&&(
         <>
           <div onClick={()=>setDeleteConfirm(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:500}}/>
-          <div style={{position:"fixed",bottom:0,left:0,right:0,width:"100%",background:"#ffffff",borderRadius:"24px 24px 0 0",zIndex:501,padding:"24px 20px 36px"}}>
+          <div style={{position:"fixed",bottom:0,left:0,right:0,width:"100%",background:"var(--surface)",borderRadius:"24px 24px 0 0",zIndex:501,padding:"24px 20px 36px"}}>
             <div style={{textAlign:"center",marginBottom:20}}>
               <div style={{fontSize:40,marginBottom:12}}>🗑️</div>
               <div style={{fontSize:16,fontWeight:700,color:"var(--text)",marginBottom:8}}>{t.confirmDelete}</div>
@@ -5178,7 +5207,7 @@ function AdminMessagesPanel({students,teachers,lang,t,toast,adminName}){
                 <span style={{fontSize:18}}>📄</span>
                 <span style={{flex:1,fontSize:12,color:"var(--text)"}}>{a.name}</span>
                 <span style={{fontSize:10,color:"var(--text2)"}}>{a.size}</span>
-                {a.url&&<a href={a.url} download={a.name} style={{fontSize:12,color:"#16293f",textDecoration:"none",fontWeight:600}}>⬇ {lang==="ku"?"Dakêşe":lang==="en"?"Download":"Laden"}</a>}
+                {a.url&&<a href={a.url} download={a.name} style={{fontSize:12,color:"var(--text)",textDecoration:"none",fontWeight:600}}>⬇ {lang==="ku"?"Dakêşe":lang==="en"?"Download":"Laden"}</a>}
               </div>
             ))}
           </div>
@@ -5249,7 +5278,7 @@ function AdminMessagesPanel({students,teachers,lang,t,toast,adminName}){
                 </div>
               )}
               {attachments.filter(f=>f.type==="file").map(f=>(
-                <div key={f.id} style={{display:"flex",alignItems:"center",gap:7,padding:"6px 9px",background:"#ffffff",borderRadius:7,border:"1px solid var(--border)"}}>
+                <div key={f.id} style={{display:"flex",alignItems:"center",gap:7,padding:"6px 9px",background:"var(--surface)",borderRadius:7,border:"1px solid var(--border)"}}>
                   <span>📄</span>
                   <span style={{flex:1,fontSize:11,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</span>
                   <span style={{fontSize:10,color:"var(--text2)"}}>{f.size}</span>
@@ -5502,7 +5531,7 @@ function TeacherMessagesPanel({teacher,myStudents,aColor,lang,t,toast}){
                 <span style={{fontSize:18}}>📄</span>
                 <span style={{flex:1,fontSize:12,color:"var(--text)"}}>{a.name}</span>
                 <span style={{fontSize:10,color:"var(--text2)"}}>{a.size}</span>
-                {a.url&&<a href={a.url} download={a.name} style={{fontSize:12,color:"#16293f",textDecoration:"none",fontWeight:600}}>⬇</a>}
+                {a.url&&<a href={a.url} download={a.name} style={{fontSize:12,color:"var(--text)",textDecoration:"none",fontWeight:600}}>⬇</a>}
               </div>
             ))}
           </div>
@@ -5547,7 +5576,7 @@ function TeacherMessagesPanel({teacher,myStudents,aColor,lang,t,toast}){
           </FieldWrap>
         ):(
           <div style={{padding:"10px 12px",background:"rgba(22,41,63,0.05)",borderRadius:10,marginBottom:12,
-            border:"1px solid rgba(22,41,63,0.18)",fontSize:12,color:"#16293f",fontWeight:600}}>
+            border:"1px solid rgba(22,41,63,0.18)",fontSize:12,color:"var(--text)",fontWeight:600}}>
             📣 {L.allStudents} ({myStudents.length} {lang==="ku"?"xwendekar":lang==="en"?"students":"Schüler"})
           </div>
         )}
@@ -5582,7 +5611,7 @@ function TeacherMessagesPanel({teacher,myStudents,aColor,lang,t,toast}){
                 </div>
               )}
               {attachments.filter(f=>f.type==="file").map(f=>(
-                <div key={f.id} style={{display:"flex",alignItems:"center",gap:7,padding:"5px 9px",background:"#ffffff",borderRadius:7,border:"1px solid var(--border)"}}>
+                <div key={f.id} style={{display:"flex",alignItems:"center",gap:7,padding:"5px 9px",background:"var(--surface)",borderRadius:7,border:"1px solid var(--border)"}}>
                   <span>📄</span>
                   <span style={{flex:1,fontSize:11,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</span>
                   <span style={{fontSize:10,color:"var(--text2)"}}>{f.size}</span>
@@ -5779,7 +5808,7 @@ function AnnouncementsPanel({t,toast,lang,senderName,senderRole,senderArea}){
           <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"var(--bg2)",borderRadius:10,border:"1.5px solid var(--border2)"}}>
             <div style={{width:18,height:18,borderRadius:4,background:"var(--navy)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#fff",fontWeight:700,flexShrink:0}}>✓</div>
             <span style={{fontSize:13,color:"var(--text)",fontWeight:600}}>{AREA_MAP[senderArea]?.icon} {areaName(senderArea,lang)}</span>
-            <span style={{marginLeft:"auto",fontSize:10,color:"var(--text2)",padding:"2px 8px",borderRadius:6,background:"#ffffff"}}>🔒 {lang==="ku"?"Kilkkirî":lang==="en"?"Locked":"Gesperrt"}</span>
+            <span style={{marginLeft:"auto",fontSize:10,color:"var(--text2)",padding:"2px 8px",borderRadius:6,background:"var(--surface)"}}>🔒 {lang==="ku"?"Kilkkirî":lang==="en"?"Locked":"Gesperrt"}</span>
           </div>
         </div>
       ):(
@@ -5839,7 +5868,7 @@ function AnnouncementsPanel({t,toast,lang,senderName,senderRole,senderArea}){
             {/* Dosya listesi */}
             {mediaFiles.filter(f=>f.type==="file").map(f=>(
               <div key={f.id} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",
-                background:"#ffffff",borderRadius:8,border:"1px solid var(--border)"}}>
+                background:"var(--surface)",borderRadius:8,border:"1px solid var(--border)"}}>
                 <span style={{fontSize:18}}>📄</span>
                 <span style={{flex:1,fontSize:11,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</span>
                 <span style={{fontSize:10,color:"var(--text2)"}}>{f.size}</span>
@@ -5882,7 +5911,7 @@ function AnnouncementsPanel({t,toast,lang,senderName,senderRole,senderArea}){
                             <span>📄</span>
                             <span style={{fontSize:11,color:"var(--text)"}}>{m.name}</span>
                             <span style={{fontSize:10,color:"var(--text2)"}}>{m.size}</span>
-                            {m.url&&<a href={m.url} download={m.name} style={{marginLeft:"auto",fontSize:11,color:"#16293f",textDecoration:"none"}}>⬇</a>}
+                            {m.url&&<a href={m.url} download={m.name} style={{marginLeft:"auto",fontSize:11,color:"var(--text)",textDecoration:"none"}}>⬇</a>}
                           </div>
                         ))}
                       </div>
@@ -5900,7 +5929,7 @@ function AnnouncementsPanel({t,toast,lang,senderName,senderRole,senderArea}){
                   </div>
                 )}
                 <div style={{display:"flex",gap:8,marginTop:6}}>
-                  <span style={{fontSize:10,padding:"1px 7px",borderRadius:8,background:"rgba(22,41,63,0.08)",color:"#16293f"}}>{ann.to}</span>
+                  <span style={{fontSize:10,padding:"1px 7px",borderRadius:8,background:"rgba(22,41,63,0.08)",color:"var(--text)"}}>{ann.to}</span>
                   <span style={{fontSize:10,color:"var(--text2)"}}>{ann.time}</span>
                 </div>
               </div>
@@ -5951,12 +5980,12 @@ function StatsDetailModal({type,students,teachers,schedule,onClose,t,lang,toast,
   return(
     <>
       <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:200}}/>
-      <div style={{position:"fixed",bottom:0,left:0,right:0,width:"100%",background:"#ffffff",borderRadius:"24px 24px 0 0",zIndex:201,maxHeight:"88vh",display:"flex",flexDirection:"column"}}>
-        <div style={{background:"#ffffff",borderRadius:"24px 24px 0 0",padding:"16px 16px 14px",flexShrink:0,borderBottom:"1px solid rgba(15,23,42,.08)"}}>
+      <div style={{position:"fixed",bottom:0,left:0,right:0,width:"100%",background:"var(--surface)",borderRadius:"24px 24px 0 0",zIndex:201,maxHeight:"88vh",display:"flex",flexDirection:"column"}}>
+        <div style={{background:"var(--surface)",borderRadius:"24px 24px 0 0",padding:"16px 16px 14px",flexShrink:0,borderBottom:"1px solid rgba(15,23,42,.08)"}}>
           <div style={{width:36,height:3,background:"rgba(15,23,42,0.15)",borderRadius:2,margin:"0 auto 14px"}}/>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <span style={{fontSize:28}}>{info.icon}</span>
-            <div style={{fontSize:17,fontWeight:700,color:"#16293f",flex:1}}>{info.label}</div>
+            <div style={{fontSize:17,fontWeight:700,color:"var(--text)",flex:1}}>{info.label}</div>
             <button onClick={onClose} style={{background:"rgba(15,23,42,0.06)",border:"1px solid rgba(15,23,42,0.1)",fontSize:16,cursor:"pointer",color:"#64748b",borderRadius:8,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
           </div>
         </div>
@@ -6011,8 +6040,8 @@ function StatsDetailModal({type,students,teachers,schedule,onClose,t,lang,toast,
                       return(
                         <div key={ls.id} style={{display:"flex",gap:10,marginBottom:7,alignItems:"center"}}>
                           <div style={{fontSize:10,color:"var(--text2)",minWidth:38,paddingTop:9}}>{ls.start}</div>
-                          <div style={{flex:1,background:"#f8fafc",borderRadius:8,padding:"9px 12px",borderLeft:"3px solid "+a.color}}>
-                            <div style={{fontSize:13,fontWeight:600,color:"#16293f"}}>{a.icon} {ls.name}</div>
+                          <div style={{flex:1,background:"var(--surface2)",borderRadius:8,padding:"9px 12px",borderLeft:"3px solid "+a.color}}>
+                            <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{a.icon} {ls.name}</div>
                             <div style={{fontSize:11,color:a.color,marginTop:2}}>{ls.loc} · {ls.start}–{ls.end}</div>
                             <div style={{fontSize:10,color:a.color+"99",marginTop:1}}>{areaShortName(ls.area,lang)}</div>
                           </div>
@@ -6120,7 +6149,7 @@ function EditLessonSheet({lesson,onClose,t,lang,toast,onSave}){
           {extraDates.length>0&&(
             <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:4}}>
               {extraDates.map(d=>(
-                <span key={d} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"4px 10px",background:"rgba(22,41,63,0.10)",borderRadius:20,fontSize:11,fontWeight:600,color:"#16293f",border:"1px solid rgba(22,41,63,0.2)"}}>
+                <span key={d} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"4px 10px",background:"rgba(22,41,63,0.10)",borderRadius:20,fontSize:11,fontWeight:600,color:"var(--text)",border:"1px solid rgba(22,41,63,0.2)"}}>
                   📅 {d}
                   <button onClick={()=>removeDate(d)} style={{background:"none",border:"none",cursor:"pointer",color:"#e53935",fontWeight:900,fontSize:13,lineHeight:1,padding:0,marginLeft:2}}>×</button>
                 </span>
@@ -6215,11 +6244,11 @@ function AdminScheduleTab({schedule, lang, t, toast, onDataChange}) {
           <div style={{flex:1,width:1,background:"var(--border)",margin:"3px 0"}}/>
           <div style={{fontSize:10,color:"var(--text2)"}}>{ls.end}</div>
         </div>
-        <div style={{flex:1,background:"#ffffff",borderRadius:10,padding:"10px 12px",
+        <div style={{flex:1,background:"var(--surface)",borderRadius:10,padding:"10px 12px",
           borderLeft:"3px solid "+(isExtra?"#ea580c":a.color),border:"1px solid rgba(15,23,42,.08)"}}>
           <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
             <span style={{fontSize:16}}>{isExtra?"🎨":a.icon}</span>
-            <div style={{fontSize:13,fontWeight:700,color:"#16293f",flex:1}}>{ls.name}</div>
+            <div style={{fontSize:13,fontWeight:700,color:"var(--text)",flex:1}}>{ls.name}</div>
             {isExtra&&<span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:"rgba(234,88,12,0.10)",color:"#ea580c",fontWeight:700,border:"1px solid rgba(234,88,12,0.2)"}}>
               {t.extraBadge}
             </span>}
@@ -6271,14 +6300,14 @@ function AdminScheduleTab({schedule, lang, t, toast, onDataChange}) {
       <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:8,marginBottom:12}}>
         <button onClick={()=>setFilterArea("all")}
           style={{padding:"5px 12px",borderRadius:20,fontSize:10,fontWeight:filterArea==="all"?700:400,flexShrink:0,
-            background:"#ffffff",color:filterArea==="all"?"#16293f":"#64748b",
+            background:"var(--surface)",color:filterArea==="all"?"#16293f":"#64748b",
             border:`1px solid ${filterArea==="all"?"#16293f":"rgba(15,23,42,.12)"}`,cursor:"pointer"}}>
           🏫 {t.allAreas||t.allFields}
         </button>
         {AREAS.map(a=>(
           <button key={a.key} onClick={()=>setFilterArea(a.key)}
             style={{padding:"5px 12px",borderRadius:20,fontSize:10,fontWeight:filterArea===a.key?700:400,flexShrink:0,
-              background:"#ffffff",color:filterArea===a.key?"#16293f":"#64748b",
+              background:"var(--surface)",color:filterArea===a.key?"#16293f":"#64748b",
               border:`1px solid ${filterArea===a.key?a.color:"var(--border)"}`,cursor:"pointer"}}>
             {a.icon} {a.name[lang]||a.name.ku}
           </button>
@@ -6461,10 +6490,10 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
           {statsCards.map((s)=>(
             <div key={s.key} onClick={()=>setStatsModal(s.key)}
               className="card card-tap"
-              style={{background:"#ffffff",border:"1px solid rgba(15,23,42,.09)",position:"relative",overflow:"hidden",cursor:"pointer",padding:"14px 14px 12px",boxShadow:"0 1px 4px rgba(15,23,42,.06)"}}>
+              style={{background:"var(--surface)",border:"1px solid rgba(15,23,42,.09)",position:"relative",overflow:"hidden",cursor:"pointer",padding:"14px 14px 12px",boxShadow:"0 1px 4px rgba(15,23,42,.06)"}}>
               <div style={{position:"absolute",right:-8,top:-8,fontSize:56,opacity:.06,pointerEvents:"none",lineHeight:1}}>{s.icon}</div>
               <div style={{fontSize:10,color:"#94a3b8",marginBottom:6,fontWeight:600,letterSpacing:"0.04em",textTransform:"uppercase"}}>{s.label}</div>
-              <div style={{fontSize:30,fontWeight:800,color:"#16293f",lineHeight:1}}>{s.val}</div>
+              <div style={{fontSize:30,fontWeight:800,color:"var(--text)",lineHeight:1}}>{s.val}</div>
               <div style={{marginTop:8,fontSize:10,color:"#64748b",fontWeight:500}}>{s.key==="pending"?"⚡ "+(lang==="en"?"Pending →":lang==="de"?"Ausstehend →":"Hêvîdar →"):(lang==="en"?"Detail →":lang==="de"?"Details →":"Hûrgulî →")}</div>
             </div>
           ))}
@@ -6481,13 +6510,13 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
               return(
                 <div onClick={()=>setActiveArea("genel")}
                   className="area-card"
-                  style={{background:"#ffffff",borderLeft:"4px solid "+genelArea.color,boxShadow:"0 1px 4px rgba(15,23,42,.07)",
+                  style={{background:"var(--surface)",borderLeft:"4px solid "+genelArea.color,boxShadow:"0 1px 4px rgba(15,23,42,.07)",
                     marginBottom:12,display:"block",gridColumn:"1/-1",width:"100%",position:"relative"}}>
                   <div style={{position:"absolute",right:-10,bottom:-10,fontSize:80,opacity:.04,pointerEvents:"none",lineHeight:1}}>🏫</div>
                   <div style={{display:"flex",alignItems:"center",gap:12}}>
                     <div className="area-card-icon" style={{width:52,height:52,borderRadius:16,fontSize:28,background:genelArea.bg}}>🏫</div>
                     <div style={{flex:1}}>
-                      <div style={{fontSize:15,fontWeight:700,color:"#16293f"}}>{t.commonArea||"Hemû Xwendekar"}</div>
+                      <div style={{fontSize:15,fontWeight:700,color:"var(--text)"}}>{t.commonArea||"Hemû Xwendekar"}</div>
                       <div style={{fontSize:11,color:"#64748b",lineHeight:1.5}}>{t.commonAreaDesc||"Dersên Hevpar ên Akademiyê"}</div>
                     </div>
                     <div style={{display:"flex",flexDirection:"column",gap:4,alignItems:"flex-end"}}>
@@ -6507,10 +6536,10 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
                 return(
                   <div key={area.key} onClick={()=>setActiveArea(area.key)}
                     className="area-card"
-                    style={{background:"#ffffff",borderLeft:"4px solid "+a.color,boxShadow:"0 1px 4px rgba(15,23,42,.07)"}}>
+                    style={{background:"var(--surface)",borderLeft:"4px solid "+a.color,boxShadow:"0 1px 4px rgba(15,23,42,.07)"}}>
                     <div style={{position:"absolute",right:-10,bottom:-10,fontSize:70,opacity:.04,pointerEvents:"none",lineHeight:1}}>{area.icon}</div>
                     <div className="area-card-icon" style={{background:a.bg}}>{area.icon}</div>
-                    <div style={{fontSize:14,fontWeight:700,color:"#16293f",marginBottom:3}}>{areaName(area.key,lang)}</div>
+                    <div style={{fontSize:14,fontWeight:700,color:"var(--text)",marginBottom:3}}>{areaName(area.key,lang)}</div>
                     <div style={{fontSize:10.5,color:"#64748b",marginBottom:10,lineHeight:1.4,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{a.name.desc?.[lang]||""}</div>
                     <div style={{display:"flex",gap:6}}>
                       <span style={{fontSize:10,padding:"3px 9px",borderRadius:6,background:a.bg,color:a.color,fontWeight:600}}>🎓 {cnt}</span>
@@ -6639,9 +6668,9 @@ function StudentStatModal({student,aColor,onClose,t,lang,toast}){
   return(
     <>
       <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:300}}/>
-      <div style={{position:"fixed",bottom:0,left:0,right:0,width:"100%",background:"#ffffff",borderRadius:"24px 24px 0 0",zIndex:301,maxHeight:"90vh",display:"flex",flexDirection:"column"}}>
+      <div style={{position:"fixed",bottom:0,left:0,right:0,width:"100%",background:"var(--surface)",borderRadius:"24px 24px 0 0",zIndex:301,maxHeight:"90vh",display:"flex",flexDirection:"column"}}>
         {/* Header */}
-        <div style={{background:"#ffffff",borderRadius:"24px 24px 0 0",padding:"18px 16px 16px",flexShrink:0,borderBottom:"1px solid rgba(15,23,42,.08)"}}>
+        <div style={{background:"var(--surface)",borderRadius:"24px 24px 0 0",padding:"18px 16px 16px",flexShrink:0,borderBottom:"1px solid rgba(15,23,42,.08)"}}>
           <div style={{width:36,height:3,background:"rgba(15,23,42,0.15)",borderRadius:2,margin:"0 auto 14px"}}/>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
             <Avatar name={student.name} color={a.color} size={52} photo={student.photo}/>
@@ -6661,9 +6690,9 @@ function StudentStatModal({student,aColor,onClose,t,lang,toast}){
               {icon:"❌",label:lang==="ku"?"Tunebûn":lang==="en"?"Absent":"Tunebûn",val:absent+" / "+totalLessons,color:"var(--red)",bg:"#ffffff"},
               {icon:"⏱",label:lang==="ku"?"Dereng":lang==="en"?"Late":"Dereng",val:st.late+" car",color:"#d97706",bg:"#ffffff"},
             ].map((s,i)=>(
-              <div key={i} style={{background:"#ffffff",borderRadius:10,padding:"10px 8px",textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
+              <div key={i} style={{background:"var(--surface)",borderRadius:10,padding:"10px 8px",textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
                 <div style={{fontSize:16,marginBottom:3}}>{s.icon}</div>
-                <div style={{fontSize:16,fontWeight:800,color:"#16293f"}}>{s.val}</div>
+                <div style={{fontSize:16,fontWeight:800,color:"var(--text)"}}>{s.val}</div>
                 <div style={{fontSize:9,color:"#94a3b8",marginTop:2}}>{s.label}</div>
               </div>
             ))}
@@ -7153,12 +7182,12 @@ tr:hover td{background:#f9fbff}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
         <div>
           <label style={{fontSize:11,color:"var(--text2)",fontWeight:600,display:"block",marginBottom:5}}>{L("week")}</label>
-          <input type="date" style={{width:"100%",padding:"10px 12px",border:"1.5px solid var(--border2)",borderRadius:10,fontSize:13,fontFamily:"inherit",color:"var(--text)",background:"#ffffff",outline:"none"}}
+          <input type="date" style={{width:"100%",padding:"10px 12px",border:"1.5px solid var(--border2)",borderRadius:10,fontSize:13,fontFamily:"inherit",color:"var(--text)",background:"var(--surface)",outline:"none"}}
             value={weekStart} onChange={e=>setWeekStart(e.target.value)}/>
         </div>
         <div>
           <label style={{fontSize:11,color:"var(--text2)",fontWeight:600,display:"block",marginBottom:5}}>{L("area")}</label>
-          <select style={{width:"100%",padding:"10px 12px",border:"1.5px solid var(--border2)",borderRadius:10,fontSize:13,fontFamily:"inherit",color:"var(--text)",background:"#ffffff",outline:"none"}}
+          <select style={{width:"100%",padding:"10px 12px",border:"1.5px solid var(--border2)",borderRadius:10,fontSize:13,fontFamily:"inherit",color:"var(--text)",background:"var(--surface)",outline:"none"}}
             value={selectedArea} onChange={e=>setSelectedArea(e.target.value)}>
             <option value="all">{L("all")}</option>
             {AREAS.map(a=><option key={a.key} value={a.key}>{a.icon} {areaName(a.key,lang)}</option>)}
@@ -7180,7 +7209,7 @@ tr:hover td{background:#f9fbff}
             {label:L("mid"), val:mid.length, c:"#d97706", bg:""},
             {label:L("high"), val:good.length, c:"#16a34a", bg:""},
           ].map((s,i)=>(
-            <div key={i} style={{background:"#ffffff",borderRadius:8,padding:"10px 6px",textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
+            <div key={i} style={{background:"var(--surface)",borderRadius:8,padding:"10px 6px",textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
               <div style={{fontSize:22,fontWeight:800,color:s.c}}>{s.val}</div>
               <div style={{fontSize:9,color:"#64748b",marginTop:2,fontWeight:500}}>{s.label}</div>
             </div>
@@ -7567,7 +7596,7 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
           ].map(rt=>(
             <button key={rt.key} onClick={()=>setReportType(rt.key)}
               style={{padding:"10px 6px",borderRadius:10,fontSize:11,fontWeight:reportType===rt.key?600:400,
-                background:"#ffffff",
+                background:"var(--surface)",
                 color:reportType===rt.key?"#16293f":"#64748b",
                 border:`1.5px solid ${reportType===rt.key?"#16293f":"rgba(15,23,42,.12)"}`,
                 cursor:"pointer",display:"flex",alignItems:"center",gap:7,justifyContent:"center"}}>
@@ -7623,7 +7652,7 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
           {AREAS.map(a=>(
             <button key={a.key} onClick={()=>setSelectedArea(a.key)}
               style={{padding:"6px 12px",borderRadius:20,fontSize:11,fontWeight:selectedArea===a.key?700:400,
-                background:"#ffffff",
+                background:"var(--surface)",
                 color:selectedArea===a.key?"#16293f":"#64748b",
                 border:`1.5px solid ${selectedArea===a.key?a.color:"var(--border)"}`,cursor:"pointer"}}>
               {a.icon} {areaName(a.key,lang)}
@@ -7639,15 +7668,15 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
           {selectedArea!=="all"?AREA_MAP[selectedArea].icon:"🏫"} {selectedArea==="all"?(lang==="en"?"All Fields":lang==="de"?"Alle Felder":"Hemû Qadan"):areaName(selectedArea,lang)} {lang==="en"?"Summary":lang==="de"?"Zusammenfassung":"Kurte"}
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
-          <div style={{background:"#ffffff",borderRadius:10,padding:"10px 8px",textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
-            <div style={{fontSize:20,fontWeight:800,color:"#16293f"}}>{reportType==="teachers"?filteredTeachers.length:filteredStudents.length}</div>
+          <div style={{background:"var(--surface)",borderRadius:10,padding:"10px 8px",textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
+            <div style={{fontSize:20,fontWeight:800,color:"var(--text)"}}>{reportType==="teachers"?filteredTeachers.length:filteredStudents.length}</div>
             <div style={{fontSize:9,color:"#64748b",marginTop:2}}>{reportType==="teachers"?(lang==="en"?"Teachers":"Mamoste"):"Xwendekar"}</div>
           </div>
-          <div style={{background:"#ffffff",borderRadius:10,padding:"10px 8px",textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
+          <div style={{background:"var(--surface)",borderRadius:10,padding:"10px 8px",textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
             <div style={{fontSize:20,fontWeight:800,color:hasAttData?pctColor(avgAtt):"#94a3b8"}}>{hasAttData?avgAtt+"%":"—"}</div>
             <div style={{fontSize:9,color:"var(--text2)",marginTop:2}}>{lang==="ku"?"Navgîna Amadebûnê":lang==="en"?"Avg Attendance":"Durchschn. Anwesenheit"}</div>
           </div>
-          <div style={{background:"#ffffff",borderRadius:10,padding:"10px 8px",textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
+          <div style={{background:"var(--surface)",borderRadius:10,padding:"10px 8px",textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
             <div style={{fontSize:20,fontWeight:800,color:riskCount>0?"var(--red)":"#94a3b8"}}>{riskCount}</div>
             <div style={{fontSize:9,color:"#64748b",marginTop:2}}>{lang==="ku"?"Di Xeterê de":lang==="en"?"At Risk":"Gefährdet"}</div>
           </div>
@@ -8217,7 +8246,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
       {tViewTab==="questions"&&(
         <>
         {questions.map((q,qi)=>(
-          <div key={q.id} style={{background:"#fff",borderRadius:12,padding:"12px 14px",marginBottom:8,border:"1px solid var(--border)",display:"flex",alignItems:"flex-start",gap:10}}>
+          <div key={q.id} style={{background:"var(--surface)",borderRadius:12,padding:"12px 14px",marginBottom:8,border:"1px solid var(--border)",display:"flex",alignItems:"flex-start",gap:10}}>
             <div style={{width:26,height:26,borderRadius:"50%",background:"#16293f",color:"#fff",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{qi+1}</div>
             <div style={{flex:1,minWidth:0}}>
               {editQ&&editQ.id===q.id?(
@@ -8246,8 +8275,8 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
         ))}
         {/* New question */}
         {editQ==="new"?(
-          <div style={{background:"#fff",borderRadius:14,padding:"14px",border:"2px dashed #274d75",marginBottom:10}}>
-            <div style={{fontSize:12,fontWeight:700,color:"#16293f",marginBottom:10}}>➕ Pirsa Nû</div>
+          <div style={{background:"var(--surface)",borderRadius:14,padding:"14px",border:"2px dashed #274d75",marginBottom:10}}>
+            <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:10}}>➕ Pirsa Nû</div>
             <input style={inputStyle} value={form.ku} onChange={e=>setForm(f=>({...f,ku:e.target.value}))} placeholder="Kurdî — Pirsa Kurdî binivîse..."/>
             <input style={{...inputStyle,marginTop:8}} value={form.en} onChange={e=>setForm(f=>({...f,en:e.target.value}))} placeholder="English question..."/>
             <input style={{...inputStyle,marginTop:8}} value={form.de} onChange={e=>setForm(f=>({...f,de:e.target.value}))} placeholder="Deutsche Frage..."/>
@@ -8303,7 +8332,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
             const aInfo=lesson?AREA_MAP[lesson.area]:null;
             const c=pctColor(overallPct);
             return(
-              <div key={lessonId} style={{background:"#fff",borderRadius:14,padding:"14px",marginBottom:10,border:"1px solid var(--border)",boxShadow:"var(--shadow-card)"}}>
+              <div key={lessonId} style={{background:"var(--surface)",borderRadius:14,padding:"14px",marginBottom:10,border:"1px solid var(--border)",boxShadow:"var(--shadow-card)"}}>
                 <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
                   <div style={{width:42,height:42,borderRadius:12,background:aInfo?.bg||"#f0f6ff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{aInfo?.icon||"📚"}</div>
                   <div style={{flex:1}}>
@@ -8362,7 +8391,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
       {/* ── STEP 1: Temel Bilgiler ── */}
       {step===1&&(
         <div style={{animation:"fadeIn .2s ease"}}>
-          <div style={{background:"#fff",borderRadius:16,padding:"18px",border:"1px solid var(--border)",marginBottom:12}}>
+          <div style={{background:"var(--surface)",borderRadius:16,padding:"18px",border:"1px solid var(--border)",marginBottom:12}}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
               <div style={{width:40,height:40,borderRadius:12,background:"#16293f",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>📋</div>
               <div>
@@ -8394,7 +8423,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
       {/* ── STEP 2: Hedef ── */}
       {step===2&&(
         <div style={{animation:"fadeIn .2s ease"}}>
-          <div style={{background:"#fff",borderRadius:16,padding:"18px",border:"1px solid var(--border)",marginBottom:12}}>
+          <div style={{background:"var(--surface)",borderRadius:16,padding:"18px",border:"1px solid var(--border)",marginBottom:12}}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
               <div style={{width:40,height:40,borderRadius:12,background:"#16293f",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>🎯</div>
               <div>
@@ -8467,7 +8496,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
       {/* ── STEP 3: Sonuç Tipi ── */}
       {step===3&&(
         <div style={{animation:"fadeIn .2s ease"}}>
-          <div style={{background:"#fff",borderRadius:16,padding:"18px",border:"1px solid var(--border)",marginBottom:12}}>
+          <div style={{background:"var(--surface)",borderRadius:16,padding:"18px",border:"1px solid var(--border)",marginBottom:12}}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
               <div style={{width:40,height:40,borderRadius:12,background:"#16293f",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>📊</div>
               <div>
@@ -8525,7 +8554,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
                 ✅ {lang==="ku"?"Pirsên Hatine Zêdekirin":lang==="en"?"Added Questions":""} ({surveyForm.questions.length})
               </div>
               {surveyForm.questions.map((q,qi)=>(
-                <div key={q.id} style={{background:"#fff",borderRadius:12,padding:"11px 14px",marginBottom:6,border:"1px solid var(--border)",display:"flex",alignItems:"center",gap:10}}>
+                <div key={q.id} style={{background:"var(--surface)",borderRadius:12,padding:"11px 14px",marginBottom:6,border:"1px solid var(--border)",display:"flex",alignItems:"center",gap:10}}>
                   <div style={{width:24,height:24,borderRadius:"50%",background:"#16293f",color:"#fff",fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{qi+1}</div>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:12,fontWeight:600,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{q.text}</div>
@@ -8544,7 +8573,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
           )}
 
           {/* Yeni soru formu */}
-          <div style={{background:"#fff",borderRadius:16,padding:"16px",border:`2px dashed ${rtConf.color}44`,marginBottom:12}}>
+          <div style={{background:"var(--surface)",borderRadius:16,padding:"16px",border:`2px dashed ${rtConf.color}44`,marginBottom:12}}>
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
               <div style={{width:36,height:36,borderRadius:10,background:rtConf.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>{rtConf.icon}</div>
               <div>
@@ -8626,7 +8655,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
       {/* ── STEP 5: Belge ── */}
       {step===5&&(
         <div style={{animation:"fadeIn .2s ease"}}>
-          <div style={{background:"#fff",borderRadius:16,padding:"18px",border:"1px solid var(--border)",marginBottom:12}}>
+          <div style={{background:"var(--surface)",borderRadius:16,padding:"18px",border:"1px solid var(--border)",marginBottom:12}}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
               <div style={{width:40,height:40,borderRadius:12,background:"#16293f",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>📎</div>
               <div>
@@ -8645,7 +8674,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
                 position:"relative",flexShrink:0,transition:"background .2s"}}>
                 <div style={{position:"absolute",top:4,
                   left:surveyForm.allowDocs?20:4,
-                  width:20,height:20,borderRadius:"50%",background:"#fff",
+                  width:20,height:20,borderRadius:"50%",background:"var(--surface)",
                   boxShadow:"0 1px 4px rgba(0,0,0,.25)",transition:"left .2s"}}/>
               </div>
               <div style={{flex:1}}>
@@ -8739,7 +8768,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
             : (lang==="ku"?"Hemû Xwendekar":lang==="en"?"All Students":"Alle");
           const rtc=RT_CONFIG[sv.resultType]||RT_CONFIG.percent;
           return(
-          <div key={sv.id||sv.fireId} style={{background:"#fff",borderRadius:16,padding:"14px",marginBottom:12,border:`1.5px solid ${sv.active?"rgba(22,41,63,0.25)":"var(--border)"}`,boxShadow:sv.active?"0 2px 12px rgba(22,41,63,0.08)":"var(--shadow-card)"}}>
+          <div key={sv.id||sv.fireId} style={{background:"var(--surface)",borderRadius:16,padding:"14px",marginBottom:12,border:`1.5px solid ${sv.active?"rgba(22,41,63,0.25)":"var(--border)"}`,boxShadow:sv.active?"0 2px 12px rgba(22,41,63,0.08)":"var(--shadow-card)"}}>
             {/* Header */}
             <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:12}}>
               <div style={{width:44,height:44,borderRadius:12,background:sv.active?"linear-gradient(135deg,#16293f,#16293f)":"var(--bg2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>
@@ -8757,7 +8786,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
                 {sv.desc&&<div style={{fontSize:11,color:"var(--text2)",marginBottom:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sv.desc}</div>}
                 <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
                   <span style={{fontSize:9,padding:"2px 7px",borderRadius:6,background:rtc.bg,color:rtc.color,fontWeight:700}}>{rtc.icon} {rtc.label[lang]||rtc.label.ku}</span>
-                  <span style={{fontSize:9,padding:"2px 7px",borderRadius:6,background:"rgba(22,41,63,0.07)",color:"#16293f"}}>🎯 {targetLabel}</span>
+                  <span style={{fontSize:9,padding:"2px 7px",borderRadius:6,background:"rgba(22,41,63,0.07)",color:"var(--text)"}}>🎯 {targetLabel}</span>
                   <span style={{fontSize:9,padding:"2px 7px",borderRadius:6,background:"var(--bg2)",color:"var(--text2)"}}>❓ {sv.questions?.length||0}</span>
                   <span style={{fontSize:9,padding:"2px 7px",borderRadius:6,background:"rgba(21,128,61,0.07)",color:"#15803d"}}>📝 {resps.length}</span>
                   {sv.allowDocs&&<span style={{fontSize:9,padding:"2px 7px",borderRadius:6,background:"rgba(124,58,237,0.07)",color:"#7c3aed"}}>📎 Belge</span>}
@@ -8777,7 +8806,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
                 ✏️ {L("edit")}
               </button>
               <button onClick={()=>{setSelectedSurvey(sv);setViewMode("results");}}
-                style={{padding:"8px 4px",borderRadius:9,background:"rgba(22,41,63,0.07)",border:"1px solid rgba(22,41,63,0.15)",cursor:"pointer",fontSize:10,fontWeight:600,color:"#16293f"}}>
+                style={{padding:"8px 4px",borderRadius:9,background:"rgba(22,41,63,0.07)",border:"1px solid rgba(22,41,63,0.15)",cursor:"pointer",fontSize:10,fontWeight:600,color:"var(--text)"}}>
                 📊 {L("viewRes")}
               </button>
               <button onClick={()=>deleteSurvey(sv.id||sv.fireId)}
@@ -8818,7 +8847,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
         const rtc=RT_CONFIG[sv.resultType]||RT_CONFIG.percent;
         if(selectedSurvey&&String(sv.id)!==String(selectedSurvey.id)&&sv.fireId!==selectedSurvey.fireId) return null;
         return(
-        <div key={svId} style={{background:"#fff",borderRadius:16,padding:"14px",marginBottom:14,border:"1px solid var(--border)",boxShadow:"var(--shadow-card)"}}>
+        <div key={svId} style={{background:"var(--surface)",borderRadius:16,padding:"14px",marginBottom:14,border:"1px solid var(--border)",boxShadow:"var(--shadow-card)"}}>
           {/* Survey header */}
           <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,paddingBottom:12,borderBottom:"1px solid var(--border)"}}>
             <div style={{width:40,height:40,borderRadius:10,background:rtc.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{rtc.icon}</div>
@@ -8831,7 +8860,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
             </div>
             {!selectedSurvey&&(
               <button onClick={()=>{setSelectedSurvey(sv);setViewMode("results");}}
-                style={{padding:"7px 12px",borderRadius:9,background:"rgba(22,41,63,0.08)",border:"none",cursor:"pointer",fontSize:11,fontWeight:700,color:"#16293f"}}>
+                style={{padding:"7px 12px",borderRadius:9,background:"rgba(22,41,63,0.08)",border:"none",cursor:"pointer",fontSize:11,fontWeight:700,color:"var(--text)"}}>
                 🔍 {L("viewRes")}
               </button>
             )}
@@ -8932,7 +8961,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
     <div>
       {/* ── Daima görünen panel başlığı ── */}
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,padding:"10px 14px",
-        background:"#fff",borderRadius:14,border:"1px solid var(--border)",boxShadow:"0 1px 4px rgba(0,0,0,0.05)"}}>
+        background:"var(--surface)",borderRadius:14,border:"1px solid var(--border)",boxShadow:"0 1px 4px rgba(0,0,0,0.05)"}}>
         <span style={{fontSize:22}}>📋</span>
         <div style={{flex:1}}>
           <div style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>
@@ -9087,10 +9116,10 @@ function TeacherAnnounceView({teacher, anns, setAnns, lang, toast}) {
             const isUnread=!ann._read&&!readIds.includes(id);
             return(
               <div key={id} onClick={()=>markRead(id, ann.fireId)}
-                style={{background:"#ffffff",borderRadius:12,padding:"13px 14px",marginBottom:8,
+                style={{background:"var(--surface)",borderRadius:12,padding:"13px 14px",marginBottom:8,
                   border:`1px solid ${isUnread?a.color+"55":"var(--border)"}`,cursor:"pointer"}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-                  <div style={{width:32,height:32,borderRadius:"50%",background:"#f1f5f9",
+                  <div style={{width:32,height:32,borderRadius:"50%",background:"var(--surface2)",
                     display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>
                     {ann.senderRole==="admin"?"🛡":a.icon}
                   </div>
@@ -9118,9 +9147,9 @@ function TeacherAnnounceView({teacher, anns, setAnns, lang, toast}) {
                lang==="en"?"This announcement will be sent only to "+areaName(teacher.area,lang)+" students.":
                "Diese Ankündigung wird nur an Schüler des Bereichs "+areaName(teacher.area,lang)+" gesendet."}
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,padding:"8px 10px",background:"#f1f5f9",borderRadius:8}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,padding:"8px 10px",background:"var(--surface2)",borderRadius:8}}>
             <span style={{fontSize:20}}>{a.icon}</span>
-            <span style={{fontSize:12,color:"#16293f",fontWeight:600}}>{areaName(teacher.area,lang)}</span>
+            <span style={{fontSize:12,color:"var(--text)",fontWeight:600}}>{areaName(teacher.area,lang)}</span>
           </div>
           <FieldWrap label={lang==="ku"?"Sernav":lang==="en"?"Title":"Titel"}>
             <input style={inputStyle} value={title} onChange={e=>setTitle(e.target.value)} placeholder="..."/>
@@ -9148,7 +9177,7 @@ function TeacherAnnounceView({teacher, anns, setAnns, lang, toast}) {
                 <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{ann.title}</div>
                 <div style={{fontSize:11,color:"var(--text2)",marginTop:2,lineHeight:1.4}}>{ann.msg}</div>
                 <div style={{display:"flex",gap:8,marginTop:5}}>
-                  <span style={{fontSize:10,padding:"1px 7px",borderRadius:8,background:a.bg,color:"#16293f"}}>{a.icon} {areaName(teacher.area,lang)}</span>
+                  <span style={{fontSize:10,padding:"1px 7px",borderRadius:8,background:a.bg,color:"var(--text)"}}>{a.icon} {areaName(teacher.area,lang)}</span>
                   <span style={{fontSize:10,color:"var(--text2)"}}>{ann.time}</span>
                 </div>
               </div>
@@ -9374,14 +9403,14 @@ function TeacherSurveyPanel({teacher, schedule, lang, t, toast}) {
           )}
           <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:14}}>
             {(activeTSurvey.questions||[]).map((q,qi)=>(
-              <div key={q.id||qi} style={{background:"#fff",borderRadius:12,padding:"14px",border:"1px solid var(--border)"}}>
+              <div key={q.id||qi} style={{background:"var(--surface)",borderRadius:12,padding:"14px",border:"1px solid var(--border)"}}>
                 <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:10}}>{qi+1}. {q.text}</div>
                 {q.type==="rating"&&(
                   <div style={{display:"flex",flexDirection:"column",gap:4}}>
                     <input type="range" min={0} max={100} value={tAnswers[q.id]??50}
                       onChange={e=>setTAnswers(p=>({...p,[q.id]:Number(e.target.value)}))}
                       style={{width:"100%",accentColor:"#16293f"}} disabled={tSubmitted}/>
-                    <div style={{textAlign:"right",fontSize:13,fontWeight:700,color:"#16293f"}}>{tAnswers[q.id]??50}%</div>
+                    <div style={{textAlign:"right",fontSize:13,fontWeight:700,color:"var(--text)"}}>{tAnswers[q.id]??50}%</div>
                   </div>
                 )}
                 {q.type==="text"&&(
@@ -9417,7 +9446,7 @@ function TeacherSurveyPanel({teacher, schedule, lang, t, toast}) {
                 reader.readAsDataURL(file); e.target.value="";
               }}/>
               {tDocFile&&(
-                <div style={{marginTop:8,display:"flex",alignItems:"center",gap:8,padding:"7px 10px",background:"#fff",borderRadius:8,border:"1px solid var(--border)"}}>
+                <div style={{marginTop:8,display:"flex",alignItems:"center",gap:8,padding:"7px 10px",background:"var(--surface)",borderRadius:8,border:"1px solid var(--border)"}}>
                   <span style={{fontSize:18}}>📄</span>
                   <span style={{flex:1,fontSize:11,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{tDocFile.name}</span>
                   <button onClick={()=>setTDocFile(null)} style={{background:"none",border:"none",color:"var(--red)",cursor:"pointer",fontSize:14}}>✕</button>
@@ -9442,7 +9471,7 @@ function TeacherSurveyPanel({teacher, schedule, lang, t, toast}) {
       <div style={{marginBottom:12}}>
         <label style={{fontSize:11,color:"var(--text2)",fontWeight:600,display:"block",marginBottom:5}}>{L("lesson")}</label>
         <select style={{width:"100%",padding:"11px 12px",border:"1.5px solid var(--border2)",borderRadius:10,
-          fontSize:14,fontFamily:"inherit",color:"var(--text)",background:"#ffffff",outline:"none"}}
+          fontSize:14,fontFamily:"inherit",color:"var(--text)",background:"var(--surface)",outline:"none"}}
           value={selectedLesson||""} onChange={e=>{setSelectedLesson(e.target.value);setSaved(false);}}>
           {mySchedule.map(ls=>(
             <option key={ls.id} value={ls.id}>{ls.name} · {ls.day} {ls.start}–{ls.end}</option>
@@ -9453,10 +9482,10 @@ function TeacherSurveyPanel({teacher, schedule, lang, t, toast}) {
       {/* Week selection */}
       <div style={{marginBottom:16}}>
         <label style={{fontSize:11,color:"var(--text2)",fontWeight:600,display:"block",marginBottom:5}}>
-          {L("week")} <span style={{fontFamily:"monospace",fontSize:10,color:"#16293f"}}>({weekRangeLabel(weekKey,lang)})</span>
+          {L("week")} <span style={{fontFamily:"monospace",fontSize:10,color:"var(--text)"}}>({weekRangeLabel(weekKey,lang)})</span>
         </label>
         <input type="date" style={{width:"100%",padding:"11px 12px",border:"1.5px solid var(--border2)",
-          borderRadius:10,fontSize:14,fontFamily:"inherit",color:"var(--text)",background:"#ffffff",outline:"none"}}
+          borderRadius:10,fontSize:14,fontFamily:"inherit",color:"var(--text)",background:"var(--surface)",outline:"none"}}
           value={weekStart} onChange={e=>{setWeekStart(e.target.value);setSaved(false);}}/>
       </div>
 
@@ -9470,9 +9499,9 @@ function TeacherSurveyPanel({teacher, schedule, lang, t, toast}) {
             const val = rawVal!=null ? rawVal : null;
             const color = rawVal!=null ? (rawVal>=8?"#1a7a4a":rawVal>=5?"#c07800":"#c0392b") : "var(--text2)";
             return (
-              <div key={q.id} style={{background:"#ffffff",borderRadius:10,padding:"12px",marginBottom:10,border:"0.5px solid var(--border2)"}}>
+              <div key={q.id} style={{background:"var(--surface)",borderRadius:10,padding:"12px",marginBottom:10,border:"0.5px solid var(--border2)"}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-                  <div style={{width:22,height:22,borderRadius:"50%",background:"var(--navy)",color:"#16293f",
+                  <div style={{width:22,height:22,borderRadius:"50%",background:"var(--navy)",color:"var(--text)",
                     fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                     {i+1}
                   </div>
@@ -9514,7 +9543,7 @@ function TeacherSurveyPanel({teacher, schedule, lang, t, toast}) {
                 <div style={{height:"100%",width:`${(overallAvg/10)*100}%`,background:a.color,borderRadius:4,transition:"width .3s"}}/>
               </div>
             </div>
-            <div style={{fontFamily:"monospace",fontSize:24,fontWeight:800,color:"#16293f",flexShrink:0}}>
+            <div style={{fontFamily:"monospace",fontSize:24,fontWeight:800,color:"var(--text)",flexShrink:0}}>
               {overallAvg}<span style={{fontSize:14,opacity:.6}}>/10</span>
             </div>
           </div>
@@ -9527,7 +9556,7 @@ function TeacherSurveyPanel({teacher, schedule, lang, t, toast}) {
           )}
 
           <button onClick={handleSubmit}
-            style={{width:"100%",padding:"14px",background:"#ffffff",
+            style={{width:"100%",padding:"14px",background:"var(--surface)",
               color:saved?"var(--text)":"#fff",border:saved?"0.5px solid var(--border2)":"none",
               borderRadius:12,fontSize:14,fontWeight:700,cursor:"pointer"}}>
             {saved ? ("🔄 "+L("update")) : ("📤 "+L("submit"))}
@@ -9955,7 +9984,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
           <>
             {/* Summary stats */}
             <div style={{display:"grid",gridTemplateColumns:"1fr",gap:8,marginBottom:12}}>
-              <div style={{background:"#ffffff",borderRadius:10,padding:"14px 12px",textAlign:"center",border:"1px solid rgba(15,23,42,.08)",borderLeft:"4px solid "+a.color,boxShadow:"0 1px 4px rgba(15,23,42,.06)"}}>
+              <div style={{background:"var(--surface)",borderRadius:10,padding:"14px 12px",textAlign:"center",border:"1px solid rgba(15,23,42,.08)",borderLeft:"4px solid "+a.color,boxShadow:"0 1px 4px rgba(15,23,42,.06)"}}>
                 <div style={{fontSize:14,marginBottom:4}}>{a.icon}</div>
                 <div style={{fontSize:32,fontWeight:800,color:a.color}}>{myStudents.length}</div>
                 <div style={{fontSize:10,color:"#64748b",marginTop:3}}>{t.totalStudents}</div>
@@ -9965,13 +9994,13 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
             {/* Survey notification */}
             {surveyActive&&(
               <div onClick={()=>setView("evaluation")}
-                style={{background:"#ffffff",borderRadius:12,padding:"12px 14px",marginBottom:12,
+                style={{background:"var(--surface)",borderRadius:12,padding:"12px 14px",marginBottom:12,
                   border:"1px solid rgba(15,23,42,.08)",borderLeft:`4px solid ${a.color}`,cursor:"pointer",
                   boxShadow:"0 1px 4px rgba(15,23,42,.06)",
                   display:"flex",alignItems:"center",gap:12}}>
                 <div style={{fontSize:28}}>📝</div>
                 <div style={{flex:1}}>
-                  <div style={{fontSize:13,fontWeight:700,color:"#16293f"}}>
+                  <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>
                     {lang==="ku"?"Ankêta Hefteyê Çalak e!":lang==="en"?"Weekly Survey is Active!":"Wochenumfrage ist aktiv!"}
                   </div>
                   <div style={{fontSize:11,color:a.color,marginTop:2}}>
@@ -10077,15 +10106,15 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
         {view==="attendance"&&(
           <>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
-              <div style={{background:"#ffffff",borderRadius:10,padding:11,textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
+              <div style={{background:"var(--surface)",borderRadius:10,padding:11,textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
                 <div style={{fontSize:10,color:"var(--green)",marginBottom:3}}>✅ {t.attended}</div>
                 <div style={{fontSize:22,fontWeight:700,color:"var(--green)"}}>{Object.values(attendance).filter(v=>v==="on").length}</div>
               </div>
-              <div style={{background:"#ffffff",borderRadius:10,padding:11,textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
+              <div style={{background:"var(--surface)",borderRadius:10,padding:11,textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
                 <div style={{fontSize:10,color:"#d97706",marginBottom:3}}>⏱ {t.late}</div>
                 <div style={{fontSize:22,fontWeight:700,color:"#d97706"}}>{Object.values(attendance).filter(v=>v==="late").length}</div>
               </div>
-              <div style={{background:"#ffffff",borderRadius:10,padding:11,textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
+              <div style={{background:"var(--surface)",borderRadius:10,padding:11,textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
                 <div style={{fontSize:10,color:"var(--red)",marginBottom:3}}>❌ {t.absent}</div>
                 <div style={{fontSize:22,fontWeight:700,color:"var(--red)"}}>{Object.values(attendance).filter(v=>v==="off").length}</div>
               </div>
@@ -10154,9 +10183,9 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
               </div>
               <div
                 onClick={()=>materialFileRef.current.click()}
-                style={{border:"2px dashed #16293f",borderRadius:12,padding:"20px 16px",textAlign:"center",cursor:"pointer",background:"#f8fafc",marginBottom:12}}>
+                style={{border:"2px dashed #16293f",borderRadius:12,padding:"20px 16px",textAlign:"center",cursor:"pointer",background:"var(--surface2)",marginBottom:12}}>
                 <div style={{fontSize:32,marginBottom:8}}>📁</div>
-                <div style={{fontSize:13,color:"#16293f",fontWeight:600}}>
+                <div style={{fontSize:13,color:"var(--text)",fontWeight:600}}>
                   {lang==="de"?"Dateien hochladen":lang==="en"?"Upload Files":"Pelê Barkirin"}
                 </div>
                 <div style={{fontSize:11,color:a.color,marginTop:4}}>
@@ -10194,7 +10223,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                       </div>
                       <a href={mat.url} download={mat.name}
                         onClick={e=>e.stopPropagation()}
-                        style={{padding:"5px 10px",borderRadius:6,background:a.bg,color:"#16293f",fontSize:11,fontWeight:500,textDecoration:"none",flexShrink:0}}>
+                        style={{padding:"5px 10px",borderRadius:6,background:a.bg,color:"var(--text)",fontSize:11,fontWeight:500,textDecoration:"none",flexShrink:0}}>
                         ⬇
                       </a>
                       <button onClick={()=>setMaterials(p=>p.filter(m=>m.id!==mat.id))}
@@ -10257,7 +10286,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                         style={{padding:"10px 12px",borderRadius:10,fontSize:12,fontWeight:600,textAlign:"left",
                           background:isActive?"rgba(22,41,63,0.10)":sel?"rgba(22,41,63,0.05)":"#f8fafc",
                           border:`1.5px solid ${isActive?"#16293f":sel?a.color:"var(--border)"}`,
-                          color:sel?a.color:"#16293f",cursor:"pointer",
+                          color:sel?a.color:"var(--text)",cursor:"pointer",
                           display:"flex",alignItems:"center",gap:8}}>
                         <span style={{fontSize:16}}>{isExtra?"🎨":a.icon}</span>
                         <span style={{flex:1}}>{ls.name}</span>
@@ -10313,7 +10342,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
 
               {/* QR Session Status */}
               {activeQRSession ? (
-                <div style={{background:"#ffffff",border:"1px solid rgba(22,163,74,0.3)",borderRadius:10,padding:"12px 14px",marginBottom:14}}>
+                <div style={{background:"var(--surface)",border:"1px solid rgba(22,163,74,0.3)",borderRadius:10,padding:"12px 14px",marginBottom:14}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
                     <div style={{width:10,height:10,borderRadius:"50%",background:"var(--green)",animation:"pulse 1.5s ease-in-out infinite"}}/>
                     <span style={{fontSize:13,fontWeight:700,color:"var(--green)"}}>
@@ -10332,7 +10361,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                     <button onClick={()=>openLessonQR()} style={{padding:"9px",background:"#16293f",color:"#ffffff",border:"none",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer"}}>
                       🔍 QR
                     </button>
-                    <button onClick={()=>window._aat_printQR&&window._aat_printQR()} style={{padding:"9px",background:"rgba(79,142,247,0.12)",color:"#16293f",border:"0.5px solid rgba(79,142,247,0.3)",borderRadius:8,fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                    <button onClick={()=>window._aat_printQR&&window._aat_printQR()} style={{padding:"9px",background:"rgba(79,142,247,0.12)",color:"var(--text)",border:"0.5px solid rgba(79,142,247,0.3)",borderRadius:8,fontSize:11,fontWeight:700,cursor:"pointer"}}>
                       🖨 {lang==="ku"?"Çap":lang==="en"?"Print":"Drucken"}
                     </button>
                     <button onClick={()=>{
@@ -10448,11 +10477,11 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
             </div>
 
             {/* Bulk message shortcut */}
-            <div style={{background:"#ffffff",borderRadius:12,padding:"11px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:10,cursor:"pointer",border:"1px solid rgba(15,23,42,.08)",borderLeft:"4px solid "+a.color}}
+            <div style={{background:"var(--surface)",borderRadius:12,padding:"11px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:10,cursor:"pointer",border:"1px solid rgba(15,23,42,.08)",borderLeft:"4px solid "+a.color}}
               onClick={()=>setView("messages")}>
               <span style={{fontSize:22}}>📣</span>
               <div style={{flex:1}}>
-                <div style={{fontSize:12,fontWeight:700,color:"#16293f"}}>
+                <div style={{fontSize:12,fontWeight:700,color:"var(--text)"}}>
                   {lang==="ku"?"Hemû Xwendekaran Peyam Bişîne":lang==="en"?"Message All Students":"Nachricht an alle Schüler"}
                 </div>
                 <div style={{fontSize:10,color:a.color,marginTop:2}}>{myStudents.length} {lang==="ku"?"xwendekar":lang==="en"?"students":"Schüler"} · {lang==="ku"?"Massenversand":lang==="en"?"Bulk Message":"Sammelnachricht"}</div>
@@ -10765,7 +10794,7 @@ function BiometricModal({ open, onSuccess, onCancel, lang, aColor, user }) {
     }}>
       <div style={{
         width:"100%",
-        background:"#ffffff", borderRadius:"28px 28px 0 0",
+        background:"var(--surface)", borderRadius:"28px 28px 0 0",
         padding:"0 20px 44px",
         boxShadow:"0 -12px 60px rgba(0,0,0,0.5)",
         animation:"slideUp .3s var(--ease)"
@@ -10844,7 +10873,7 @@ function BiometricModal({ open, onSuccess, onCancel, lang, aColor, user }) {
               }}>
                 <div style={{
                   width:84, height:84, borderRadius:"50%",
-                  background:"#ffffff",
+                  background:"var(--surface)",
                   display:"flex", alignItems:"center", justifyContent:"center",
                   fontSize:36
                 }}>👆</div>
@@ -10885,7 +10914,7 @@ function BiometricModal({ open, onSuccess, onCancel, lang, aColor, user }) {
             />
             {pinError && (
               <div style={{color:"var(--red)", fontSize:11, marginBottom:10, textAlign:"center",
-                padding:"6px 10px", background:"#ffffff", borderRadius:8, border:"1px solid rgba(220,38,38,0.3)"}}>
+                padding:"6px 10px", background:"var(--surface)", borderRadius:8, border:"1px solid rgba(220,38,38,0.3)"}}>
                 ⚠ {pinError}
               </div>
             )}
@@ -10900,7 +10929,7 @@ function BiometricModal({ open, onSuccess, onCancel, lang, aColor, user }) {
             </button>
             {hasBiometric !== false && (
               <button onClick={triggerBiometric}
-                style={{width:"100%", padding:12, background:"none", border:"none", color:"#16293f", fontSize:13, cursor:"pointer"}}>
+                style={{width:"100%", padding:12, background:"none", border:"none", color:"var(--text)", fontSize:13, cursor:"pointer"}}>
                 👆 {L("finger")}
               </button>
             )}
@@ -11022,15 +11051,15 @@ function StudentSurveyView({student, a, lang, toast}) {
         {activeSurvey.desc&&<div style={{fontSize:12,color:"var(--text2)",marginBottom:14,padding:"10px 12px",background:"var(--bg2)",borderRadius:8,lineHeight:1.6}}>{activeSurvey.desc}</div>}
 
         {submitted&&(
-          <div style={{padding:"12px",background:"#ffffff",border:"1px solid rgba(22,163,74,0.3)",borderRadius:10,fontSize:12,fontWeight:600,color:"var(--green)",textAlign:"center",marginBottom:14}}>
+          <div style={{padding:"12px",background:"var(--surface)",border:"1px solid rgba(22,163,74,0.3)",borderRadius:10,fontSize:12,fontWeight:600,color:"var(--green)",textAlign:"center",marginBottom:14}}>
             ✅ {lang==="ku"?"Ankêta te hat tomarkirin. Spas!":lang==="en"?"Your response has been saved. Thank you!":"Ihre Antwort wurde gespeichert. Danke!"}
           </div>
         )}
 
         {activeSurvey.questions?.map((q,qi)=>(
-          <div key={q.id} style={{background:"#ffffff",borderRadius:10,padding:"12px",marginBottom:10,border:"0.5px solid var(--border2)"}}>
+          <div key={q.id} style={{background:"var(--surface)",borderRadius:10,padding:"12px",marginBottom:10,border:"0.5px solid var(--border2)"}}>
             <div style={{fontSize:12,fontWeight:600,color:"var(--text)",marginBottom:10}}>
-              <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:20,height:20,borderRadius:"50%",background:"var(--navy)",color:"#16293f",fontSize:10,fontWeight:700,marginRight:8}}>{qi+1}</span>
+              <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:20,height:20,borderRadius:"50%",background:"var(--navy)",color:"var(--text)",fontSize:10,fontWeight:700,marginRight:8}}>{qi+1}</span>
               {q.text}
             </div>
             {q.type==="rating"&&(
@@ -11076,7 +11105,7 @@ function StudentSurveyView({student, a, lang, toast}) {
                   <button key={ch} onClick={()=>{if(!submitted) setAnswers(p=>({...p,[q.id]:ch}));}}
                     style={{padding:"10px 14px",borderRadius:10,fontSize:12,fontWeight:answers[q.id]===ch?700:400,
                       background:answers[q.id]===ch?a.bg:"#f8fafc",
-                      color:"#16293f",
+                      color:"var(--text)",
                       border:`1.5px solid ${answers[q.id]===ch?a.color:"var(--border)"}`,
                       cursor:submitted?"default":"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:10}}>
                     <span style={{width:16,height:16,borderRadius:"50%",border:`2px solid ${answers[q.id]===ch?a.color:"var(--border2)"}`,
@@ -11121,7 +11150,7 @@ function StudentSurveyView({student, a, lang, toast}) {
           const done=hasAnswered(sv);
           return(
             <div key={sv.id} onClick={()=>openSurvey(sv)}
-              style={{background:"#ffffff",borderRadius:12,padding:"14px",marginBottom:10,
+              style={{background:"var(--surface)",borderRadius:12,padding:"14px",marginBottom:10,
                 border:`1.5px solid ${done?"var(--green)":a.color+"55"}`,cursor:"pointer",
                 boxShadow:done?"none":`0 2px 12px ${a.color}22`}}>
               <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
@@ -11230,8 +11259,8 @@ function StudentFeedbackPanel({student, a, lang, toast}) {
   return(
     <div style={{paddingBottom:20}}>
       {/* Info banner */}
-      <div style={{background:"#ffffff",borderRadius:12,padding:"11px 14px",marginBottom:12,border:"1px solid rgba(15,23,42,.08)",borderLeft:"4px solid "+a.color,
-        fontSize:11,color:"#16293f",lineHeight:1.6}}>
+      <div style={{background:"var(--surface)",borderRadius:12,padding:"11px 14px",marginBottom:12,border:"1px solid rgba(15,23,42,.08)",borderLeft:"4px solid "+a.color,
+        fontSize:11,color:"var(--text)",lineHeight:1.6}}>
         ℹ️ {lbl("adminNote")}
       </div>
 
@@ -11280,7 +11309,7 @@ function StudentFeedbackPanel({student, a, lang, toast}) {
           <span style={{fontSize:11,color:"var(--text)"}}>{lbl("anon")}</span>
         </div>
         {sent?(
-          <div style={{padding:"11px",background:"#ffffff",border:"1px solid rgba(22,163,74,0.3)",borderRadius:10,fontSize:12,fontWeight:600,color:"var(--green)",textAlign:"center"}}>
+          <div style={{padding:"11px",background:"var(--surface)",border:"1px solid rgba(22,163,74,0.3)",borderRadius:10,fontSize:12,fontWeight:600,color:"var(--green)",textAlign:"center"}}>
             {lbl("sent")}
           </div>
         ):(
@@ -11496,12 +11525,12 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
                 <>
                   <SectionHeader>{t.todayLessons}</SectionHeader>
                   {activeLs&&(
-                    <div style={{background:"#ffffff",borderRadius:12,padding:"12px 14px",marginBottom:10,border:"1px solid rgba(15,23,42,.08)",borderLeft:"4px solid "+a.color,boxShadow:"0 1px 3px rgba(15,23,42,.05)",
+                    <div style={{background:"var(--surface)",borderRadius:12,padding:"12px 14px",marginBottom:10,border:"1px solid rgba(15,23,42,.08)",borderLeft:"4px solid "+a.color,boxShadow:"0 1px 3px rgba(15,23,42,.05)",
                       border:`2px solid ${a.color}`,boxShadow:`0 2px 12px ${a.color}33`}}>
                       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
                         <span style={{fontSize:18}}>{a.icon}</span>
                         <div style={{flex:1}}>
-                          <div style={{fontSize:14,fontWeight:700,color:"#16293f"}}>{activeLs.name}</div>
+                          <div style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>{activeLs.name}</div>
                           <div style={{fontSize:11,color:a.color}}>{activeLs.start}–{activeLs.end} · {activeLs.loc||"—"}</div>
                         </div>
                         <span style={{fontSize:10,padding:"3px 10px",borderRadius:20,background:"#16293f",color:"#fff",fontWeight:700}}>
@@ -11613,7 +11642,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
               {(()=>{
                 const sess=getActiveQRSession();
                 if(sess) return(
-                  <div style={{background:"#ffffff",border:"1px solid rgba(22,163,74,0.3)",borderRadius:10,padding:"12px 14px",marginBottom:14}}>
+                  <div style={{background:"var(--surface)",border:"1px solid rgba(22,163,74,0.3)",borderRadius:10,padding:"12px 14px",marginBottom:14}}>
                     <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
                       <div style={{width:10,height:10,borderRadius:"50%",background:"var(--green)"}}/>
                       <span style={{fontSize:13,fontWeight:700,color:"var(--green)"}}>{lang==="de"?"Aktive Unterrichtssitzung":lang==="en"?"Active Class Session":"Rûniştina Dersa Çalak"}</span>
@@ -11664,11 +11693,11 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
                   {/* Navê Akademiyê */}
                   <div style={{textAlign:"center"}}>
                     <div style={{fontSize:10,letterSpacing:"0.15em",color:"rgba(247,209,22,0.7)",textTransform:"uppercase",marginBottom:2}}>Akademîya</div>
-                    <div style={{fontSize:13,fontWeight:800,color:"#16293f",letterSpacing:"0.05em"}}>Aram Tîgran</div>
+                    <div style={{fontSize:13,fontWeight:800,color:"var(--text)",letterSpacing:"0.05em"}}>Aram Tîgran</div>
                   </div>
 
                   {/* QR animation frame */}
-                  <div style={{position:"relative",padding:10,background:"#fff",borderRadius:14,boxShadow:"0 4px 16px rgba(0,0,0,0.3)"}}>
+                  <div style={{position:"relative",padding:10,background:"var(--surface)",borderRadius:14,boxShadow:"0 4px 16px rgba(0,0,0,0.3)"}}>
                     <QRPattern no={student.no} size={140}/>
                     {/* Scan line */}
                     <div style={{
@@ -11722,7 +11751,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
               const isAdmin2=ann.senderRole==="admin"||!ann.senderRole;
               return(
                 <div key={annId2} onClick={()=>setReadIds(p=>[...new Set([...p,annId2])])}
-                  style={{background:"#ffffff",borderRadius:12,padding:"13px 14px",marginBottom:8,
+                  style={{background:"var(--surface)",borderRadius:12,padding:"13px 14px",marginBottom:8,
                     border:`1px solid ${isUnread?a.color+"55":"var(--border)"}`,
                     boxShadow:isUnread?`0 2px 8px ${a.color}22`:"none",cursor:"pointer"}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
@@ -11759,7 +11788,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
               <Card>
                 {studentMessages.map((msg,i)=>{
                   const isUnread=!msg.read&&!studentMsgRead.includes(msg.fireId||msg.id);
-                  const iconColor=msg.fromType==="admin"?"#16293f":msg.fromType==="teacher"?a.color:"#16293f";
+                  const iconColor=msg.fromType==="admin"?"#16293f":msg.fromType==="teacher"?a.color:"var(--text)";
                   const iconBg=msg.fromType==="admin"?"#f0f6ff":msg.fromType==="teacher"?a.bg:"rgba(22,163,74,.08)";
                   return(
                     <div key={msg.fireId||msg.id}
@@ -11778,7 +11807,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:4}}>
                             <div style={{fontSize:12,fontWeight:isUnread?700:500,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                               {msg.from}
-                              {msg.type==="bulk"&&<span style={{marginLeft:5,fontSize:9,padding:"1px 5px",borderRadius:4,background:"rgba(22,41,63,0.1)",color:"#16293f"}}>📣</span>}
+                              {msg.type==="bulk"&&<span style={{marginLeft:5,fontSize:9,padding:"1px 5px",borderRadius:4,background:"rgba(22,41,63,0.1)",color:"var(--text)"}}>📣</span>}
                             </div>
                             <span style={{fontSize:9,color:"var(--text2)",flexShrink:0}}>{msg.time?.slice(-5)||msg.time}</span>
                           </div>
@@ -11802,10 +11831,10 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
         {/* ── DERS PROGRAMI ── */}
         {view==="schedule"&&(
           <>
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,padding:"10px 14px",background:"#f8fafc",borderRadius:12,border:"1px solid rgba(15,23,42,.08)",borderLeft:"3px solid "+a.color}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,padding:"10px 14px",background:"var(--surface2)",borderRadius:12,border:"1px solid rgba(15,23,42,.08)",borderLeft:"3px solid "+a.color}}>
               <span style={{fontSize:24}}>{a.icon}</span>
               <div>
-                <div style={{fontSize:13,fontWeight:700,color:"#16293f"}}>{areaName(student.area,lang)}</div>
+                <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{areaName(student.area,lang)}</div>
                 <div style={{fontSize:11,color:a.color}}>{mySchedule.length} {lang==="en"?"lessons · Weekly schedule":lang==="de"?"Stunden · Wochenplan":"ders · Bernameya hefteyê"}</div>
               </div>
             </div>
@@ -11819,7 +11848,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
                   if(!mainLs.length) return null;
                   return(
                     <>
-                      <div style={{fontSize:11,fontWeight:700,color:"#16293f",textTransform:"uppercase",letterSpacing:"0.07em",margin:"8px 0 6px",display:"flex",alignItems:"center",gap:6}}>
+                      <div style={{fontSize:11,fontWeight:700,color:"var(--text)",textTransform:"uppercase",letterSpacing:"0.07em",margin:"8px 0 6px",display:"flex",alignItems:"center",gap:6}}>
                         📅 {t.mainLessonsWeekly}
                       </div>
                       {["Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî","Yekşem"].map(day=>{
@@ -11835,8 +11864,8 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
                                   <div style={{flex:1,width:1.5,background:"rgba(22,41,63,0.25)",margin:"3px 0"}}/>
                                   <span style={{fontSize:10,color:"var(--text2)"}}>{ls.end}</span>
                                 </div>
-                                <div style={{flex:1,background:"#f8fafc",borderRadius:10,padding:"10px 13px",borderLeft:"3px solid "+a.color,border:"1px solid rgba(15,23,42,.08)"}}>
-                                  <div style={{fontSize:13,fontWeight:700,color:"#16293f"}}>{ls.name}</div>
+                                <div style={{flex:1,background:"var(--surface2)",borderRadius:10,padding:"10px 13px",borderLeft:"3px solid "+a.color,border:"1px solid rgba(15,23,42,.08)"}}>
+                                  <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{ls.name}</div>
                                   <div style={{fontSize:11,color:a.color,marginTop:3}}>📍 {ls.loc}</div>
                                 </div>
                               </div>
@@ -11877,7 +11906,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
                                   <span style={{fontSize:10,color:"var(--text2)"}}>{ls.end}</span>
                                 </div>
                                 <div style={{flex:1,background:"#fff7ed",borderRadius:10,padding:"10px 13px",borderLeft:"3px solid #ea580c",border:"1px solid rgba(234,88,12,.12)"}}>
-                                  <div style={{fontSize:13,fontWeight:700,color:"#16293f"}}>{ls.name}</div>
+                                  <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{ls.name}</div>
                                   <div style={{display:"flex",alignItems:"center",gap:8,marginTop:3}}>
                                     <span style={{fontSize:10,padding:"2px 7px",borderRadius:20,background:"rgba(234,88,12,0.10)",color:"#ea580c",fontWeight:700}}>🎨 {t.extraBadge}</span>
                                     <span style={{fontSize:11,color:"#ea580c"}}>📍 {ls.loc}</span>
@@ -11946,10 +11975,10 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
             {/* Alan bilgisi */}
             <Card style={{marginBottom:10}}>
               <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:12}}>🎨 {lang==="de"?"Fachbereich":lang==="en"?"Field Info":"Agahiyên Qadê"}</div>
-              <div style={{display:"flex",alignItems:"center",gap:12,padding:"8px 12px",background:"#f8fafc",borderRadius:10,marginBottom:8,borderLeft:"3px solid "+a.color}}>
+              <div style={{display:"flex",alignItems:"center",gap:12,padding:"8px 12px",background:"var(--surface2)",borderRadius:10,marginBottom:8,borderLeft:"3px solid "+a.color}}>
                 <span style={{fontSize:32}}>{a.icon}</span>
                 <div>
-                  <div style={{fontSize:14,fontWeight:700,color:"#16293f"}}>{areaName(student.area,lang)}</div>
+                  <div style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>{areaName(student.area,lang)}</div>
                   <div style={{fontSize:11,color:a.color}}>{a.name.desc?.[lang]||""}</div>
                 </div>
               </div>
@@ -12221,11 +12250,11 @@ function LoginScreen({students,teachers,t,lang,setLang,onLogin,onForgot,dark,onT
   }
 
   return(
-    <div style={{background:"#ffffff",height:"100%",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+    <div style={{background:"var(--surface)",height:"100%",display:"flex",flexDirection:"column",overflow:"hidden"}}>
       {/* Hero */}
       <div style={{
         flexShrink:0,
-        background:"#ffffff",
+        background:"var(--surface)",
         padding:"32px 24px 0px",
         display:"flex",flexDirection:"column",alignItems:"center",gap:8
       }}>
@@ -12308,7 +12337,7 @@ function LoginScreen({students,teachers,t,lang,setLang,onLogin,onForgot,dark,onT
           <button onClick={()=>doLogin()} className="btn-navy" aria-label={t.btnLogin} style={{marginBottom:12,fontSize:15,letterSpacing:"0.02em"}}>
             {t.btnLogin}
           </button>
-          <div style={{textAlign:"center",fontSize:13,color:"#16293f",cursor:"pointer",padding:"8px 0",fontWeight:500,textDecoration:"underline",textDecorationColor:"rgba(22,41,63,0.3)"}} onClick={onForgot}>
+          <div style={{textAlign:"center",fontSize:13,color:"var(--text)",cursor:"pointer",padding:"8px 0",fontWeight:500,textDecoration:"underline",textDecorationColor:"rgba(22,41,63,0.3)"}} onClick={onForgot}>
             🔑 {lang==="en"?"Forgot password?":lang==="de"?"Passwort vergessen?":"Şîfre ji bîr kir?"}
           </div>
         </div>
@@ -12637,16 +12666,16 @@ function TeacherQRDisplay({token, lessonName, teacherName, areaColor, onClose, s
 
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:400,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:16}}>
-      <div style={{background:"#ffffff",borderRadius:24,width:"100%",maxWidth:360,padding:"18px 16px 20px",boxShadow:"0 20px 60px rgba(0,0,0,0.6)",maxHeight:"95vh",overflowY:"auto"}}>
+      <div style={{background:"var(--surface)",borderRadius:24,width:"100%",maxWidth:360,padding:"18px 16px 20px",boxShadow:"0 20px 60px rgba(0,0,0,0.6)",maxHeight:"95vh",overflowY:"auto"}}>
 
         {/* Header */}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
           <div>
             <div style={{fontSize:15,fontWeight:700,color:"var(--text)"}}>📡 {lang==="en"?"Class QR":lang==="de"?"Unterrichts-QR":"Dersa QR"}</div>
-            <div style={{fontSize:12,color:"#16293f",marginTop:2,fontWeight:600}}>{lessonName}</div>
+            <div style={{fontSize:12,color:"var(--text)",marginTop:2,fontWeight:600}}>{lessonName}</div>
             <div style={{fontSize:10,color:"var(--text2)",marginTop:1}}>{teacherName}</div>
           </div>
-          <div style={{background:"#ffffff",border:"1px solid rgba(22,163,74,0.3)",borderRadius:10,padding:"6px 10px",textAlign:"center"}}>
+          <div style={{background:"var(--surface)",border:"1px solid rgba(22,163,74,0.3)",borderRadius:10,padding:"6px 10px",textAlign:"center"}}>
             <div style={{fontSize:16}}>✅</div>
             <div style={{fontSize:11,fontWeight:700,color:"var(--green)"}}>{checkinList.length}/{total}</div>
           </div>
@@ -12654,7 +12683,7 @@ function TeacherQRDisplay({token, lessonName, teacherName, areaColor, onClose, s
 
         {/* QR Code */}
         <div style={{display:"flex",justifyContent:"center",marginBottom:14}}>
-          <div style={{background:"#fff",borderRadius:16,padding:12,boxShadow:"0 4px 24px rgba(22,41,63,0.2)",border:"4px solid #16293f"}}>
+          <div style={{background:"var(--surface)",borderRadius:16,padding:12,boxShadow:"0 4px 24px rgba(22,41,63,0.2)",border:"4px solid #16293f"}}>
             <div ref={qrRef} id="qr-teacher-canvas" style={{width:240,height:240}}/>
           </div>
         </div>
@@ -13014,7 +13043,7 @@ function StudentQRScanner({student, onClose, toast, lang="ku"}){
                   gap:12,cursor:"pointer",background:"rgba(247,209,22,0.05)",
                   boxShadow:"0 0 40px rgba(247,209,22,0.1)"}}>
                 <span style={{fontSize:64}}>📸</span>
-                <div style={{color:"#16293f",fontSize:13,fontWeight:700,textAlign:"center",lineHeight:1.5}}>
+                <div style={{color:"var(--text)",fontSize:13,fontWeight:700,textAlign:"center",lineHeight:1.5}}>
                   {L.shoot}
                 </div>
               </div>
@@ -13050,7 +13079,7 @@ function StudentQRScanner({student, onClose, toast, lang="ku"}){
             style={{padding:"16px",fontSize:16,fontFamily:"monospace",fontWeight:700,
               letterSpacing:"0.1em",textAlign:"center",width:"100%",maxWidth:320,
               background:"rgba(255,255,255,0.08)",border:"1.5px solid rgba(255,255,255,0.25)",
-              borderRadius:14,color:"#16293f",outline:"none",WebkitAppearance:"none"}}/>
+              borderRadius:14,color:"var(--text)",outline:"none",WebkitAppearance:"none"}}/>
           <button onClick={submitManual}
             style={{width:"100%",maxWidth:320,padding:"14px",background:"#16293f",color:"#ffffff",border:"none",
               border:"none",borderRadius:12,fontSize:15,fontWeight:700,cursor:"pointer"}}>
@@ -13216,7 +13245,7 @@ function PWAInstallBanner(){
         <span style={{fontSize:24,fontWeight:"bold",color:"#fff",fontFamily:"Georgia,serif"}}>A</span>
       </div>
       <div style={{flex:1}}>
-        <div style={{color:"#16293f",fontSize:12,fontWeight:700}}>{l("title")}</div>
+        <div style={{color:"var(--text)",fontSize:12,fontWeight:700}}>{l("title")}</div>
         <div style={{color:"#64748b",fontSize:10,marginTop:2}}>{l("sub")}</div>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:6}}>
@@ -13236,31 +13265,19 @@ function PWAInstallBanner(){
 /* ─── THEME CONTEXT ──────────────────────────────────────────────────────── */
 // Uygulama her zaman koyu tema kullanır — gelecek için light mode altyapısı hazır
 function useTheme(){
+  // Varsayılan: açık tema. Kullanıcı açıkça "dark" seçmişse koyu.
   const [dark,setDark]=useState(()=>{
-    try{return localStorage.getItem("aat-theme")!=="light";}catch{return true;}
+    try{return localStorage.getItem("aat-theme")==="dark";}catch{return false;}
   });
   useEffect(()=>{
     try{localStorage.setItem("aat-theme",dark?"dark":"light");}catch{}
-    // Apply CSS variables
-    if(!dark){
-      document.documentElement.style.setProperty("--bg1","#f8f9fb");
-      document.documentElement.style.setProperty("--bg2","#eef0f4");
-      document.documentElement.style.setProperty("--bg3","#e8eaee");
-      document.documentElement.style.setProperty("--text","#1a2035");
-      document.documentElement.style.setProperty("--text2","#5566aa");
-      document.documentElement.style.setProperty("--border","rgba(0,0,0,0.08)");
-      document.documentElement.style.setProperty("--border2","rgba(0,0,0,0.14)");
-      document.documentElement.style.setProperty("--navy","#16293f");
-    } else {
-      document.documentElement.style.setProperty("--bg1","#0e1a2e");
-      document.documentElement.style.setProperty("--bg2","#162035");
-      document.documentElement.style.setProperty("--bg3","#0a1220");
-      document.documentElement.style.setProperty("--text","#eef0f8");
-      document.documentElement.style.setProperty("--text2","#8899bb");
-      document.documentElement.style.setProperty("--border","rgba(255,255,255,.07)");
-      document.documentElement.style.setProperty("--border2","rgba(255,255,255,.14)");
-      document.documentElement.style.setProperty("--navy","#16293f");
-    }
+    // Tüm tema renkleri html.theme-dark sınıfındaki CSS değişkenleriyle gelir.
+    document.documentElement.classList.toggle("theme-dark", dark);
+    // Tarayıcı/durum çubuğu rengi
+    try{
+      const meta=document.querySelector('meta[name="theme-color"]');
+      if(meta) meta.setAttribute("content", dark?"#0c1422":"#16293f");
+    }catch(_){}
   },[dark]);
   return [dark,setDark];
 }
@@ -13405,7 +13422,7 @@ function SettingsSheet({open, onClose, dark, onThemeToggle, lang, setLang, t, on
   const Toggle=({on})=>(
     <div style={{width:44,height:26,borderRadius:13,background:on?"#5dc48a":"rgba(255,255,255,0.15)",
       position:"relative",transition:"background .2s",flexShrink:0}}>
-      <div style={{width:20,height:20,borderRadius:10,background:"#fff",
+      <div style={{width:20,height:20,borderRadius:10,background:"var(--surface)",
         position:"absolute",top:3,left:on?21:3,transition:"left .2s",
         boxShadow:"0 1px 4px rgba(0,0,0,0.3)"}}/>
     </div>
@@ -13423,7 +13440,7 @@ function SettingsSheet({open, onClose, dark, onThemeToggle, lang, setLang, t, on
           {LANGS.map(l=>(
             <button key={l.key} onClick={()=>setLang(l.key)}
               style={{flex:1,padding:"10px 6px",border:`1.5px solid ${lang===l.key?"var(--navy)":"var(--border)"}`,
-                borderRadius:10,background:"#ffffff",cursor:"pointer",
+                borderRadius:10,background:"var(--surface)",cursor:"pointer",
                 display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
               <span style={{fontSize:18}}>{l.flag}</span>
               <span style={{fontSize:10,fontWeight:lang===l.key?700:500,color:lang===l.key?"#16293f":"#64748b"}}>{l.label}</span>
