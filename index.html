@@ -97,7 +97,9 @@
     https://*.gstatic.com
     https://www.googleapis.com
     https://*.googleapis.com
-    https://cdn.emailjs.com;
+    https://cdn.emailjs.com
+    https://www.google.com
+    https://www.recaptcha.net;
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.googleapis.com;
   font-src 'self' https://fonts.gstatic.com https://*.gstatic.com data:;
   img-src 'self' blob: data: https:;
@@ -114,6 +116,7 @@
     wss://*.firebaseio.com
     https://*.firebaseio.com
     https://api.emailjs.com;
+  frame-src 'self' https://www.google.com https://www.recaptcha.net;
   frame-ancestors 'none';
   base-uri 'self';
   form-action 'self';
@@ -192,6 +195,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, query, orderBy, where, limit } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
   import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, createUserWithEmailAndPassword, updatePassword, updateEmail, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
 
   // ══════════════════════════════════════════════════════════════════════
   // ── Firebase Firestore GÜVENLİK KURALLARI (Firebase Console > Firestore > Rules)
@@ -274,6 +278,26 @@
   const ADMIN_EMAIL = "admin@aramtigran.edu"; 
 
   const app = initializeApp(firebaseConfig);
+
+  // ── Firebase App Check (reCAPTCHA v3) ────────────────────────────────
+  // Backend'i uygulama dışı/otomatik isteklere karşı korur.
+  // 1) Firebase Console > App Check > reCAPTCHA v3 ile site key oluştur.
+  // 2) Aşağıdaki APPCHECK_SITE_KEY'i o anahtarla değiştir.
+  // Anahtar girilene kadar App Check güvenli şekilde DEVRE DIŞI kalır.
+  const APPCHECK_SITE_KEY = "YOUR_RECAPTCHA_V3_SITE_KEY";
+  try {
+    if (APPCHECK_SITE_KEY && APPCHECK_SITE_KEY !== "YOUR_RECAPTCHA_V3_SITE_KEY") {
+      initializeAppCheck(app, {
+        provider: new ReCaptchaV3Provider(APPCHECK_SITE_KEY),
+        isTokenAutoRefreshEnabled: true
+      });
+      if (window._appCheck) window._appCheck.configured = true;
+      console.info("[AppCheck] enabled");
+    } else {
+      console.warn("[AppCheck] site key ayarlanmadı — App Check devre dışı");
+    }
+  } catch (e) { console.warn("[AppCheck] init failed:", e); }
+
   const db = getFirestore(app);
   const auth = getAuth(app);
 
@@ -1432,6 +1456,43 @@ async function fbDelete(type, fireId) {
     if (type === "announcement") await window.__FB.deleteDoc(window.__FB.doc(window.__FB.db, "announcements", String(fireId)));
     if (type === "message") await window.__FB.deleteDoc(window.__FB.doc(window.__FB.db, "messages", String(fireId)));
   } catch(e) { console.warn("Firebase delete error:", type, fireId, e); throw e; }
+}
+
+// ── KVKK/GDPR + Apple App Store 5.1.1(v): kullanıcının kendi hesabını
+//    uygulama içinden kalıcı silmesi. İki aşamalı onay ister. ──
+async function deleteOwnAccount(user, role, lang, toast, onLogout){
+  const L = (ku,en,de)=> lang==="en"?en : lang==="de"?de : ku;
+  const warn = L(
+    "Hesabê te û hemû daneyên te DÊ BI TEVAHÎ bên jêbirin. Ev kar venagere. Berdewam bikî?",
+    "Your account and all your data will be PERMANENTLY deleted. This cannot be undone. Continue?",
+    "Dein Konto und alle deine Daten werden DAUERHAFT gelöscht. Dies kann nicht rückgängig gemacht werden. Fortfahren?"
+  );
+  if(!window.confirm(warn)) return;
+  const word = L("JÊBIRIN","DELETE","LÖSCHEN");
+  const typed = (window.prompt(L(
+    'Ji bo erêkirinê "'+word+'" binivîse:',
+    'Type "'+word+'" to confirm:',
+    '"'+word+'" eingeben zum Bestätigen:'
+  )) || "").trim().toUpperCase();
+  if(typed !== word){
+    toast(L("✖ Jêbirin hate betalkirin","✖ Deletion cancelled","✖ Löschung abgebrochen"));
+    return;
+  }
+  try{
+    if(window.__FB && window.__FB.isConfigured()){
+      const fireId = user.fireId || user.id;
+      await fbDelete(role==="teacher"?"teacher":"student", fireId);
+      // Öğrenci istatistik dokümanı — best effort
+      try{ await window.__FB.deleteDoc(window.__FB.doc(window.__FB.db,"studentStats",String(user.id))); }catch(_){}
+      // Firebase Auth hesabını sil — best effort (son giriş gerekebilir)
+      try{ const cu = window.__FB.auth && window.__FB.auth.currentUser; if(cu) await cu.delete(); }catch(_){}
+    }
+    toast(L("✅ Hesab hate jêbirin","✅ Account deleted","✅ Konto gelöscht"));
+    setTimeout(()=>{ try{ onLogout && onLogout(); }catch(_){} }, 900);
+  }catch(e){
+    console.warn("deleteOwnAccount error:", e);
+    toast(L("⚠ Çewtî çêbû — bi rêvebir re têkilî daynin","⚠ Error — please contact admin","⚠ Fehler — bitte Admin kontaktieren"));
+  }
 }
 
 // window.__FB'ye deleteDoc ve doc ekle (module scope'dan erişim için)
@@ -9548,6 +9609,11 @@ function TeacherProfileView({teacher,a,lang,t,toast,avgAtt,avgGrade,riskCount,my
           <span style={{fontSize:18}}>↩</span> {lang==="de"?"Abmelden":lang==="en"?"Sign Out":"Derkeve"}
           <span style={{marginLeft:"auto"}}>›</span>
         </button>
+        <button onClick={()=>deleteOwnAccount(teacher,"teacher",lang,toast,onLogout)}
+          style={{width:"100%",marginTop:8,padding:"12px",background:"transparent",border:"0.5px solid var(--border2)",borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer",color:"var(--text2)",textAlign:"left",display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:18}}>🗑</span> {lang==="de"?"Konto löschen":lang==="en"?"Delete Account":"Hesabê Min Jê Bibe"}
+          <span style={{marginLeft:"auto"}}>›</span>
+        </button>
       </Card>
 
       {showChangePass&&<StudentChangePassSheet onClose={()=>setShowChangePass(false)} toast={toast} lang={lang} user={teacher} userType="teacher" onSavePass={onSaveTeacherPass}/>}
@@ -11913,6 +11979,11 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
               <button onClick={onLogout}
                 style={{width:"100%",padding:"12px",background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer",color:"var(--red)",textAlign:"left",display:"flex",alignItems:"center",gap:10}}>
                 <span style={{fontSize:18}}>↩</span> {lang==="de"?"Abmelden":lang==="en"?"Sign Out":"Derkeve"}
+                <span style={{marginLeft:"auto"}}>›</span>
+              </button>
+              <button onClick={()=>deleteOwnAccount(student,"student",lang,toast,onLogout)}
+                style={{width:"100%",marginTop:8,padding:"12px",background:"transparent",border:"0.5px solid var(--border2)",borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer",color:"var(--text2)",textAlign:"left",display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:18}}>🗑</span> {lang==="de"?"Konto löschen":lang==="en"?"Delete Account":"Hesabê Min Jê Bibe"}
                 <span style={{marginLeft:"auto"}}>›</span>
               </button>
             </Card>
