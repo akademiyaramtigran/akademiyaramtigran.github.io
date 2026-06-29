@@ -2025,21 +2025,23 @@ function downloadIDCardHD(node, student, lang, toast){
   }).catch(err => { console.warn("ID card PNG export error:", err); toast && toast(_idCardMsg(lang,"fail")); });
 }
 
-// Çapxane PDF — ID-1 / CR80 (54 × 85.6 mm portre) + 3mm bleed + nîşanên jêkirinê (crop marks).
-function downloadIDCardPDF(node, student, lang, toast){
+// Çapxane PDF — ID-1 / CR80 + 3mm bleed + nîşanên jêkirinê (crop marks).
+// orientation: "portrait" (54×85.6mm) an "landscape" (85.6×54mm).
+function downloadIDCardPDF(node, student, lang, toast, orientation="portrait"){
   if(!node){ return; }
   const jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
   if(typeof html2canvas === "undefined" || !jsPDF){ toast && toast(_idCardMsg(lang,"loading")); return; }
   toast && toast(_idCardMsg(lang,"prep"));
-  // Ölçü: ID-1/CR80 portre. Trim 54×85.6mm, bleed 3mm her alî → rûpel 60×91.6mm.
-  const TRIM_W=54, TRIM_H=85.6, BLEED=3;
+  // Ölçü: ID-1/CR80. Trim + bleed 3mm her alî.
+  const land = orientation==="landscape";
+  const TRIM_W = land?85.6:54, TRIM_H = land?54:85.6, BLEED=3;
   const PAGE_W=TRIM_W+2*BLEED, PAGE_H=TRIM_H+2*BLEED;
   const trimX=BLEED, trimY=BLEED;
   // Şefaf render → li dora goşeyên gilover paşxaneya bleed (lacîwert) xuya dibe.
   _renderIDCardCanvas(node, {transparent:true}).then(canvas => {
     const imgData = canvas.toDataURL("image/png");
     const aspect = canvas.width / canvas.height;
-    const doc = new jsPDF({unit:"mm", format:[PAGE_W, PAGE_H], orientation:"portrait", compress:true});
+    const doc = new jsPDF({unit:"mm", format:[PAGE_W, PAGE_H], orientation:land?"landscape":"portrait", compress:true});
     // 1) Tevahiya rûpelê (bleed jî di nav de) lacîwert tê dagirtin — dibe çîçeka kêlekê.
     doc.setFillColor(22,41,63); // #16293f
     doc.rect(0,0,PAGE_W,PAGE_H,"F");
@@ -2064,7 +2066,7 @@ function downloadIDCardPDF(node, student, lang, toast){
       doc.line(cx, cy+sy*G, cx, cy+sy*(G+M));  // nîşana tîk (vertical)
     });
     const safeNo = (student && student.no ? String(student.no) : "kart").replace(/[^A-Za-z0-9_-]/g,"");
-    doc.save("ATA-kart-" + safeNo + "-capxane.pdf");
+    doc.save("ATA-kart-" + safeNo + "-" + (land?"berwari":"dik") + "-capxane.pdf");
     toast && toast(_idCardMsg(lang,"savedPDF"));
   }).catch(err => { console.warn("ID card PDF export error:", err); toast && toast(_idCardMsg(lang,"fail")); });
 }
@@ -3879,6 +3881,83 @@ function StudentIDCard({student, lang, t}){
         <div style={{textAlign:"center"}}>
           <div style={{fontSize:14,color:"var(--text)",fontWeight:800,fontFamily:"monospace",letterSpacing:"0.10em"}}>{student.no}</div>
           <button onClick={async(e)=>{e.stopPropagation();await copyToClipboard(student.no);hapticLight();}} aria-label="Jimara kopî bike / Copy number" style={{background:"var(--surface)",border:"1px solid #999999",borderRadius:6,padding:"2px 8px",fontSize:10,cursor:"pointer",color:"var(--text)",marginLeft:4}}>📋</button>
+        </div>
+      </div>
+
+      <div style={{height:3,background:"#16293f",position:"relative",zIndex:1}}/>
+    </div>
+  );
+}
+
+/* ─── STUDENT ID CARD — LANDSCAPE / LANYARD (yatay yaka kartı) ────────────── */
+// CR80 berwarî (85.6 × 54 mm). Foto çep, agahî navîn, QR rast — wek karta yaqeyê.
+function StudentIDCardLandscape({student, lang, t}){
+  const a = AREA_MAP[student.area]||AREA_MAP["genel"]||{color:"#16293f",bg:"rgba(22,41,63,0.06)",icon:"🎓",name:{ku:"",en:"",de:"",desc:{ku:"",en:"",de:""}}};
+  const year = student.no ? student.no.slice(2,6) : new Date().getFullYear();
+  return(
+    <div style={{
+      width:"100%",margin:"0 auto",
+      background:"var(--surface)",
+      borderRadius:16,overflow:"hidden",
+      boxShadow:"0 8px 28px rgba(0,0,0,0.16)",
+      fontFamily:"inherit",
+      border:"1.5px solid #16293f",
+      position:"relative",
+      display:"flex",flexDirection:"column"
+    }}>
+      {/* Watermark */}
+      <div style={{position:"absolute",left:"50%",top:"50%",transform:"translate(-50%,-50%)",width:170,height:170,borderRadius:"50%",overflow:"hidden",opacity:0.04,pointerEvents:"none",zIndex:0}}>
+        <AcademyLogo size={170}/>
+      </div>
+
+      {/* Header strip */}
+      <div style={{padding:"8px 14px",background:"var(--hero-grad)",display:"flex",alignItems:"center",justifyContent:"center",gap:8,position:"relative",zIndex:1}}>
+        <div style={{color:"#fff",fontSize:12,fontWeight:800,letterSpacing:"0.06em",textAlign:"center",lineHeight:1.15}}>AKADEMÎYA ARAM TÎGRAN</div>
+        <div style={{color:"rgba(255,255,255,0.6)",fontSize:8,fontWeight:600,letterSpacing:"0.12em",textTransform:"uppercase"}}>· Xwendekar</div>
+      </div>
+
+      {/* Body row */}
+      <div style={{padding:"12px 14px",display:"flex",gap:12,alignItems:"center",position:"relative",zIndex:1}}>
+        {/* Photo + area badge */}
+        <div style={{flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",gap:5}}>
+          {student.photo
+            ? <img src={student.photo} style={{width:66,height:84,borderRadius:9,objectFit:"cover",border:"2.5px solid #16293f",boxShadow:"0 4px 12px rgba(0,0,0,0.18)"}} alt={student.name}/>
+            : <div style={{width:66,height:84,borderRadius:9,background:"#f5f5f5",border:"2px dashed #999999",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:3,overflow:"hidden"}}>
+                <div style={{width:30,height:30,borderRadius:"50%",background:"#e8e8e8",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:18}}>👤</span></div>
+                <span style={{fontSize:7,color:"#777777"}}>FOTO</span>
+              </div>}
+          <div style={{background:"#f3f3f3",border:"1px solid #16293f",borderRadius:6,padding:"2px 8px",textAlign:"center"}}>
+            <span style={{fontSize:13}}>{a.icon}</span>
+          </div>
+        </div>
+
+        {/* Info */}
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{color:"var(--text)",fontSize:14,fontWeight:800,marginBottom:8,lineHeight:1.2,letterSpacing:"-0.01em"}}>{student.name}</div>
+          <div style={{display:"grid",gap:5}}>
+            <div>
+              <div style={{fontSize:7,color:"#777777",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:1}}>{t.cardArea}</div>
+              <div style={{fontSize:11,color:"var(--text)",fontWeight:700}}>{areaName(student.area,lang)}</div>
+            </div>
+            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+              <div>
+                <div style={{fontSize:7,color:"#777777",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:1}}>{lang==="de"?"Studierendennr.":lang==="en"?"Student No":"Jm. Xwendekar"}</div>
+                <div style={{fontSize:12,color:"var(--text)",fontWeight:800,fontFamily:"monospace",letterSpacing:"0.06em",background:"#f0f0f0",display:"inline-block",padding:"2px 7px",borderRadius:6,border:"1px solid #d5d5d5"}}>{student.no}</div>
+              </div>
+              <div>
+                <div style={{fontSize:7,color:"#777777",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:1}}>{t.cardYear}</div>
+                <div style={{fontSize:11,color:"#2c4f7c",fontWeight:600,paddingTop:2}}>{year} – {parseInt(year)+1}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* QR */}
+        <div style={{flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",gap:5}}>
+          <div style={{background:"var(--surface)",padding:7,borderRadius:11,boxShadow:"0 4px 14px rgba(0,0,0,0.10)",border:"3px solid #16293f"}}>
+            <StudentQRCode no={student.no} size={84}/>
+          </div>
+          <div style={{fontSize:11,color:"var(--text)",fontWeight:800,fontFamily:"monospace",letterSpacing:"0.08em"}}>{student.no}</div>
         </div>
       </div>
 
@@ -11462,6 +11541,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
   const [biometricTarget,setBiometricTarget]=useState(null); // "scanner" | "qr"
   const [showChangePass,setShowChangePass]=useState(false);
   const idCardRef=useRef(null);
+  const [cardFormat,setCardFormat]=useState("portrait"); // "portrait" | "landscape"
   const a=AREA_MAP[student.area]||AREA_MAP["genel"]||{color:"#16293f",bg:"rgba(22,41,63,0.08)",icon:"🎓",name:{ku:"",en:"",de:"",desc:{ku:"",en:"",de:""}}};
   const mySchedule=schedule.filter(s=>{
     if(!s.area||!student.area) return false;
@@ -12093,13 +12173,26 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
             {/* Karta nasnameyê */}
             <Card style={{marginBottom:10}}>
               <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:12}}>🪪 {lang==="de"?"Studierendenausweis":lang==="en"?"Student ID Card":"Karta Nasnameyê"}</div>
+              {/* Format toggle: dîk (portre) / berwarî (yaka kartı yatay) */}
+              <div style={{display:"flex",gap:6,marginBottom:12,background:"var(--surface2)",borderRadius:10,padding:4}}>
+                {[
+                  {k:"portrait",label:lang==="de"?"Hochformat":lang==="en"?"Portrait":"Dîk"},
+                  {k:"landscape",label:lang==="de"?"Querformat":lang==="en"?"Landscape":"Berwarî"}
+                ].map(o=>(
+                  <button key={o.k} onClick={()=>setCardFormat(o.k)} style={{flex:1,padding:"7px",borderRadius:7,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,background:cardFormat===o.k?"#16293f":"transparent",color:cardFormat===o.k?"#fff":"var(--text2)",transition:"background 0.2s"}}>
+                    {o.k==="portrait"?"▯ ":"▭ "}{o.label}
+                  </button>
+                ))}
+              </div>
               <div ref={idCardRef} id="id-card-export">
-                <StudentIDCard student={{...student,photo:student.photo}} lang={lang} t={t}/>
+                {cardFormat==="landscape"
+                  ? <StudentIDCardLandscape student={{...student,photo:student.photo}} lang={lang} t={t}/>
+                  : <StudentIDCard student={{...student,photo:student.photo}} lang={lang} t={t}/>}
               </div>
               <button onClick={()=>downloadIDCardHD(idCardRef.current, student, lang, toast)} style={{width:"100%",marginTop:12,padding:"10px",background:"#16293f",color:"#ffffff",border:"none",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer"}}>
                 {lang==="de"?"⬇ Karte Herunterladen (HD)":lang==="en"?"⬇ Download Card (HD)":"⬇ Kart Dakêşe (HD)"}
               </button>
-              <button onClick={()=>downloadIDCardPDF(idCardRef.current, student, lang, toast)} style={{width:"100%",marginTop:8,padding:"10px",background:"var(--surface)",color:"#16293f",border:"1.5px solid #16293f",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer"}}>
+              <button onClick={()=>downloadIDCardPDF(idCardRef.current, student, lang, toast, cardFormat)} style={{width:"100%",marginTop:8,padding:"10px",background:"var(--surface)",color:"#16293f",border:"1.5px solid #16293f",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer"}}>
                 {lang==="de"?"🖨 Druck-PDF (CR80 + Beschnitt)":lang==="en"?"🖨 Print PDF (CR80 + bleed)":"🖨 PDF ya Çapxaneyê (CR80 + bleed)"}
               </button>
             </Card>
