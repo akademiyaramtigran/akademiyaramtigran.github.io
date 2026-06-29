@@ -176,6 +176,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.22.5/babel.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js" crossorigin="anonymous" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>
@@ -1967,28 +1968,28 @@ function compressImage(dataUrl, maxW = 800, maxH = 800, quality = 0.82) {
 }
 
 /* ─── HD ID-CARD EXPORT (print-ready) ────────────────────────────────────── */
-// Karta nasnameyê → bilindirin çareseriya bilind ya çapkirinê (HD card print).
-// Belge wek PNG'eke şefaf-li-spî tê hilberandin û dakêşandin.
-function downloadIDCardHD(node, student, lang, toast){
-  if(!node){ return; }
-  if(typeof html2canvas === "undefined"){
-    toast && toast(lang==="de"?"⚠ Bitte erneut versuchen (lädt noch)":lang==="en"?"⚠ Please try again (still loading)":"⚠ Ji kerema xwe dîsa biceribîne (hîn bar dibe)");
-    return;
-  }
-  toast && toast(lang==="de"?"📥 Karte wird vorbereitet…":lang==="en"?"📥 Preparing card…":"📥 Kart tê amadekirin…");
-  // Çapa fizîkî ya kartê: ID-1 (CR80) ~53.98mm fireh. Ji bo HD em armanca ~600dpi dikin.
-  // outputWidth ≈ 1600px → nivîs û QR tîr û zelal dimînin.
+// Karta nasnameyê → çareseriya bilind ji bo çapkirinê (HD card print).
+const _idCardMsg = (lang, key) => ({
+  prep:   {ku:"📥 Kart tê amadekirin…", en:"📥 Preparing card…", de:"📥 Karte wird vorbereitet…"},
+  loading:{ku:"⚠ Ji kerema xwe dîsa biceribîne (hîn bar dibe)", en:"⚠ Please try again (still loading)", de:"⚠ Bitte erneut versuchen (lädt noch)"},
+  fail:   {ku:"⚠ Dakêşan bi ser neket", en:"⚠ Export failed", de:"⚠ Export fehlgeschlagen"},
+  savedHD:{ku:"✅ Kart hat tomarkirin (HD)", en:"✅ Card saved (HD)", de:"✅ Karte gespeichert (HD)"},
+  savedPDF:{ku:"✅ PDF ya çapxaneyê hat tomarkirin", en:"✅ Print-ready PDF saved", de:"✅ Druckfertige PDF gespeichert"},
+}[key][lang] || ({prep:"📥 …",loading:"⚠",fail:"⚠",savedHD:"✅",savedPDF:"✅"}[key]));
+
+// Hundir: kartê wek canvas'eke bilind-çareserî render dike (her tim tema ronî, paşxane spî/şefaf).
+function _renderIDCardCanvas(node, {transparent=false} = {}){
   const baseW = node.offsetWidth || 340;
-  const scale = Math.min(8, Math.max(4, 1600 / baseW));
-  html2canvas(node, {
+  const scale = Math.min(8, Math.max(4, 1600 / baseW));  // ~600dpi → nivîs û QR tîr dimînin
+  return html2canvas(node, {
     scale,
-    backgroundColor: "#ffffff",   // şefafî → spî, ji bo çapkirinê li ser PVC'yê
+    backgroundColor: transparent ? null : "#ffffff",
     useCORS: true,
     allowTaint: false,
     logging: false,
     imageTimeout: 0,
     onclone: (doc) => {
-      // Çi tema be jî, çapê her tim guhertoya ronî (light) bigre — ji bo çapa fizîkî baştir e.
+      // Çi tema be jî, çapê her tim guhertoya ronî (light) bigre.
       const el = doc.getElementById("id-card-export");
       if(el){
         el.style.setProperty("--surface","#ffffff");
@@ -2002,27 +2003,70 @@ function downloadIDCardHD(node, student, lang, toast){
         el.style.margin = "0";
       }
     }
-  }).then(canvas => {
+  });
+}
+
+// PNG ya bilind (HD) — ji bo dîtin/parvekirinê.
+function downloadIDCardHD(node, student, lang, toast){
+  if(!node){ return; }
+  if(typeof html2canvas === "undefined"){ toast && toast(_idCardMsg(lang,"loading")); return; }
+  toast && toast(_idCardMsg(lang,"prep"));
+  _renderIDCardCanvas(node).then(canvas => {
     canvas.toBlob(blob => {
-      if(!blob){
-        toast && toast(lang==="de"?"⚠ Export fehlgeschlagen":lang==="en"?"⚠ Export failed":"⚠ Dakêşan bi ser neket");
-        return;
-      }
+      if(!blob){ toast && toast(_idCardMsg(lang,"fail")); return; }
+      const safeNo = (student && student.no ? String(student.no) : "kart").replace(/[^A-Za-z0-9_-]/g,"");
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      const safeNo = (student && student.no ? String(student.no) : "kart").replace(/[^A-Za-z0-9_-]/g,"");
-      link.href = url;
-      link.download = "ATA-kart-" + safeNo + ".png";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      link.href = url; link.download = "ATA-kart-" + safeNo + ".png";
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
       setTimeout(()=>URL.revokeObjectURL(url), 4000);
-      toast && toast(lang==="de"?"✅ Karte gespeichert (HD)":lang==="en"?"✅ Card saved (HD)":"✅ Kart hat tomarkirin (HD)");
+      toast && toast(_idCardMsg(lang,"savedHD"));
     }, "image/png");
-  }).catch(err => {
-    console.warn("ID card export error:", err);
-    toast && toast(lang==="de"?"⚠ Export fehlgeschlagen":lang==="en"?"⚠ Export failed":"⚠ Dakêşan bi ser neket");
-  });
+  }).catch(err => { console.warn("ID card PNG export error:", err); toast && toast(_idCardMsg(lang,"fail")); });
+}
+
+// Çapxane PDF — ID-1 / CR80 (54 × 85.6 mm portre) + 3mm bleed + nîşanên jêkirinê (crop marks).
+function downloadIDCardPDF(node, student, lang, toast){
+  if(!node){ return; }
+  const jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+  if(typeof html2canvas === "undefined" || !jsPDF){ toast && toast(_idCardMsg(lang,"loading")); return; }
+  toast && toast(_idCardMsg(lang,"prep"));
+  // Ölçü: ID-1/CR80 portre. Trim 54×85.6mm, bleed 3mm her alî → rûpel 60×91.6mm.
+  const TRIM_W=54, TRIM_H=85.6, BLEED=3;
+  const PAGE_W=TRIM_W+2*BLEED, PAGE_H=TRIM_H+2*BLEED;
+  const trimX=BLEED, trimY=BLEED;
+  // Şefaf render → li dora goşeyên gilover paşxaneya bleed (lacîwert) xuya dibe.
+  _renderIDCardCanvas(node, {transparent:true}).then(canvas => {
+    const imgData = canvas.toDataURL("image/png");
+    const aspect = canvas.width / canvas.height;
+    const doc = new jsPDF({unit:"mm", format:[PAGE_W, PAGE_H], orientation:"portrait", compress:true});
+    // 1) Tevahiya rûpelê (bleed jî di nav de) lacîwert tê dagirtin — dibe çîçeka kêlekê.
+    doc.setFillColor(22,41,63); // #16293f
+    doc.rect(0,0,PAGE_W,PAGE_H,"F");
+    // 2) Kart bi parastina rêjeyê di nav trim de tê bicîhkirin (contain), navendkirî li ser rûpelê.
+    let drawW, drawH;
+    if(aspect > TRIM_W/TRIM_H){ drawW=TRIM_W; drawH=TRIM_W/aspect; }
+    else { drawH=TRIM_H; drawW=TRIM_H*aspect; }
+    const imgX=(PAGE_W-drawW)/2, imgY=(PAGE_H-drawH)/2;
+    doc.addImage(imgData, "PNG", imgX, imgY, drawW, drawH, undefined, "FAST");
+    // 3) Nîşanên jêkirinê (crop marks) li goşeyên trimê, di nav qada bleedê de — spî.
+    doc.setDrawColor(255,255,255);
+    doc.setLineWidth(0.1);
+    const M=2.2, G=0.0; // dirêjahiya nîşanê, valahî
+    const corners=[
+      [trimX, trimY, -1, -1],            // jor-çep
+      [trimX+TRIM_W, trimY, 1, -1],      // jor-rast
+      [trimX, trimY+TRIM_H, -1, 1],      // jêr-çep
+      [trimX+TRIM_W, trimY+TRIM_H, 1, 1] // jêr-rast
+    ];
+    corners.forEach(([cx,cy,sx,sy])=>{
+      doc.line(cx+sx*G, cy, cx+sx*(G+M), cy);  // nîşana berwarî (horizontal)
+      doc.line(cx, cy+sy*G, cx, cy+sy*(G+M));  // nîşana tîk (vertical)
+    });
+    const safeNo = (student && student.no ? String(student.no) : "kart").replace(/[^A-Za-z0-9_-]/g,"");
+    doc.save("ATA-kart-" + safeNo + "-capxane.pdf");
+    toast && toast(_idCardMsg(lang,"savedPDF"));
+  }).catch(err => { console.warn("ID card PDF export error:", err); toast && toast(_idCardMsg(lang,"fail")); });
 }
 
 /* ─── INTERSECTION OBSERVER HOOK ─────────────────────────────────────────── */
@@ -12053,7 +12097,10 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
                 <StudentIDCard student={{...student,photo:student.photo}} lang={lang} t={t}/>
               </div>
               <button onClick={()=>downloadIDCardHD(idCardRef.current, student, lang, toast)} style={{width:"100%",marginTop:12,padding:"10px",background:"#16293f",color:"#ffffff",border:"none",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer"}}>
-                {lang==="de"?"⬇ Karte Herunterladen":lang==="en"?"⬇ Download Card":"⬇ Kart Dakêşe"}
+                {lang==="de"?"⬇ Karte Herunterladen (HD)":lang==="en"?"⬇ Download Card (HD)":"⬇ Kart Dakêşe (HD)"}
+              </button>
+              <button onClick={()=>downloadIDCardPDF(idCardRef.current, student, lang, toast)} style={{width:"100%",marginTop:8,padding:"10px",background:"var(--surface)",color:"#16293f",border:"1.5px solid #16293f",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer"}}>
+                {lang==="de"?"🖨 Druck-PDF (CR80 + Beschnitt)":lang==="en"?"🖨 Print PDF (CR80 + bleed)":"🖨 PDF ya Çapxaneyê (CR80 + bleed)"}
               </button>
             </Card>
 
