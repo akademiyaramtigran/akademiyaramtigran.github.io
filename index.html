@@ -7262,11 +7262,12 @@ function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
       headerCols += `<th>Nîşeya Mamoste</th>`;
     }
 
-    const avgAtt = filteredStudents.length
-      ? Math.round(filteredStudents.reduce((a,s)=>a+getStudentStats(s.id).att,0)/filteredStudents.length) : 0;
+    const ratedStudents = filteredStudents.filter(s=>getStudentStats(s.id).totalLessons>0);
+    const avgAtt = ratedStudents.length
+      ? Math.round(ratedStudents.reduce((a,s)=>a+getStudentStats(s.id).att,0)/ratedStudents.length) : 0;
     const avgGrade = filteredStudents.length
       ? Math.round(filteredStudents.reduce((a,s)=>a+getStudentStats(s.id).grade,0)/filteredStudents.length) : 0;
-    const riskCount = filteredStudents.filter(s=>getStudentStats(s.id).att<75).length;
+    const riskCount = ratedStudents.filter(s=>getStudentStats(s.id).att<75).length;
 
     return `<!DOCTYPE html>
 ${`<html lang="ku">`}
@@ -7376,11 +7377,15 @@ ${`</html>`}`;
     ? {color:"#16293f",bg:"rgba(22,41,63,0.08)",text:"#16293f",icon:"🏫"}
     : AREA_MAP[selectedArea];
 
-  const avgAtt = filteredStudents.length
-    ? Math.round(filteredStudents.reduce((a,s)=>a+getStudentStats(s.id).att,0)/filteredStudents.length) : 0;
+  // Sadece yoklama verisi olan öğrencileri (totalLessons>0) ortalama/risk hesabına kat;
+  // veri yoksa %0 ve "herkes riskte" gibi yanıltıcı/kötü görünüm oluşmasın.
+  const ratedStudents = filteredStudents.filter(s=>getStudentStats(s.id).totalLessons>0);
+  const hasAttData = ratedStudents.length>0;
+  const avgAtt = hasAttData
+    ? Math.round(ratedStudents.reduce((a,s)=>a+getStudentStats(s.id).att,0)/ratedStudents.length) : 0;
   const avgGrade = filteredStudents.length
     ? Math.round(filteredStudents.reduce((a,s)=>a+getStudentStats(s.id).grade,0)/filteredStudents.length) : 0;
-  const riskCount = filteredStudents.filter(s=>getStudentStats(s.id).att<75).length;
+  const riskCount = ratedStudents.filter(s=>getStudentStats(s.id).att<75).length;
 
   // Survey data for report
   const allResponses = loadSurveyResponses();
@@ -7578,11 +7583,11 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
             <div style={{fontSize:9,color:"#64748b",marginTop:2}}>{reportType==="teachers"?(lang==="en"?"Teachers":"Mamoste"):"Xwendekar"}</div>
           </div>
           <div style={{background:"#ffffff",borderRadius:10,padding:"10px 8px",textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
-            <div style={{fontSize:20,fontWeight:800,color:pctColor(avgAtt)}}>{avgAtt}%</div>
+            <div style={{fontSize:20,fontWeight:800,color:hasAttData?pctColor(avgAtt):"#94a3b8"}}>{hasAttData?avgAtt+"%":"—"}</div>
             <div style={{fontSize:9,color:"var(--text2)",marginTop:2}}>{lang==="ku"?"Navgîna Amadebûnê":lang==="en"?"Avg Attendance":"Durchschn. Anwesenheit"}</div>
           </div>
           <div style={{background:"#ffffff",borderRadius:10,padding:"10px 8px",textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
-            <div style={{fontSize:20,fontWeight:800,color:"var(--red)"}}>{riskCount}</div>
+            <div style={{fontSize:20,fontWeight:800,color:riskCount>0?"var(--red)":"#94a3b8"}}>{riskCount}</div>
             <div style={{fontSize:9,color:"#64748b",marginTop:2}}>{lang==="ku"?"Di Xeterê de":lang==="en"?"At Risk":"Gefährdet"}</div>
           </div>
         </div>
