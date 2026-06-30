@@ -149,6 +149,8 @@
     https://securetoken.googleapis.com
     wss://*.firebaseio.com
     https://*.firebaseio.com
+    https://firebasestorage.googleapis.com
+    https://*.firebasestorage.app
     https://api.emailjs.com;
   frame-src 'self' https://www.google.com https://www.recaptcha.net;
   frame-ancestors 'none';
@@ -356,6 +358,22 @@
     return (no || "unknown").replace(/[^A-Za-z0-9_\-\.]/g, "") + suffix;
   }
 
+  // data-url fotoğrafı Firebase Storage'a yükle, indirme URL'sini döndür.
+  // Storage kapalı / kurallar reddediyor / hata varsa null döner → çağıran base64'e düşer.
+  async function uploadPhotoOrNull(dataUrl, path) {
+    try {
+      const mod = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js").catch(() => null);
+      if (!mod) return null;
+      const { getStorage, ref: sRef, uploadString, getDownloadURL } = mod;
+      const storage = getStorage();
+      const r = sRef(storage, path);
+      await uploadString(r, dataUrl, "data_url");
+      return await getDownloadURL(r);
+    } catch (e) {
+      return null;
+    }
+  }
+
   window.__FB = {
     db, auth,
     ADMIN_EMAIL,
@@ -466,14 +484,17 @@
         if(v === undefined) continue;
         cleanData[k] = v;
       }
-      // Photo: base64 ise Firestore'a yaz (compressImage ile ~30-80KB olmalı)
-      let photoToSave = null;
-      if(s.photo && typeof s.photo === "string" && s.photo.startsWith("data:")) {
-        const sizeKB = Math.round(s.photo.length * 0.75 / 1024);
-        if(sizeKB <= 500) photoToSave = s.photo;
-        else console.warn("[saveStudent] foto çok büyük:", sizeKB, "KB");
-      }
       const ref = s.fireId ? doc(db,"students",s.fireId) : doc(collection(db,"students"));
+      // Photo: data-url ise Storage'a yükle (Firestore dokümanı şişmesin) → doc'a URL yaz.
+      // Storage kapalı/başarısızsa eski davranışa düş: base64 (≤500KB) Firestore'a.
+      let photoToSave = (s.photo && typeof s.photo === "string" && !s.photo.startsWith("data:")) ? s.photo : null;
+      if(s.photo && typeof s.photo === "string" && s.photo.startsWith("data:")) {
+        photoToSave = await uploadPhotoOrNull(s.photo, "photos/students/" + ref.id + ".jpg");
+        if(!photoToSave) {
+          const sizeKB = Math.round(s.photo.length * 0.75 / 1024);
+          photoToSave = sizeKB <= 500 ? s.photo : null;
+        }
+      }
       await setDoc(ref, {...cleanData, passHash: s.pass || "", fireId: ref.id, hasPhoto, photo: photoToSave, updatedAt: serverTimestamp()});
       return ref.id;
     },
@@ -487,13 +508,15 @@
         if(v === undefined) continue;
         cleanData[k] = v;
       }
-      let photoToSave = null;
-      if(tc.photo && typeof tc.photo === "string" && tc.photo.startsWith("data:")) {
-        const sizeKB = Math.round(tc.photo.length * 0.75 / 1024);
-        if(sizeKB <= 500) photoToSave = tc.photo;
-        else console.warn("[saveTeacher] foto çok büyük:", sizeKB, "KB");
-      }
       const ref = tc.fireId ? doc(db,"teachers",tc.fireId) : doc(collection(db,"teachers"));
+      let photoToSave = (tc.photo && typeof tc.photo === "string" && !tc.photo.startsWith("data:")) ? tc.photo : null;
+      if(tc.photo && typeof tc.photo === "string" && tc.photo.startsWith("data:")) {
+        photoToSave = await uploadPhotoOrNull(tc.photo, "photos/teachers/" + ref.id + ".jpg");
+        if(!photoToSave) {
+          const sizeKB = Math.round(tc.photo.length * 0.75 / 1024);
+          photoToSave = sizeKB <= 500 ? tc.photo : null;
+        }
+      }
       await setDoc(ref, {...cleanData, passHash: tc.pass || "", fireId: ref.id, hasPhoto, photo: photoToSave, updatedAt: serverTimestamp()});
       return ref.id;
     },

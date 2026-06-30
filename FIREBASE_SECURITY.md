@@ -81,3 +81,33 @@ service cloud.firestore {
   şifreleri ilk girişte zorunlu değiştirmek önerilir.
 - `attendance` / `messages` yazımı şimdilik "giriş yapan herkes"; istenirse
   öğrencinin yalnızca kendi kaydını yazmasına daraltılabilir.
+
+---
+
+## Fotoğraflar → Firebase Storage (ölçek/maliyet)
+
+Artık profil fotoğrafları Firestore dokümanına base64 gömmek yerine **Firebase
+Storage**'a yükleniyor; dokümanda yalnızca **URL** tutuluyor. Bu, tüm
+öğrenci/öğretmen listesi her cihaza inerken oluşan ~MB'larca yükü ortadan
+kaldırır. Kod, Storage kapalı/başarısızsa otomatik olarak **eski base64
+davranışına düşer** (yani uygulama bozulmaz, sadece optimizasyon devre dışı kalır).
+
+Etkinleştirmek için:
+
+1. **Storage'ı aç:** Firebase Console → **Build → Storage → Get started**.
+   (Yeni projelerde Storage genelde **Blaze planı** ister; zaten 200 kullanıcı
+   için Blaze öneriliyor.)
+2. **Storage kurallarını yayınla:** Console → **Storage → Rules** → `storage.rules`
+   içeriğini yapıştır → **Publish**.
+3. (Önerilir) **CORS:** Kart dışa aktarımı (html2canvas) Storage fotoğraflarını
+   tuvale çizebilsin diye bucket'a CORS izni ekle (gerekirse).
+
+> Mevcut base64 fotoğraflar çalışmaya devam eder; yalnızca **yeni kayıt/düzenleme**
+> sırasında fotoğraf Storage'a taşınır.
+
+## Ölçek notu (200 kullanıcı)
+Uygulama `students`/`teachers` koleksiyonlarını **tümüyle** dinliyor. 200 aktif
+kullanıcıda Firestore okuma sayısı **Spark (ücretsiz) günlük limitini aşar** →
+**Blaze planına geçiş** + bütçe alarmı önerilir. Fotoğrafların Storage'a taşınması
+okuma boyutunu (maliyeti) ciddi düşürür ama okuma *sayısını* azaltmak için
+ileride alan/öğrenci bazlı sorgulara geçmek gerekir.
