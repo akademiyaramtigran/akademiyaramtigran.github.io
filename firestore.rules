@@ -1,0 +1,99 @@
+rules_version = '2';
+
+// ════════════════════════════════════════════════════════════════════════
+//  Akademîya Aram Tîgran — Firestore Security Rules
+//  ----------------------------------------------------------------------
+//  Bu kurallar uygulamanın mevcut akışını BOZMADAN en kritik güvenlik
+//  açığını kapatır: "giriş yapan herkes her şeyi yazabilir" → öğrenciler
+//  artık başka öğrencileri/öğretmenleri, ders programını, duyuruları,
+//  istatistikleri, ayarları DEĞİŞTİREMEZ ve kendilerini admin YAPAMAZ.
+//
+//  Rol, Firebase Auth e-posta uzantısından anlaşılır:
+//    • Öğrenci   : <no>@ogrenci.aat
+//    • Öğretmen  : <no>@ogretmen.aat   (yönetici de bu gruba dahildir)
+//    • Yönetici  : <no>@ogretmen.aat  veya  admin@aramtigran.edu
+//
+//  NOT (kalan iş): Okuma hâlâ "giriş yapmış herkese" açıktır; çünkü
+//  uygulama tüm öğrenci/öğretmen listesini istemciye yüklüyor. Okumayı
+//  "sadece kendi verisi" düzeyine indirmek istemci tarafında yeniden
+//  yapılandırma gerektirir (ayrı bir adım).
+// ════════════════════════════════════════════════════════════════════════
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Yardımcılar ─────────────────────────────────────────────────────
+    function authed()  { return request.auth != null; }
+    function mail()    { return request.auth.token.email; }
+
+    // Öğretmen + yönetici (personel)
+    function isStaff() {
+      return authed() && (
+        mail().matches('.*@ogretmen[.]aat$') ||
+        mail() == 'admin@aramtigran.edu'
+      );
+    }
+
+    // Bir öğrenci/öğretmen dokümanı bu kullanıcıya mı ait? ("no" alanı = e-posta öneki)
+    function ownsStudentDoc(d) { return authed() && mail() == d.no + '@ogrenci.aat'; }
+    function ownsTeacherDoc(d) { return authed() && mail() == d.no + '@ogretmen.aat'; }
+
+    // Kendi kendine "admin" olmayı engelle (isAdmin alanı true yapılamaz)
+    function notGrantingAdmin() {
+      return !('isAdmin' in request.resource.data) || request.resource.data.isAdmin == false;
+    }
+    // "no" alanı değiştirilemesin (kimliğini başkasınınkiyle değiştiremez)
+    function noUnchanged() { return request.resource.data.no == resource.data.no; }
+
+    // ── Varsayılan: okuma giriş yapmışlara açık, yazma KAPALI ───────────
+    // (Aşağıdaki özel kurallar yazma iznini koleksiyon bazında açar.)
+    match /{document=**} {
+      allow read:  if authed();
+      allow write: if false;
+    }
+
+    // ── Öğrenciler ─────────────────────────────────────────────────────
+    match /students/{id} {
+      allow create: if isStaff();
+      allow update: if isStaff()
+                    || (ownsStudentDoc(resource.data) && noUnchanged() && notGrantingAdmin());
+      allow delete: if isStaff() || ownsStudentDoc(resource.data);
+    }
+
+    // ── Öğretmenler / Yönetici ─────────────────────────────────────────
+    match /teachers/{id} {
+      allow create: if isStaff();
+      allow update: if isStaff()
+                    || (ownsTeacherDoc(resource.data) && noUnchanged() && notGrantingAdmin());
+      allow delete: if isStaff();
+    }
+
+    // ── Yalnızca personel yazar (öğrenci dokunamaz) ────────────────────
+    match /schedule/{id}          { allow write: if isStaff(); }
+    match /announcements/{id}     { allow write: if isStaff(); }
+    match /studentSurveys/{id}    { allow write: if isStaff(); }
+    match /studentStats/{id}      { allow write: if isStaff(); }
+    match /teacherLessonLogs/{id} { allow write: if isStaff(); }
+    match /qrSessions/{id}        { allow write: if isStaff(); }
+    match /config/{id}            { allow write: if isStaff(); }
+    match /admins/{id}            { allow write: if isStaff(); }
+
+    // ── Roller — personel her rolü yazabilir (kullanıcı oluşturma için);
+    //    normal kullanıcı yalnızca KENDİ uid'ini yazar ve admin olamaz ──
+    match /roles/{uid} {
+      allow write: if isStaff()
+                   || (authed() && request.auth.uid == uid
+                       && (!('role' in request.resource.data) || request.resource.data.role != 'admin'));
+    }
+
+    // ── Hem öğrenci hem personel yazar ─────────────────────────────────
+    //   attendance: öğrenci QR check-in + öğretmen yoklama kaydı
+    //   messages / survey responses: öğrenci gönderir
+    //   devices: kullanıcı kendi cihaz kaydını yazar
+    match /attendance/{id}             { allow write: if authed(); }
+    match /messages/{id}               { allow write: if authed(); }
+    match /surveyResponses/{id}        { allow write: if authed(); }
+    match /studentSurveyResponses/{id} { allow write: if authed(); }
+    match /devices/{id}                { allow write: if authed(); }
+  }
+}
