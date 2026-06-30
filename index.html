@@ -55,8 +55,42 @@
 
   // SW: gerçek dosyadan kaydet (Chrome installability için Blob URL DEĞİL, gerçek dosya yolu gerekir)
   if('serviceWorker' in navigator){
+    var _updateShown = false;
+    function showUpdateBanner(){
+      if(_updateShown || document.getElementById('aat-update-bar')) return;
+      _updateShown = true;
+      var bar = document.createElement('div');
+      bar.id = 'aat-update-bar';
+      bar.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:99999;background:#3D0A40;color:#fff;border-radius:12px;padding:10px 12px 10px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 30px rgba(0,0,0,0.35);font-family:Inter,-apple-system,sans-serif;font-size:13px;max-width:92vw;';
+      var msg = document.createElement('span');
+      msg.textContent = '🔄 Yeni sürüm hazır';
+      var btn = document.createElement('button');
+      btn.textContent = 'Güncelle';
+      btn.style.cssText = 'background:#fff;color:#3D0A40;border:none;border-radius:8px;padding:7px 14px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;';
+      btn.onclick = function(){
+        try{ if(window._swReg && window._swReg.waiting){ window._swReg.waiting.postMessage({type:'SKIP_WAITING'}); } }catch(e){}
+        window.location.reload();
+      };
+      bar.appendChild(msg); bar.appendChild(btn);
+      (document.body||document.documentElement).appendChild(bar);
+    }
     navigator.serviceWorker.register('./sw.js')
-      .then(reg=>{ window._swReg = reg; })
+      .then(reg=>{
+        window._swReg = reg;
+        // Halihazırda bekleyen yeni sürüm varsa hemen göster
+        if(reg.waiting && navigator.serviceWorker.controller) showUpdateBanner();
+        // Yeni sürüm bulununca
+        reg.addEventListener('updatefound', ()=>{
+          var nw = reg.installing;
+          if(!nw) return;
+          nw.addEventListener('statechange', ()=>{
+            if(nw.state === 'installed' && navigator.serviceWorker.controller) showUpdateBanner();
+          });
+        });
+        // Açıkken / sekmeye dönünce güncelleme kontrolü
+        setInterval(()=>{ reg.update().catch(()=>{}); }, 60*1000);
+        document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) reg.update().catch(()=>{}); });
+      })
       .catch(()=>{});
   }
 
