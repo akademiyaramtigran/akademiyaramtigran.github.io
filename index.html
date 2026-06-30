@@ -1688,16 +1688,13 @@ function useBackButton(screen, setScreen, setCurrentUser) {
     // Her ekran değişikliğinde bir history entry ekle
     try { history.pushState({ screen }, "", "#" + (screen||"login")); } catch(_) {}
     function onPopState(e) {
-      const st = e.state || {};
-      if (st.screen && st.screen !== screen) return; // panel kendi handle eder
-      if (screen !== "login") {
-        try { history.pushState({ screen:"login" }, "", "#login"); } catch(_) {}
-        setScreen("login");
-        setCurrentUser(null);
-      } else {
-        // login'deyiz, tekrar geri basınca gerçekten çıksın
-        try { history.back(); } catch(_) {}
-      }
+      // Panel ekranlarında geri tuşunu panel-içi navigasyon (usePanelNav) yönetir.
+      // ÇIKIŞ YAPMA — kullanıcı yalnızca "Çıkış" butonuyla çıkar (mobil uygulama hissi).
+      if (screen === "student" || screen === "teacher" || screen === "admin") return;
+      // forgot ekranından geri → login
+      if (screen === "forgot") { setScreen("login"); return; }
+      // login ekranındayız — gerçekten geri (uygulamadan çık)
+      try { history.back(); } catch(_) {}
     }
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
@@ -13804,6 +13801,8 @@ function App(){
   const [lang,setLang]=useState(()=>{try{return localStorage.getItem("aat-lang")||"ku";}catch{return "ku";}});
   const [screen,setScreen]=useState("login");
   const [currentUser,setCurrentUser]=useState(null);
+  const [authEmail,setAuthEmail]=useState(null); // Firebase Auth oturumu (refresh sonrası geri yükleme için)
+  const [authChecked,setAuthChecked]=useState(false); // Auth durumu ilk kez kontrol edildi mi (login flash'ını önler)
   const [students,setStudents]=useState(INIT_STUDENTS);
   const [teachers,setTeachers]=useState(INIT_TEACHERS);
   const [schedule,setSchedule]=useState(INIT_SCHEDULE);
@@ -13871,6 +13870,10 @@ function App(){
       if (unsubTeachers) { unsubTeachers(); unsubTeachers = null; }
       if (unsubSchedule) { unsubSchedule(); unsubSchedule = null; }
 
+      // Oturum e-postasını sakla — sayfa yenilenince oturumu geri yüklemek için
+      setAuthEmail(authUser ? (authUser.email || null) : null);
+      setAuthChecked(true);
+
       if (authUser) {
         // Kullanıcı giriş yapmış — Firestore'u dinle
         unsubStudents = window.__FB.onStudents((data) => {
@@ -13893,7 +13896,29 @@ function App(){
       if (unsubSchedule) unsubSchedule();
     };
   }, []); // Runs once on mount
-  
+
+  // ── Oturumu Firebase Auth'tan geri yükle (sayfa yenilense de girişte kal) ──
+  // Auth oturumu açıksa (authEmail) ve henüz currentUser yoksa, e-postadan
+  // (<no>@ogrenci.aat / <no>@ogretmen.aat) kullanıcıyı bulup paneli geri aç.
+  useEffect(() => {
+    if (currentUser || !authEmail) return;
+    const isStudent = authEmail.indexOf("@ogrenci.aat") !== -1;
+    const no = authEmail.split("@")[0];
+    const list = isStudent ? students : teachers;
+    const rec = (list || []).find(u => String(u.no) === String(no));
+    if (rec) {
+      const type = isStudent ? "student" : (rec.isAdmin ? "admin" : "teacher");
+      setCurrentUser({ ...rec, type });
+      setScreen(type);
+    }
+  }, [authEmail, students, teachers, currentUser]);
+
+  // Auth kontrolü takılırsa (ör. onAuthState hiç ateşlenmezse) login yine de açılsın
+  useEffect(() => {
+    const tid = setTimeout(() => setAuthChecked(true), 3000);
+    return () => clearTimeout(tid);
+  }, []);
+
   // Screen reader live region message
   const [liveMsg, setLiveMsg] = useState("");
   const announce = useCallback((msg) => {
@@ -14136,6 +14161,7 @@ function App(){
     if(window.__FB && window.__FB.isConfigured()){
       window.__FB.authSignOut().catch(()=>{});
     }
+    setAuthEmail(null); // önce temizle: geri-yükleme effect'i kullanıcıyı tekrar girişe almasın
     setScreen("login");
     setCurrentUser(null);
   }
@@ -14184,9 +14210,18 @@ function App(){
           </div>
         </div>
       )}
-      {screen==="login"&&(
-        <LoginScreen students={students} teachers={teachers} t={t} lang={lang} setLang={setLang} onLogin={(type,user)=>{handleLogin(type,user);handleNotifRequest();}} onForgot={()=>setScreen("forgot")} dark={dark} onThemeToggle={()=>setDark(d=>!d)}/>
-      )}
+      {screen==="login"&&(()=>{
+        const fbReady = window.__FB && window.__FB.isConfigured();
+        const restoring = fbReady && (!authChecked || (authEmail && !currentUser));
+        if (restoring) {
+          return (
+            <div style={{position:"fixed",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg3)"}}>
+              <div style={{width:38,height:38,borderRadius:"50%",border:"3px solid var(--border2)",borderTopColor:"#3D0A40",animation:"spin 0.8s linear infinite"}}/>
+            </div>
+          );
+        }
+        return <LoginScreen students={students} teachers={teachers} t={t} lang={lang} setLang={setLang} onLogin={(type,user)=>{handleLogin(type,user);handleNotifRequest();}} onForgot={()=>setScreen("forgot")} dark={dark} onThemeToggle={()=>setDark(d=>!d)}/>;
+      })()}
       {screen==="forgot"&&(
         <ForgotScreen t={t} lang={lang} onBack={()=>setScreen("login")} onSuccess={()=>toast("✓ "+t.forgotSuccess)} students={students} teachers={teachers} onDataChange={onDataChange}/>
       )}
