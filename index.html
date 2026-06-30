@@ -546,6 +546,13 @@
         cb(snap.docs.map(d => { const data = d.data(); return {...data, fireId: d.id, id: data.id||d.id, pass: data.passHash || data.pass || ""}; }));
       });
     },
+    // Öğrenci oturumu için: yalnızca KENDİ kaydı (gizlilik — tüm listeyi çekmez)
+    onStudentByNo(no, cb) {
+      const q = query(collection(db,"students"), where("no","==", String(no)));
+      return onSnapshot(q, snap => {
+        cb(snap.docs.map(d => { const data = d.data(); return {...data, fireId: d.id, id: data.id||d.id, pass: data.passHash || data.pass || ""}; }));
+      });
+    },
     onTeachers(cb) {
       return onSnapshot(collection(db,"teachers"), snap => {
         cb(snap.docs.map(d => { const data = d.data(); return {...data, fireId: d.id, id: data.id||d.id, pass: data.passHash || data.pass || ""}; }));
@@ -13904,13 +13911,24 @@ function App(){
       setAuthChecked(true);
 
       if (authUser) {
+        const _em = authUser.email || "";
+        const _isStudent = _em.indexOf("@ogrenci.aat") !== -1;
+        const _no = _em.split("@")[0];
         // Kullanıcı giriş yapmış — Firestore'u dinle
-        unsubStudents = window.__FB.onStudents((data) => {
-          if(Array.isArray(data)) setStudents(data);
-        });
-        unsubTeachers = window.__FB.onTeachers((data) => {
-          if(Array.isArray(data)) setTeachers(data);
-        });
+        if (_isStudent) {
+          // Öğrenci: yalnızca KENDİ kaydı çekilir (diğer öğrencilerin verisi inmez).
+          // (Öğrenci paneli global öğrenci/öğretmen listesini kullanmıyor.)
+          unsubStudents = window.__FB.onStudentByNo(_no, (data) => {
+            if(Array.isArray(data)) setStudents(data);
+          });
+        } else {
+          unsubStudents = window.__FB.onStudents((data) => {
+            if(Array.isArray(data)) setStudents(data);
+          });
+          unsubTeachers = window.__FB.onTeachers((data) => {
+            if(Array.isArray(data)) setTeachers(data);
+          });
+        }
         unsubSchedule = window.__FB.onSchedule((data) => {
           if(Array.isArray(data)) setSchedule(data);
         });
