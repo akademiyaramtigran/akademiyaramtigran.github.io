@@ -68,6 +68,12 @@ service cloud.firestore {
       allow delete: if isStaff();
     }
 
+    // ── Malper nûçe (ana sayfa haberleri) — HERKESE açık okuma, yazma personel ──
+    match /news/{id} {
+      allow read:  if true;
+      allow write: if isStaff();
+    }
+
     // ── Yalnızca personel yazar (öğrenci dokunamaz) ────────────────────
     match /schedule/{id}          { allow write: if isStaff(); }
     match /announcements/{id}     { allow write: if isStaff(); }
