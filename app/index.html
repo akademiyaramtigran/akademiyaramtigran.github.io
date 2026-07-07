@@ -6360,25 +6360,39 @@ function AdminPressPanel({teachers,onDataChange,lang,toast,t}){
   );
 }
 
+/* ─── SPECIAL PANEL HEADER (Çapemenî / Karûbar — ortak üst panel) ────────── */
+function SpecialPanelHeader({user,icon,roleLabel,lang,onLogout,siteLink}){
+  return(
+    <div style={{background:"var(--hero-grad)",padding:"calc(env(safe-area-inset-top,0px) + 18px) 16px 14px",borderRadius:"0 0 22px 22px",boxShadow:"0 6px 24px rgba(22,41,63,0.25)"}}>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}>
+        {user.photo
+          ? <img src={user.photo} alt="" style={{width:46,height:46,borderRadius:14,objectFit:"cover",border:"2px solid rgba(255,255,255,0.35)",flexShrink:0}}/>
+          : <div style={{width:46,height:46,borderRadius:14,background:"rgba(255,255,255,0.14)",border:"1px solid rgba(255,255,255,0.22)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{icon}</div>}
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:16,fontWeight:800,color:"#fff",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{user.name}</div>
+          <div style={{fontSize:10,color:"rgba(255,255,255,0.65)",letterSpacing:"0.14em",textTransform:"uppercase",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",marginTop:2}}>{roleLabel}</div>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        {siteLink&&(
+          <a href="../" target="_blank" rel="noopener" style={{flex:1,textAlign:"center",background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.22)",borderRadius:10,padding:"10px 8px",fontSize:12.5,fontWeight:700,color:"#fff",textDecoration:"none",whiteSpace:"nowrap"}}>
+            🌐 {lang==="en"?"View site":lang==="de"?"Website":"Malperê bibîne"}
+          </a>
+        )}
+        <button onClick={onLogout} style={{flex:1,background:"rgba(220,38,38,0.16)",border:"1px solid rgba(255,120,120,0.45)",borderRadius:10,padding:"10px 8px",fontSize:12.5,fontWeight:700,color:"#ffb4b4",cursor:"pointer",whiteSpace:"nowrap"}}>
+          ↩ {lang==="en"?"Sign out":lang==="de"?"Abmelden":"Derkeve"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ─── PRESS PANEL (basın kullanıcısının ekranı — yalnızca malper haberleri) ── */
 function PressPanel({user,lang,toast,onLogout}){
   return(
     <div style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
-      <div style={{background:"var(--hero-grad)",padding:"calc(env(safe-area-inset-top,0px) + 14px) 16px 14px",display:"flex",alignItems:"center",gap:12}}>
-        <span style={{fontSize:24}}>📰</span>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:14,fontWeight:800,color:"#fff"}}>{user.name}</div>
-          <div style={{fontSize:10,color:"rgba(255,255,255,0.65)",letterSpacing:"0.12em",textTransform:"uppercase"}}>
-            {lang==="en"?"Press · Website Editor":lang==="de"?"Presse · Website-Redaktion":"Çapemenî · Edîtorê Malperê"}
-          </div>
-        </div>
-        <a href="../" target="_blank" rel="noopener" style={{background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.25)",borderRadius:8,padding:"7px 12px",fontSize:12,fontWeight:600,color:"#fff",textDecoration:"none"}}>
-          🌐 {lang==="en"?"View site":lang==="de"?"Website":"Malperê bibîne"}
-        </a>
-        <button onClick={onLogout} style={{background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:8,padding:"7px 12px",fontSize:12,fontWeight:600,color:"var(--red)",cursor:"pointer"}}>
-          ↩ {lang==="en"?"Sign out":lang==="de"?"Abmelden":"Derkeve"}
-        </button>
-      </div>
+      <SpecialPanelHeader user={user} icon="📰" lang={lang} onLogout={onLogout} siteLink={true}
+        roleLabel={lang==="en"?"Press · Website Editor":lang==="de"?"Presse · Website-Redaktion":"Çapemenî · Edîtorê Malperê"}/>
       <div style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
         <AdminNewsPanel lang={lang} toast={toast} adminName={user.name}/>
       </div>
@@ -6464,18 +6478,8 @@ function RegistrarPanel({user,lang,toast,onLogout}){
 
   return(
     <div style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
-      <div style={{background:"var(--hero-grad)",padding:"calc(env(safe-area-inset-top,0px) + 14px) 16px 14px",display:"flex",alignItems:"center",gap:12}}>
-        <span style={{fontSize:24}}>🗂</span>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:14,fontWeight:800,color:"#fff"}}>{user.name}</div>
-          <div style={{fontSize:10,color:"rgba(255,255,255,0.65)",letterSpacing:"0.12em",textTransform:"uppercase"}}>
-            {lang==="en"?"Student Affairs":lang==="de"?"Studierendenbüro":"Karûbarên Xwendekaran"}
-          </div>
-        </div>
-        <button onClick={onLogout} style={{background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:8,padding:"7px 12px",fontSize:12,fontWeight:600,color:"var(--red)",cursor:"pointer"}}>
-          ↩ {lang==="en"?"Sign out":lang==="de"?"Abmelden":"Derkeve"}
-        </button>
-      </div>
+      <SpecialPanelHeader user={user} icon="🗂" lang={lang} onLogout={onLogout} siteLink={true}
+        roleLabel={lang==="en"?"Student Affairs":lang==="de"?"Studierendenbüro":"Karûbarên Xwendekaran"}/>
       <div style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
 
         <SectionHeader>{L("settings")}</SectionHeader>
