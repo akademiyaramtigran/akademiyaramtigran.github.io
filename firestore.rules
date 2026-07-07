@@ -74,6 +74,22 @@ service cloud.firestore {
       allow write: if isStaff();
     }
 
+    // ── Serlêdan (kayıt başvuruları) — herkes BAŞVURU oluşturabilir (form),
+    //    okuma/durum/silme yalnızca personel (öğrenci işleri) ──
+    match /applications/{id} {
+      allow create: if request.resource.data.keys().hasOnly(
+                      ['name','phone','dob','area','note','docs','status','dateStr','createdAt'])
+                    && request.resource.data.name is string
+                    && request.resource.data.name.size() > 0
+                    && request.resource.data.name.size() <= 80;
+      allow read, update, delete: if isStaff();
+    }
+    // Başvuru dönemi ayarı — site (girişsiz) okuyabilsin, yazma personel
+    match /config/applications {
+      allow read:  if true;
+      allow write: if isStaff();
+    }
+
     // ── Yalnızca personel yazar (öğrenci dokunamaz) ────────────────────
     match /schedule/{id}          { allow write: if isStaff(); }
     match /announcements/{id}     { allow write: if isStaff(); }

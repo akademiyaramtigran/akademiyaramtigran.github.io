@@ -1720,7 +1720,7 @@ function useBackButton(screen, setScreen, setCurrentUser) {
     function onPopState(e) {
       // Panel ekranlarında geri tuşunu panel-içi navigasyon (usePanelNav) yönetir.
       // ÇIKIŞ YAPMA — kullanıcı yalnızca "Çıkış" butonuyla çıkar (mobil uygulama hissi).
-      if (screen === "student" || screen === "teacher" || screen === "admin" || screen === "press") return;
+      if (screen === "student" || screen === "teacher" || screen === "admin" || screen === "press" || screen === "registrar") return;
       // forgot ekranından geri → login
       if (screen === "forgot") { setScreen("login"); return; }
       // login ekranındayız — gerçekten geri (uygulamadan çık)
@@ -4587,7 +4587,7 @@ function AddTeacherSheet({open,onClose,defaultArea,teachers,t,lang,toast,onSave}
 
   function handleSave(){
     if(!name.trim()){toast("⚠ "+t.fullName); return;}
-    const areaTeachers=teachers.filter(tc=>tc.area===area&&!tc.isAdmin&&!tc.isPress);
+    const areaTeachers=teachers.filter(tc=>tc.area===area&&!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar);
     const seqs=areaTeachers.map(tc=>{
       const s=parseInt((tc.no||"").slice(-2))||0;
       return s;
@@ -5117,8 +5117,8 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
   // "genel" alanı: tüm öğrenciler görünür + genel alan öğretmen/dersleri
   const aStudents = isGenel ? students.filter(s=>!s.isAdmin) : students.filter(s=>s.area===areaKey);
   const aTeachers = isGenel
-    ? teachers.filter(t2=>t2.area==="genel"&&!t2.isAdmin&&!t2.isPress)
-    : teachers.filter(t2=>t2.area===areaKey&&!t2.isAdmin&&!t2.isPress);
+    ? teachers.filter(t2=>t2.area==="genel"&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar)
+    : teachers.filter(t2=>t2.area===areaKey&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar);
   const aSchedule=schedule.filter(s=>s.area===areaKey);
 
   const tabs=[
@@ -6107,47 +6107,81 @@ function AdminNewsPanel({lang,toast,adminName}){
   );
 }
 
-/* ─── PRESS CARD MANAGEMENT (admin: basın hesabı oluştur/yönet) ─────────── */
-// Basın hesabı = isPress:true bayraklı öğretmen kaydı. Mamoste girişinden girer,
-// yalnızca ana sayfa (malper) haber yönetim ekranını görür.
+/* ─── SPECIAL CARDS (admin: Çapemenî + Karûbarên Xwendekaran hesapları) ─── */
+// Özel kart = isPress / isRegistrar bayraklı öğretmen kaydı. Mamoste girişinden
+// girer; basın yalnızca malper haberlerini, öğrenci işleri başvuruları yönetir.
+const SPECIAL_TYPES = {
+  press:     { flag:"isPress",     icon:"📰", prefix:"99",
+    name:{ku:"Çapemenî",en:"Press",de:"Presse"},
+    desc:{ku:"Nûçeyên malperê birêve dibe",en:"Manages website news",de:"Verwaltet Website-News"} },
+  registrar: { flag:"isRegistrar", icon:"🗂", prefix:"98",
+    name:{ku:"Karûbarên Xwendekaran",en:"Student Affairs",de:"Studierendenbüro"},
+    desc:{ku:"Serlêdanên tomarkirinê birêve dibe",en:"Manages enrollment applications",de:"Verwaltet Anmeldungen"} },
+};
 function AdminPressPanel({teachers,onDataChange,lang,toast}){
+  const [kind,setKind]=useState("press");
   const [name,setName]=useState("");
   const [creds,setCreds]=useState(null);
-  const pressUsers=(teachers||[]).filter(tc=>tc.isPress);
+  const [editing,setEditing]=useState(null); // düzenlenen kart
+  const [editName,setEditName]=useState("");
+  const [newPass,setNewPass]=useState(null);
+  const K=SPECIAL_TYPES[kind];
+  const cards=(teachers||[]).filter(tc=>tc.isPress||tc.isRegistrar);
   const L=(k)=>({
-    heading:{ku:"📰 Çapemenî — Karta Basınê",en:"📰 Press Accounts",de:"📰 Presse-Konten"},
-    hint:{ku:"Karta basınê ji beşa Mamoste têkeve û tenê nûçeyên malperê birêve dibe.",en:"Press accounts sign in via the Teacher entry and only manage the website news.",de:"Presse-Konten melden sich über den Lehrer-Login an und verwalten nur die Website-News."},
-    name:{ku:"Navê bikarhêner (ör. Desteya Çapemeniyê)",en:"Display name (e.g. Press Team)",de:"Anzeigename"},
-    create:{ku:"➕ Karta Basınê Çêke",en:"➕ Create Press Card",de:"➕ Presse-Karte erstellen"},
-    list:{ku:"Kartên basınê",en:"Press cards",de:"Presse-Karten"},
-    empty:{ku:"Hîn karta basınê tune.",en:"No press cards yet.",de:"Noch keine Presse-Karten."},
+    heading:{ku:"📇 Kartên Taybet",en:"📇 Staff Cards",de:"📇 Spezialkonten"},
+    hint:{ku:"Ev kart ji beşa MAMOSTE têkevin û tenê erka xwe dibînin.",en:"These cards sign in via the TEACHER entry and only see their own duty.",de:"Anmeldung über LEHRER-Login; sehen nur ihre Aufgabe."},
+    nameP:{ku:"Navê bikarhêner (ör. Desteya Çapemeniyê)",en:"Display name",de:"Anzeigename"},
+    create:{ku:"➕ Kartê Çêke",en:"➕ Create Card",de:"➕ Karte erstellen"},
+    list:{ku:"Kartên çêkirî",en:"Created cards",de:"Erstellte Karten"},
+    empty:{ku:"Hîn kart tune.",en:"No cards yet.",de:"Noch keine Karten."},
     del:{ku:"Jê bibe",en:"Delete",de:"Löschen"},
+    edit:{ku:"Biguherîne",en:"Edit",de:"Bearbeiten"},
     needName:{ku:"⚠ Nav pêwîst e",en:"⚠ Name required",de:"⚠ Name erforderlich"},
-    credTitle:{ku:"✅ Karta Basınê Hate Çêkirin",en:"✅ Press Card Created",de:"✅ Presse-Karte erstellt"},
-    credNote:{ku:"Van agahiyan bide berpirsê basınê — ji beşa MAMOSTE têkeve.",en:"Give these to the press editor — sign in via the TEACHER entry.",de:"Diese Daten dem Presse-Redakteur geben — Anmeldung über LEHRER."},
-    user:{ku:"Navê bikarhêner (Jimare)",en:"Username (No)",de:"Benutzername (Nr)"},
+    credTitle:{ku:"✅ Kart Hate Çêkirin",en:"✅ Card Created",de:"✅ Karte erstellt"},
+    credNote:{ku:"Van agahiyan bide berpirsê — ji beşa MAMOSTE têkeve.",en:"Give these to the editor — sign in via TEACHER.",de:"Daten weitergeben — Anmeldung über LEHRER."},
+    user:{ku:"Navê bikarhêner (Jimare)",en:"Username (No)",de:"Benutzername"},
     pass:{ku:"Şîfre",en:"Password",de:"Passwort"},
     ok:{ku:"Temam",en:"Done",de:"Fertig"},
+    save:{ku:"💾 Tomar bike",en:"💾 Save",de:"💾 Speichern"},
+    regen:{ku:"🔑 Şîfreya nû çêke",en:"🔑 Generate new password",de:"🔑 Neues Passwort"},
+    newPassNote:{ku:"Şîfreya nû — bide bikarhêner:",en:"New password — give to the user:",de:"Neues Passwort — weitergeben:"},
+    cancel:{ku:"Betal",en:"Cancel",de:"Abbrechen"},
   }[k][lang]||k);
 
-  function nextPressNo(){
+  function nextNo(prefix, flag){
     const year=new Date().getFullYear();
-    const seqs=pressUsers.map(tc=>parseInt((tc.no||"").slice(-2))||0);
-    const seq=(seqs.length?Math.max(...seqs):0)+1;
-    return "99"+year+String(seq).padStart(2,"0");
+    const seqs=(teachers||[]).filter(tc=>tc[flag]).map(tc=>parseInt((tc.no||"").slice(-2))||0);
+    return prefix+year+String((seqs.length?Math.max(...seqs):0)+1).padStart(2,"0");
   }
 
   function createCard(){
     if(!name.trim()){toast(L("needName"));return;}
-    const no=nextPressNo();
+    const no=nextNo(K.prefix,K.flag);
     const rawPass=genAutoPassword();
     hashPassword(rawPass).then(hashed=>{
       const tc={id:no,name:name.trim(),area:"genel",no,pass:hashed,passHash:hashed,
-        isAdmin:false,isPress:true,phone:"",dob:"",address:"",photo:null,bio:"Çapemenî",_plainPass:rawPass};
+        isAdmin:false,[K.flag]:true,phone:"",dob:"",address:"",photo:null,
+        bio:K.name.ku,_plainPass:rawPass};
       onDataChange("addTeacher",tc);
-      setCreds({no,pass:rawPass,name:name.trim()});
+      setCreds({no,pass:rawPass,name:name.trim(),icon:K.icon});
       setName("");
     });
+  }
+
+  async function regenPass(){
+    if(!editing) return;
+    const pass=genAutoPassword();
+    const hashed=await hashPassword(pass);
+    try{ if(window.__FB&&window.__FB.isConfigured()) await window.__FB.forceResetPassword(editing.no,"teacher",editing._plainPass||null,pass); }catch(e){}
+    onDataChange("updateTeacher",{...editing,name:editName.trim()||editing.name,pass:hashed,passHash:hashed,_plainPass:pass});
+    setNewPass(pass);
+  }
+
+  function saveEdit(){
+    if(!editName.trim()){toast(L("needName"));return;}
+    onDataChange("updateTeacher",{...editing,name:editName.trim()});
+    setEditing(null);setNewPass(null);
+    toast("✅ "+editName.trim());
   }
 
   return(
@@ -6155,14 +6189,22 @@ function AdminPressPanel({teachers,onDataChange,lang,toast}){
       <SectionHeader>{L("heading")}</SectionHeader>
       <Card>
         <div style={{fontSize:11,color:"var(--text2)",marginBottom:12,lineHeight:1.6}}>{L("hint")}</div>
-        <input value={name} onChange={e=>setName(e.target.value)} placeholder={L("name")}
+        <div style={{display:"flex",gap:6,marginBottom:12,background:"var(--surface2)",borderRadius:10,padding:4}}>
+          {Object.entries(SPECIAL_TYPES).map(([k2,v])=>(
+            <button key={k2} onClick={()=>setKind(k2)} style={{flex:1,padding:"8px 6px",borderRadius:8,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,background:kind===k2?"#16293f":"transparent",color:kind===k2?"#fff":"var(--text2)"}}>
+              {v.icon} {v.name[lang]||v.name.ku}
+            </button>
+          ))}
+        </div>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:10}}>{K.icon} {K.desc[lang]||K.desc.ku}</div>
+        <input value={name} onChange={e=>setName(e.target.value)} placeholder={L("nameP")}
           style={{width:"100%",padding:"11px 12px",marginBottom:10,border:"1px solid var(--border2)",borderRadius:10,fontSize:14,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box"}}/>
-        <PrimaryBtn onClick={createCard} icon="📰">{L("create")}</PrimaryBtn>
+        <PrimaryBtn onClick={createCard} icon={K.icon}>{L("create")}</PrimaryBtn>
       </Card>
 
       {creds&&(
         <Card style={{border:"1.5px solid var(--green)"}}>
-          <div style={{fontSize:14,fontWeight:800,color:"var(--text)",marginBottom:6}}>{L("credTitle")}</div>
+          <div style={{fontSize:14,fontWeight:800,color:"var(--text)",marginBottom:6}}>{L("credTitle")} {creds.icon}</div>
           <div style={{fontSize:11,color:"var(--text2)",marginBottom:14}}>{L("credNote")}</div>
           <div style={{background:"#16293f",borderRadius:14,padding:"16px",marginBottom:10}}>
             <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginBottom:4}}>{L("user")}</div>
@@ -6180,23 +6222,50 @@ function AdminPressPanel({teachers,onDataChange,lang,toast}){
         </Card>
       )}
 
-      <SectionHeader>{L("list")} ({pressUsers.length})</SectionHeader>
-      {pressUsers.length===0&&<Card><div style={{fontSize:13,color:"var(--text2)",textAlign:"center",padding:"8px 0"}}>{L("empty")}</div></Card>}
-      {pressUsers.map(tc=>(
+      <SectionHeader>{L("list")} ({cards.length})</SectionHeader>
+      {cards.length===0&&<Card><div style={{fontSize:13,color:"var(--text2)",textAlign:"center",padding:"8px 0"}}>{L("empty")}</div></Card>}
+      {cards.map(tc=>{
+        const tK=tc.isPress?SPECIAL_TYPES.press:SPECIAL_TYPES.registrar;
+        return(
         <Card key={tc.no}>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <span style={{fontSize:24}}>📰</span>
+            <span style={{fontSize:24}}>{tK.icon}</span>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>{tc.name}</div>
-              <div style={{fontSize:11,color:"var(--text2)",fontFamily:"monospace"}}>{tc.no}</div>
+              <div style={{fontSize:11,color:"var(--text2)"}}>{tK.name[lang]||tK.name.ku} · <span style={{fontFamily:"monospace"}}>{tc.no}</span></div>
             </div>
+            <button onClick={()=>{setEditing(tc);setEditName(tc.name);setNewPass(null);}}
+              style={{background:"var(--bg2)",border:"0.5px solid var(--border2)",color:"var(--text)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+              ✏️ {L("edit")}
+            </button>
             <button onClick={()=>onDataChange("deleteTeacher",tc)}
               style={{background:"var(--red-bg)",border:"0.5px solid var(--red)",color:"var(--red)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>
-              🗑 {L("del")}
+              🗑
             </button>
           </div>
         </Card>
-      ))}
+        );
+      })}
+
+      {editing&&(
+        <Sheet open={true} onClose={()=>{setEditing(null);setNewPass(null);}} title={"✏️ "+editing.name}>
+          <div style={{fontSize:11,color:"var(--text2)",marginBottom:6}}>{L("nameP")}</div>
+          <input value={editName} onChange={e=>setEditName(e.target.value)}
+            style={{width:"100%",padding:"11px 12px",marginBottom:12,border:"1px solid var(--border2)",borderRadius:10,fontSize:14,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box"}}/>
+          {newPass?(
+            <div style={{background:"#16293f",borderRadius:12,padding:"14px",marginBottom:12}}>
+              <div style={{fontSize:10,color:"rgba(255,255,255,0.6)",marginBottom:6}}>{L("newPassNote")}</div>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{flex:1,fontFamily:"monospace",fontSize:17,fontWeight:800,color:"#F7D116",letterSpacing:"0.1em"}}>{newPass}</span>
+                <button onClick={async()=>{await copyToClipboard(newPass);hapticLight();}} style={{background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.25)",borderRadius:6,padding:"4px 8px",fontSize:11,color:"#fff",cursor:"pointer"}}>📋</button>
+              </div>
+            </div>
+          ):(
+            <button onClick={regenPass} style={{width:"100%",padding:"11px",marginBottom:12,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer",color:"var(--text)"}}>{L("regen")}</button>
+          )}
+          <PrimaryBtn onClick={saveEdit} icon="💾">{L("save")}</PrimaryBtn>
+        </Sheet>
+      )}
     </div>
   );
 }
@@ -6222,6 +6291,176 @@ function PressPanel({user,lang,toast,onLogout}){
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
         <AdminNewsPanel lang={lang} toast={toast} adminName={user.name}/>
+      </div>
+    </div>
+  );
+}
+
+/* ─── REGISTRAR PANEL (Karûbarên Xwendekaran — serlêdanên tomarkirinê) ──── */
+function RegistrarPanel({user,lang,toast,onLogout}){
+  const [cfg,setCfg]=useState({open:false,startDate:"",endDate:"",note:""});
+  const [cfgLoaded,setCfgLoaded]=useState(false);
+  const [apps,setApps]=useState([]);
+  const [expanded,setExpanded]=useState(null);
+  const [filter,setFilter]=useState("all"); // all | new | accepted | rejected
+  const L=(k)=>({
+    settings:{ku:"⚙️ Mîhengên Serlêdanê",en:"⚙️ Application Settings",de:"⚙️ Bewerbungseinstellungen"},
+    open:{ku:"Serlêdan VEKIRÎ ye",en:"Applications OPEN",de:"Bewerbungen OFFEN"},
+    closed:{ku:"Serlêdan GIRTÎ ye",en:"Applications CLOSED",de:"Bewerbungen GESCHLOSSEN"},
+    start:{ku:"Destpêk (vebijarkî)",en:"Start (optional)",de:"Beginn (optional)"},
+    end:{ku:"Dawî (vebijarkî)",en:"End (optional)",de:"Ende (optional)"},
+    note:{ku:"Nîşeya li ser malperê (vebijarkî)",en:"Note shown on site (optional)",de:"Hinweis auf der Website"},
+    save:{ku:"💾 Tomar bike",en:"💾 Save",de:"💾 Speichern"},
+    saved:{ku:"✅ Hate tomarkirin",en:"✅ Saved",de:"✅ Gespeichert"},
+    list:{ku:"📋 Serlêdan",en:"📋 Applications",de:"📋 Bewerbungen"},
+    empty:{ku:"Hîn serlêdan tune.",en:"No applications yet.",de:"Noch keine Bewerbungen."},
+    all:{ku:"Hemû",en:"All",de:"Alle"},
+    stNew:{ku:"Nû",en:"New",de:"Neu"},
+    stAcc:{ku:"Qebûl",en:"Accepted",de:"Angenommen"},
+    stRej:{ku:"Red",en:"Rejected",de:"Abgelehnt"},
+    accept:{ku:"✅ Qebûl bike",en:"✅ Accept",de:"✅ Annehmen"},
+    reject:{ku:"❌ Red bike",en:"❌ Reject",de:"❌ Ablehnen"},
+    del:{ku:"🗑 Jê bibe",en:"🗑 Delete",de:"🗑 Löschen"},
+    docs:{ku:"Belge",en:"Documents",de:"Dokumente"},
+    phone:{ku:"Têlefon",en:"Phone",de:"Telefon"},
+    dob:{ku:"Roja jidayikbûnê",en:"Date of birth",de:"Geburtsdatum"},
+    area:{ku:"Qad",en:"Area",de:"Bereich"},
+    msg:{ku:"Nîşe",en:"Note",de:"Notiz"},
+    err:{ku:"❌ Çewtî",en:"❌ Error",de:"❌ Fehler"},
+  }[k][lang]||k);
+  const STATUS={new:{label:L("stNew"),color:"#2c4f7c",bg:"rgba(44,79,124,0.12)"},
+    accepted:{label:L("stAcc"),color:"#16a34a",bg:"rgba(22,163,74,0.12)"},
+    rejected:{label:L("stRej"),color:"#dc2626",bg:"rgba(220,38,38,0.10)"}};
+
+  useEffect(()=>{
+    if(!window.__FB||!window.__FB.isConfigured()) return;
+    let unsubApps=()=>{};
+    (async()=>{
+      try{
+        const snap=await window.__FB.getDoc(window.__FB.doc(window.__FB.db,"config","applications"));
+        if(snap.exists()) setCfg({open:false,startDate:"",endDate:"",note:"",...snap.data()});
+      }catch(e){}
+      setCfgLoaded(true);
+    })();
+    try{
+      const q=window.__FB.query(window.__FB.collection(window.__FB.db,"applications"),window.__FB.orderBy("createdAt","desc"),window.__FB.limit(200));
+      unsubApps=window.__FB.onSnapshot(q,snap=>setApps(snap.docs.map(d=>({...d.data(),fireId:d.id}))));
+    }catch(e){
+      try{ unsubApps=window.__FB.onSnapshot(window.__FB.collection(window.__FB.db,"applications"),snap=>setApps(snap.docs.map(d=>({...d.data(),fireId:d.id})).sort((a,b)=>(b.dateStr||"").localeCompare(a.dateStr||"")))); }catch(_){}
+    }
+    return ()=>unsubApps();
+  },[]);
+
+  async function saveCfg(next){
+    const merged={...cfg,...next};
+    setCfg(merged);
+    try{
+      await window.__FB.setDoc(window.__FB.doc(window.__FB.db,"config","applications"),
+        {...merged,updatedAt:window.__FB.serverTimestamp(),updatedBy:user.name});
+      toast(L("saved"));
+    }catch(e){ toast(L("err")); }
+  }
+  async function setStatus(app,status){
+    try{
+      await window.__FB.setDoc(window.__FB.doc(window.__FB.db,"applications",app.fireId),{status},{merge:true});
+    }catch(e){ toast(L("err")); }
+  }
+  async function removeApp(app){
+    try{ await window.__FB.deleteDoc(window.__FB.doc(window.__FB.db,"applications",app.fireId)); }catch(e){ toast(L("err")); }
+  }
+
+  const shown=apps.filter(a=>filter==="all"?true:(a.status||"new")===filter);
+  const inputStyle={width:"100%",padding:"10px 12px",border:"1px solid var(--border2)",borderRadius:10,fontSize:13,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box"};
+
+  return(
+    <div style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
+      <div style={{background:"var(--hero-grad)",padding:"calc(env(safe-area-inset-top,0px) + 14px) 16px 14px",display:"flex",alignItems:"center",gap:12}}>
+        <span style={{fontSize:24}}>🗂</span>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:14,fontWeight:800,color:"#fff"}}>{user.name}</div>
+          <div style={{fontSize:10,color:"rgba(255,255,255,0.65)",letterSpacing:"0.12em",textTransform:"uppercase"}}>
+            {lang==="en"?"Student Affairs":lang==="de"?"Studierendenbüro":"Karûbarên Xwendekaran"}
+          </div>
+        </div>
+        <button onClick={onLogout} style={{background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:8,padding:"7px 12px",fontSize:12,fontWeight:600,color:"var(--red)",cursor:"pointer"}}>
+          ↩ {lang==="en"?"Sign out":lang==="de"?"Abmelden":"Derkeve"}
+        </button>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
+
+        <SectionHeader>{L("settings")}</SectionHeader>
+        <Card>
+          <button onClick={()=>saveCfg({open:!cfg.open})} disabled={!cfgLoaded}
+            style={{width:"100%",padding:"13px",marginBottom:12,border:"none",borderRadius:12,fontSize:14,fontWeight:800,cursor:"pointer",
+              background:cfg.open?"rgba(22,163,74,0.14)":"var(--red-bg)",color:cfg.open?"#16a34a":"var(--red)",
+              border:cfg.open?"1.5px solid #16a34a":"1.5px solid var(--red)"}}>
+            {cfg.open?"🟢 "+L("open"):"🔴 "+L("closed")}
+          </button>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+            <div>
+              <div style={{fontSize:10,color:"var(--text2)",marginBottom:4}}>{L("start")}</div>
+              <input type="date" value={cfg.startDate||""} onChange={e=>setCfg(c=>({...c,startDate:e.target.value}))} style={inputStyle}/>
+            </div>
+            <div>
+              <div style={{fontSize:10,color:"var(--text2)",marginBottom:4}}>{L("end")}</div>
+              <input type="date" value={cfg.endDate||""} onChange={e=>setCfg(c=>({...c,endDate:e.target.value}))} style={inputStyle}/>
+            </div>
+          </div>
+          <div style={{fontSize:10,color:"var(--text2)",marginBottom:4}}>{L("note")}</div>
+          <input value={cfg.note||""} onChange={e=>setCfg(c=>({...c,note:e.target.value}))} style={{...inputStyle,marginBottom:12}}/>
+          <PrimaryBtn onClick={()=>saveCfg({})} icon="💾">{L("save")}</PrimaryBtn>
+        </Card>
+
+        <SectionHeader>{L("list")} ({apps.length})</SectionHeader>
+        <div style={{display:"flex",gap:6,marginBottom:12}}>
+          {[["all",L("all")],["new",L("stNew")],["accepted",L("stAcc")],["rejected",L("stRej")]].map(([k2,lb])=>(
+            <button key={k2} onClick={()=>setFilter(k2)} style={{flex:1,padding:"8px 4px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11.5,fontWeight:700,background:filter===k2?"#16293f":"var(--surface2)",color:filter===k2?"#fff":"var(--text2)"}}>{lb}</button>
+          ))}
+        </div>
+        {shown.length===0&&<Card><div style={{fontSize:13,color:"var(--text2)",textAlign:"center",padding:"8px 0"}}>{L("empty")}</div></Card>}
+        {shown.map(app=>{
+          const st=STATUS[app.status||"new"]||STATUS.new;
+          const isOpen=expanded===app.fireId;
+          return(
+          <Card key={app.fireId} onClick={()=>setExpanded(isOpen?null:app.fireId)}>
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>{app.name}</div>
+                <div style={{fontSize:11,color:"var(--text2)"}}>{areaName(app.area,lang)||app.area} · {app.dateStr||""}{app.docs&&app.docs.length?(" · 📎 "+app.docs.length):""}</div>
+              </div>
+              <span style={{fontSize:10,fontWeight:800,padding:"4px 10px",borderRadius:8,background:st.bg,color:st.color,whiteSpace:"nowrap"}}>{st.label}</span>
+              <span style={{color:"var(--text2)",fontSize:12}}>{isOpen?"▲":"▼"}</span>
+            </div>
+            {isOpen&&(
+              <div onClick={e=>e.stopPropagation()} style={{marginTop:14,borderTop:"0.5px solid var(--border)",paddingTop:12}}>
+                <div style={{display:"grid",gap:6,fontSize:13,color:"var(--text)",marginBottom:12}}>
+                  {app.phone&&<div>📱 <b>{L("phone")}:</b> <a href={"tel:"+app.phone} style={{color:"var(--text)"}}>{app.phone}</a></div>}
+                  {app.dob&&<div>🎂 <b>{L("dob")}:</b> {app.dob}</div>}
+                  <div>🎨 <b>{L("area")}:</b> {areaName(app.area,lang)||app.area}</div>
+                  {app.note&&<div>💬 <b>{L("msg")}:</b> {app.note}</div>}
+                </div>
+                {app.docs&&app.docs.length>0&&(
+                  <div style={{marginBottom:12}}>
+                    <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",marginBottom:6}}>📎 {L("docs")} ({app.docs.length})</div>
+                    <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                      {app.docs.map((d2,i)=>(
+                        <a key={i} href={d2} target="_blank" rel="noopener">
+                          <img src={d2} alt={"belge "+(i+1)} style={{width:96,height:72,objectFit:"cover",borderRadius:8,border:"1px solid var(--border2)"}}/>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+                  <button onClick={()=>setStatus(app,"accepted")} style={{padding:"10px 4px",background:"rgba(22,163,74,0.12)",border:"0.5px solid #16a34a",borderRadius:8,color:"#16a34a",fontSize:12,fontWeight:700,cursor:"pointer"}}>{L("accept")}</button>
+                  <button onClick={()=>setStatus(app,"rejected")} style={{padding:"10px 4px",background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:8,color:"var(--red)",fontSize:12,fontWeight:700,cursor:"pointer"}}>{L("reject")}</button>
+                  <button onClick={()=>removeApp(app)} style={{padding:"10px 4px",background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:8,color:"var(--text2)",fontSize:12,fontWeight:700,cursor:"pointer"}}>{L("del")}</button>
+                </div>
+              </div>
+            )}
+          </Card>
+          );
+        })}
       </div>
     </div>
   );
@@ -6978,7 +7217,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
 
   const statsCards=[
     {key:"students", label:t.totalStudents, val:students.length, icon:"🎓", color:"#16293f", bg:"rgba(22,41,63,0.08)"},
-    {key:"teachers", label:t.totalTeachers, val:teachers.filter(t2=>!t2.isAdmin&&!t2.isPress).length, icon:"👨‍🏫", color:"#16a34a", bg:"rgba(22,163,74,0.08)"},
+    {key:"teachers", label:t.totalTeachers, val:teachers.filter(t2=>!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar).length, icon:"👨‍🏫", color:"#16a34a", bg:"rgba(22,163,74,0.08)"},
     {key:"programs", label:t.activePrograms, val:schedule.length, icon:"📅", color:"#d97706", bg:"rgba(217,119,6,0.08)"},
     {key:"pending", label:t.pendingApproval, val:0, icon:"⏳", color:"#dc2626", bg:"rgba(220,38,38,0.08)"},
   ];
@@ -7061,7 +7300,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
               {AREAS.filter(area=>area.key!=="genel").map(area=>{
                 const a=AREA_MAP[area.key];
                 const cnt=students.filter(s=>s.area===area.key).length;
-                const tcnt=teachers.filter(t2=>t2.area===area.key&&!t2.isAdmin&&!t2.isPress).length;
+                const tcnt=teachers.filter(t2=>t2.area===area.key&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar).length;
                 return(
                   <div key={area.key} onClick={()=>setActiveArea(area.key)}
                     className="area-card"
@@ -8010,7 +8249,7 @@ ${`</html>`}`;
   // Survey data for report
   const allResponses = loadSurveyResponses();
   const allQuestions = loadSurveyQuestions();
-  const filteredTeachers = selectedArea==="all" ? teachers.filter(t2=>!t2.isAdmin&&!t2.isPress) : teachers.filter(t2=>t2.area===selectedArea&&!t2.isAdmin&&!t2.isPress);
+  const filteredTeachers = selectedArea==="all" ? teachers.filter(t2=>!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar) : teachers.filter(t2=>t2.area===selectedArea&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar);
 
   // Survey target helpers
   const surveyStudents = surveyTarget==="all_students" ? students
@@ -8018,7 +8257,7 @@ ${`</html>`}`;
     : surveyTarget==="area_students" ? filteredStudents
     : []; // area_teachers = handled separately
 
-  const surveyTeachers = surveyTarget==="all_teachers" ? teachers.filter(t2=>!t2.isAdmin&&!t2.isPress)
+  const surveyTeachers = surveyTarget==="all_teachers" ? teachers.filter(t2=>!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar)
     : surveyTarget==="area_teachers" ? filteredTeachers
     : [];
 
@@ -12710,7 +12949,7 @@ function LoginScreen({students,teachers,t,lang,setLang,onLogin,onForgot,dark,onT
                   if(fresh) tc = fresh; // taze veri varsa (fotoğraf dahil) onu kullan
                 } catch(_){}
               }
-              if(tc){ matched = tc; matchedType = tc.isPress ? "press" : tc.isAdmin ? "admin" : "teacher"; }
+              if(tc){ matched = tc; matchedType = tc.isPress ? "press" : tc.isRegistrar ? "registrar" : tc.isAdmin ? "admin" : "teacher"; }
             }
             break;
           }
@@ -12733,7 +12972,7 @@ function LoginScreen({students,teachers,t,lang,setLang,onLogin,onForgot,dark,onT
       for(const tc of tcList){
         if(await verifyPassword(passInput, tc.pass)){
           matched = tc;
-          matchedType = tc.isPress ? "press" : tc.isAdmin ? "admin" : "teacher";
+          matchedType = tc.isPress ? "press" : tc.isRegistrar ? "registrar" : tc.isAdmin ? "admin" : "teacher";
           break;
         }
       }
@@ -14190,7 +14429,7 @@ function App(){
     const list = isStudent ? students : teachers;
     const rec = (list || []).find(u => String(u.no) === String(no));
     if (rec) {
-      const type = isStudent ? "student" : (rec.isPress ? "press" : rec.isAdmin ? "admin" : "teacher");
+      const type = isStudent ? "student" : (rec.isPress ? "press" : rec.isRegistrar ? "registrar" : rec.isAdmin ? "admin" : "teacher");
       setCurrentUser({ ...rec, type });
       setScreen(type);
     }
@@ -14516,6 +14755,9 @@ function App(){
       )}
       {screen==="press"&&currentUser&&(
         <PressPanel user={currentUser} lang={lang} toast={toast} onLogout={handleLogout}/>
+      )}
+      {screen==="registrar"&&currentUser&&(
+        <RegistrarPanel user={currentUser} lang={lang} toast={toast} onLogout={handleLogout}/>
       )}
       {screen==="student"&&currentUser&&(
         <StudentPanel student={currentUser} schedule={schedule} t={t} lang={lang} toast={toast} onLogout={handleLogout} onDataChange={onDataChange} onSettings={()=>setShowSettings(true)}/>
