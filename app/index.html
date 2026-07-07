@@ -6118,11 +6118,146 @@ const SPECIAL_TYPES = {
     name:{ku:"Karûbarên Xwendekaran",en:"Student Affairs",de:"Studierendenbüro"},
     desc:{ku:"Serlêdanên tomarkirinê birêve dibe",en:"Manages enrollment applications",de:"Verwaltet Anmeldungen"} },
 };
-function AdminPressPanel({teachers,onDataChange,lang,toast}){
-  const [kind,setKind]=useState("press");
+
+/* Karta taybet tescîl bike — AddTeacherSheet ile aynı format */
+function AddSpecialCardSheet({open,onClose,kind,teachers,t,lang,toast,onSave}){
+  const K=SPECIAL_TYPES[kind]||SPECIAL_TYPES.press;
   const [name,setName]=useState("");
-  const [creds,setCreds]=useState(null);
-  const [editing,setEditing]=useState(null); // düzenlenen kart
+  const [year,setYear]=useState("2026");
+  const [phone,setPhone]=useState("");
+  const [dob,setDob]=useState("");
+  const [address,setAddress]=useState("");
+  const [bio,setBio]=useState("");
+  const [photo,setPhoto]=useState(null);
+  const [savedCreds,setSavedCreds]=useState(null);
+  const fileRef=useRef();
+
+  useEffect(()=>{ if(open){ setSavedCreds(null); setName(""); setPhone(""); setDob(""); setAddress(""); setBio(""); setPhoto(null); } },[open]);
+
+  function handlePhoto(e){
+    const f=e.target.files[0];
+    if(!f) return;
+    const r=new FileReader();
+    r.onload=async ev=>{
+      const compressed=await compressImage(ev.target.result,400,400,0.78);
+      setPhoto(compressed);
+    };
+    r.readAsDataURL(f);
+  }
+
+  function handleSave(){
+    if(!name.trim()){toast("⚠ "+t.fullName); return;}
+    const same=(teachers||[]).filter(tc=>tc[K.flag]);
+    const seqs=same.map(tc=>parseInt((tc.no||"").slice(-2))||0);
+    const seq=(seqs.length>0?Math.max(...seqs):0)+1;
+    const no=K.prefix+year+String(seq).padStart(2,"0");
+    const rawPass=genAutoPassword();
+    hashPassword(rawPass).then(hashed=>{
+      const tc={id:no,name:name.trim(),area:"genel",no,pass:hashed,passHash:hashed,
+        isAdmin:false,[K.flag]:true,phone,dob,address,bio:bio||(K.name.ku),photo,
+        _plainPass:rawPass};
+      onSave(tc);
+      setSavedCreds({no,pass:rawPass,name:name.trim()});
+      toast("✅ "+name.trim()+" · "+no+" | 🔑 "+rawPass, 8000);
+    });
+    setName(""); setPhone(""); setDob(""); setAddress(""); setBio(""); setPhoto(null);
+  }
+
+  const typeTitle=(K.name[lang]||K.name.ku);
+
+  // Kayıt sonrası bilgi kartı — Mamoste tescîl kartıyla aynı
+  if(savedCreds){
+    return(
+      <Sheet open={open} onClose={()=>{setSavedCreds(null);onClose();}} title={"✅ Karta "+typeTitle+" Tescîl Bû"}>
+        <div style={{textAlign:"center",padding:"8px 0 20px"}}>
+          <div style={{fontSize:48,marginBottom:8}}>{K.icon}</div>
+          <div style={{fontSize:16,fontWeight:700,color:"var(--text)",marginBottom:4}}>{savedCreds.name}</div>
+          <div style={{fontSize:12,color:"var(--text2)",marginBottom:20}}>{lang==="en"?"Card registered successfully":lang==="de"?"Karte erfolgreich registriert":"Kart hate tescîlkirin"}</div>
+        </div>
+        <div style={{background:"#16293f",borderRadius:16,padding:"20px 18px",marginBottom:16,border:"1px solid rgba(79,142,247,0.3)"}}>
+          <div style={{fontSize:10,color:"rgba(255,255,255,0.65)",fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:14}}>
+            🔐 {lang==="en"?"Login Credentials":lang==="de"?"Anmeldedaten":"Têketina Sîstemê"}
+          </div>
+          <div style={{marginBottom:12}}>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.5)",marginBottom:4}}>{lang==="en"?"Username (No)":lang==="de"?"Benutzername":"Navê Bikarhêner (Jimare)"}</div>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <div style={{flex:1,fontFamily:"monospace",fontSize:16,fontWeight:800,color:"var(--text)",letterSpacing:"0.12em"}}>{savedCreds.no}</div>
+              <button onClick={async()=>{await copyToClipboard(savedCreds.no);hapticLight();}} style={{background:"rgba(79,142,247,0.12)",border:"1px solid rgba(79,142,247,0.3)",borderRadius:6,padding:"4px 8px",fontSize:11,color:"var(--text)",cursor:"pointer"}}>📋</button>
+            </div>
+          </div>
+          <div style={{borderTop:"1px solid rgba(255,255,255,0.1)",paddingTop:12}}>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.5)",marginBottom:4}}>{lang==="en"?"Password (auto-generated)":lang==="de"?"Passwort (automatisch)":"Şîfre (otomatîk)"}</div>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <div style={{flex:1,fontFamily:"monospace",fontSize:18,fontWeight:800,color:"#5DC48A",letterSpacing:"0.15em"}}>{savedCreds.pass}</div>
+              <button onClick={async()=>{await copyToClipboard(savedCreds.pass);hapticLight();}} style={{background:"rgba(93,196,138,0.15)",border:"1px solid rgba(93,196,138,0.3)",borderRadius:6,padding:"4px 8px",fontSize:11,color:"#5DC48A",cursor:"pointer"}}>📋</button>
+            </div>
+          </div>
+        </div>
+        <div style={{fontSize:11,color:"var(--text2)",background:"var(--bg2)",borderRadius:8,padding:"10px 12px",marginBottom:16,lineHeight:1.7}}>
+          ⚠️ {lang==="en"?"Save this password now — it won't be shown again.":lang==="de"?"Passwort jetzt notieren — wird nicht mehr angezeigt.":"Şîfre niha tomarkirin — dîsa nayê nîşandan."}
+        </div>
+        <button onClick={async()=>{await copyToClipboard(savedCreds.no+" / "+savedCreds.pass);hapticSuccess();toast("✅ "+(lang==="en"?"Copied!":lang==="de"?"Kopiert!":"Kopye bû!"));}} style={{width:"100%",padding:"13px",background:"#16293f",color:"#ffffff",border:"none",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",marginBottom:8}}>
+          📋 {lang==="en"?"Copy All":lang==="de"?"Alles kopieren":"Hemûyan Kopye Bike"}
+        </button>
+        <button onClick={()=>{setSavedCreds(null);onClose();}} style={{width:"100%",padding:"11px",background:"none",border:"0.5px solid var(--border2)",borderRadius:12,fontSize:13,color:"var(--text2)",cursor:"pointer"}}>
+          {lang==="en"?"Close":lang==="de"?"Schließen":"Bigire"}
+        </button>
+      </Sheet>
+    );
+  }
+
+  return(
+    <Sheet open={open} onClose={onClose} title={"➕ Karta "+typeTitle+" Tescîl Bike"}>
+      {/* Photo */}
+      <div style={{display:"flex",justifyContent:"center",marginBottom:18}}>
+        <div onClick={()=>fileRef.current.click()} style={{width:80,height:80,borderRadius:"50%",background:"var(--bg2)",border:"2px dashed var(--border2)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden"}}>
+          {photo
+            ? <img src={photo} style={{width:"100%",height:"100%",objectFit:"cover"}} alt=""/>
+            : <div style={{textAlign:"center"}}><div style={{fontSize:24}}>📷</div><div style={{fontSize:9,color:"var(--text2)",marginTop:4}}>{t.photoUpload}</div></div>
+          }
+        </div>
+        <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={handlePhoto}/>
+      </div>
+      <FieldWrap label={t.fullName}>
+        <input style={inputStyle} value={name} onChange={e=>setName(e.target.value)} placeholder="Nav û Nasname"/>
+      </FieldWrap>
+      {/* Erk (tür) — kilitli görünüm */}
+      <FieldWrap label={lang==="en"?"Duty":lang==="de"?"Aufgabe":"Erk"}>
+        <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",background:"var(--bg2)",borderRadius:10,border:"1.5px solid var(--border2)"}}>
+          <span style={{fontSize:18}}>{K.icon}</span>
+          <span style={{flex:1,fontSize:14,fontWeight:600,color:"var(--text)"}}>{typeTitle}</span>
+          <span style={{fontSize:10,color:"var(--text2)",padding:"2px 8px",borderRadius:6,background:"var(--surface)"}}>🔒 {lang==="ku"?"Kilkkirî":lang==="en"?"Locked":"Gesperrt"}</span>
+        </div>
+        <div style={{fontSize:10,color:"var(--text2)",marginTop:5}}>{K.desc[lang]||K.desc.ku}</div>
+      </FieldWrap>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+        <FieldWrap label={t.regYear}>
+          <select style={selectStyle} value={year} onChange={e=>setYear(e.target.value)}>
+            {["2025","2026","2027"].map(y=>(<option key={y}>{y}</option>))}
+          </select>
+        </FieldWrap>
+        <FieldWrap label={t.phone}>
+          <input style={inputStyle} value={phone} onChange={e=>setPhone(e.target.value)} type="tel" inputMode="tel" autoComplete="tel" placeholder="05XX..."/>
+        </FieldWrap>
+      </div>
+      <FieldWrap label={t.dobLabel}>
+        <input style={inputStyle} type="date" value={dob} onChange={e=>setDob(e.target.value)}/>
+      </FieldWrap>
+      <FieldWrap label={t.addressLabel}>
+        <input style={inputStyle} value={address} onChange={e=>setAddress(e.target.value)} placeholder="Amed..."/>
+      </FieldWrap>
+      <FieldWrap label={t.bioLabel}>
+        <textarea style={{...inputStyle,minHeight:60,resize:"vertical"}} value={bio} onChange={e=>setBio(e.target.value)} placeholder="Danasîn..."/>
+      </FieldWrap>
+      <PrimaryBtn onClick={handleSave} icon="💾">{lang==="en"?"Register Card":lang==="de"?"Karte registrieren":"Kartê Tescîl Bike"}</PrimaryBtn>
+    </Sheet>
+  );
+}
+
+function AdminPressPanel({teachers,onDataChange,lang,toast,t}){
+  const [kind,setKind]=useState("press");
+  const [showAdd,setShowAdd]=useState(false);
+  const [editing,setEditing]=useState(null);
   const [editName,setEditName]=useState("");
   const [newPass,setNewPass]=useState(null);
   const K=SPECIAL_TYPES[kind];
@@ -6130,43 +6265,16 @@ function AdminPressPanel({teachers,onDataChange,lang,toast}){
   const L=(k)=>({
     heading:{ku:"📇 Kartên Taybet",en:"📇 Staff Cards",de:"📇 Spezialkonten"},
     hint:{ku:"Ev kart ji beşa MAMOSTE têkevin û tenê erka xwe dibînin.",en:"These cards sign in via the TEACHER entry and only see their own duty.",de:"Anmeldung über LEHRER-Login; sehen nur ihre Aufgabe."},
-    nameP:{ku:"Navê bikarhêner (ör. Desteya Çapemeniyê)",en:"Display name",de:"Anzeigename"},
-    create:{ku:"➕ Kartê Çêke",en:"➕ Create Card",de:"➕ Karte erstellen"},
-    list:{ku:"Kartên çêkirî",en:"Created cards",de:"Erstellte Karten"},
+    create:{ku:"➕ Kartê Tescîl Bike",en:"➕ Register Card",de:"➕ Karte registrieren"},
+    list:{ku:"Kartên tescîlkirî",en:"Registered cards",de:"Registrierte Karten"},
     empty:{ku:"Hîn kart tune.",en:"No cards yet.",de:"Noch keine Karten."},
-    del:{ku:"Jê bibe",en:"Delete",de:"Löschen"},
     edit:{ku:"Biguherîne",en:"Edit",de:"Bearbeiten"},
     needName:{ku:"⚠ Nav pêwîst e",en:"⚠ Name required",de:"⚠ Name erforderlich"},
-    credTitle:{ku:"✅ Kart Hate Çêkirin",en:"✅ Card Created",de:"✅ Karte erstellt"},
-    credNote:{ku:"Van agahiyan bide berpirsê — ji beşa MAMOSTE têkeve.",en:"Give these to the editor — sign in via TEACHER.",de:"Daten weitergeben — Anmeldung über LEHRER."},
-    user:{ku:"Navê bikarhêner (Jimare)",en:"Username (No)",de:"Benutzername"},
-    pass:{ku:"Şîfre",en:"Password",de:"Passwort"},
-    ok:{ku:"Temam",en:"Done",de:"Fertig"},
+    nameP:{ku:"Nav",en:"Name",de:"Name"},
     save:{ku:"💾 Tomar bike",en:"💾 Save",de:"💾 Speichern"},
     regen:{ku:"🔑 Şîfreya nû çêke",en:"🔑 Generate new password",de:"🔑 Neues Passwort"},
     newPassNote:{ku:"Şîfreya nû — bide bikarhêner:",en:"New password — give to the user:",de:"Neues Passwort — weitergeben:"},
-    cancel:{ku:"Betal",en:"Cancel",de:"Abbrechen"},
   }[k][lang]||k);
-
-  function nextNo(prefix, flag){
-    const year=new Date().getFullYear();
-    const seqs=(teachers||[]).filter(tc=>tc[flag]).map(tc=>parseInt((tc.no||"").slice(-2))||0);
-    return prefix+year+String((seqs.length?Math.max(...seqs):0)+1).padStart(2,"0");
-  }
-
-  function createCard(){
-    if(!name.trim()){toast(L("needName"));return;}
-    const no=nextNo(K.prefix,K.flag);
-    const rawPass=genAutoPassword();
-    hashPassword(rawPass).then(hashed=>{
-      const tc={id:no,name:name.trim(),area:"genel",no,pass:hashed,passHash:hashed,
-        isAdmin:false,[K.flag]:true,phone:"",dob:"",address:"",photo:null,
-        bio:K.name.ku,_plainPass:rawPass};
-      onDataChange("addTeacher",tc);
-      setCreds({no,pass:rawPass,name:name.trim(),icon:K.icon});
-      setName("");
-    });
-  }
 
   async function regenPass(){
     if(!editing) return;
@@ -6176,7 +6284,6 @@ function AdminPressPanel({teachers,onDataChange,lang,toast}){
     onDataChange("updateTeacher",{...editing,name:editName.trim()||editing.name,pass:hashed,passHash:hashed,_plainPass:pass});
     setNewPass(pass);
   }
-
   function saveEdit(){
     if(!editName.trim()){toast(L("needName"));return;}
     onDataChange("updateTeacher",{...editing,name:editName.trim()});
@@ -6197,30 +6304,11 @@ function AdminPressPanel({teachers,onDataChange,lang,toast}){
           ))}
         </div>
         <div style={{fontSize:11,color:"var(--text2)",marginBottom:10}}>{K.icon} {K.desc[lang]||K.desc.ku}</div>
-        <input value={name} onChange={e=>setName(e.target.value)} placeholder={L("nameP")}
-          style={{width:"100%",padding:"11px 12px",marginBottom:10,border:"1px solid var(--border2)",borderRadius:10,fontSize:14,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box"}}/>
-        <PrimaryBtn onClick={createCard} icon={K.icon}>{L("create")}</PrimaryBtn>
+        <PrimaryBtn onClick={()=>setShowAdd(true)} icon={K.icon}>{L("create")}</PrimaryBtn>
       </Card>
 
-      {creds&&(
-        <Card style={{border:"1.5px solid var(--green)"}}>
-          <div style={{fontSize:14,fontWeight:800,color:"var(--text)",marginBottom:6}}>{L("credTitle")} {creds.icon}</div>
-          <div style={{fontSize:11,color:"var(--text2)",marginBottom:14}}>{L("credNote")}</div>
-          <div style={{background:"#16293f",borderRadius:14,padding:"16px",marginBottom:10}}>
-            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginBottom:4}}>{L("user")}</div>
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-              <span style={{flex:1,fontFamily:"monospace",fontSize:17,fontWeight:800,color:"#fff",letterSpacing:"0.1em"}}>{creds.no}</span>
-              <button onClick={async()=>{await copyToClipboard(creds.no);hapticLight();}} style={{background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.25)",borderRadius:6,padding:"4px 8px",fontSize:11,color:"#fff",cursor:"pointer"}}>📋</button>
-            </div>
-            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginBottom:4}}>{L("pass")}</div>
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <span style={{flex:1,fontFamily:"monospace",fontSize:17,fontWeight:800,color:"#F7D116",letterSpacing:"0.1em"}}>{creds.pass}</span>
-              <button onClick={async()=>{await copyToClipboard(creds.pass);hapticLight();}} style={{background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.25)",borderRadius:6,padding:"4px 8px",fontSize:11,color:"#fff",cursor:"pointer"}}>📋</button>
-            </div>
-          </div>
-          <button onClick={()=>setCreds(null)} style={{width:"100%",padding:"11px",background:"var(--bg2)",border:"none",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer",color:"var(--text)"}}>{L("ok")}</button>
-        </Card>
-      )}
+      <AddSpecialCardSheet open={showAdd} onClose={()=>setShowAdd(false)} kind={kind} teachers={teachers} t={t} lang={lang} toast={toast}
+        onSave={(tc)=>onDataChange("addTeacher",tc)}/>
 
       <SectionHeader>{L("list")} ({cards.length})</SectionHeader>
       {cards.length===0&&<Card><div style={{fontSize:13,color:"var(--text2)",textAlign:"center",padding:"8px 0"}}>{L("empty")}</div></Card>}
@@ -6229,10 +6317,12 @@ function AdminPressPanel({teachers,onDataChange,lang,toast}){
         return(
         <Card key={tc.no}>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <span style={{fontSize:24}}>{tK.icon}</span>
+            {tc.photo
+              ? <img src={tc.photo} alt="" style={{width:38,height:38,borderRadius:"50%",objectFit:"cover",flexShrink:0}}/>
+              : <span style={{fontSize:24}}>{tK.icon}</span>}
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>{tc.name}</div>
-              <div style={{fontSize:11,color:"var(--text2)"}}>{tK.name[lang]||tK.name.ku} · <span style={{fontFamily:"monospace"}}>{tc.no}</span></div>
+              <div style={{fontSize:11,color:"var(--text2)"}}>{tK.icon} {tK.name[lang]||tK.name.ku} · <span style={{fontFamily:"monospace"}}>{tc.no}</span></div>
             </div>
             <button onClick={()=>{setEditing(tc);setEditName(tc.name);setNewPass(null);}}
               style={{background:"var(--bg2)",border:"0.5px solid var(--border2)",color:"var(--text)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>
@@ -7323,7 +7413,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
           <AdminScheduleTab schedule={schedule} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>
         )}
         {tab==="announcements"&&<AnnouncementsPanel t={t} toast={toast} lang={lang} senderName={adminData.name} senderRole="admin" senderArea={null}/>}
-        {tab==="press"&&<AdminPressPanel teachers={teachers} onDataChange={onDataChange} lang={lang} toast={toast}/>}
+        {tab==="press"&&<AdminPressPanel teachers={teachers} onDataChange={onDataChange} lang={lang} toast={toast} t={t}/>}
         {tab==="messages"&&<AdminMessagesPanel students={students} teachers={teachers} lang={lang} t={t} toast={toast} adminName={adminData.name}/>}
         {tab==="reports"&&<AdminReportsPanel students={students} teachers={teachers} schedule={schedule} lang={lang} t={t} toast={toast}/>}
         {tab==="weekly"&&<AdminWeeklyReportPanel students={students} teachers={teachers} schedule={schedule} lang={lang} toast={toast}/>}
