@@ -1,22 +1,21 @@
 rules_version = '2';
 
 // ════════════════════════════════════════════════════════════════════════
-//  Akademîya Aram Tîgran — Firestore Security Rules
+//  Akademîya Aram Tîgran — Firestore Security Rules  (v3: okuma izolasyonu)
 //  ----------------------------------------------------------------------
-//  Bu kurallar uygulamanın mevcut akışını BOZMADAN en kritik güvenlik
-//  açığını kapatır: "giriş yapan herkes her şeyi yazabilir" → öğrenciler
-//  artık başka öğrencileri/öğretmenleri, ders programını, duyuruları,
-//  istatistikleri, ayarları DEĞİŞTİREMEZ ve kendilerini admin YAPAMAZ.
+//  YAZMA: rol bazlı kilitli (önceki sürümle aynı).
+//  OKUMA: artık varsayılan KAPALI.
+//    • Öğrenci: yalnızca KENDİ students dokümanını okur (no == e-posta öneki).
+//      Diğer öğrencileri ve öğretmen listesini (PII + şifre hash'i) OKUYAMAZ.
+//    • Personel (@ogretmen.aat / admin): students + teachers dahil hepsini okur.
+//    • Ortak koleksiyonlar (program, duyuru, anket, mesaj, yoklama, QR…):
+//      giriş yapmış herkese açık (öğrenci paneli bunları kullanır).
+//    • Site (girişsiz): yalnızca news, config/applications, applicationTemplates.
 //
 //  Rol, Firebase Auth e-posta uzantısından anlaşılır:
 //    • Öğrenci   : <no>@ogrenci.aat
-//    • Öğretmen  : <no>@ogretmen.aat   (yönetici de bu gruba dahildir)
-//    • Yönetici  : <no>@ogretmen.aat  veya  admin@aramtigran.edu
-//
-//  NOT (kalan iş): Okuma hâlâ "giriş yapmış herkese" açıktır; çünkü
-//  uygulama tüm öğrenci/öğretmen listesini istemciye yüklüyor. Okumayı
-//  "sadece kendi verisi" düzeyine indirmek istemci tarafında yeniden
-//  yapılandırma gerektirir (ayrı bir adım).
+//    • Öğretmen  : <no>@ogretmen.aat   (yönetici/basın/öğrenci işleri dahil)
+//    • Yönetici  : admin@aramtigran.edu (yedek)
 // ════════════════════════════════════════════════════════════════════════
 
 service cloud.firestore {
@@ -45,44 +44,45 @@ service cloud.firestore {
     // "no" alanı değiştirilemesin (kimliğini başkasınınkiyle değiştiremez)
     function noUnchanged() { return request.resource.data.no == resource.data.no; }
 
-    // ── Varsayılan: okuma giriş yapmışlara açık, yazma KAPALI ───────────
-    // (Aşağıdaki özel kurallar yazma iznini koleksiyon bazında açar.)
-    match /{document=**} {
-      allow read:  if authed();
-      allow write: if false;
+    // Başvuru dönemi açık mı? (public create yalnızca dönem açıkken)
+    function applicationsOpen() {
+      return exists(/databases/$(database)/documents/config/applications)
+        && get(/databases/$(database)/documents/config/applications).data.open == true;
     }
 
-    // ── Öğrenciler ─────────────────────────────────────────────────────
+    // ── Varsayılan: HER ŞEY KAPALI ──────────────────────────────────────
+    // (Aşağıdaki kurallar okuma/yazmayı koleksiyon bazında açar.)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ── Öğrenciler — okuma: personel VEYA kendi kaydı ──────────────────
+    // (Öğrenci istemcisi yalnızca where("no","==",kendiNo) sorgusu yapar;
+    //  bu sorgu kuralla kanıtlanabilir olduğundan çalışır.)
     match /students/{id} {
+      allow read:   if isStaff() || ownsStudentDoc(resource.data);
       allow create: if isStaff();
       allow update: if isStaff()
                     || (ownsStudentDoc(resource.data) && noUnchanged() && notGrantingAdmin());
       allow delete: if isStaff() || ownsStudentDoc(resource.data);
     }
 
-    // ── Öğretmenler / Yönetici ─────────────────────────────────────────
+    // ── Öğretmenler / Yönetici — okuma: yalnızca personel ──────────────
     match /teachers/{id} {
+      allow read:   if isStaff() || ownsTeacherDoc(resource.data);
       allow create: if isStaff();
       allow update: if isStaff()
                     || (ownsTeacherDoc(resource.data) && noUnchanged() && notGrantingAdmin());
       allow delete: if isStaff();
     }
 
-    // ── Malper nûçe (ana sayfa haberleri) — HERKESE açık okuma, yazma personel ──
+    // ── Malper nûçe (ana sayfa haberleri) — HERKESE açık okuma ─────────
     match /news/{id} {
       allow read:  if true;
       allow write: if isStaff();
     }
 
-    // ── Serlêdan (kayıt başvuruları) — herkes BAŞVURU oluşturabilir (form),
-    //    okuma/durum/silme yalnızca personel (öğrenci işleri) ──
-    //  Girişsiz (public) yazma olduğu için sıkı sınırlar: alan izin listesi,
-    //  boyut üst sınırları, belge sayısı sınırı, status sabit 'new' VE ancak
-    //  başvuru dönemi AÇIK ise (config/applications.open == true) kabul edilir.
-    function applicationsOpen() {
-      return exists(/databases/$(database)/documents/config/applications)
-        && get(/databases/$(database)/documents/config/applications).data.open == true;
-    }
+    // ── Serlêdan (kayıt başvuruları) — public create, sıkı sınırlı ─────
     match /applications/{id} {
       allow create: if applicationsOpen()
                     && request.resource.data.keys().hasOnly(
@@ -112,32 +112,34 @@ service cloud.firestore {
       allow write: if isStaff();
     }
 
-    // ── Yalnızca personel yazar (öğrenci dokunamaz) ────────────────────
-    match /schedule/{id}          { allow write: if isStaff(); }
-    match /announcements/{id}     { allow write: if isStaff(); }
-    match /studentSurveys/{id}    { allow write: if isStaff(); }
-    match /studentStats/{id}      { allow write: if isStaff(); }
-    match /teacherLessonLogs/{id} { allow write: if isStaff(); }
-    match /qrSessions/{id}        { allow write: if isStaff(); }
-    match /config/{id}            { allow write: if isStaff(); }
-    match /admins/{id}            { allow write: if isStaff(); }
+    // ── Ortak koleksiyonlar — okuma: giriş yapmış herkes ───────────────
+    // (öğrenci paneli program/duyuru/anket/QR okur; yazma personel)
+    match /schedule/{id}          { allow read: if authed(); allow write: if isStaff(); }
+    match /announcements/{id}     { allow read: if authed(); allow write: if isStaff(); }
+    match /studentSurveys/{id}    { allow read: if authed(); allow write: if isStaff(); }
+    match /studentStats/{id}      { allow read: if authed(); allow write: if isStaff(); }
+    match /teacherLessonLogs/{id} { allow read: if authed(); allow write: if isStaff(); }
+    match /qrSessions/{id}        { allow read: if authed(); allow write: if isStaff(); }
+    match /config/{id}            { allow read: if authed(); allow write: if isStaff(); }
+    match /admins/{id}            { allow read: if authed(); allow write: if isStaff(); }
 
     // ── Roller — personel her rolü yazabilir (kullanıcı oluşturma için);
     //    normal kullanıcı yalnızca KENDİ uid'ini yazar ve admin olamaz ──
     match /roles/{uid} {
+      allow read:  if authed();
       allow write: if isStaff()
                    || (authed() && request.auth.uid == uid
                        && (!('role' in request.resource.data) || request.resource.data.role != 'admin'));
     }
 
-    // ── Hem öğrenci hem personel yazar ─────────────────────────────────
+    // ── Hem öğrenci hem personel okur/yazar ────────────────────────────
     //   attendance: öğrenci QR check-in + öğretmen yoklama kaydı
-    //   messages / survey responses: öğrenci gönderir
+    //   messages / survey responses: öğrenci gönderir (istemci filtreli sorgular)
     //   devices: kullanıcı kendi cihaz kaydını yazar
-    match /attendance/{id}             { allow write: if authed(); }
-    match /messages/{id}               { allow write: if authed(); }
-    match /surveyResponses/{id}        { allow write: if authed(); }
-    match /studentSurveyResponses/{id} { allow write: if authed(); }
-    match /devices/{id}                { allow write: if authed(); }
+    match /attendance/{id}             { allow read, write: if authed(); }
+    match /messages/{id}               { allow read, write: if authed(); }
+    match /surveyResponses/{id}        { allow read, write: if authed(); }
+    match /studentSurveyResponses/{id} { allow read, write: if authed(); }
+    match /devices/{id}                { allow read, write: if authed(); }
   }
 }

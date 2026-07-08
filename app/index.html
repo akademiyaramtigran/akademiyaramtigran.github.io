@@ -13238,10 +13238,15 @@ function LoginScreen({students,teachers,t,lang,setLang,onLogin,onForgot,dark,onT
             // Firebase Auth başarılı — Firestore'dan kullanıcı detayını al
             if(tryRole === "student"){
               let s = students.find(s => s.no === userInput);
-              // Local listede yok VEYA fotoğrafı eksikse taze veri çek
+              // Local listede yok VEYA fotoğrafı eksikse taze veri çek.
+              // NOT: Okuma izolasyonu — öğrenci tüm koleksiyonu OKUYAMAZ,
+              // yalnızca kendi kaydını (no==) sorgulayabilir.
               if(!s || !s.photo){
                 try {
-                  const snap = await window.__FB.getDocs(window.__FB.collection(window.__FB.db,"students"));
+                  const q = window.__FB.query(
+                    window.__FB.collection(window.__FB.db,"students"),
+                    window.__FB.where("no","==",String(userInput)));
+                  const snap = await window.__FB.getDocs(q);
                   const fresh = snap.docs.map(d=>({...d.data(),fireId:d.id})).find(d=>(d.no||"")===userInput);
                   if(fresh) s = fresh;
                 } catch(_){}
