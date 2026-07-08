@@ -2,6 +2,7 @@
 <html lang="ku">
 <head>
 <meta charset="UTF-8"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebasestorage.app wss://*.firebaseio.com; frame-src https://www.youtube-nocookie.com https://www.youtube.com; base-uri 'self'; object-src 'none'"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>Akademîya Aram Tîgran — Dibistana Hunerê</title>
 <meta name="description" content="Akademîya Aram Tîgran — dibistana hunerê: muzîk, şano, sînema, dans, wêje û wênesazî. Nûçe, vîdyo û agahî."/>
@@ -539,40 +540,62 @@ function renderApply(cfg, templates){
 
   // İndirilebilir şablonlar (öğrenci işlerinin dosya eklediği belgeler)
   const dlTpls = (templates||[]).filter(t=>t.file);
-  let dlHtml = "";
-  if(dlTpls.length){
-    dlHtml = `<div class="apply-dl"><div class="apply-dl-h">⬇ Belgeyên ku divê werin dagirtin:</div>`
-      + dlTpls.map((t,i)=>`<a class="apply-dl-item" href="${t.file}" download="${(t.fileName||t.name||('belge'+i)).replace(/"/g,'')}">📄 ${(t.name||'Belge').replace(/[<>]/g,'')}</a>`).join('')
-      + `</div>`;
-  }
-
   // Her istenen belge için ayrı yükleme kutusu
   const reqDocs = templates||[];
-  let reqHtml = "";
-  if(reqDocs.length){
-    reqHtml = `<label>Belgeyên pêwîst *</label><div class="apply-reqs" id="ap-reqs">`
-      + reqDocs.map((t,i)=>`
-        <div class="apply-req" data-i="${i}">
-          <div class="apply-req-info"><span class="apply-req-name">📄 ${(t.name||'Belge').replace(/[<>]/g,'')}</span><span class="apply-req-state" id="rq-st-${i}">necar</span></div>
-          <button type="button" class="apply-req-btn" id="rq-btn-${i}">📎 Bar bike</button>
-          <input type="file" accept="image/*,application/pdf" id="rq-file-${i}" style="display:none"/>
-        </div>`).join('')
-      + `</div>`;
-  }
 
+  // Statik iskelet (kullanıcı/şablon içeriği İÇERMEZ; AREAS sabit sözlük).
+  // Şablondan/config'ten gelen tüm metin/URL aşağıda DOM + textContent ile
+  // güvenli biçimde eklenir (XSS'e kapalı).
   const card=document.createElement('div'); card.className='apply-card';
   card.innerHTML=`
-    ${cfg.note?`<p style="margin:0 0 6px;color:var(--muted);font-size:14px">${cfg.note.replace(/[<>]/g,'')}</p>`:''}
-    ${dlHtml}
+    <p class="apply-note" style="margin:0 0 6px;color:var(--muted);font-size:14px;display:none"></p>
+    <div class="apply-dl-slot"></div>
     <label>Nav û paşnav *</label><input id="ap-name" maxlength="80"/>
     <label>Roja jidayikbûnê</label><input id="ap-dob" type="date"/>
     <label>Têlefon *</label><input id="ap-phone" type="tel" maxlength="20" placeholder="05xx xxx xx xx"/>
     <label>Qada hunerê *</label>
     <select id="ap-area">${AREAS.map(a=>`<option value="${a[0]}">${a[1]}</option>`).join('')}</select>
     <label>Nîşe (vebijarkî)</label><textarea id="ap-note" maxlength="500"></textarea>
-    ${reqHtml}
+    <div class="apply-reqs-slot"></div>
     <button class="apply-btn" id="ap-send">📨 Serlêdanê Bişîne</button>
     <div class="apply-msg" id="ap-msg"></div>`;
+
+  // Not (config) — textContent
+  if(cfg.note){ const np=card.querySelector('.apply-note'); np.textContent=cfg.note; np.style.display=''; }
+
+  // İndirilebilir belgeler — href yalnızca güvenli şema (data:/http/https), metin textContent
+  const safeHref = u => (typeof u==='string' && /^(data:|https?:)/i.test(u)) ? u : '#';
+  if(dlTpls.length){
+    const wrap=document.createElement('div'); wrap.className='apply-dl';
+    const h=document.createElement('div'); h.className='apply-dl-h'; h.textContent='⬇ Belgeyên ku divê werin dagirtin:'; wrap.appendChild(h);
+    dlTpls.forEach((t,i)=>{
+      const a=document.createElement('a'); a.className='apply-dl-item';
+      a.href=safeHref(t.file); a.setAttribute('download', t.fileName||t.name||('belge'+i));
+      a.textContent='📄 '+(t.name||'Belge');
+      wrap.appendChild(a);
+    });
+    card.querySelector('.apply-dl-slot').replaceWith(wrap);
+  }
+
+  // İstenen belgeler (yükleme kutuları) — DOM ile, isimler textContent
+  if(reqDocs.length){
+    const lbl=document.createElement('label'); lbl.textContent='Belgeyên pêwîst *';
+    const box=document.createElement('div'); box.className='apply-reqs'; box.id='ap-reqs';
+    reqDocs.forEach((t,i)=>{
+      const row=document.createElement('div'); row.className='apply-req'; row.setAttribute('data-i',i);
+      const info=document.createElement('div'); info.className='apply-req-info';
+      const nm=document.createElement('span'); nm.className='apply-req-name'; nm.textContent='📄 '+(t.name||'Belge');
+      const st=document.createElement('span'); st.className='apply-req-state'; st.id='rq-st-'+i; st.textContent='necar';
+      info.appendChild(nm); info.appendChild(st);
+      const b=document.createElement('button'); b.type='button'; b.className='apply-req-btn'; b.id='rq-btn-'+i; b.textContent='📎 Bar bike';
+      const fin=document.createElement('input'); fin.type='file'; fin.accept='image/*,application/pdf'; fin.id='rq-file-'+i; fin.style.display='none';
+      row.appendChild(info); row.appendChild(b); row.appendChild(fin);
+      box.appendChild(row);
+    });
+    const slot=card.querySelector('.apply-reqs-slot');
+    slot.replaceWith(lbl); lbl.after(box);
+  }
+
   applyRoot.appendChild(card);
 
   // Belge yükleme mantığı — her belge kendi alanına

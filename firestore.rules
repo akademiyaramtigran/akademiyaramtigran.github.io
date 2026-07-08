@@ -76,12 +76,29 @@ service cloud.firestore {
 
     // ── Serlêdan (kayıt başvuruları) — herkes BAŞVURU oluşturabilir (form),
     //    okuma/durum/silme yalnızca personel (öğrenci işleri) ──
+    //  Girişsiz (public) yazma olduğu için sıkı sınırlar: alan izin listesi,
+    //  boyut üst sınırları, belge sayısı sınırı, status sabit 'new' VE ancak
+    //  başvuru dönemi AÇIK ise (config/applications.open == true) kabul edilir.
+    function applicationsOpen() {
+      return exists(/databases/$(database)/documents/config/applications)
+        && get(/databases/$(database)/documents/config/applications).data.open == true;
+    }
     match /applications/{id} {
-      allow create: if request.resource.data.keys().hasOnly(
+      allow create: if applicationsOpen()
+                    && request.resource.data.keys().hasOnly(
                       ['name','phone','dob','area','note','docs','status','dateStr','createdAt'])
                     && request.resource.data.name is string
                     && request.resource.data.name.size() > 0
-                    && request.resource.data.name.size() <= 80;
+                    && request.resource.data.name.size() <= 80
+                    && request.resource.data.phone is string
+                    && request.resource.data.phone.size() <= 30
+                    && (!('dob'  in request.resource.data) || request.resource.data.dob.size()  <= 20)
+                    && (!('area' in request.resource.data) || request.resource.data.area.size() <= 20)
+                    && (!('note' in request.resource.data) || request.resource.data.note.size() <= 500)
+                    && (!('dateStr' in request.resource.data) || request.resource.data.dateStr.size() <= 20)
+                    && request.resource.data.status == 'new'
+                    && request.resource.data.docs is list
+                    && request.resource.data.docs.size() <= 8;
       allow read, update, delete: if isStaff();
     }
     // Başvuru dönemi ayarı — site (girişsiz) okuyabilsin, yazma personel

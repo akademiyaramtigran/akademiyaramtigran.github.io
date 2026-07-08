@@ -14704,11 +14704,24 @@ function App(){
             if(Array.isArray(data)) setStudents(data);
           });
         } else {
-          unsubStudents = window.__FB.onStudents((data) => {
-            if(Array.isArray(data)) setStudents(data);
-          });
+          // Personel: önce öğretmen/personel listesi. Öğrenci PII listesi (tüm
+          // öğrenciler) yalnızca gerekli rollere yüklenir — BASIN (press) hesabı
+          // öğrenci verisini görmez. Rol ancak kendi kaydı geldiğinde bilindiği
+          // için onStudents, teachers snapshot'ı içinde koşullu başlatılır.
+          let _studentsStarted = false;
           unsubTeachers = window.__FB.onTeachers((data) => {
-            if(Array.isArray(data)) setTeachers(data);
+            if(!Array.isArray(data)) return;
+            setTeachers(data);
+            if(!_studentsStarted){
+              const _self = data.find(u => String(u.no) === String(_no));
+              // Kendi kaydı henüz gelmediyse bekle; geldiyse ve BASIN değilse yükle.
+              if(_self && !_self.isPress){
+                _studentsStarted = true;
+                unsubStudents = window.__FB.onStudents((sdata) => {
+                  if(Array.isArray(sdata)) setStudents(sdata);
+                });
+              }
+            }
           });
         }
         unsubSchedule = window.__FB.onSchedule((data) => {
