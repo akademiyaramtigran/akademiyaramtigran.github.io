@@ -476,7 +476,9 @@
     // ── CRUD helpers ──
     async saveStudent(s) {
       const hasPhoto = !!(s.photo);
-      const SKIP = new Set(["pass","_authEmail","docs","id"]);
+      // _plainPass ASLA Firestore'a yazılmaz — düz metin şifre yalnızca yerel
+      // oturum belleğinde kalır (oluşturma anındaki bilgi kartı için).
+      const SKIP = new Set(["pass","_plainPass","_authEmail","docs","id"]);
       const cleanData = {};
       for(const [k,v] of Object.entries(s)){
         if(SKIP.has(k)) continue;
@@ -500,7 +502,7 @@
     },
     async saveTeacher(tc) {
       const hasPhoto = !!(tc.photo);
-      const SKIP = new Set(["pass","docs","id"]);
+      const SKIP = new Set(["pass","_plainPass","_authEmail","docs","id"]);
       const cleanData = {};
       for(const [k,v] of Object.entries(tc)){
         if(SKIP.has(k)) continue;
