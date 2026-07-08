@@ -4,8 +4,11 @@
 - PWA: offline, kurulum, splash, **otomatik güncelleme bildirimi**
 - Oturum kalıcılığı (refresh'te girişte kalır) + geri tuşu çıkış yaptırmıyor
 - Firestore **yazma** güvenlik kuralları (rol = e-posta uzantısı)
-- **İlk girişte zorunlu şifre değişimi** (varsayılan "1234" tespit edilir)
+- Firestore **okuma izolasyonu** (v3): öğrenci yalnızca kendi kaydını okur
+- Düz metin şifre Firestore'a **yazılmıyor** (yalnızca hash)
 - Profil fotoğrafları **Firebase Storage**'a (base64 fallback'li)
+- Başvuru belgeleri **Storage-öncelikli** (base64 yedeği + 1MB doküman koruması)
+- Ana sayfa: CSP + XSS koruması; public başvuru yazımı kurallarda sınırlı
 
 ## ⚙️ Senin Firebase Console'da yapman gerekenler
 

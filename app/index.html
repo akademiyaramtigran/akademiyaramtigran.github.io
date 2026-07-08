@@ -387,12 +387,6 @@
     // deleteDoc ve doc referansları (fbDelete için)
     deleteDoc: (ref) => deleteDoc(ref),
     doc: (db, col, id) => doc(db, col, id),
-    // Koleksiyon referansları
-    studentsRef: () => collection(db, "students"),
-    teachersRef: () => collection(db, "teachers"),
-    scheduleRef: () => collection(db, "schedule"),
-    messagesRef: () => collection(db, "messages"),
-    announcementsRef: () => collection(db, "announcements"),
 
     // ── Firebase Auth'a kullanıcı oluştur (admin oturumunu kapatmadan) ──
     // no:       okul numarası (kullanıcı adı olarak kullanılır)
@@ -1965,8 +1959,6 @@ const MemoAvatar = memo(function MemoAvatar({name,color,size,photo}){
   return <Avatar name={name} color={color} size={size} photo={photo}/>;
 });
 
-/* Memoised Badge */
-const MemoBadge = memo(Badge);
 
 /* useMemo helper for filtered/sorted student lists */
 function useSortedStudents(students, area, sortKey = "name", lang = "ku") {
@@ -2364,24 +2356,6 @@ window._perf = _perf;
 const _appCheck={configured:false};
 window._appCheck=_appCheck;
 
-/* ─── EMPTY STATE COMPONENT ─────────────────────────────────────────────── */
-function EmptyState({ icon = "📭", title, subtitle, action, actionLabel }) {
-  return (
-    <div className="empty-state">
-      <div className="empty-state-icon">{icon}</div>
-      {title && <div className="empty-state-title">{title}</div>}
-      {subtitle && <div className="empty-state-sub">{subtitle}</div>}
-      {action && actionLabel && (
-        <button onClick={action}
-          style={{ marginTop: 12, padding: "10px 24px", background:"#16293f",color:"#ffffff",border:"none",
-            color: "#fff", border: "none", borderRadius: 12, fontSize: 13,
-            fontWeight: 700, cursor: "pointer" }}>
-          {actionLabel}
-        </button>
-      )}
-    </div>
-  );
-}
 
 /* ─── PRIVACY POLICY / TERMS / CHANGELOG MODAL ──────────────────────────── */
 function LegalModal({ type, lang, onClose }) {
@@ -2524,53 +2498,7 @@ v4.0 (2025)
 
 
 /* ─── ARIA HELPERS EXTENDED ─────────────────────────────────────────────── */
-// role=button for non-button interactive elements
-function InteractiveDiv({onClick, children, label, style, className}) {
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-label={label}
-      onClick={onClick}
-      onKeyDown={e => (e.key === "Enter" || e.key === " ") && onClick(e)}
-      style={style}
-      className={className}
-    >
-      {children}
-    </div>
-  );
-}
 
-// Lazy image with IntersectionObserver
-function LazyImg({src, alt, style, className}) {
-  const ref = useRef(null);
-  const [loaded, setLoaded] = useState(false);
-  const visible = useVisible(ref, 0.1);
-  return (
-    <div ref={ref} style={{overflow:"hidden",...style}} className={className}
-      aria-hidden={!src ? "true" : undefined}>
-      {visible && src && (
-        <img
-          src={src}
-          alt={alt || ""}
-          loading="lazy"
-          decoding="async"
-          onLoad={() => setLoaded(true)}
-          style={{
-            width:"100%", height:"100%",
-            objectFit:"cover", display:"block",
-            opacity: loaded ? 1 : 0,
-            transition: "opacity .3s ease"
-          }}
-        />
-      )}
-      {(!visible || !loaded) && !src && (
-        <div className="shimmer" style={{width:"100%",height:"100%"}}
-          aria-hidden="true"/>
-      )}
-    </div>
-  );
-}
 
 /* ─── CSRF / NONCE ───────────────────────────────────────────────────────── */
 // For a PWA without a traditional server, CSRF is mitigated by:
@@ -2660,130 +2588,8 @@ function GDPRBanner({ lang, onAccept }) {
 
 /* ─── ACCESSIBILITY: WCAG 2.1 AA TAMAMLAMA ─────────────────────────────── */
 
-/* ── role=dialog wrapper — Sheet bileşeni için ── */
-function AccessibleSheet({open, onClose, title, children, describedBy}) {
-  const titleId = useRef("sheet-title-" + Math.random().toString(36).slice(2,6));
-  const descId  = describedBy || ("sheet-desc-" + titleId.current);
-  // Trap focus inside dialog when open
-  const sheetRef = useRef(null);
-  useEffect(() => {
-    if (!open) return;
-    const el = sheetRef.current;
-    if (!el) return;
-    const focusable = el.querySelectorAll(
-      'button,input,select,textarea,[tabindex]:not([tabindex="-1"])'
-    );
-    if (focusable.length) focusable[0].focus();
-    function trapFocus(e) {
-      if (e.key !== "Tab") return;
-      const first = focusable[0];
-      const last  = focusable[focusable.length - 1];
-      if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
-      else            { if (document.activeElement === last)  { e.preventDefault(); first.focus(); } }
-    }
-    function onEsc(e) { if (e.key === "Escape") onClose && onClose(); }
-    el.addEventListener("keydown", trapFocus);
-    el.addEventListener("keydown", onEsc);
-    return () => { el.removeEventListener("keydown", trapFocus); el.removeEventListener("keydown", onEsc); };
-  }, [open, onClose]);
 
-  return (
-    <>
-      {open && (
-        <div
-          onClick={onClose}
-          style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:200,backdropFilter:"blur(2px)"}}
-          aria-hidden="true"
-        />
-      )}
-      <div
-        ref={sheetRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId.current}
-        aria-describedby={descId}
-        style={{
-          position:"fixed",bottom:0,left:"50%",
-          transform:"translateX(-50%) translateY("+(open?0:110)+"%)",
-          width:"100%",
-          background:"var(--surface)",
-          borderRadius:"26px 26px 0 0",
-          padding:"0 16px 36px",
-          zIndex:201,maxHeight:"90vh",
-          display:"flex",flexDirection:"column",
-          transition:"transform .32s var(--ease)",
-          boxShadow:"0 -8px 40px rgba(0,0,0,.15)"
-        }}
-      >
-        <div style={{display:"flex",justifyContent:"center",padding:"12px 0 4px"}}>
-          <div style={{width:36,height:4,background:"var(--border2)",borderRadius:2}}
-            aria-hidden="true"/>
-        </div>
-        {title && (
-          <div id={titleId.current}
-            style={{fontSize:17,fontWeight:700,color:"var(--text)",margin:"10px 0 18px",letterSpacing:"-0.01em"}}>
-            {title}
-          </div>
-        )}
-        <div id={descId} style={{overflowY:"auto",flex:1}}>{children}</div>
-      </div>
-    </>
-  );
-}
 
-/* ── aria-expanded on collapsible sections ── */
-function ExpandableSection({title, children, defaultOpen=false}) {
-  const [open, setOpen] = useState(defaultOpen);
-  const id = useRef("exp-" + Math.random().toString(36).slice(2,6));
-  return (
-    <div>
-      <button
-        aria-expanded={open}
-        aria-controls={id.current}
-        onClick={()=>{setOpen(o=>!o); hapticLight();}}
-        style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",
-          background:"none",border:"none",cursor:"pointer",padding:"10px 0",
-          color:"var(--text)",fontSize:13,fontWeight:600,textAlign:"left"}}
-      >
-        {title}
-        <span aria-hidden="true" style={{transition:"transform .2s",transform:open?"rotate(180deg)":"none",fontSize:12}}>▼</span>
-      </button>
-      <div
-        id={id.current}
-        role="region"
-        aria-label={title}
-        style={{display:open?"block":"none",overflow:"hidden"}}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
-/* ── aria-describedby on form inputs ── */
-function DescribedInput({id, label, hint, error, children}) {
-  const hintId  = hint  ? id+"-hint"  : undefined;
-  const errId   = error ? id+"-error" : undefined;
-  const descBy  = [hintId, errId].filter(Boolean).join(" ") || undefined;
-  return (
-    <div style={{marginBottom:14}}>
-      <label htmlFor={id}
-        style={{fontSize:11.5,color:"var(--text2)",fontWeight:600,marginBottom:6,display:"block",letterSpacing:"0.03em"}}>
-        {label}
-      </label>
-      {React.cloneElement(children, { id, "aria-describedby": descBy })}
-      {hint && !error && (
-        <div id={hintId} style={{fontSize:10.5,color:"var(--text2)",marginTop:4}}>{hint}</div>
-      )}
-      {error && (
-        <div id={errId} role="alert" aria-live="assertive"
-          style={{fontSize:11,color:"var(--red)",marginTop:4,display:"flex",alignItems:"center",gap:4}}>
-          <span aria-hidden="true">⚠</span>{error}
-        </div>
-      )}
-    </div>
-  );
-}
 
 /* ─── NATIVE APIs — REMAINING STUBS ────────────────────────────────────── */
 
@@ -3680,9 +3486,6 @@ function Avatar({name,color,size=36,photo}){
   );
 }
 
-function Badge({children,color="#16293f",bg="#f0f6ff"}){
-  return <span style={{fontSize:10,padding:"2px 8px",borderRadius:8,background:bg,color,fontWeight:500,whiteSpace:"nowrap"}}>{children}</span>;
-}
 
 function SectionHeader({children}){
   return <div className="sec-hd">{children}</div>;
@@ -3718,18 +3521,6 @@ function FieldWrap({label,children}){
 const inputStyle={width:"100%",padding:"13px 14px",border:"1.5px solid var(--border2)",borderRadius:14,fontSize:14,fontFamily:"inherit",color:"var(--text)",background:"var(--bg1)",outline:"none",WebkitAppearance:"none",transition:"border-color .15s, box-shadow .15s"};
 const selectStyle={...inputStyle};
 
-function PbarRow({label,pct,color="#1a7a4a"}){
-  return(
-    <div style={{marginBottom:10}}>
-      <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"var(--text2)",marginBottom:5}}>
-        <span>{label}</span><span style={{fontWeight:700,color}}>{pct}%</span>
-      </div>
-      <div style={{height:7,background:"var(--bg2)",borderRadius:4,overflow:"hidden"}}>
-        <div style={{height:"100%",width:`${pct}%`,background:color,borderRadius:4,transition:"width .5s var(--ease)"}}/>
-      </div>
-    </div>
-  );
-}
 
 // ── Doğum Günü Kutlama Modalı ────────────────────────────────────────────
 function BirthdayModal({open,name,lang,onClose}){
@@ -3859,22 +3650,6 @@ function Sheet({open,onClose,title,children}){
 
 function StatusBar(){ return null; }
 
-function ProfileHeader({name,meta,badge,color,onLogout,children,photo}){
-  return(
-    <div style={{background:"var(--navy)",padding:"14px 16px 14px",display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
-      <Avatar name={name} color={color||"rgba(255,255,255,.2)"} size={46} photo={photo}/>
-      <div style={{flex:1}}>
-        <div style={{color:"#fff",fontSize:15,fontWeight:700}}>{name}</div>
-        <div style={{color:"rgba(255,255,255,.55)",fontSize:11,marginTop:2}}>{meta}</div>
-        {badge&&<span className="glass-pill" style={{marginTop:5,display:"inline-flex"}}>{badge}</span>}
-        {children}
-      </div>
-      <button onClick={onLogout} style={{color:"rgba(255,255,255,.6)",background:"rgba(255,255,255,.1)",
-        border:"none",borderRadius:"50%",width:34,height:34,cursor:"pointer",
-        display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>↩</button>
-    </div>
-  );
-}
 
 /* ─── STUDENT ID CARD ───────────────────────────────────────────────────── */
 function StudentIDCard({student, lang, t}){
@@ -6438,6 +6213,16 @@ function _printShell(title, body){
     +'<script>window.onload=function(){setTimeout(function(){window.print();},300);};</'+'script></body></html>';
 }
 
+// Başvuru belgesi PDF mi? — base64 (data:application/pdf), type alanı
+// veya dosya adı uzantısından anlar (Storage URL'lerinde önek yoktur).
+function docIsPdf(d, url){
+  if(d && typeof d === "object"){
+    if(d.type === "pdf") return true;
+    if(/\.pdf(\?|$)/i.test(d.fileName || "")) return true;
+  }
+  return typeof url === "string" && (url.indexOf("data:application/pdf") === 0 || /\.pdf(\?|$)/i.test(url.split("?")[0]));
+}
+
 function RegistrarPanel({user,lang,toast,onLogout,students,onDataChange}){
   const [cfg,setCfg]=useState({open:false,startDate:"",endDate:"",note:""});
   const [cfgLoaded,setCfgLoaded]=useState(false);
@@ -6608,7 +6393,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,onDataChange}){
       const url=typeof d2==="string"?d2:(d2&&d2.file);
       const nm=typeof d2==="string"?("Belge "+(i+1)):((d2&&d2.name)||("Belge "+(i+1)));
       if(!url) return;
-      if(url.indexOf("data:application/pdf")===0){
+      if(docIsPdf(d2,url)){
         body+='<div class="doclabel">📎 '+esc(nm)+' — PDF (ji sîstemê veke)</div>';
       } else {
         body+='<div class="doclabel">📎 '+esc(nm)+'</div><img class="doc" src="'+url+'"/>';
@@ -6718,7 +6503,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,onDataChange}){
                         const url=typeof d2==="string"?d2:(d2&&d2.file);
                         const nm=typeof d2==="string"?("Belge "+(i+1)):((d2&&d2.name)||("Belge "+(i+1)));
                         if(!url) return null;
-                        const isPdf=url.indexOf("data:application/pdf")===0;
+                        const isPdf=docIsPdf(d2,url);
                         return isPdf
                           ? <a key={i} href={url} download={nm+".pdf"} style={{display:"flex",alignItems:"center",gap:6,background:"var(--bg2)",border:"1px solid var(--border2)",borderRadius:8,padding:"8px 10px",fontSize:11.5,fontWeight:600,color:"var(--text)",textDecoration:"none"}}>📕 {nm}</a>
                           : <a key={i} href={url} target="_blank" rel="noopener" style={{textAlign:"center",textDecoration:"none"}}>
@@ -14606,21 +14391,6 @@ function genAutoPassword() {
 }
 
 
-// INIT_STUDENTS ve INIT_TEACHERS'daki plain text "1234" şifreleri
-// ilk yüklemede hash'lenir, böylece doğrulama tutarlı olur
-async function hashInitData(list) {
-  const result = [];
-  for (const item of list) {
-    if (item.pass && item.pass.length !== 64) {
-      // 64 karakter değilse plain text — hash'le
-      result.push({...item, pass: await hashPassword(item.pass)});
-    } else {
-      result.push(item);
-    }
-  }
-  return result;
-}
-
 /* ─── APP ───────────────────────────────────────────────────────────────── */
 function App(){
   const [lang,setLang]=useState(()=>{try{return localStorage.getItem("aat-lang")||"ku";}catch{return "ku";}});
@@ -14638,15 +14408,6 @@ function App(){
   const {permission:notifPerm,requestPermission,sendLocalNotification}=useNotifications();
   const [showSettings,setShowSettings]=useState(false);
 
-  // Hash demo passwords — only when Firebase is not configured (offline/demo mode)
-  useEffect(()=>{
-
-    if(!window.__FB || !window.__FB.isConfigured()){
-      // INIT_STUDENTS is empty — no need to hash
-      hashInitData(INIT_TEACHERS).then(hashed=>setTeachers(hashed));
-    }
-  },[]);
-  
   // One-time: clear demo data from localStorage if it was set before
   useEffect(()=>{
     try {

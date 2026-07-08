@@ -522,6 +522,22 @@ function fileToDataUrl(file){
   return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=e=>res(e.target.result); r.onerror=rej; r.readAsDataURL(file); });
 }
 
+// Başvuru belgesini Firebase Storage'a yükle → indirme URL'si döndür.
+// Storage kapalı / kural reddi / ağ hatasında null döner; çağıran base64'e düşer.
+// (Storage yolu Firestore'un 1MB doküman sınırına takılmaz — büyük PDF'ler için şart.)
+async function uploadAppDoc(f, dataUrl, isPdf){
+  try{
+    const mod = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js");
+    const { getStorage, ref, uploadBytes, uploadString, getDownloadURL } = mod;
+    const st = getStorage(app);
+    const safe = (f.name||'belge').replace(/[^A-Za-z0-9_.\-]/g,'_').slice(-60);
+    const r = ref(st, 'applications/'+Date.now()+'_'+Math.random().toString(36).slice(2,8)+'/'+safe);
+    if(isPdf) await uploadBytes(r, f, {contentType:'application/pdf'});
+    else await uploadString(r, dataUrl, 'data_url');
+    return await getDownloadURL(r);
+  }catch(e){ return null; }
+}
+
 async function loadTemplates(){
   try{ const snap=await getDocs(collection(db,"applicationTemplates"));
     return snap.docs.map(d=>d.data()).sort((a,b)=>(a.order||0)-(b.order||0)); }
@@ -608,14 +624,21 @@ function renderApply(cfg, templates){
       const f=fin.files&&fin.files[0]; if(!f) return;
       stEl.textContent='⏳';
       try{
-        let data, fname;
-        if(f.type==='application/pdf'){
-          if(f.size>700000){ stEl.textContent='pir mezin!'; box.classList.remove('ok'); return; }
-          data=await fileToDataUrl(f); fname=f.name;
-        } else {
-          data=await compressToDataUrl(f,1200,0.72); fname=(t.name||'belge')+'.jpg';
+        const isPdf = f.type==='application/pdf';
+        if(isPdf && f.size>8*1024*1024){ stEl.textContent='pir mezin! (max 8MB)'; box.classList.remove('ok'); return; }
+        let data=null, fname;
+        if(isPdf){ fname=f.name; }
+        else { data=await compressToDataUrl(f,1200,0.72); fname=(t.name||'belge')+'.jpg'; }
+        // Önce Storage'a yükle (Firestore 1MB doküman sınırına takılmaz)
+        let fileVal = await uploadAppDoc(f, data, isPdf);
+        if(!fileVal){
+          // Yedek: base64 — Firestore dokümanına gömülür, küçük dosya şart
+          if(isPdf){
+            if(f.size>700000){ stEl.textContent='pir mezin!'; box.classList.remove('ok'); return; }
+            fileVal = await fileToDataUrl(f);
+          } else fileVal = data;
         }
-        uploaded[i]={name:t.name||('Belge '+(i+1)), file:data, fileName:fname};
+        uploaded[i]={name:t.name||('Belge '+(i+1)), file:fileVal, fileName:fname, type:isPdf?'pdf':'image'};
         stEl.textContent='✅ barkir'; box.classList.add('ok'); btn.textContent='🔄 Biguherîne';
       }catch(e){ stEl.textContent='çewt'; }
     });
@@ -629,6 +652,14 @@ function renderApply(cfg, templates){
     // tüm istenen belgeler yüklendi mi?
     const missing = reqDocs.map((t,i)=>uploaded[i]?null:(t.name||('Belge '+(i+1)))).filter(Boolean);
     if(missing.length){ msg.style.color='#dc2626'; msg.textContent='⚠ Ev belge kêm in: '+missing.join(', '); return; }
+    // Firestore 1MB doküman sınırı — base64 yedeğine düşüldüyse toplamı denetle
+    const docsPayload = uploaded.filter(Boolean);
+    const totalSize = docsPayload.reduce((s,d)=>s+((d.file&&d.file.length)||0),0);
+    if(totalSize > 900000){
+      msg.style.color='#dc2626';
+      msg.textContent='⚠ Belge bi tevahî pir mezin in — wêne/PDF-yên biçûktir bar bike.';
+      return;
+    }
     btn.disabled=true; msg.style.color='var(--muted)'; msg.textContent='⏳ Tê şandin…';
     try{
       await addDoc(collection(db,"applications"),{
@@ -636,7 +667,7 @@ function renderApply(cfg, templates){
         dob: card.querySelector('#ap-dob').value||"",
         area: card.querySelector('#ap-area').value,
         note: card.querySelector('#ap-note').value.trim().slice(0,500),
-        docs: uploaded.filter(Boolean),
+        docs: docsPayload,
         status:"new",
         dateStr:new Date().toISOString().slice(0,10),
         createdAt: serverTimestamp()
