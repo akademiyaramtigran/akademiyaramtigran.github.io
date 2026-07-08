@@ -2,7 +2,7 @@
 <html lang="ku">
 <head>
 <meta charset="UTF-8"/>
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebasestorage.app wss://*.firebaseio.com; frame-src https://www.youtube-nocookie.com https://www.youtube.com; base-uri 'self'; object-src 'none'"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; media-src 'self' https: blob:; font-src 'self' data:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebasestorage.app wss://*.firebaseio.com; frame-src https://www.youtube-nocookie.com https://www.youtube.com; base-uri 'self'; object-src 'none'"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>Akademîya Aram Tîgran — Dibistana Hunerê</title>
 <meta name="description" content="Akademîya Aram Tîgran — dibistana hunerê: muzîk, şano, sînema, dans, wêje û wênesazî. Nûçe, vîdyo û agahî."/>
@@ -129,6 +129,22 @@ try{
   .row-card .card-body{padding:14px 16px}
   .row-card h3{font-size:15px}
   .row-card p{-webkit-line-clamp:2}
+  /* ── Çoklu medya galerisi (haber kartı) ── */
+  .mcar{position:relative;aspect-ratio:16/9;background:#1e3a5f;overflow:hidden}
+  .mtrack{display:flex;height:100%;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .mtrack::-webkit-scrollbar{display:none}
+  .mslide{flex:0 0 100%;height:100%;scroll-snap-align:start;scroll-snap-stop:always;position:relative}
+  .mslide img,.mslide video{width:100%;height:100%;object-fit:cover;display:block;background:#0e1c2e}
+  .mslide video{object-fit:contain}
+  .mdots{position:absolute;bottom:9px;left:0;right:0;display:flex;justify-content:center;gap:5px;pointer-events:none}
+  .mdots span{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.45);transition:all .2s}
+  .mdots span.on{background:#fff;width:16px;border-radius:99px}
+  .mcount{position:absolute;top:10px;right:10px;background:rgba(10,20,32,.72);color:#fff;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:99px;letter-spacing:.03em;backdrop-filter:blur(4px)}
+  .marrow{position:absolute;top:50%;transform:translateY(-50%);width:30px;height:30px;border-radius:50%;background:rgba(10,20,32,.55);border:none;color:#fff;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);transition:background .2s;z-index:2}
+  .marrow:hover{background:rgba(10,20,32,.85)}
+  .marrow.prev{left:8px}.marrow.next{right:8px}
+  @media(max-width:640px){.marrow{display:none}}
+  .vcard video{display:block;width:100%;aspect-ratio:16/9;border:0;background:#0e1c2e;object-fit:contain}
   .empty{
     border:1.5px dashed var(--line);border-radius:16px;padding:44px 20px;text-align:center;
     color:var(--muted);font-size:14.5px;background:var(--surface);
@@ -430,12 +446,83 @@ function fmtDate(s){
   return s;
 }
 
+// Haberin tüm medyası: [{type:'img'|'video', src}] (eski tek `image` alanıyla uyumlu)
+function newsMedia(item){
+  const m=[];
+  const imgs=(Array.isArray(item.images)&&item.images.length)?item.images:(item.image?[item.image]:[]);
+  imgs.forEach(src=>{ if(typeof src==="string") m.push({type:'img',src}); });
+  (Array.isArray(item.videos)?item.videos:[]).forEach(v=>{
+    const src=typeof v==="string"?v:(v&&v.url);
+    if(typeof src==="string") m.push({type:'video',src});
+  });
+  return m;
+}
+
+// Kaydırmalı medya galerisi (foto + video) — nokta göstergeli, sayaçlı, oklu
+function mediaCarousel(media, title){
+  const car=document.createElement('div'); car.className='mcar';
+  const track=document.createElement('div'); track.className='mtrack';
+  media.forEach(mm=>{
+    const s=document.createElement('div'); s.className='mslide';
+    if(mm.type==='video'){
+      const v=document.createElement('video');
+      v.src=mm.src; v.controls=true; v.preload='metadata'; v.playsInline=true;
+      v.setAttribute('playsinline',''); v.title=title||'Vîdyo';
+      s.appendChild(v);
+    } else {
+      const im=document.createElement('img');
+      im.src=mm.src; im.alt=title||''; im.loading='lazy';
+      s.appendChild(im);
+    }
+    track.appendChild(s);
+  });
+  car.appendChild(track);
+  if(media.length>1){
+    const dots=document.createElement('div'); dots.className='mdots';
+    media.forEach((_,i)=>{ const d=document.createElement('span'); if(i===0)d.className='on'; dots.appendChild(d); });
+    const count=document.createElement('span'); count.className='mcount'; count.textContent='1/'+media.length;
+    const mkArrow=(dir)=>{ const b=document.createElement('button'); b.className='marrow '+(dir<0?'prev':'next');
+      b.textContent=dir<0?'‹':'›'; b.setAttribute('aria-label',dir<0?'Paşê':'Pêş');
+      b.addEventListener('click',e=>{e.stopPropagation();track.scrollBy({left:dir*track.clientWidth,behavior:'smooth'});});
+      return b; };
+    car.appendChild(dots); car.appendChild(count); car.appendChild(mkArrow(-1)); car.appendChild(mkArrow(1));
+    track.addEventListener('scroll',()=>{
+      const i=Math.round(track.scrollLeft/Math.max(1,track.clientWidth));
+      count.textContent=(i+1)+'/'+media.length;
+      [...dots.children].forEach((d,j)=>d.className=j===i?'on':'');
+      // Kayınca görünmeyen videoları durdur
+      const slides=[...track.children];
+      track.querySelectorAll('video').forEach(v=>{
+        if(!v.paused && slides.indexOf(v.closest('.mslide'))!==i) v.pause();
+      });
+    },{passive:true});
+  }
+  return car;
+}
+
 function newsCard(item, featured){
   const a = document.createElement('div');
   a.className = 'card' + (featured ? ' featured' : ' row-card');
-  const thumb = document.createElement('div');
-  thumb.className = 'thumb';
-  if(item.image){ thumb.style.backgroundImage = "url('"+item.image.replace(/'/g,"%27")+"')"; }
+  const media = newsMedia(item);
+  let thumb;
+  if(featured && media.length){
+    // Öne çıkan kart: tam galeriyi göster
+    thumb = mediaCarousel(media, item.title);
+  } else {
+    thumb = document.createElement('div');
+    thumb.className = 'thumb';
+    const cover = media.find(m=>m.type==='img');
+    if(cover){ thumb.style.backgroundImage = "url('"+cover.src.replace(/'/g,"%27")+"')"; }
+    if(media.length>1){
+      const mc=document.createElement('span'); mc.className='mcount';
+      const nImg=media.filter(m=>m.type==='img').length, nVid=media.length-nImg;
+      mc.textContent=(nImg>1?('📷 '+nImg):'')+(nImg>1&&nVid?' · ':'')+(nVid?('🎬 '+nVid):'');
+      thumb.appendChild(mc);
+    } else if(media.length===1&&media[0].type==='video'){
+      const mc=document.createElement('span'); mc.className='mcount'; mc.textContent='🎬';
+      thumb.appendChild(mc);
+    }
+  }
   const chip = document.createElement('span');
   chip.className = 'date-chip';
   chip.textContent = fmtDate(item.dateStr).toUpperCase();
@@ -473,28 +560,51 @@ function render(items){
     if(items.length > 1) grid.appendChild(col);
     newsRoot.appendChild(grid);
   }
-  // Videolar: youtubeId'si olan son 3 haber
-  const vids = items.filter(it => it.youtubeId).slice(0,3);
+  // Vîdyo bölümü: yüklenen videolar (kendi video tabanı) + YouTube — son 6
+  const vidEntries = [];
+  items.forEach(it => {
+    (Array.isArray(it.videos)?it.videos:[]).forEach(v => {
+      const src = typeof v==="string" ? v : (v&&v.url);
+      if(typeof src==="string") vidEntries.push({kind:'file', src, title: it.title});
+    });
+    if(it.youtubeId) vidEntries.push({kind:'yt', id: it.youtubeId, title: it.title});
+  });
+  const vids = vidEntries.slice(0,6);
   videoSec.style.display = vids.length ? "" : "none";
   if(vids.length){
     videoGrid.innerHTML = "";
-    vids.forEach(it => {
+    vids.forEach(v => {
       const c = document.createElement('div'); c.className = 'vcard';
-      const f = document.createElement('iframe');
-      f.src = "https://www.youtube-nocookie.com/embed/" + encodeURIComponent(it.youtubeId);
-      f.title = it.title || "Vîdyo";
-      f.loading = "lazy";
-      f.allow = "accelerometer; encrypted-media; picture-in-picture";
-      f.allowFullscreen = true;
+      if(v.kind === 'file'){
+        const player = document.createElement('video');
+        player.src = v.src; player.controls = true; player.preload = 'metadata';
+        player.playsInline = true; player.setAttribute('playsinline','');
+        player.title = v.title || "Vîdyo";
+        c.appendChild(player);
+      } else {
+        const f = document.createElement('iframe');
+        f.src = "https://www.youtube-nocookie.com/embed/" + encodeURIComponent(v.id);
+        f.title = v.title || "Vîdyo";
+        f.loading = "lazy";
+        f.allow = "accelerometer; encrypted-media; picture-in-picture";
+        f.allowFullscreen = true;
+        c.appendChild(f);
+      }
       const m = document.createElement('div'); m.className = 'vmeta';
-      const h = document.createElement('h3'); h.textContent = it.title || "";
+      const h = document.createElement('h3'); h.textContent = v.title || "";
       m.appendChild(h);
-      c.appendChild(f); c.appendChild(m);
+      c.appendChild(m);
       videoGrid.appendChild(c);
     });
   }
 }
 
+// Aynı anda tek video oynasın (bir kez bağlanır)
+document.addEventListener('play', e => {
+  if(e.target && e.target.tagName === 'VIDEO'){
+    document.querySelectorAll('video').forEach(v => { if(v !== e.target) v.pause(); });
+  }
+}, true);
 
 // ── Serlêdan (başvuru) ────────────────────────────────────────────────────
 const applyRoot = document.getElementById('apply-root');

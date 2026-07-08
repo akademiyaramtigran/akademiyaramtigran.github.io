@@ -374,9 +374,33 @@
     }
   }
 
+  // Haber medyasını (görsel data-url / video File) Storage'a yükle → URL döndür.
+  // onProgress(0..100) — video gibi büyük dosyalarda ilerleme için.
+  // Storage kapalı/hata → null (görselde çağıran base64'e düşebilir; video düşemez).
+  async function uploadNewsMedia(payload, path, onProgress) {
+    try {
+      const mod = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js").catch(() => null);
+      if (!mod) return null;
+      const { getStorage, ref: sRef, uploadString, uploadBytesResumable, getDownloadURL } = mod;
+      const r = sRef(getStorage(), path);
+      if (typeof payload === "string") {           // data-url (görsel)
+        await uploadString(r, payload, "data_url");
+      } else {                                      // File (video)
+        await new Promise((resolve, reject) => {
+          const task = uploadBytesResumable(r, payload, { contentType: payload.type || "video/mp4" });
+          task.on("state_changed",
+            s => { if (onProgress && s.totalBytes) onProgress(Math.round(s.bytesTransferred / s.totalBytes * 100)); },
+            reject, resolve);
+        });
+      }
+      return await getDownloadURL(r);
+    } catch (e) { return null; }
+  }
+
   window.__FB = {
     db, auth,
     ADMIN_EMAIL,
+    uploadNewsMedia,
     collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
     onSnapshot, serverTimestamp, query, orderBy, where, limit,
     // Auth fonksiyonlarını dışa aç
@@ -3499,9 +3523,9 @@ function Card({children,style,onClick}){
   );
 }
 
-function PrimaryBtn({children,onClick,style,icon}){
+function PrimaryBtn({children,onClick,style,icon,disabled}){
   return(
-    <button onClick={onClick} className="btn-navy" style={style}>
+    <button onClick={onClick} className="btn-navy" disabled={disabled} style={{...(disabled?{opacity:0.55,cursor:"not-allowed"}:{}),...style}}>
       <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
         {icon&&<span>{icon}</span>}{children}
       </span>
@@ -5772,17 +5796,22 @@ function AdminNewsPanel({lang,toast,adminName}){
   const [title,setTitle]=useState("");
   const [body,setBody]=useState("");
   const [ytUrl,setYtUrl]=useState("");
-  const [image,setImage]=useState(null);
+  const [images,setImages]=useState([]);      // data-url listesi (max 10)
+  const [videos,setVideos]=useState([]);      // {file, name, size} (max 3)
   const [area,setArea]=useState("genel");
   const [saving,setSaving]=useState(false);
+  const [progress,setProgress]=useState(null); // {label, pct}
   const fileRef=useRef(null);
+  const videoRef=useRef(null);
+  const MAX_IMGS=10, MAX_VIDS=3, MAX_VID_MB=200;
   const L=(k)=>({
     heading:{ku:"📰 Nûçeyên Malperê",en:"📰 Website News",de:"📰 Website-News"},
     hint:{ku:"Ev nûçe li ser rûpela sereke (malper) ji her kesî re xuya dibin.",en:"These posts appear publicly on the homepage.",de:"Diese Beiträge erscheinen öffentlich auf der Startseite."},
     title:{ku:"Sernav",en:"Title",de:"Titel"},
     body:{ku:"Nivîs",en:"Text",de:"Text"},
     yt:{ku:"Girêdana YouTube (vebijarkî)",en:"YouTube link (optional)",de:"YouTube-Link (optional)"},
-    photo:{ku:"📷 Wêne hilbijêre (vebijarkî)",en:"📷 Choose image (optional)",de:"📷 Bild wählen (optional)"},
+    photo:{ku:"📷 Wêne zêde bike (çend jî dibe)",en:"📷 Add photos (multiple)",de:"📷 Fotos hinzufügen"},
+    video:{ku:"🎬 Vîdyo bar bike",en:"🎬 Upload video",de:"🎬 Video hochladen"},
     publish:{ku:"📤 Biweşîne",en:"📤 Publish",de:"📤 Veröffentlichen"},
     list:{ku:"Nûçeyên weşandî",en:"Published posts",de:"Veröffentlichte Beiträge"},
     empty:{ku:"Hîn nûçe tune. Ya yekem biweşîne!",en:"No posts yet. Publish the first one!",de:"Noch keine Beiträge."},
@@ -5791,6 +5820,10 @@ function AdminNewsPanel({lang,toast,adminName}){
     done:{ku:"✅ Nûçe hate weşandin",en:"✅ Published",de:"✅ Veröffentlicht"},
     deleted:{ku:"🗑 Hate jêbirin",en:"🗑 Deleted",de:"🗑 Gelöscht"},
     err:{ku:"❌ Çewtî — dîsa biceribîne",en:"❌ Error — try again",de:"❌ Fehler"},
+    vidTooBig:{ku:"⚠ Vîdyo pir mezin e (max "+MAX_VID_MB+"MB)",en:"⚠ Video too large (max "+MAX_VID_MB+"MB)",de:"⚠ Video zu groß"},
+    vidNeedsStorage:{ku:"⚠ Ji bo vîdyoyê Firebase Storage pêwîst e (Blaze)",en:"⚠ Video upload requires Firebase Storage (Blaze)",de:"⚠ Video braucht Firebase Storage"},
+    imgUploading:{ku:"Wêne tên barkirin",en:"Uploading photos",de:"Fotos werden hochgeladen"},
+    vidUploading:{ku:"Vîdyo tê barkirin",en:"Uploading video",de:"Video wird hochgeladen"},
   }[k][lang]||k);
 
   useEffect(()=>{
@@ -5805,15 +5838,25 @@ function AdminNewsPanel({lang,toast,adminName}){
     return ()=>unsub();
   },[]);
 
-  async function pickImage(e){
-    const f=e.target.files&&e.target.files[0];
-    if(!f) return;
-    const reader=new FileReader();
-    reader.onload=async ev=>{
-      const compressed=await compressImage(ev.target.result, 1000, 1000, 0.8);
-      setImage(compressed);
-    };
-    reader.readAsDataURL(f);
+  async function pickImages(e){
+    const files=[...(e.target.files||[])];
+    if(!files.length) return;
+    for(const f of files){
+      if(images.length>=MAX_IMGS) break;
+      const dataUrl=await new Promise((res,rej)=>{const r=new FileReader();r.onload=ev=>res(ev.target.result);r.onerror=rej;r.readAsDataURL(f);});
+      const compressed=await compressImage(dataUrl, 1600, 1600, 0.82);
+      setImages(p=>p.length>=MAX_IMGS?p:[...p,compressed]);
+    }
+    if(fileRef.current) fileRef.current.value="";
+  }
+
+  function pickVideos(e){
+    const files=[...(e.target.files||[])];
+    for(const f of files){
+      if(f.size>MAX_VID_MB*1024*1024){ toast(L("vidTooBig")); continue; }
+      setVideos(p=>p.length>=MAX_VIDS?p:[...p,{file:f,name:f.name,size:f.size}]);
+    }
+    if(videoRef.current) videoRef.current.value="";
   }
 
   async function publish(){
@@ -5821,20 +5864,45 @@ function AdminNewsPanel({lang,toast,adminName}){
     if(!window.__FB||!window.__FB.isConfigured()){ toast(L("err")); return; }
     setSaving(true);
     try{
+      const folder="news/"+Date.now()+"_"+Math.random().toString(36).slice(2,8);
+      // ── Görseller: Storage'a; olmuyorsa base64 (toplam 700KB koruması) ──
+      const imgUrls=[];
+      let b64Total=0;
+      for(let i=0;i<images.length;i++){
+        setProgress({label:L("imgUploading")+" "+(i+1)+"/"+images.length,pct:Math.round(i/Math.max(1,images.length)*100)});
+        let u=await window.__FB.uploadNewsMedia(images[i], folder+"/img_"+i+".jpg", null);
+        if(!u){
+          if(b64Total+images[i].length<=700000){ u=images[i]; b64Total+=images[i].length; }
+        }
+        if(u) imgUrls.push(u);
+      }
+      // ── Videolar: yalnızca Storage (base64 imkânsız) ──
+      const vidList=[];
+      for(let i=0;i<videos.length;i++){
+        const v=videos[i];
+        setProgress({label:L("vidUploading")+" "+(i+1)+"/"+videos.length+" · "+v.name,pct:0});
+        const safe=(v.name||"video.mp4").replace(/[^A-Za-z0-9_.\-]/g,"_").slice(-60);
+        const u=await window.__FB.uploadNewsMedia(v.file, folder+"/"+safe,
+          pct=>setProgress({label:L("vidUploading")+" "+(i+1)+"/"+videos.length+" · "+v.name,pct}));
+        if(!u){ toast(L("vidNeedsStorage"),6000); setSaving(false); setProgress(null); return; }
+        vidList.push({url:u,name:v.name});
+      }
+      setProgress(null);
       await window.__FB.addDoc(window.__FB.collection(window.__FB.db,"news"),{
         title:title.trim(), body:body.trim(),
         youtubeId: ytIdFromUrl(ytUrl.trim()),
-        image: image||null,
+        image: imgUrls[0]||null,          // eski istemciler için kapak
+        images: imgUrls,
+        videos: vidList,
         area: area||"genel",
         author: adminName||"Admin",
         dateStr: new Date().toISOString().slice(0,10),
         createdAt: window.__FB.serverTimestamp()
       });
-      setTitle("");setBody("");setYtUrl("");setImage(null);setArea("genel");
-      if(fileRef.current) fileRef.current.value="";
+      setTitle("");setBody("");setYtUrl("");setImages([]);setVideos([]);setArea("genel");
       toast(L("done"));
     }catch(e){ console.warn("news publish:",e); toast(L("err")); }
-    setSaving(false);
+    setSaving(false); setProgress(null);
   }
 
   async function remove(item){
@@ -5861,24 +5929,71 @@ function AdminNewsPanel({lang,toast,adminName}){
           <option value="genel">🌐 {lang==="en"?"General (all)":lang==="de"?"Allgemein":"Giştî (hemû)"}</option>
           {AREAS.map(a=>(<option key={a.key} value={a.key}>{a.icon} {areaName(a.key,lang)}</option>))}
         </select>
+        {/* ── Çoklu fotoğraf ── */}
+        {images.length>0&&(
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(84px,1fr))",gap:8,marginBottom:10}}>
+            {images.map((im,i)=>(
+              <div key={i} style={{position:"relative",aspectRatio:"1",borderRadius:10,overflow:"hidden",border:"1px solid var(--border2)"}}>
+                <img src={im} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+                {i===0&&<span style={{position:"absolute",left:4,bottom:4,fontSize:8.5,fontWeight:800,background:"rgba(22,41,63,0.85)",color:"#fff",padding:"2px 6px",borderRadius:5,letterSpacing:"0.05em"}}>{lang==="en"?"COVER":"BERG"}</span>}
+                <button onClick={()=>setImages(p=>p.filter((_,j)=>j!==i))}
+                  style={{position:"absolute",top:3,right:3,width:20,height:20,borderRadius:"50%",background:"rgba(229,57,53,0.92)",border:"none",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",lineHeight:"20px",padding:0}}>×</button>
+              </div>
+            ))}
+          </div>
+        )}
         <div onClick={()=>fileRef.current&&fileRef.current.click()}
-          style={{border:"1.5px dashed var(--border2)",borderRadius:10,padding:"12px",textAlign:"center",cursor:"pointer",marginBottom:10,background:"var(--bg2)",fontSize:13,color:"var(--text2)"}}>
-          {image ? <img src={image} alt="" style={{maxWidth:"100%",maxHeight:140,borderRadius:8}}/> : L("photo")}
+          style={{border:"1.5px dashed var(--border2)",borderRadius:10,padding:"12px",textAlign:"center",cursor:"pointer",marginBottom:8,background:"var(--bg2)",fontSize:13,color:"var(--text2)"}}>
+          {L("photo")} {images.length>0&&<span style={{fontWeight:700,color:"var(--text)"}}>({images.length}/{MAX_IMGS})</span>}
         </div>
-        <input ref={fileRef} type="file" accept="image/*" onChange={pickImage} style={{display:"none"}}/>
-        <PrimaryBtn onClick={publish} icon="📤">{saving?"⏳ ...":L("publish")}</PrimaryBtn>
+        <input ref={fileRef} type="file" accept="image/*" multiple onChange={pickImages} style={{display:"none"}}/>
+        {/* ── Video ── */}
+        {videos.length>0&&videos.map((v,i)=>(
+          <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",marginBottom:6,background:"var(--bg2)",border:"1px solid var(--border2)",borderRadius:10}}>
+            <span style={{fontSize:17}}>🎬</span>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:12.5,fontWeight:600,color:"var(--text)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{v.name}</div>
+              <div style={{fontSize:10,color:"var(--text2)"}}>{(v.size/1024/1024).toFixed(1)} MB</div>
+            </div>
+            <button onClick={()=>setVideos(p=>p.filter((_,j)=>j!==i))}
+              style={{width:22,height:22,borderRadius:"50%",background:"var(--red-bg)",border:"0.5px solid var(--red)",color:"var(--red)",fontSize:12,fontWeight:700,cursor:"pointer",lineHeight:"20px",padding:0,flexShrink:0}}>×</button>
+          </div>
+        ))}
+        <div onClick={()=>videoRef.current&&videoRef.current.click()}
+          style={{border:"1.5px dashed var(--border2)",borderRadius:10,padding:"12px",textAlign:"center",cursor:"pointer",marginBottom:10,background:"var(--bg2)",fontSize:13,color:"var(--text2)"}}>
+          {L("video")} {videos.length>0&&<span style={{fontWeight:700,color:"var(--text)"}}>({videos.length}/{MAX_VIDS})</span>}
+          <div style={{fontSize:10,marginTop:3,color:"var(--text2)"}}>MP4/WebM · max {MAX_VID_MB}MB</div>
+        </div>
+        <input ref={videoRef} type="file" accept="video/*" multiple onChange={pickVideos} style={{display:"none"}}/>
+        {/* ── Yükleme ilerlemesi ── */}
+        {progress&&(
+          <div style={{marginBottom:10,background:"var(--bg2)",border:"1px solid var(--border2)",borderRadius:10,padding:"10px 12px"}}>
+            <div style={{fontSize:11,color:"var(--text2)",marginBottom:6,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>⏳ {progress.label} — %{progress.pct}</div>
+            <div style={{height:6,background:"var(--surface2)",borderRadius:99,overflow:"hidden"}}>
+              <div style={{height:"100%",width:progress.pct+"%",background:"linear-gradient(90deg,#16293f,#4f8ef7)",borderRadius:99,transition:"width .3s"}}/>
+            </div>
+          </div>
+        )}
+        <PrimaryBtn onClick={publish} icon="📤" disabled={saving}>{saving?"⏳ ...":L("publish")}</PrimaryBtn>
       </Card>
 
       <SectionHeader>{L("list")} ({items.length})</SectionHeader>
       {items.length===0 && <Card><div style={{fontSize:13,color:"var(--text2)",textAlign:"center",padding:"8px 0"}}>{L("empty")}</div></Card>}
-      {items.map(item=>(
+      {items.map(item=>{
+        const imgCount=(item.images&&item.images.length)||(item.image?1:0);
+        const vidCount=(item.videos&&item.videos.length)||0;
+        const cover=(item.images&&item.images[0])||item.image;
+        return(
         <Card key={item.fireId}>
           <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
-            {item.image && <img src={item.image} alt="" style={{width:64,height:48,objectFit:"cover",borderRadius:8,flexShrink:0}}/>}
+            {cover && <img src={cover} alt="" style={{width:64,height:48,objectFit:"cover",borderRadius:8,flexShrink:0}}/>}
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:14,fontWeight:700,color:"var(--text)",lineHeight:1.3}}>{item.title}</div>
               <div style={{fontSize:11,color:"var(--text2)",marginTop:3}}>
-                {item.dateStr||""} {item.youtubeId?" · ▶ YouTube":""}
+                {item.dateStr||""}
+                {imgCount>0&&(" · 📷 "+imgCount)}
+                {vidCount>0&&(" · 🎬 "+vidCount)}
+                {item.youtubeId?" · ▶ YouTube":""}
               </div>
             </div>
             <button onClick={()=>remove(item)}
@@ -5887,7 +6002,8 @@ function AdminNewsPanel({lang,toast,adminName}){
             </button>
           </div>
         </Card>
-      ))}
+        );
+      })}
     </div>
   );
 }
