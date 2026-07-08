@@ -5854,10 +5854,40 @@ function AdminNewsPanel({lang,toast,adminName}){
     const files=[...(e.target.files||[])];
     for(const f of files){
       if(f.size>MAX_VID_MB*1024*1024){ toast(L("vidTooBig")); continue; }
-      setVideos(p=>p.length>=MAX_VIDS?p:[...p,{file:f,name:f.name,size:f.size}]);
+      setVideos(p=>p.length>=MAX_VIDS?p:[...p,{file:f,name:f.name,size:f.size,extras:[],subs:[]}]);
     }
     if(videoRef.current) videoRef.current.value="";
   }
+
+  // Video başına ek dosya (kalite sürümü / altyazı) — ortak gizli input
+  const extraRef=useRef(null);
+  const pendingExtra=useRef(null); // {idx, kind:"q"|"s", label}
+  function requestExtra(idx,kind,label){
+    pendingExtra.current={idx,kind,label};
+    if(extraRef.current){ extraRef.current.accept = kind==="q" ? "video/*" : ".vtt,.srt,text/vtt"; extraRef.current.click(); }
+  }
+  function onExtraFile(e){
+    const f=e.target.files&&e.target.files[0];
+    const p=pendingExtra.current;
+    if(f&&p){
+      if(p.kind==="q"&&f.size>MAX_VID_MB*1024*1024){ toast(L("vidTooBig")); }
+      else setVideos(list=>list.map((v,i)=>i!==p.idx?v:(
+        p.kind==="q" ? {...v,extras:[...v.extras,{label:p.label,file:f}]}
+                     : {...v,subs:[...v.subs,{label:p.label,file:f}]}
+      )));
+    }
+    pendingExtra.current=null;
+    if(extraRef.current) extraRef.current.value="";
+  }
+
+  // .srt → .vtt dönüştürerek yükle (tarayıcı <track> yalnızca VTT okur)
+  async function subToVttBlob(file){
+    const text=await file.text();
+    if(/^﻿?WEBVTT/.test(text)) return new Blob([text],{type:"text/vtt"});
+    const vtt="WEBVTT\n\n"+text.replace(/^﻿/,"").replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g,"$1.$2");
+    return new Blob([vtt],{type:"text/vtt"});
+  }
+  const SUB_LANGS={ "Kurdî":"ku","Zazakî":"zza","Tirkî":"tr","English":"en","Deutsch":"de","Erebî":"ar" };
 
   async function publish(){
     if(!title.trim()){ toast(L("needTitle")); return; }
@@ -5880,12 +5910,34 @@ function AdminNewsPanel({lang,toast,adminName}){
       const vidList=[];
       for(let i=0;i<videos.length;i++){
         const v=videos[i];
-        setProgress({label:L("vidUploading")+" "+(i+1)+"/"+videos.length+" · "+v.name,pct:0});
+        const vLabel=L("vidUploading")+" "+(i+1)+"/"+videos.length+" · ";
+        setProgress({label:vLabel+v.name,pct:0});
         const safe=(v.name||"video.mp4").replace(/[^A-Za-z0-9_.\-]/g,"_").slice(-60);
-        const u=await window.__FB.uploadNewsMedia(v.file, folder+"/"+safe,
-          pct=>setProgress({label:L("vidUploading")+" "+(i+1)+"/"+videos.length+" · "+v.name,pct}));
+        const u=await window.__FB.uploadNewsMedia(v.file, folder+"/v"+i+"_"+safe,
+          pct=>setProgress({label:vLabel+v.name,pct}));
         if(!u){ toast(L("vidNeedsStorage"),6000); setSaving(false); setProgress(null); return; }
-        vidList.push({url:u,name:v.name});
+        // Kalite sürümleri
+        const qualities=[{label:"Orîjînal",url:u}];
+        for(let q=0;q<(v.extras||[]).length;q++){
+          const ex=v.extras[q];
+          setProgress({label:vLabel+ex.label+" ("+ex.file.name+")",pct:0});
+          const exSafe=(ex.file.name||"q.mp4").replace(/[^A-Za-z0-9_.\-]/g,"_").slice(-60);
+          const qu=await window.__FB.uploadNewsMedia(ex.file, folder+"/v"+i+"_q"+q+"_"+exSafe,
+            pct=>setProgress({label:vLabel+ex.label,pct}));
+          if(qu) qualities.push({label:ex.label,url:qu});
+        }
+        // Altyazılar (.srt→.vtt)
+        const subList=[];
+        for(let s=0;s<(v.subs||[]).length;s++){
+          const sb=v.subs[s];
+          setProgress({label:vLabel+"💬 "+sb.label,pct:50});
+          try{
+            const blob=await subToVttBlob(sb.file);
+            const su=await window.__FB.uploadNewsMedia(blob, folder+"/v"+i+"_s"+s+".vtt", null);
+            if(su) subList.push({label:sb.label,lang:SUB_LANGS[sb.label]||"ku",url:su});
+          }catch(_){}
+        }
+        vidList.push({url:u,name:v.name,qualities,subs:subList});
       }
       setProgress(null);
       await window.__FB.addDoc(window.__FB.collection(window.__FB.db,"news"),{
@@ -5948,17 +6000,46 @@ function AdminNewsPanel({lang,toast,adminName}){
         </div>
         <input ref={fileRef} type="file" accept="image/*" multiple onChange={pickImages} style={{display:"none"}}/>
         {/* ── Video ── */}
-        {videos.length>0&&videos.map((v,i)=>(
-          <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",marginBottom:6,background:"var(--bg2)",border:"1px solid var(--border2)",borderRadius:10}}>
-            <span style={{fontSize:17}}>🎬</span>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:12.5,fontWeight:600,color:"var(--text)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{v.name}</div>
-              <div style={{fontSize:10,color:"var(--text2)"}}>{(v.size/1024/1024).toFixed(1)} MB</div>
+        {videos.length>0&&videos.map((v,i)=>{
+          const chip={display:"inline-flex",alignItems:"center",gap:5,fontSize:10.5,fontWeight:700,padding:"3px 8px",borderRadius:99,background:"var(--surface2)",border:"1px solid var(--border2)",color:"var(--text)"};
+          const chipX={border:"none",background:"none",color:"var(--red)",fontSize:11,fontWeight:800,cursor:"pointer",padding:0,lineHeight:1};
+          const addBtn={fontSize:10.5,fontWeight:700,padding:"4px 9px",borderRadius:8,border:"1px dashed var(--border2)",background:"none",color:"var(--text2)",cursor:"pointer"};
+          return(
+          <div key={i} style={{padding:"10px 12px",marginBottom:6,background:"var(--bg2)",border:"1px solid var(--border2)",borderRadius:10}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <span style={{fontSize:17}}>🎬</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:12.5,fontWeight:600,color:"var(--text)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{v.name}</div>
+                <div style={{fontSize:10,color:"var(--text2)"}}>{(v.size/1024/1024).toFixed(1)} MB · Orîjînal</div>
+              </div>
+              <button onClick={()=>setVideos(p=>p.filter((_,j)=>j!==i))}
+                style={{width:22,height:22,borderRadius:"50%",background:"var(--red-bg)",border:"0.5px solid var(--red)",color:"var(--red)",fontSize:12,fontWeight:700,cursor:"pointer",lineHeight:"20px",padding:0,flexShrink:0}}>×</button>
             </div>
-            <button onClick={()=>setVideos(p=>p.filter((_,j)=>j!==i))}
-              style={{width:22,height:22,borderRadius:"50%",background:"var(--red-bg)",border:"0.5px solid var(--red)",color:"var(--red)",fontSize:12,fontWeight:700,cursor:"pointer",lineHeight:"20px",padding:0,flexShrink:0}}>×</button>
+            {/* Kalite sürümleri + altyazılar */}
+            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:8,alignItems:"center"}}>
+              {(v.extras||[]).map((ex,q)=>(
+                <span key={"q"+q} style={chip}>🎞 {ex.label}
+                  <button style={chipX} onClick={()=>setVideos(list=>list.map((vv,j)=>j!==i?vv:{...vv,extras:vv.extras.filter((_,k)=>k!==q)}))}>×</button>
+                </span>
+              ))}
+              {(v.subs||[]).map((sb,s)=>(
+                <span key={"s"+s} style={chip}>💬 {sb.label}
+                  <button style={chipX} onClick={()=>setVideos(list=>list.map((vv,j)=>j!==i?vv:{...vv,subs:vv.subs.filter((_,k)=>k!==s)}))}>×</button>
+                </span>
+              ))}
+              <select id={"qsel"+i} defaultValue="720p" style={{fontSize:10.5,padding:"3px 4px",borderRadius:7,border:"1px solid var(--border2)",background:"var(--surface2)",color:"var(--text)"}}>
+                {["1080p","720p","480p","360p"].map(q=><option key={q}>{q}</option>)}
+              </select>
+              <button style={addBtn} onClick={()=>requestExtra(i,"q",document.getElementById("qsel"+i).value)}>➕ Kalîte</button>
+              <select id={"ssel"+i} defaultValue="Kurdî" style={{fontSize:10.5,padding:"3px 4px",borderRadius:7,border:"1px solid var(--border2)",background:"var(--surface2)",color:"var(--text)"}}>
+                {Object.keys(SUB_LANGS).map(l=><option key={l}>{l}</option>)}
+              </select>
+              <button style={addBtn} onClick={()=>requestExtra(i,"s",document.getElementById("ssel"+i).value)}>➕ Jêrnivîs (.srt/.vtt)</button>
+            </div>
           </div>
-        ))}
+          );
+        })}
+        <input ref={extraRef} type="file" onChange={onExtraFile} style={{display:"none"}}/>
         <div onClick={()=>videoRef.current&&videoRef.current.click()}
           style={{border:"1.5px dashed var(--border2)",borderRadius:10,padding:"12px",textAlign:"center",cursor:"pointer",marginBottom:10,background:"var(--bg2)",fontSize:13,color:"var(--text2)"}}>
           {L("video")} {videos.length>0&&<span style={{fontWeight:700,color:"var(--text)"}}>({videos.length}/{MAX_VIDS})</span>}

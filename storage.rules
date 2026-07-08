@@ -25,7 +25,10 @@ service firebase.storage {
                    && ((request.resource.contentType.matches('image/.*')
                         && request.resource.size < 10 * 1024 * 1024)
                        || (request.resource.contentType.matches('video/.*')
-                        && request.resource.size < 200 * 1024 * 1024));
+                        && request.resource.size < 200 * 1024 * 1024)
+                       // altyazı dosyaları (.vtt)
+                       || (request.resource.contentType.matches('text/.*')
+                        && request.resource.size < 2 * 1024 * 1024));
       allow delete: if request.auth != null
                    && request.auth.token.email.matches('.*@ogretmen[.]aat$');
     }
