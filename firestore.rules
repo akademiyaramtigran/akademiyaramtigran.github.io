@@ -89,6 +89,11 @@ service cloud.firestore {
       allow read:  if true;
       allow write: if isStaff();
     }
+    // İstenen belgeler (şablonlar) — herkes görebilsin (indirir), yazma personel
+    match /applicationTemplates/{id} {
+      allow read:  if true;
+      allow write: if isStaff();
+    }
 
     // ── Yalnızca personel yazar (öğrenci dokunamaz) ────────────────────
     match /schedule/{id}          { allow write: if isStaff(); }

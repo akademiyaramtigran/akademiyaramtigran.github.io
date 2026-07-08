@@ -181,6 +181,18 @@ try{
   .apply-btn:hover{background:var(--navy-2)}
   .apply-btn:disabled{opacity:.6;cursor:default}
   .apply-msg{margin-top:12px;font-size:14px;font-weight:600}
+  .apply-dl{background:var(--paper-2);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:6px}
+  .apply-dl-h{font-size:12.5px;font-weight:800;color:var(--ink);margin-bottom:8px}
+  .apply-dl-item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface);border:1px solid var(--line);border-radius:9px;margin-top:6px;font-size:13.5px;font-weight:600;color:var(--navy);text-decoration:none}
+  .apply-dl-item:hover{border-color:var(--navy-3)}
+  .apply-reqs{display:grid;gap:8px}
+  .apply-req{display:flex;align-items:center;gap:10px;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--paper-2)}
+  .apply-req.ok{border-color:#16a34a;background:rgba(22,163,74,0.06)}
+  .apply-req-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+  .apply-req-name{font-size:13.5px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .apply-req-state{font-size:11px;color:var(--muted)}
+  .apply-req.ok .apply-req-state{color:#16a34a;font-weight:700}
+  .apply-req-btn{flex-shrink:0;background:var(--navy);color:#fff;border:none;border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:700;cursor:pointer}
   footer{background:var(--hero-grad);color:rgba(234,240,248,.75);margin-top:24px}
   footer .wrap{display:grid;grid-template-columns:1.4fr 1fr;gap:32px;padding-top:56px;padding-bottom:30px}
   footer h4{color:#fff;font-size:12.5px;letter-spacing:.2em;text-transform:uppercase;margin:0 0 14px}
@@ -438,39 +450,85 @@ function compressToDataUrl(file, maxW, quality){
   });
 }
 
-function renderApply(cfg){
+function fileToDataUrl(file){
+  return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=e=>res(e.target.result); r.onerror=rej; r.readAsDataURL(file); });
+}
+
+async function loadTemplates(){
+  try{ const snap=await getDocs(collection(db,"applicationTemplates"));
+    return snap.docs.map(d=>d.data()).sort((a,b)=>(a.order||0)-(b.order||0)); }
+  catch(e){ return []; }
+}
+
+function renderApply(cfg, templates){
   applyRoot.innerHTML="";
   const today=new Date().toISOString().slice(0,10);
   const inRange=(!cfg.startDate||today>=cfg.startDate)&&(!cfg.endDate||today<=cfg.endDate);
   if(!cfg.open||!inRange){
     const d=document.createElement('div'); d.className='empty';
-    d.textContent = cfg.note ? cfg.note : "Serlêdan niha girtî ye. Ji bo agahî: dema tomarkirinê li vir tê ragihandin.";
+    d.textContent = cfg.note ? cfg.note : "Serlêdan niha girtî ye. Dema tomarkirinê li vir tê ragihandin.";
     applyRoot.appendChild(d); return;
   }
+
+  // İndirilebilir şablonlar (öğrenci işlerinin dosya eklediği belgeler)
+  const dlTpls = (templates||[]).filter(t=>t.file);
+  let dlHtml = "";
+  if(dlTpls.length){
+    dlHtml = `<div class="apply-dl"><div class="apply-dl-h">⬇ Belgeyên ku divê werin dagirtin:</div>`
+      + dlTpls.map((t,i)=>`<a class="apply-dl-item" href="${t.file}" download="${(t.fileName||t.name||('belge'+i)).replace(/"/g,'')}">📄 ${(t.name||'Belge').replace(/[<>]/g,'')}</a>`).join('')
+      + `</div>`;
+  }
+
+  // Her istenen belge için ayrı yükleme kutusu
+  const reqDocs = templates||[];
+  let reqHtml = "";
+  if(reqDocs.length){
+    reqHtml = `<label>Belgeyên pêwîst *</label><div class="apply-reqs" id="ap-reqs">`
+      + reqDocs.map((t,i)=>`
+        <div class="apply-req" data-i="${i}">
+          <div class="apply-req-info"><span class="apply-req-name">📄 ${(t.name||'Belge').replace(/[<>]/g,'')}</span><span class="apply-req-state" id="rq-st-${i}">necar</span></div>
+          <button type="button" class="apply-req-btn" id="rq-btn-${i}">📎 Bar bike</button>
+          <input type="file" accept="image/*,application/pdf" id="rq-file-${i}" style="display:none"/>
+        </div>`).join('')
+      + `</div>`;
+  }
+
   const card=document.createElement('div'); card.className='apply-card';
   card.innerHTML=`
-    ${cfg.note?`<p style="margin:0 0 4px;color:var(--muted);font-size:14px">${cfg.note.replace(/[<>]/g,'')}</p>`:''}
+    ${cfg.note?`<p style="margin:0 0 6px;color:var(--muted);font-size:14px">${cfg.note.replace(/[<>]/g,'')}</p>`:''}
+    ${dlHtml}
     <label>Nav û paşnav *</label><input id="ap-name" maxlength="80"/>
     <label>Roja jidayikbûnê</label><input id="ap-dob" type="date"/>
     <label>Têlefon *</label><input id="ap-phone" type="tel" maxlength="20" placeholder="05xx xxx xx xx"/>
     <label>Qada hunerê *</label>
     <select id="ap-area">${AREAS.map(a=>`<option value="${a[0]}">${a[1]}</option>`).join('')}</select>
     <label>Nîşe (vebijarkî)</label><textarea id="ap-note" maxlength="500"></textarea>
-    <label>Belge (wêne, herî zêde 2 — vebijarkî)</label>
-    <div class="apply-docs" id="ap-docs">📎 Belge hilbijêre (kimlik, dîploma…)</div>
-    <input id="ap-file" type="file" accept="image/*" multiple style="display:none"/>
+    ${reqHtml}
     <button class="apply-btn" id="ap-send">📨 Serlêdanê Bişîne</button>
     <div class="apply-msg" id="ap-msg"></div>`;
   applyRoot.appendChild(card);
 
-  let docs=[];
-  const docsBox=card.querySelector('#ap-docs'), fileIn=card.querySelector('#ap-file');
-  docsBox.addEventListener('click',()=>fileIn.click());
-  fileIn.addEventListener('change',async()=>{
-    const files=[...fileIn.files].slice(0,2);
-    docs=[];
-    for(const f of files){ try{ docs.push(await compressToDataUrl(f,1000,0.72)); }catch(e){} }
-    docsBox.innerHTML = docs.length ? docs.map(d=>`<img src="${d}" alt="belge"/>`).join('') : "📎 Belge hilbijêre";
+  // Belge yükleme mantığı — her belge kendi alanına
+  const uploaded = new Array(reqDocs.length).fill(null); // {name,file,fileName}
+  reqDocs.forEach((t,i)=>{
+    const btn=card.querySelector('#rq-btn-'+i), fin=card.querySelector('#rq-file-'+i), stEl=card.querySelector('#rq-st-'+i);
+    const box=card.querySelector('.apply-req[data-i="'+i+'"]');
+    btn.addEventListener('click',()=>fin.click());
+    fin.addEventListener('change',async()=>{
+      const f=fin.files&&fin.files[0]; if(!f) return;
+      stEl.textContent='⏳';
+      try{
+        let data, fname;
+        if(f.type==='application/pdf'){
+          if(f.size>700000){ stEl.textContent='pir mezin!'; box.classList.remove('ok'); return; }
+          data=await fileToDataUrl(f); fname=f.name;
+        } else {
+          data=await compressToDataUrl(f,1200,0.72); fname=(t.name||'belge')+'.jpg';
+        }
+        uploaded[i]={name:t.name||('Belge '+(i+1)), file:data, fileName:fname};
+        stEl.textContent='✅ barkir'; box.classList.add('ok'); btn.textContent='🔄 Biguherîne';
+      }catch(e){ stEl.textContent='çewt'; }
+    });
   });
 
   const msg=card.querySelector('#ap-msg'), btn=card.querySelector('#ap-send');
@@ -478,6 +536,9 @@ function renderApply(cfg){
     const name=card.querySelector('#ap-name').value.trim();
     const phone=card.querySelector('#ap-phone').value.trim();
     if(!name||!phone){ msg.style.color='#dc2626'; msg.textContent='⚠ Nav û têlefon pêwîst in.'; return; }
+    // tüm istenen belgeler yüklendi mi?
+    const missing = reqDocs.map((t,i)=>uploaded[i]?null:(t.name||('Belge '+(i+1)))).filter(Boolean);
+    if(missing.length){ msg.style.color='#dc2626'; msg.textContent='⚠ Ev belge kêm in: '+missing.join(', '); return; }
     btn.disabled=true; msg.style.color='var(--muted)'; msg.textContent='⏳ Tê şandin…';
     try{
       await addDoc(collection(db,"applications"),{
@@ -485,7 +546,7 @@ function renderApply(cfg){
         dob: card.querySelector('#ap-dob').value||"",
         area: card.querySelector('#ap-area').value,
         note: card.querySelector('#ap-note').value.trim().slice(0,500),
-        docs,
+        docs: uploaded.filter(Boolean),
         status:"new",
         dateStr:new Date().toISOString().slice(0,10),
         createdAt: serverTimestamp()
@@ -500,9 +561,9 @@ function renderApply(cfg){
 
 (async()=>{
   try{
-    const snap=await getDoc(doc(db,"config","applications"));
-    renderApply(snap.exists()?snap.data():{open:false});
-  }catch(e){ renderApply({open:false}); }
+    const [snap, templates] = await Promise.all([ getDoc(doc(db,"config","applications")), loadTemplates() ]);
+    renderApply(snap.exists()?snap.data():{open:false}, templates);
+  }catch(e){ renderApply({open:false},[]); }
 })();
 
 (async () => {

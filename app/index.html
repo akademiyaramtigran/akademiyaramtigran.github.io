@@ -6401,35 +6401,80 @@ function PressPanel({user,lang,toast,onLogout}){
 }
 
 /* ─── REGISTRAR PANEL (Karûbarên Xwendekaran — serlêdanên tomarkirinê) ──── */
-function RegistrarPanel({user,lang,toast,onLogout}){
+// Print penceresi (rapor/başvuru PDF'i — yazdır → PDF olarak kaydet)
+function openPrintHtml(html){
+  var w=window.open('','_blank');
+  if(w){ w.document.open(); w.document.write(html); w.document.close(); return; }
+  try{
+    var blob=new Blob([html],{type:'text/html;charset=utf-8'});
+    var u=URL.createObjectURL(blob);
+    var win=window.open(u,'_blank');
+    if(win){ setTimeout(function(){URL.revokeObjectURL(u);},120000); return; }
+    URL.revokeObjectURL(u);
+  }catch(e){}
+}
+function _printShell(title, body){
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"/><title>'+title+'</title><style>'
+    +'body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#16293f;margin:28px}'
+    +'h1{font-size:20px;margin:0 0 2px} .sub{color:#69748C;font-size:12px;margin-bottom:20px}'
+    +'table{width:100%;border-collapse:collapse;font-size:13px} th,td{border:1px solid #d7dde8;padding:8px 10px;text-align:left}'
+    +'th{background:#f2f5fa;font-size:11px;letter-spacing:.06em;text-transform:uppercase}'
+    +'.chip{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700}'
+    +'.info{margin:14px 0;font-size:14px;line-height:1.9}'
+    +'img.doc{max-width:100%;max-height:820px;border:1px solid #d7dde8;border-radius:8px;margin:8px 0;page-break-inside:avoid}'
+    +'.doclabel{font-size:12px;font-weight:700;color:#69748C;margin-top:14px}'
+    +'@media print{body{margin:12mm}}'
+    +'</style></head><body>'+body
+    +'<script>window.onload=function(){setTimeout(function(){window.print();},300);};</'+'script></body></html>';
+}
+
+function RegistrarPanel({user,lang,toast,onLogout,students,onDataChange}){
   const [cfg,setCfg]=useState({open:false,startDate:"",endDate:"",note:""});
   const [cfgLoaded,setCfgLoaded]=useState(false);
   const [apps,setApps]=useState([]);
+  const [reqs,setReqs]=useState([]); // istenen belgeler
   const [expanded,setExpanded]=useState(null);
-  const [filter,setFilter]=useState("all"); // all | new | accepted | rejected
+  const [filter,setFilter]=useState("all");
+  const [reqName,setReqName]=useState("");
+  const [reqFile,setReqFile]=useState(null); // {file,fileName}
+  const [regCreds,setRegCreds]=useState(null); // kabul sonrası öğrenci bilgileri
+  const reqFileRef=useRef(null);
   const L=(k)=>({
-    settings:{ku:"⚙️ Mîhengên Serlêdanê",en:"⚙️ Application Settings",de:"⚙️ Bewerbungseinstellungen"},
-    open:{ku:"Serlêdan VEKIRÎ ye",en:"Applications OPEN",de:"Bewerbungen OFFEN"},
-    closed:{ku:"Serlêdan GIRTÎ ye",en:"Applications CLOSED",de:"Bewerbungen GESCHLOSSEN"},
-    start:{ku:"Destpêk (vebijarkî)",en:"Start (optional)",de:"Beginn (optional)"},
-    end:{ku:"Dawî (vebijarkî)",en:"End (optional)",de:"Ende (optional)"},
-    note:{ku:"Nîşeya li ser malperê (vebijarkî)",en:"Note shown on site (optional)",de:"Hinweis auf der Website"},
+    settings:{ku:"⚙️ Mîhengên Serlêdanê",en:"⚙️ Application Settings",de:"⚙️ Einstellungen"},
+    open:{ku:"Serlêdan VEKIRÎ ye",en:"Applications OPEN",de:"OFFEN"},
+    closed:{ku:"Serlêdan GIRTÎ ye",en:"Applications CLOSED",de:"GESCHLOSSEN"},
+    start:{ku:"Destpêk (vebijarkî)",en:"Start (optional)",de:"Beginn"},
+    end:{ku:"Dawî (vebijarkî)",en:"End (optional)",de:"Ende"},
+    note:{ku:"Nîşeya li ser malperê (vebijarkî)",en:"Note shown on site",de:"Hinweis"},
     save:{ku:"💾 Tomar bike",en:"💾 Save",de:"💾 Speichern"},
     saved:{ku:"✅ Hate tomarkirin",en:"✅ Saved",de:"✅ Gespeichert"},
+    reqHead:{ku:"📄 Belgeyên Pêwîst",en:"📄 Required Documents",de:"📄 Erforderliche Dokumente"},
+    reqHint:{ku:"Ev belge li ser malperê xuya dibin; serlêder her yekê cuda bar dike.",en:"Shown on the site; applicants upload each one separately.",de:"Auf der Website sichtbar; Bewerber laden jedes einzeln hoch."},
+    reqName:{ku:"Navê belgeyê (ör. Forma Tomarkirinê)",en:"Document name",de:"Dokumentname"},
+    reqFile:{ku:"📎 Şablona vala (wêne/PDF — vebijarkî)",en:"📎 Blank template (image/PDF — optional)",de:"📎 Leere Vorlage"},
+    reqAdd:{ku:"➕ Belgeyê Zêde Bike",en:"➕ Add Document",de:"➕ Hinzufügen"},
+    reqEmpty:{ku:"Hîn belge nehatiye danîn.",en:"No documents defined yet.",de:"Noch keine Dokumente."},
+    needName:{ku:"⚠ Nav pêwîst e",en:"⚠ Name required",de:"⚠ Name erforderlich"},
+    tooBig:{ku:"⚠ Dosya pir mezin e (max ~600KB)",en:"⚠ File too large (max ~600KB)",de:"⚠ Datei zu groß"},
     list:{ku:"📋 Serlêdan",en:"📋 Applications",de:"📋 Bewerbungen"},
-    empty:{ku:"Hîn serlêdan tune.",en:"No applications yet.",de:"Noch keine Bewerbungen."},
+    pdfList:{ku:"📄 Lîsteya PDF",en:"📄 PDF List",de:"📄 PDF-Liste"},
+    pdfOne:{ku:"📄 PDF",en:"📄 PDF",de:"📄 PDF"},
+    empty:{ku:"Hîn serlêdan tune.",en:"No applications yet.",de:"Keine Bewerbungen."},
     all:{ku:"Hemû",en:"All",de:"Alle"},
     stNew:{ku:"Nû",en:"New",de:"Neu"},
     stAcc:{ku:"Qebûl",en:"Accepted",de:"Angenommen"},
     stRej:{ku:"Red",en:"Rejected",de:"Abgelehnt"},
-    accept:{ku:"✅ Qebûl bike",en:"✅ Accept",de:"✅ Annehmen"},
+    accept:{ku:"✅ Qebûl û Tescîl",en:"✅ Accept & Register",de:"✅ Annehmen"},
     reject:{ku:"❌ Red bike",en:"❌ Reject",de:"❌ Ablehnen"},
-    del:{ku:"🗑 Jê bibe",en:"🗑 Delete",de:"🗑 Löschen"},
-    docs:{ku:"Belge",en:"Documents",de:"Dokumente"},
+    del:{ku:"🗑",en:"🗑",de:"🗑"},
+    docs:{ku:"Belgeyên barkirî",en:"Uploaded documents",de:"Hochgeladene Dokumente"},
     phone:{ku:"Têlefon",en:"Phone",de:"Telefon"},
     dob:{ku:"Roja jidayikbûnê",en:"Date of birth",de:"Geburtsdatum"},
     area:{ku:"Qad",en:"Area",de:"Bereich"},
     msg:{ku:"Nîşe",en:"Note",de:"Notiz"},
+    regDone:{ku:"✅ Xwendekar Tescîl Bû",en:"✅ Student Registered",de:"✅ Registriert"},
+    regNote:{ku:"Van agahiyan bide xwendekar — ji beşa XWENDEKAR têkeve.",en:"Give these to the student — sign in via STUDENT.",de:"Dem Studierenden geben."},
+    already:{ku:"Berê tescîl bûye",en:"Already registered",de:"Bereits registriert"},
     err:{ku:"❌ Çewtî",en:"❌ Error",de:"❌ Fehler"},
   }[k][lang]||k);
   const STATUS={new:{label:L("stNew"),color:"#2c4f7c",bg:"rgba(44,79,124,0.12)"},
@@ -6438,7 +6483,7 @@ function RegistrarPanel({user,lang,toast,onLogout}){
 
   useEffect(()=>{
     if(!window.__FB||!window.__FB.isConfigured()) return;
-    let unsubApps=()=>{};
+    let unsubApps=()=>{}, unsubReqs=()=>{};
     (async()=>{
       try{
         const snap=await window.__FB.getDoc(window.__FB.doc(window.__FB.db,"config","applications"));
@@ -6447,12 +6492,17 @@ function RegistrarPanel({user,lang,toast,onLogout}){
       setCfgLoaded(true);
     })();
     try{
-      const q=window.__FB.query(window.__FB.collection(window.__FB.db,"applications"),window.__FB.orderBy("createdAt","desc"),window.__FB.limit(200));
+      const q=window.__FB.query(window.__FB.collection(window.__FB.db,"applications"),window.__FB.orderBy("createdAt","desc"),window.__FB.limit(300));
       unsubApps=window.__FB.onSnapshot(q,snap=>setApps(snap.docs.map(d=>({...d.data(),fireId:d.id}))));
     }catch(e){
       try{ unsubApps=window.__FB.onSnapshot(window.__FB.collection(window.__FB.db,"applications"),snap=>setApps(snap.docs.map(d=>({...d.data(),fireId:d.id})).sort((a,b)=>(b.dateStr||"").localeCompare(a.dateStr||"")))); }catch(_){}
     }
-    return ()=>unsubApps();
+    try{
+      unsubReqs=window.__FB.onSnapshot(window.__FB.collection(window.__FB.db,"applicationTemplates"),snap=>{
+        setReqs(snap.docs.map(d=>({...d.data(),fireId:d.id})).sort((a,b)=>(a.order||0)-(b.order||0)));
+      });
+    }catch(e){}
+    return ()=>{unsubApps();unsubReqs();};
   },[]);
 
   async function saveCfg(next){
@@ -6464,17 +6514,101 @@ function RegistrarPanel({user,lang,toast,onLogout}){
       toast(L("saved"));
     }catch(e){ toast(L("err")); }
   }
-  async function setStatus(app,status){
+
+  // ── İstenen belge yönetimi ──
+  function pickReqFile(e){
+    const f=e.target.files&&e.target.files[0];
+    if(!f) return;
+    if(f.type==="application/pdf"){
+      if(f.size>620000){ toast(L("tooBig")); e.target.value=""; return; }
+      const r=new FileReader();
+      r.onload=ev=>setReqFile({file:ev.target.result,fileName:f.name});
+      r.readAsDataURL(f);
+    } else {
+      const r=new FileReader();
+      r.onload=async ev=>{
+        const c=await compressImage(ev.target.result,1200,1200,0.8);
+        setReqFile({file:c,fileName:f.name.replace(/\.[^.]+$/,"")+".jpg"});
+      };
+      r.readAsDataURL(f);
+    }
+  }
+  async function addReq(){
+    if(!reqName.trim()){toast(L("needName"));return;}
     try{
-      await window.__FB.setDoc(window.__FB.doc(window.__FB.db,"applications",app.fireId),{status},{merge:true});
+      await window.__FB.addDoc(window.__FB.collection(window.__FB.db,"applicationTemplates"),{
+        name:reqName.trim(), file:reqFile?reqFile.file:null, fileName:reqFile?reqFile.fileName:null,
+        order:(reqs.length?Math.max(...reqs.map(r=>r.order||0)):0)+1,
+        createdAt:window.__FB.serverTimestamp()
+      });
+      setReqName("");setReqFile(null);
+      if(reqFileRef.current) reqFileRef.current.value="";
+      toast(L("saved"));
     }catch(e){ toast(L("err")); }
+  }
+  async function delReq(r){
+    try{ await window.__FB.deleteDoc(window.__FB.doc(window.__FB.db,"applicationTemplates",r.fireId)); }catch(e){ toast(L("err")); }
+  }
+
+  // ── Durum / kabul / PDF ──
+  async function setStatus(app,status,extra){
+    try{ await window.__FB.setDoc(window.__FB.doc(window.__FB.db,"applications",app.fireId),{status,...(extra||{})},{merge:true}); }
+    catch(e){ toast(L("err")); }
   }
   async function removeApp(app){
     try{ await window.__FB.deleteDoc(window.__FB.doc(window.__FB.db,"applications",app.fireId)); }catch(e){ toast(L("err")); }
   }
+  async function acceptAndRegister(app){
+    if(app.studentNo){ toast("✓ "+L("already")+" · "+app.studentNo); return; }
+    const area=app.area||"genel";
+    const year=new Date().getFullYear();
+    const code=String((AREA_MAP[area]||{code:0}).code).padStart(2,"0");
+    const existing=(students||[]).filter(s2=>s2.area===area&&(s2.no||"").startsWith(code));
+    const seqs=existing.map(s2=>parseInt((s2.no||"").slice(-2))||0);
+    const seq=(seqs.length?Math.max(...seqs):0)+1;
+    const no=genStudentNo(area,year,seq);
+    const pass=genAutoPassword();
+    const hashed=await hashPassword(pass);
+    const student={id:Date.now(),name:sanitizeText(app.name),area,no,pass:hashed,passHash:hashed,
+      phone:app.phone||"",dob:app.dob||"",address:"",email:"",photo:null,_plainPass:pass};
+    onDataChange&&onDataChange("addStudent",student);
+    await setStatus(app,"accepted",{studentNo:no});
+    setRegCreds({name:app.name,no,pass});
+  }
+
+  function esc(x){ return String(x==null?"":x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function printList(){
+    const rows=shown.map((a,i)=>{
+      const st=STATUS[a.status||"new"]||STATUS.new;
+      return '<tr><td>'+(i+1)+'</td><td>'+esc(a.name)+'</td><td>'+esc(areaName(a.area,lang)||a.area)+'</td><td>'+esc(a.phone||"")+'</td><td>'+esc(a.dateStr||"")+'</td><td><span class="chip" style="background:'+st.bg+';color:'+st.color+'">'+st.label+'</span></td></tr>';
+    }).join("");
+    const body='<h1>Akademîya Aram Tîgran</h1><div class="sub">Lîsteya Serlêdanan · '+new Date().toISOString().slice(0,10)+' · '+shown.length+' serlêdan</div>'
+      +'<table><tr><th>#</th><th>Nav</th><th>Qad</th><th>Têlefon</th><th>Dîrok</th><th>Rewş</th></tr>'+rows+'</table>';
+    openPrintHtml(_printShell("Lîsteya Serlêdanan",body));
+  }
+  function printOne(app){
+    const st=STATUS[app.status||"new"]||STATUS.new;
+    let body='<h1>'+esc(app.name)+'</h1><div class="sub">Serlêdana Xwendekariyê · '+esc(app.dateStr||"")+' · <span class="chip" style="background:'+st.bg+';color:'+st.color+'">'+st.label+'</span></div>';
+    body+='<div class="info">🎨 <b>Qad:</b> '+esc(areaName(app.area,lang)||app.area)
+      +(app.phone?'<br/>📱 <b>Têlefon:</b> '+esc(app.phone):"")
+      +(app.dob?'<br/>🎂 <b>Roja jidayikbûnê:</b> '+esc(app.dob):"")
+      +(app.studentNo?'<br/>🎓 <b>Jimara Xwendekar:</b> '+esc(app.studentNo):"")
+      +(app.note?'<br/>💬 <b>Nîşe:</b> '+esc(app.note):"")+'</div>';
+    (app.docs||[]).forEach((d2,i)=>{
+      const url=typeof d2==="string"?d2:(d2&&d2.file);
+      const nm=typeof d2==="string"?("Belge "+(i+1)):((d2&&d2.name)||("Belge "+(i+1)));
+      if(!url) return;
+      if(url.indexOf("data:application/pdf")===0){
+        body+='<div class="doclabel">📎 '+esc(nm)+' — PDF (ji sîstemê veke)</div>';
+      } else {
+        body+='<div class="doclabel">📎 '+esc(nm)+'</div><img class="doc" src="'+url+'"/>';
+      }
+    });
+    openPrintHtml(_printShell("Serlêdan — "+app.name,body));
+  }
 
   const shown=apps.filter(a=>filter==="all"?true:(a.status||"new")===filter);
-  const inputStyle={width:"100%",padding:"10px 12px",border:"1px solid var(--border2)",borderRadius:10,fontSize:13,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box"};
+  const inputStyle2={width:"100%",padding:"10px 12px",border:"1px solid var(--border2)",borderRadius:10,fontSize:13,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box"};
 
   return(
     <div style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
@@ -6485,7 +6619,7 @@ function RegistrarPanel({user,lang,toast,onLogout}){
         <SectionHeader>{L("settings")}</SectionHeader>
         <Card>
           <button onClick={()=>saveCfg({open:!cfg.open})} disabled={!cfgLoaded}
-            style={{width:"100%",padding:"13px",marginBottom:12,border:"none",borderRadius:12,fontSize:14,fontWeight:800,cursor:"pointer",
+            style={{width:"100%",padding:"13px",marginBottom:12,borderRadius:12,fontSize:14,fontWeight:800,cursor:"pointer",
               background:cfg.open?"rgba(22,163,74,0.14)":"var(--red-bg)",color:cfg.open?"#16a34a":"var(--red)",
               border:cfg.open?"1.5px solid #16a34a":"1.5px solid var(--red)"}}>
             {cfg.open?"🟢 "+L("open"):"🔴 "+L("closed")}
@@ -6493,34 +6627,67 @@ function RegistrarPanel({user,lang,toast,onLogout}){
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
             <div>
               <div style={{fontSize:10,color:"var(--text2)",marginBottom:4}}>{L("start")}</div>
-              <input type="date" value={cfg.startDate||""} onChange={e=>setCfg(c=>({...c,startDate:e.target.value}))} style={inputStyle}/>
+              <input type="date" value={cfg.startDate||""} onChange={e=>setCfg(c=>({...c,startDate:e.target.value}))} style={inputStyle2}/>
             </div>
             <div>
               <div style={{fontSize:10,color:"var(--text2)",marginBottom:4}}>{L("end")}</div>
-              <input type="date" value={cfg.endDate||""} onChange={e=>setCfg(c=>({...c,endDate:e.target.value}))} style={inputStyle}/>
+              <input type="date" value={cfg.endDate||""} onChange={e=>setCfg(c=>({...c,endDate:e.target.value}))} style={inputStyle2}/>
             </div>
           </div>
           <div style={{fontSize:10,color:"var(--text2)",marginBottom:4}}>{L("note")}</div>
-          <input value={cfg.note||""} onChange={e=>setCfg(c=>({...c,note:e.target.value}))} style={{...inputStyle,marginBottom:12}}/>
+          <input value={cfg.note||""} onChange={e=>setCfg(c=>({...c,note:e.target.value}))} style={{...inputStyle2,marginBottom:12}}/>
           <PrimaryBtn onClick={()=>saveCfg({})} icon="💾">{L("save")}</PrimaryBtn>
         </Card>
 
+        <SectionHeader>{L("reqHead")} ({reqs.length})</SectionHeader>
+        <Card>
+          <div style={{fontSize:11,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>{L("reqHint")}</div>
+          <input value={reqName} onChange={e=>setReqName(e.target.value)} placeholder={L("reqName")}
+            style={{...inputStyle2,marginBottom:8}}/>
+          <div onClick={()=>reqFileRef.current&&reqFileRef.current.click()}
+            style={{border:"1.5px dashed var(--border2)",borderRadius:10,padding:"11px",textAlign:"center",cursor:"pointer",marginBottom:10,background:"var(--bg2)",fontSize:12.5,color:"var(--text2)"}}>
+            {reqFile?("📎 "+reqFile.fileName):L("reqFile")}
+          </div>
+          <input ref={reqFileRef} type="file" accept="image/*,application/pdf" onChange={pickReqFile} style={{display:"none"}}/>
+          <PrimaryBtn onClick={addReq} icon="📄">{L("reqAdd")}</PrimaryBtn>
+        </Card>
+        {reqs.length===0&&<Card><div style={{fontSize:12.5,color:"var(--text2)",textAlign:"center",padding:"6px 0"}}>{L("reqEmpty")}</div></Card>}
+        {reqs.map(r=>(
+          <Card key={r.fireId}>
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <span style={{fontSize:20}}>📄</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13.5,fontWeight:700,color:"var(--text)"}}>{r.name}</div>
+                {r.file&&<div style={{fontSize:10.5,color:"var(--text2)"}}>📎 {r.fileName||"şablon"}</div>}
+              </div>
+              {r.file&&<a href={r.file} download={r.fileName||r.name} style={{background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,color:"var(--text)",textDecoration:"none"}}>⬇</a>}
+              <button onClick={()=>delReq(r)} style={{background:"var(--red-bg)",border:"0.5px solid var(--red)",color:"var(--red)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>🗑</button>
+            </div>
+          </Card>
+        ))}
+
         <SectionHeader>{L("list")} ({apps.length})</SectionHeader>
-        <div style={{display:"flex",gap:6,marginBottom:12}}>
+        <div style={{display:"flex",gap:6,marginBottom:10}}>
           {[["all",L("all")],["new",L("stNew")],["accepted",L("stAcc")],["rejected",L("stRej")]].map(([k2,lb])=>(
             <button key={k2} onClick={()=>setFilter(k2)} style={{flex:1,padding:"8px 4px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11.5,fontWeight:700,background:filter===k2?"#16293f":"var(--surface2)",color:filter===k2?"#fff":"var(--text2)"}}>{lb}</button>
           ))}
         </div>
+        {shown.length>0&&(
+          <button onClick={printList} style={{width:"100%",padding:"11px",marginBottom:12,background:"#16293f",color:"#fff",border:"none",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer"}}>
+            {L("pdfList")} ({shown.length})
+          </button>
+        )}
         {shown.length===0&&<Card><div style={{fontSize:13,color:"var(--text2)",textAlign:"center",padding:"8px 0"}}>{L("empty")}</div></Card>}
         {shown.map(app=>{
           const st=STATUS[app.status||"new"]||STATUS.new;
           const isOpen=expanded===app.fireId;
+          const docList=app.docs||[];
           return(
           <Card key={app.fireId} onClick={()=>setExpanded(isOpen?null:app.fireId)}>
             <div style={{display:"flex",alignItems:"center",gap:12}}>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>{app.name}</div>
-                <div style={{fontSize:11,color:"var(--text2)"}}>{areaName(app.area,lang)||app.area} · {app.dateStr||""}{app.docs&&app.docs.length?(" · 📎 "+app.docs.length):""}</div>
+                <div style={{fontSize:11,color:"var(--text2)"}}>{areaName(app.area,lang)||app.area} · {app.dateStr||""}{docList.length?(" · 📎 "+docList.length):""}{app.studentNo?(" · 🎓 "+app.studentNo):""}</div>
               </div>
               <span style={{fontSize:10,fontWeight:800,padding:"4px 10px",borderRadius:8,background:st.bg,color:st.color,whiteSpace:"nowrap"}}>{st.label}</span>
               <span style={{color:"var(--text2)",fontSize:12}}>{isOpen?"▲":"▼"}</span>
@@ -6533,21 +6700,31 @@ function RegistrarPanel({user,lang,toast,onLogout}){
                   <div>🎨 <b>{L("area")}:</b> {areaName(app.area,lang)||app.area}</div>
                   {app.note&&<div>💬 <b>{L("msg")}:</b> {app.note}</div>}
                 </div>
-                {app.docs&&app.docs.length>0&&(
+                {docList.length>0&&(
                   <div style={{marginBottom:12}}>
-                    <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",marginBottom:6}}>📎 {L("docs")} ({app.docs.length})</div>
+                    <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",marginBottom:6}}>📎 {L("docs")} ({docList.length})</div>
                     <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                      {app.docs.map((d2,i)=>(
-                        <a key={i} href={d2} target="_blank" rel="noopener">
-                          <img src={d2} alt={"belge "+(i+1)} style={{width:96,height:72,objectFit:"cover",borderRadius:8,border:"1px solid var(--border2)"}}/>
-                        </a>
-                      ))}
+                      {docList.map((d2,i)=>{
+                        const url=typeof d2==="string"?d2:(d2&&d2.file);
+                        const nm=typeof d2==="string"?("Belge "+(i+1)):((d2&&d2.name)||("Belge "+(i+1)));
+                        if(!url) return null;
+                        const isPdf=url.indexOf("data:application/pdf")===0;
+                        return isPdf
+                          ? <a key={i} href={url} download={nm+".pdf"} style={{display:"flex",alignItems:"center",gap:6,background:"var(--bg2)",border:"1px solid var(--border2)",borderRadius:8,padding:"8px 10px",fontSize:11.5,fontWeight:600,color:"var(--text)",textDecoration:"none"}}>📕 {nm}</a>
+                          : <a key={i} href={url} target="_blank" rel="noopener" style={{textAlign:"center",textDecoration:"none"}}>
+                              <img src={url} alt={nm} style={{width:96,height:72,objectFit:"cover",borderRadius:8,border:"1px solid var(--border2)",display:"block"}}/>
+                              <span style={{fontSize:9.5,color:"var(--text2)"}}>{nm}</span>
+                            </a>;
+                      })}
                     </div>
                   </div>
                 )}
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-                  <button onClick={()=>setStatus(app,"accepted")} style={{padding:"10px 4px",background:"rgba(22,163,74,0.12)",border:"0.5px solid #16a34a",borderRadius:8,color:"#16a34a",fontSize:12,fontWeight:700,cursor:"pointer"}}>{L("accept")}</button>
-                  <button onClick={()=>setStatus(app,"rejected")} style={{padding:"10px 4px",background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:8,color:"var(--red)",fontSize:12,fontWeight:700,cursor:"pointer"}}>{L("reject")}</button>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+                  <button onClick={()=>acceptAndRegister(app)} style={{padding:"11px 4px",background:"rgba(22,163,74,0.12)",border:"0.5px solid #16a34a",borderRadius:8,color:"#16a34a",fontSize:12,fontWeight:700,cursor:"pointer"}}>{L("accept")}</button>
+                  <button onClick={()=>setStatus(app,"rejected")} style={{padding:"11px 4px",background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:8,color:"var(--red)",fontSize:12,fontWeight:700,cursor:"pointer"}}>{L("reject")}</button>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                  <button onClick={()=>printOne(app)} style={{padding:"10px 4px",background:"#16293f",border:"none",borderRadius:8,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>{L("pdfOne")}</button>
                   <button onClick={()=>removeApp(app)} style={{padding:"10px 4px",background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:8,color:"var(--text2)",fontSize:12,fontWeight:700,cursor:"pointer"}}>{L("del")}</button>
                 </div>
               </div>
@@ -6556,6 +6733,34 @@ function RegistrarPanel({user,lang,toast,onLogout}){
           );
         })}
       </div>
+
+      {regCreds&&(
+        <Sheet open={true} onClose={()=>setRegCreds(null)} title={L("regDone")}>
+          <div style={{textAlign:"center",padding:"8px 0 20px"}}>
+            <div style={{fontSize:48,marginBottom:8}}>🎓</div>
+            <div style={{fontSize:16,fontWeight:700,color:"var(--text)",marginBottom:4}}>{regCreds.name}</div>
+            <div style={{fontSize:12,color:"var(--text2)"}}>{L("regNote")}</div>
+          </div>
+          <div style={{background:"#16293f",borderRadius:16,padding:"20px 18px",marginBottom:16,border:"1px solid rgba(79,142,247,0.3)"}}>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.5)",marginBottom:4}}>{lang==="en"?"Student No":"Jimara Xwendekar"}</div>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+              <div style={{flex:1,fontFamily:"monospace",fontSize:16,fontWeight:800,color:"var(--text)",letterSpacing:"0.12em"}}>{regCreds.no}</div>
+              <button onClick={async()=>{await copyToClipboard(regCreds.no);hapticLight();}} style={{background:"rgba(79,142,247,0.12)",border:"1px solid rgba(79,142,247,0.3)",borderRadius:6,padding:"4px 8px",fontSize:11,color:"var(--text)",cursor:"pointer"}}>📋</button>
+            </div>
+            <div style={{borderTop:"1px solid rgba(255,255,255,0.1)",paddingTop:12}}>
+              <div style={{fontSize:10,color:"rgba(255,255,255,0.5)",marginBottom:4}}>{lang==="en"?"Password":"Şîfre"}</div>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <div style={{flex:1,fontFamily:"monospace",fontSize:18,fontWeight:800,color:"#5DC48A",letterSpacing:"0.15em"}}>{regCreds.pass}</div>
+                <button onClick={async()=>{await copyToClipboard(regCreds.pass);hapticLight();}} style={{background:"rgba(93,196,138,0.15)",border:"1px solid rgba(93,196,138,0.3)",borderRadius:6,padding:"4px 8px",fontSize:11,color:"#5DC48A",cursor:"pointer"}}>📋</button>
+              </div>
+            </div>
+          </div>
+          <button onClick={async()=>{await copyToClipboard(regCreds.no+" / "+regCreds.pass);hapticSuccess();toast("✅ Kopye bû!");}} style={{width:"100%",padding:"13px",background:"#16293f",color:"#ffffff",border:"none",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",marginBottom:8}}>
+            📋 Hemûyan Kopye Bike
+          </button>
+          <button onClick={()=>setRegCreds(null)} style={{width:"100%",padding:"11px",background:"none",border:"0.5px solid var(--border2)",borderRadius:12,fontSize:13,color:"var(--text2)",cursor:"pointer"}}>Bigire</button>
+        </Sheet>
+      )}
     </div>
   );
 }
@@ -14851,7 +15056,7 @@ function App(){
         <PressPanel user={currentUser} lang={lang} toast={toast} onLogout={handleLogout}/>
       )}
       {screen==="registrar"&&currentUser&&(
-        <RegistrarPanel user={currentUser} lang={lang} toast={toast} onLogout={handleLogout}/>
+        <RegistrarPanel user={currentUser} lang={lang} toast={toast} onLogout={handleLogout} students={students} onDataChange={onDataChange}/>
       )}
       {screen==="student"&&currentUser&&(
         <StudentPanel student={currentUser} schedule={schedule} t={t} lang={lang} toast={toast} onLogout={handleLogout} onDataChange={onDataChange} onSettings={()=>setShowSettings(true)}/>
