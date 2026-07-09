@@ -4155,6 +4155,7 @@ function AddStudentSheet({open,onClose,defaultArea,students,t,lang,toast,onSave}
   const [name,setName]=useState("");
   const [area,setArea]=useState(defaultArea||AREAS[0]?.key||"sinema");
   const [year,setYear]=useState("2026");
+  const [classLevel,setClassLevel]=useState(1); // Sınıf (1-4)
   const [burs,setBurs]=useState("");
   const [phone,setPhone]=useState("");
   const [dob,setDob]=useState("");
@@ -4206,6 +4207,7 @@ function AddStudentSheet({open,onClose,defaultArea,students,t,lang,toast,onSave}
     const hashed = await hashPassword(tempPass);
     const student={
       id:Date.now(), name:sanitizeText(snapName), area, no,
+      classLevel: classLevel||1,
       pass:hashed, passHash:hashed,
       burs:sanitizeText(snapBurs), phone:sanitizePhone(snapPhone),
       email:snapEmail.trim(),
@@ -4308,6 +4310,12 @@ function AddStudentSheet({open,onClose,defaultArea,students,t,lang,toast,onSave}
           </select>
         </FieldWrap>
       </div>
+
+      <FieldWrap label={lang==="en"?"Class":"Sînif"}>
+        <select style={selectStyle} value={classLevel} onChange={e=>setClassLevel(parseInt(e.target.value))}>
+          {[1,2,3,4].map(c=>(<option key={c} value={c}>🎓 {c}. {lang==="en"?"Class":"Sînif"}</option>))}
+        </select>
+      </FieldWrap>
 
       <FieldWrap label={t.scholarship||"Burs"}>
         <select style={selectStyle} value={burs} onChange={e=>setBurs(e.target.value)}>
@@ -4530,9 +4538,10 @@ function AddTeacherSheet({open,onClose,defaultArea,teachers,t,lang,toast,onSave}
   );
 }
 
-function AddLessonSheet({open,onClose,defaultArea,t,lang,toast,onSave}){
+function AddLessonSheet({open,onClose,defaultArea,t,lang,toast,onSave,teachers}){
   const [lessonType,setLessonType]=useState("main"); // "main" | "extra"
   const [area,setArea]=useState(defaultArea||"sinema");
+  const [teacherNo,setTeacherNo]=useState(""); // "" = atanmamış (alan öğretmenleri görür)
   const [day,setDay]=useState("Dûşem");
   const [name,setName]=useState("");
   const [start,setStart]=useState("09:00");
@@ -4559,11 +4568,14 @@ function AddLessonSheet({open,onClose,defaultArea,t,lang,toast,onSave}){
       toast("⚠ "+t.addAtLeastOneDate);
       return;
     }
+    const tcSel=(teachers||[]).find(x=>x.no===teacherNo);
     const ls={
       id:Date.now(),area,name:name.trim(),start,end,loc:loc||"—",
       lessonType, // "main" veya "extra"
       day: lessonType==="main" ? day : null,
       extraDates: lessonType==="extra" ? extraDates : null,
+      teacherNo: teacherNo||null,
+      teacherName: tcSel?tcSel.name:null,
     };
     onSave(ls);
     const label = lessonType==="main" ? (t.days?.[day]||day) : extraDates.length+" "+t.datesLabel;
@@ -4600,6 +4612,15 @@ function AddLessonSheet({open,onClose,defaultArea,t,lang,toast,onSave}){
       <FieldWrap label={t.artField}>
         <select style={selectStyle} value={area} onChange={e=>setArea(e.target.value)}>
           {AREAS.map(a=>(<option key={a.key} value={a.key}>{a.icon} {areaName(a.key,lang)}</option>))}
+        </select>
+      </FieldWrap>
+      {/* Ders öğretmeni (isteğe bağlı) — atanırsa yalnızca o öğretmen görür */}
+      <FieldWrap label={(lang==="en"?"Teacher (optional)":"Mamosteyê Dersê (vebijarkî)")}>
+        <select style={selectStyle} value={teacherNo} onChange={e=>setTeacherNo(e.target.value)}>
+          <option value="">— {lang==="en"?"Unassigned (all field teachers see it)":"Ne diyar (hemû mamosteyên qadê dibînin)"}</option>
+          {(teachers||[]).filter(tc=>!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&(tc.area===area||tc.area==="genel")).map(tc=>(
+            <option key={tc.no} value={tc.no}>👨‍🏫 {tc.name} ({tc.no})</option>
+          ))}
         </select>
       </FieldWrap>
 
@@ -4712,12 +4733,14 @@ function DeviceResetBtn({no, lang, toast}){
 function EditStudentSheet({student,onClose,t,lang,toast,onSave}){
   const [name,setName]=useState(student.name||"");
   const [area,setArea]=useState(student.area||"sinema");
+  const [classLevel,setClassLevel]=useState(student.classLevel||1);
   const [phone,setPhone]=useState(student.phone||"");
   const [email,setEmail]=useState(student.email||"");
   const [dob,setDob]=useState(student.dob||"");
   const [address,setAddress]=useState(student.address||"");
-  // Şifre: _plainPass varsa onu göster, yoksa pass (hash olabilir)
-  const [pass,setPass]=useState(student._plainPass||student.pass||"1234");
+  // Şifre kutusu BOŞ başlar — boş bırakılırsa şifre DEĞİŞMEZ.
+  // (Hash asla gösterilmez/yeniden hash'lenmez.)
+  const [pass,setPass]=useState("");
   const [showPassEdit,setShowPassEdit]=useState(false);
   const [photo,setPhoto]=useState(student.photo||null);
   const photoRef=useRef();
@@ -4734,15 +4757,16 @@ function EditStudentSheet({student,onClose,t,lang,toast,onSave}){
 
   async function handleSave(){
     if(!name.trim()){toast("⚠ "+t.fullName); return;}
-    // Şifre değiştiyse yeniden hash'le, değişmediyse mevcut hash koru
+    // Kutuya yeni şifre yazıldıysa değiştir; boşsa mevcut hash aynen korunur
     let newHash = student.pass;
     let newPlain = student._plainPass;
-    const currentPlain = student._plainPass || "";
-    if(pass !== currentPlain && pass.length >= 4){
+    if(pass && pass.length >= 4){
       newHash = await hashPassword(pass);
       newPlain = pass;
+      try{ if(window.__FB&&window.__FB.isConfigured()) await window.__FB.forceResetPassword(student.no,"student",student._plainPass||null,pass); }catch(e){}
+      toast("🔑 "+(lang==="en"?"New password: ":"Şîfreya nû: ")+pass, 9000);
     }
-    onSave({...student,name:name.trim(),area,phone,email,dob,address,pass:newHash,passHash:newHash,_plainPass:newPlain,photo});
+    onSave({...student,name:name.trim(),area,classLevel,phone,email,dob,address,pass:newHash,passHash:newHash,_plainPass:newPlain,photo});
   }
 
   const plainPassDisplay = student._plainPass || (student.pass && student.pass.length < 20 ? student.pass : null);
@@ -4762,6 +4786,11 @@ function EditStudentSheet({student,onClose,t,lang,toast,onSave}){
       <FieldWrap label={t.artField}>
         <select style={selectStyle} value={area} onChange={e=>setArea(e.target.value)}>
           {AREAS.map(a=>(<option key={a.key} value={a.key}>{a.icon} {areaName(a.key,lang)}</option>))}
+        </select>
+      </FieldWrap>
+      <FieldWrap label={lang==="en"?"Class":"Sînif"}>
+        <select style={selectStyle} value={classLevel} onChange={e=>setClassLevel(parseInt(e.target.value))}>
+          {[1,2,3,4].map(c=>(<option key={c} value={c}>🎓 {c}. {lang==="en"?"Class":"Sînif"}</option>))}
         </select>
       </FieldWrap>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
@@ -4784,7 +4813,7 @@ function EditStudentSheet({student,onClose,t,lang,toast,onSave}){
         <div style={{display:"flex",alignItems:"center",gap:6}}>
           <span style={{fontSize:10,color:"rgba(255,255,255,0.5)",minWidth:60}}>{lang==="en"?"Password":lang==="de"?"Passwort":"Şîfre"}</span>
           <span style={{flex:1,fontFamily:"monospace",fontSize:14,fontWeight:800,color:"#5DC48A",letterSpacing:"0.1em"}}>
-            {showPassEdit ? (plainPassDisplay||"—") : (plainPassDisplay ? "••••••••" : (lang==="en"?"(hashed — reset to view)":lang==="de"?"(gehashed — zurücksetzen)":"(hash — sıfırla)"))}
+            {showPassEdit ? (plainPassDisplay||"—") : (plainPassDisplay ? "••••••••" : (lang==="en"?"🔒 hidden — set a new one":"🔒 veşartî — ya nû saz bike"))}
           </span>
           {plainPassDisplay&&(
             <button onClick={()=>setShowPassEdit(p=>!p)} style={{background:"rgba(93,196,138,0.15)",border:"1px solid rgba(93,196,138,0.3)",borderRadius:6,padding:"3px 7px",fontSize:11,color:"#5DC48A",cursor:"pointer"}}>
@@ -4800,13 +4829,15 @@ function EditStudentSheet({student,onClose,t,lang,toast,onSave}){
           <div style={{fontSize:10,color:"rgba(255,255,255,0.45)",marginBottom:6}}>{lang==="en"?"Change password (min 4 chars)":lang==="de"?"Passwort ändern (min. 4 Zeichen)":"Şîfreya nû (min 4 tîp)"}</div>
           <div style={{display:"flex",gap:6}}>
             <input
-              style={{...inputStyle,flex:1,fontSize:13,padding:"8px 10px",background:"rgba(255,255,255,0.08)",color:"#fff",border:"1px solid rgba(255,255,255,0.15)"}}
+              style={{...inputStyle,flex:1,fontSize:13,padding:"8px 10px",background:"rgba(255,255,255,0.08)",color:"#fff",border:"1px solid rgba(255,255,255,0.15)",marginBottom:0}}
               value={pass}
               onChange={e=>setPass(e.target.value)}
               type="text"
               autoComplete="new-password"
-              placeholder={lang==="en"?"New password...":lang==="de"?"Neues Passwort...":"Şîfreya nû..."}
+              placeholder={lang==="en"?"New password (blank = keep)":"Şîfreya nû (vala = nayê guhertin)"}
             />
+            <button onClick={()=>setPass(genAutoPassword())} title={lang==="en"?"Generate":"Şîfreya nû çêke"}
+              style={{background:"rgba(247,209,22,0.14)",border:"1px solid rgba(247,209,22,0.35)",borderRadius:8,padding:"0 12px",fontSize:15,cursor:"pointer"}}>🔑</button>
           </div>
         </div>
       </div>
@@ -4829,7 +4860,8 @@ function EditTeacherSheet({teacher,onClose,t,lang,toast,onSave}){
   const [dob,setDob]=useState(teacher.dob||"");
   const [address,setAddress]=useState(teacher.address||"");
   const [bio,setBio]=useState(teacher.bio||"");
-  const [pass,setPass]=useState(teacher._plainPass||teacher.pass||"1234");
+  // Şifre kutusu BOŞ başlar — boş bırakılırsa şifre DEĞİŞMEZ
+  const [pass,setPass]=useState("");
   const [showPassEdit,setShowPassEdit]=useState(false);
   const [photo,setPhoto]=useState(teacher.photo||null);
   const photoRef=useRef();
@@ -4848,10 +4880,11 @@ function EditTeacherSheet({teacher,onClose,t,lang,toast,onSave}){
     if(!name.trim()){toast("⚠ "+t.fullName); return;}
     let newHash = teacher.pass;
     let newPlain = teacher._plainPass;
-    const currentPlain = teacher._plainPass || "";
-    if(pass !== currentPlain && pass.length >= 4){
+    if(pass && pass.length >= 4){
       newHash = await hashPassword(pass);
       newPlain = pass;
+      try{ if(window.__FB&&window.__FB.isConfigured()) await window.__FB.forceResetPassword(teacher.no,"teacher",teacher._plainPass||null,pass); }catch(e){}
+      toast("🔑 "+(lang==="en"?"New password: ":"Şîfreya nû: ")+pass, 9000);
     }
     onSave({...teacher,name:name.trim(),area,phone,email,dob,address,bio,pass:newHash,passHash:newHash,_plainPass:newPlain,photo});
   }
@@ -4896,7 +4929,7 @@ function EditTeacherSheet({teacher,onClose,t,lang,toast,onSave}){
         <div style={{display:"flex",alignItems:"center",gap:6}}>
           <span style={{fontSize:10,color:"rgba(255,255,255,0.5)",minWidth:60}}>{lang==="en"?"Password":lang==="de"?"Passwort":"Şîfre"}</span>
           <span style={{flex:1,fontFamily:"monospace",fontSize:14,fontWeight:800,color:"#5DC48A",letterSpacing:"0.1em"}}>
-            {showPassEdit ? (plainPassDisplay||"—") : (plainPassDisplay ? "••••••••" : (lang==="en"?"(hashed — reset to view)":lang==="de"?"(gehashed — zurücksetzen)":"(hash — sıfırla)"))}
+            {showPassEdit ? (plainPassDisplay||"—") : (plainPassDisplay ? "••••••••" : (lang==="en"?"🔒 hidden — set a new one":"🔒 veşartî — ya nû saz bike"))}
           </span>
           {plainPassDisplay&&(
             <button onClick={()=>setShowPassEdit(p=>!p)} style={{background:"rgba(93,196,138,0.15)",border:"1px solid rgba(93,196,138,0.3)",borderRadius:6,padding:"3px 7px",fontSize:11,color:"#5DC48A",cursor:"pointer"}}>
@@ -4910,14 +4943,18 @@ function EditTeacherSheet({teacher,onClose,t,lang,toast,onSave}){
         {/* Şifre Güncelleme */}
         <div style={{marginTop:12,borderTop:"1px solid rgba(255,255,255,0.1)",paddingTop:10}}>
           <div style={{fontSize:10,color:"rgba(255,255,255,0.45)",marginBottom:6}}>{lang==="en"?"Change password (min 4 chars)":lang==="de"?"Passwort ändern (min. 4 Zeichen)":"Şîfreya nû (min 4 tîp)"}</div>
-          <input
-            style={{...inputStyle,fontSize:13,padding:"8px 10px",background:"rgba(255,255,255,0.08)",color:"#fff",border:"1px solid rgba(255,255,255,0.15)",width:"100%"}}
-            value={pass}
-            onChange={e=>setPass(e.target.value)}
-            type="text"
-            autoComplete="new-password"
-            placeholder={lang==="en"?"New password...":lang==="de"?"Neues Passwort...":"Şîfreya nû..."}
-          />
+          <div style={{display:"flex",gap:6}}>
+            <input
+              style={{...inputStyle,fontSize:13,padding:"8px 10px",background:"rgba(255,255,255,0.08)",color:"#fff",border:"1px solid rgba(255,255,255,0.15)",flex:1,marginBottom:0}}
+              value={pass}
+              onChange={e=>setPass(e.target.value)}
+              type="text"
+              autoComplete="new-password"
+              placeholder={lang==="en"?"New password (blank = keep)":"Şîfreya nû (vala = nayê guhertin)"}
+            />
+            <button onClick={()=>setPass(genAutoPassword())} title={lang==="en"?"Generate":"Şîfreya nû çêke"}
+              style={{background:"rgba(247,209,22,0.14)",border:"1px solid rgba(247,209,22,0.35)",borderRadius:8,padding:"0 12px",fontSize:15,cursor:"pointer"}}>🔑</button>
+          </div>
         </div>
       </div>
 
@@ -5063,7 +5100,7 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
       </div>
       <AddStudentSheet open={showAddStudent} onClose={()=>setShowAddStudent(false)} defaultArea={areaKey} students={students} t={t} lang={lang} toast={toast} onSave={(s)=>{onDataChange("addStudent",s);setShowAddStudent(false);}}/>
       <AddTeacherSheet open={showAddTeacher} onClose={()=>setShowAddTeacher(false)} defaultArea={areaKey} teachers={teachers} t={t} lang={lang} toast={toast} onSave={(tc)=>{onDataChange("addTeacher",tc);setShowAddTeacher(false);}}/>
-      <AddLessonSheet open={showAddLesson} onClose={()=>setShowAddLesson(false)} defaultArea={areaKey} t={t} lang={lang} toast={toast} onSave={(ls)=>{onDataChange("addSchedule",ls);setShowAddLesson(false);}}/>
+      <AddLessonSheet open={showAddLesson} onClose={()=>setShowAddLesson(false)} defaultArea={areaKey} teachers={teachers} t={t} lang={lang} toast={toast} onSave={(ls)=>{onDataChange("addSchedule",ls);setShowAddLesson(false);}}/>
       {/* Student detail modal */}
       {selectedStudent&&(
         <>
@@ -5195,7 +5232,7 @@ function AdminMessagesPanel({students,teachers,lang,t,toast,adminName}){
     {k:"allStudents",label:t.allStudents||"Hemû Xwendekar"},
     {k:"allTeachers",label:lang==="ku"?"Hemû Mamoste":lang==="en"?"All Teachers":"Alle Lehrkräfte"},
     {k:"all",label:lang==="ku"?"Hemû":lang==="en"?"Everyone":"Alle"},
-    ...AREAS.map(a=>({k:"area_"+a.key,label:a.icon+" "+areaName(a.key,lang)})),
+    ...AREAS.filter(a=>a.key!=="genel").map(a=>({k:"area_"+a.key,label:a.icon+" "+areaName(a.key,lang)})),
   ];
 
   const inbox=messages.filter(m=>m.direction==="inbox"||(!m.direction&&m.fromType!=="admin"&&m.senderId!=="admin")||m.recipientId==="admin");
@@ -6349,7 +6386,7 @@ function EditSpecialCardSheet({card,onClose,t,lang,toast,onSave}){
         <div style={{display:"flex",alignItems:"center",gap:6}}>
           <span style={{fontSize:10,color:"rgba(255,255,255,0.5)",minWidth:60}}>{lang==="en"?"Password":lang==="de"?"Passwort":"Şîfre"}</span>
           <span style={{flex:1,fontFamily:"monospace",fontSize:14,fontWeight:800,color:"#5DC48A",letterSpacing:"0.1em"}}>
-            {showPassEdit ? (plainPassDisplay||"—") : (plainPassDisplay ? "••••••••" : (lang==="en"?"(hashed — reset to view)":lang==="de"?"(gehashed — zurücksetzen)":"(hash — sıfırla)"))}
+            {showPassEdit ? (plainPassDisplay||"—") : (plainPassDisplay ? "••••••••" : (lang==="en"?"🔒 hidden — set a new one":"🔒 veşartî — ya nû saz bike"))}
           </span>
           {plainPassDisplay&&(
             <button onClick={()=>setShowPassEdit(p=>!p)} style={{background:"rgba(93,196,138,0.15)",border:"1px solid rgba(93,196,138,0.3)",borderRadius:6,padding:"3px 7px",fontSize:11,color:"#5DC48A",cursor:"pointer"}}>
@@ -6723,7 +6760,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,onDataChange}){
     const no=genStudentNo(area,year,seq);
     const pass=genAutoPassword();
     const hashed=await hashPassword(pass);
-    const student={id:Date.now(),name:sanitizeText(app.name),area,no,pass:hashed,passHash:hashed,
+    const student={id:Date.now(),name:sanitizeText(app.name),area,no,classLevel:1,pass:hashed,passHash:hashed,
       phone:app.phone||"",dob:app.dob||"",address:"",email:"",photo:null,_plainPass:pass};
     onDataChange&&onDataChange("addStudent",student);
     await setStatus(app,"accepted",{studentNo:no});
@@ -6925,7 +6962,6 @@ function AnnouncementsPanel({t,toast,lang,senderName,senderRole,senderArea}){
   const [msg,setMsg]=useState("");
   const [targets,setTargets]=useState(senderRole==="teacher"?{[senderArea]:true}:{"all":true});
   const [sentList,setSentList]=useState([]);
-  const [allAnns,setAllAnns]=useState([]);
   const [mediaFiles,setMediaFiles]=useState([]); // [{id,name,size,type,url,preview}]
   const [expandedAnn,setExpandedAnn]=useState(null);
   const mediaRef=useRef();
@@ -6948,7 +6984,6 @@ function AnnouncementsPanel({t,toast,lang,senderName,senderRole,senderArea}){
 
     if(!window.__FB||!window.__FB.isConfigured()) return;
     const unsub=window.__FB.onAnnouncements(data=>{
-      setAllAnns(data);
       setSentList(senderRole==="admin" ? data : data.filter(a=>a.senderName===senderName));
     });
     return ()=>unsub();
@@ -7037,7 +7072,7 @@ function AnnouncementsPanel({t,toast,lang,senderName,senderRole,senderArea}){
           {[
             {k:"all",label:"🌍 "+(lang==="ku"?"Hemû":lang==="en"?"Everyone":"Alle")},
             {k:"allStudents",label:"🎓 "+L.allStudents},
-            ...AREAS.map(a=>({k:a.key,label:a.icon+" "+areaName(a.key,lang)})),
+            ...AREAS.filter(a=>a.key!=="genel").map(a=>({k:a.key,label:a.icon+" "+areaName(a.key,lang)})),
             {k:"teachers",label:"👨‍🏫 "+L.teachers}
           ].map(item=>(
             <div key={item.k} onClick={()=>toggleTarget(item.k)}
@@ -7311,15 +7346,16 @@ function StatsDetailModal({type,students,teachers,schedule,onClose,t,lang,toast,
       {editingStudent&&<EditStudentSheet student={editingStudent} onClose={()=>setEditingStudent(null)} t={t} lang={lang} toast={toast} onSave={(u)=>{onDataChange("updateStudent",u);setEditingStudent(null);toast("✓ "+u.name);}}/>}
       {editingTeacher&&<EditTeacherSheet teacher={editingTeacher} onClose={()=>setEditingTeacher(null)} t={t} lang={lang} toast={toast} onSave={(u)=>{onDataChange("updateTeacher",u);setEditingTeacher(null);toast("✓ "+u.name);}}/>}
       {editingLesson&&(
-        <EditLessonSheet lesson={editingLesson} onClose={()=>setEditingLesson(null)} t={t} lang={lang} toast={toast} onSave={(u)=>{onDataChange("updateSchedule",u);setEditingLesson(null);toast("✓ "+u.name);}}/>
+        <EditLessonSheet lesson={editingLesson} onClose={()=>setEditingLesson(null)} teachers={teachers} t={t} lang={lang} toast={toast} onSave={(u)=>{onDataChange("updateSchedule",u);setEditingLesson(null);toast("✓ "+u.name);}}/>
       )}
     </>
   );
 }
 
 /* ─── EDIT LESSON SHEET ─────────────────────────────────────────────────── */
-function EditLessonSheet({lesson,onClose,t,lang,toast,onSave}){
+function EditLessonSheet({lesson,onClose,t,lang,toast,onSave,teachers}){
   const [name,setName]=useState(lesson.name);
+  const [teacherNo,setTeacherNo]=useState(lesson.teacherNo||"");
   const [day,setDay]=useState(lesson.day||"Dûşem");
   const [start,setStart]=useState(lesson.start);
   const [end,setEnd]=useState(lesson.end);
@@ -7338,8 +7374,10 @@ function EditLessonSheet({lesson,onClose,t,lang,toast,onSave}){
 
   function handleSave(){
     if(!name.trim()){toast("⚠ "+t.lessonName);return;}
+    const tcSel=(teachers||[]).find(x=>x.no===teacherNo);
     onSave({...lesson,name,day:lessonType==="main"?day:null,start,end,loc,
-      extraDates:lessonType==="extra"?extraDates:null,lessonType});
+      extraDates:lessonType==="extra"?extraDates:null,lessonType,
+      teacherNo:teacherNo||null,teacherName:tcSel?tcSel.name:(teacherNo?lesson.teacherName:null)});
   }
 
   return(
@@ -7352,6 +7390,16 @@ function EditLessonSheet({lesson,onClose,t,lang,toast,onSave}){
       </div>
 
       <FieldWrap label={t.lessonName}><input style={inputStyle} value={name} onChange={e=>setName(e.target.value)}/></FieldWrap>
+
+      {/* Ders öğretmeni (isteğe bağlı) */}
+      <FieldWrap label={(lang==="en"?"Teacher (optional)":"Mamosteyê Dersê (vebijarkî)")}>
+        <select style={selectStyle} value={teacherNo} onChange={e=>setTeacherNo(e.target.value)}>
+          <option value="">— {lang==="en"?"Unassigned (all field teachers see it)":"Ne diyar (hemû mamosteyên qadê dibînin)"}</option>
+          {(teachers||[]).filter(tc=>!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&(tc.area===lesson.area||tc.area==="genel")).map(tc=>(
+            <option key={tc.no} value={tc.no}>👨‍🏫 {tc.name} ({tc.no})</option>
+          ))}
+        </select>
+      </FieldWrap>
 
       {lessonType==="main" ? (
         <FieldWrap label={t.day}>
@@ -7435,7 +7483,7 @@ function AdminProfileSheet({admin,onClose,t,lang,toast,onSave}){
   );
 }
 
-function AdminScheduleTab({schedule, lang, t, toast, onDataChange}) {
+function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataChange}) {
   const [showAdd, setShowAdd] = useState(false);
   const [editingLesson, setEditingLesson] = useState(null);
   const [filterArea, setFilterArea] = useState("all");
@@ -7470,6 +7518,25 @@ function AdminScheduleTab({schedule, lang, t, toast, onDataChange}) {
     if(!window.confirm("🗑 ?")) return;
     saveTerms({list:(terms.list||[]).filter(x=>x.id!==id),activeId:terms.activeId===id?null:terms.activeId});
     if(viewTerm===id) setViewTerm("all");
+  }
+  // ── Dönem kapanışı: onaylanan öğrenciler bir üst sınıfa geçer ──
+  const [promoteTerm,setPromoteTerm]=useState(null);
+  const [promoteSel,setPromoteSel]=useState({});
+  function openPromote(tm){
+    setPromoteTerm(tm);
+    setPromoteSel(Object.fromEntries((students||[]).map(st=>[st.id,true])));
+  }
+  function doPromote(){
+    const chosen=(students||[]).filter(st=>promoteSel[st.id]);
+    let n=0;
+    for(const st of chosen){
+      const cur=st.classLevel||1;
+      if(cur>=4) continue;
+      onDataChange("updateStudent",{...st,classLevel:cur+1});
+      n++;
+    }
+    toast("🎓 "+n+" "+(lang==="en"?"students promoted":"xwendekar derbasî sinifa jorîn bûn"));
+    setPromoteTerm(null);
   }
 
   function deleteLesson(ls) {
@@ -7506,6 +7573,7 @@ function AdminScheduleTab({schedule, lang, t, toast, onDataChange}) {
             </span>}
             {ls.term&&(()=>{const tm=(terms.list||[]).find(x=>x.id===ls.term);
               return tm?<span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:"rgba(22,41,63,0.08)",color:"#16293f",fontWeight:700}}>📆 {tm.label}</span>:null;})()}
+            {ls.teacherName&&<span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:"rgba(22,163,74,0.08)",color:"#16a34a",fontWeight:700}}>👨‍🏫 {ls.teacherName}</span>}
           </div>
           <div style={{fontSize:11,color:isExtra?"#ea580c":a.color,marginBottom:2}}>📍 {ls.loc||"—"}</div>
           {isExtra ? (
@@ -7570,6 +7638,8 @@ function AdminScheduleTab({schedule, lang, t, toast, onDataChange}) {
                 {terms.activeId===tm.id
                   ? <span style={{fontSize:10,fontWeight:700,padding:"3px 9px",borderRadius:99,background:"rgba(22,163,74,0.12)",color:"#16a34a"}}>✓ {TL("active")}</span>
                   : <button onClick={()=>saveTerms({activeId:tm.id})} style={{fontSize:10,fontWeight:700,padding:"4px 9px",borderRadius:8,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",cursor:"pointer"}}>{TL("setActive")}</button>}
+                <button onClick={()=>openPromote(tm)} title={lang==="en"?"Close term — promote classes":"Demsalê bigire — sinifan derbas bike"}
+                  style={{fontSize:11,padding:"4px 8px",borderRadius:8,border:"0.5px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",cursor:"pointer"}}>🎓</button>
                 <button onClick={()=>delTerm(tm.id)} style={{fontSize:11,padding:"4px 8px",borderRadius:8,border:"0.5px solid var(--red)",background:"var(--red-bg)",color:"var(--red)",cursor:"pointer"}}>🗑</button>
               </div>
             ))}
@@ -7723,7 +7793,7 @@ function AdminScheduleTab({schedule, lang, t, toast, onDataChange}) {
       )}
 
       {showAdd&&(
-        <AddLessonSheet open={showAdd} onClose={()=>setShowAdd(false)} defaultArea={filterArea==="all"?null:filterArea} t={t} lang={lang} toast={toast}
+        <AddLessonSheet open={showAdd} onClose={()=>setShowAdd(false)} defaultArea={filterArea==="all"?null:filterArea} teachers={teachers} t={t} lang={lang} toast={toast}
           onSave={(ls)=>{
             const term=(viewTerm!=="all"?viewTerm:terms.activeId)||null;
             onDataChange("addSchedule",term?{...ls,term}:ls);
@@ -7731,8 +7801,42 @@ function AdminScheduleTab({schedule, lang, t, toast, onDataChange}) {
           }}/>
       )}
       {editingLesson&&(
-        <EditLessonSheet lesson={editingLesson} onClose={()=>setEditingLesson(null)} t={t} lang={lang} toast={toast}
+        <EditLessonSheet lesson={editingLesson} onClose={()=>setEditingLesson(null)} teachers={teachers} t={t} lang={lang} toast={toast}
           onSave={(u)=>{onDataChange("updateSchedule",u);setEditingLesson(null);toast("✓ "+u.name);}}/>
+      )}
+      {promoteTerm&&(
+        <Sheet open={true} onClose={()=>setPromoteTerm(null)} title={"🎓 "+promoteTerm.label+" — "+(lang==="en"?"Promote Classes":"Derbasbûna Sinifê")}>
+          <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:12,lineHeight:1.6}}>
+            {lang==="en"
+              ? "Approved students move up one class (1st → 2nd). Uncheck those who repeat."
+              : "Xwendekarên pejirandî sinifekê derbas dibin (1. → 2.). Yên dubare dikin, îşaretê rake."}
+          </div>
+          <div style={{maxHeight:340,overflowY:"auto",marginBottom:12}}>
+            {(students||[]).map(st=>{
+              const cur=st.classLevel||1;
+              const on=!!promoteSel[st.id];
+              return(
+                <div key={st.id} onClick={()=>setPromoteSel(pv=>({...pv,[st.id]:!pv[st.id]}))}
+                  style={{display:"flex",alignItems:"center",gap:10,padding:"9px 10px",marginBottom:4,borderRadius:10,cursor:"pointer",
+                    background:on?"rgba(22,163,74,0.07)":"var(--bg2)",border:"1px solid "+(on?"rgba(22,163,74,0.35)":"var(--border2)")}}>
+                  <span style={{fontSize:15}}>{on?"✅":"⬜"}</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:12.5,fontWeight:700,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{st.name}</div>
+                    <div style={{fontSize:10,color:"var(--text2)",fontFamily:"monospace"}}>{st.no} · {areaName(st.area,lang)}</div>
+                  </div>
+                  <span style={{fontSize:10.5,fontWeight:800,padding:"3px 9px",borderRadius:99,
+                    background:cur>=4?"var(--bg2)":"rgba(22,41,63,0.08)",color:cur>=4?"var(--text2)":"#16293f"}}>
+                    {cur>=4 ? (cur+". Sînif") : (on ? cur+". → "+(cur+1)+"." : cur+". Sînif")}
+                  </span>
+                </div>
+              );
+            })}
+            {(students||[]).length===0&&<div style={{fontSize:12,color:"var(--text2)",textAlign:"center",padding:"14px 0"}}>—</div>}
+          </div>
+          <PrimaryBtn onClick={doPromote} icon="🎓">
+            {lang==="en"?"Promote selected":"Yên bijartî derbas bike"} ({Object.values(promoteSel).filter(Boolean).length})
+          </PrimaryBtn>
+        </Sheet>
       )}
     </div>
   );
@@ -7878,7 +7982,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
           </>
         )}
         {tab==="schedule"&&(
-          <AdminScheduleTab schedule={schedule} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>
+          <AdminScheduleTab schedule={schedule} teachers={teachers} students={students} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>
         )}
         {tab==="announcements"&&<AnnouncementsPanel t={t} toast={toast} lang={lang} senderName={adminData.name} senderRole="admin" senderArea={null}/>}
         {tab==="press"&&<AdminPressPanel teachers={teachers} onDataChange={onDataChange} lang={lang} toast={toast} t={t}/>}
@@ -7895,7 +7999,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
         <StatsDetailModal type={statsModal} students={students} teachers={teachers} schedule={schedule} onClose={()=>setStatsModal(null)} t={t} lang={lang} toast={toast} onDataChange={onDataChange}/>
       )}
       {showAdminAddLesson&&(
-        <AddLessonSheet open={showAdminAddLesson} onClose={()=>setShowAdminAddLesson(false)} defaultArea={null} t={t} lang={lang} toast={toast}
+        <AddLessonSheet open={showAdminAddLesson} onClose={()=>setShowAdminAddLesson(false)} defaultArea={null} teachers={teachers} t={t} lang={lang} toast={toast}
           onSave={(ls)=>{onDataChange("addSchedule",ls);setShowAdminAddLesson(false);toast("✓ "+ls.name);}}/>
       )}
       {showProfileEdit&&(
@@ -9303,6 +9407,11 @@ function saveTerms(data){
     try{ window.__FB.setDoc(window.__FB.doc(window.__FB.db,"config","terms"),{..._termsCache,updatedAt:window.__FB.serverTimestamp()},{merge:false}).catch(()=>{}); }catch(_){}
   }
 }
+// Ders bu öğretmene görünür mü? Öğretmen atanmışsa yalnız o; atanmamışsa alan kuralı
+function lessonForTeacher(ls,teacher){
+  if(ls.teacherNo) return String(ls.teacherNo)===String(teacher.no);
+  return teacher.area==="genel" ? ls.area==="genel" : ls.area===teacher.area;
+}
 // Bir ders aktif dönemde mi? (dönemsiz dersler her dönemde görünür)
 function lessonInActiveTerm(ls,terms){
   return !ls.term || !terms || !terms.activeId || ls.term===terms.activeId;
@@ -9368,6 +9477,28 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
   }
   function loadSSR(){ try{const r=localStorage.getItem(STUDENT_SURVEY_RESPONSES_KEY);return r?JSON.parse(r):[]}catch{return[];} }
   const [studentSurveys, setStudentSurveys] = useState(loadSS);
+  // ── ⚡ Bilez Ankêt (hızlı anket) ──
+  const [qsTitle,setQsTitle]=useState("");
+  const [qsAreas,setQsAreas]=useState([]); // boş = hemû xwendekar
+  const [qsQuestions,setQsQuestions]=useState([{text:"",type:"rating"}]);
+  function qsToggleArea(k){ setQsAreas(p=>p.includes(k)?p.filter(x=>x!==k):[...p,k]); }
+  function qsCreate(){
+    const qs=qsQuestions.map(q=>({...q,text:q.text.trim()})).filter(q=>q.text);
+    if(!qsTitle.trim()){ toast(lang==="en"?"⚠ Title required":"⚠ Sernav pêwîst e"); return; }
+    if(!qs.length){ toast(lang==="en"?"⚠ Add at least 1 question":"⚠ Herî kêm 1 pirs zêde bike"); return; }
+    const now=new Date();
+    const sv={
+      id:Date.now(), title:qsTitle.trim(), desc:"",
+      targetType:qsAreas.length?"area":"all", targetAreas:qsAreas,
+      resultType:"percent", pointMax:100, allowDocs:false, docTemplate:null,
+      questions:qs.map((q,i)=>({id:"q"+Date.now()+"_"+i,text:q.text,type:q.type})),
+      active:true, createdAt:now.toISOString(), updatedAt:now.toISOString()
+    };
+    const updated=[...studentSurveys,sv];
+    setStudentSurveys(updated); saveSS(updated);
+    setQsTitle(""); setQsAreas([]); setQsQuestions([{text:"",type:"rating"}]);
+    toast("✅ "+sv.title+" — "+(lang==="en"?"live!":"çalak e!"));
+  }
   const [studentResponses, setStudentResponses] = useState(loadSSR);
   const [sResAreaFilter, setSResAreaFilter] = useState("all");
   const [selectedSurvey, setSelectedSurvey] = useState(null);
@@ -9559,8 +9690,13 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
   }
 
   function deleteSurvey(id){
+    const gone=studentSurveys.find(x=>String(x.id)===String(id)||x.fireId===String(id));
     const updated=studentSurveys.filter(x=>String(x.id)!==String(id)&&x.fireId!==String(id));
     setStudentSurveys(updated); saveSS(updated);
+    // Firestore'dan da sil — yoksa oğrencilere geri döner
+    if(gone&&window.__FB&&window.__FB.isConfigured()){
+      try{window.__FB.deleteDoc(window.__FB.doc(window.__FB.db,"studentSurveys",gone.fireId||String(gone.id))).catch(function(){});}catch(_){}
+    }
     toast("🗑 "+(lang==="ku"?"Hate jêbirin":lang==="en"?"Deleted":"Gelöscht"));
   }
   function toggleSurveyActive(sv){
@@ -10444,6 +10580,55 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
               📊 {L("results")}
             </button>
           </div>
+          {/* ⚡ Bilez Ankêt — pratik oluşturma (sihirbaz da duruyor) */}
+          <div style={{background:"var(--surface)",border:"1px solid rgba(15,23,42,.09)",borderRadius:14,padding:"14px",marginBottom:14}}>
+            <div style={{fontSize:13,fontWeight:800,color:"var(--text)",marginBottom:4}}>⚡ {lang==="en"?"Quick Survey":"Bilez Ankêt"}</div>
+            <div style={{fontSize:10.5,color:"var(--text2)",marginBottom:10}}>{lang==="en"?"Title + questions — publishes instantly. Use the wizard below for advanced options.":"Sernav + pirs — tavilê çalak dibe. Ji bo vebijarkên pêşketî sêrbazê bikar bîne."}</div>
+            <input value={qsTitle} onChange={e=>setQsTitle(e.target.value)} placeholder={lang==="en"?"Survey title":"Sernava ankêtê"}
+              style={{width:"100%",padding:"11px 12px",marginBottom:8,border:"1px solid var(--border2)",borderRadius:10,fontSize:13.5,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box"}}/>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
+              <button onClick={()=>setQsAreas([])}
+                style={{padding:"5px 11px",borderRadius:20,fontSize:10.5,fontWeight:700,cursor:"pointer",
+                  border:`1.5px solid ${qsAreas.length===0?"#16293f":"var(--border2)"}`,
+                  background:qsAreas.length===0?"#16293f":"var(--bg2)",color:qsAreas.length===0?"#fff":"var(--text2)"}}>
+                🌍 {lang==="en"?"All students":"Hemû Xwendekar"}
+              </button>
+              {AREAS.filter(a=>a.key!=="genel").map(a=>(
+                <button key={a.key} onClick={()=>qsToggleArea(a.key)}
+                  style={{padding:"5px 11px",borderRadius:20,fontSize:10.5,fontWeight:700,cursor:"pointer",
+                    border:`1.5px solid ${qsAreas.includes(a.key)?"#16293f":"var(--border2)"}`,
+                    background:qsAreas.includes(a.key)?"#16293f":"var(--bg2)",color:qsAreas.includes(a.key)?"#fff":"var(--text2)"}}>
+                  {a.icon} {areaName(a.key,lang)}
+                </button>
+              ))}
+            </div>
+            {qsQuestions.map((q,i)=>(
+              <div key={i} style={{display:"flex",gap:6,marginBottom:6}}>
+                <input value={q.text} onChange={e=>setQsQuestions(p=>p.map((x,j)=>j===i?{...x,text:e.target.value}:x))}
+                  placeholder={(lang==="en"?"Question ":"Pirs ")+(i+1)}
+                  style={{flex:1,padding:"10px 11px",border:"1px solid var(--border2)",borderRadius:9,fontSize:12.5,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box",minWidth:0}}/>
+                <select value={q.type} onChange={e=>setQsQuestions(p=>p.map((x,j)=>j===i?{...x,type:e.target.value}:x))}
+                  style={{padding:"8px 6px",border:"1px solid var(--border2)",borderRadius:9,fontSize:11,background:"var(--bg2)",color:"var(--text)",flexShrink:0}}>
+                  <option value="rating">⭐ 1-10</option>
+                  <option value="text">💬 {lang==="en"?"Text":"Nivîs"}</option>
+                </select>
+                {qsQuestions.length>1&&(
+                  <button onClick={()=>setQsQuestions(p=>p.filter((_,j)=>j!==i))}
+                    style={{width:32,borderRadius:9,border:"0.5px solid var(--red)",background:"var(--red-bg)",color:"var(--red)",cursor:"pointer",fontSize:13,flexShrink:0}}>×</button>
+                )}
+              </div>
+            ))}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1.5fr",gap:8,marginTop:8}}>
+              <button onClick={()=>setQsQuestions(p=>[...p,{text:"",type:"rating"}])}
+                style={{padding:"10px",borderRadius:10,border:"1.5px dashed var(--border2)",background:"none",color:"var(--text2)",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                ➕ {lang==="en"?"Question":"Pirs"}
+              </button>
+              <button onClick={qsCreate}
+                style={{padding:"10px",borderRadius:10,border:"none",background:"#16293f",color:"#fff",fontSize:12.5,fontWeight:800,cursor:"pointer"}}>
+                🚀 {lang==="en"?"Create & Publish":"Biafirîne û Çalak Bike"}
+              </button>
+            </div>
+          </div>
           {surveyList}
           </>
         )
@@ -10617,7 +10802,7 @@ function TeacherAnnounceView({teacher, anns, setAnns, lang, toast}) {
 
 /* ─── TEACHER SURVEY FORM ─────────────────────────────────────────────────── */
 function TeacherSurveyPanel({teacher, schedule, lang, t, toast}) {
-  const mySchedule = schedule.filter(s=>s.area===teacher.area);
+  const mySchedule = schedule.filter(s=>lessonForTeacher(s,teacher));
   const [questions, setQuestions] = useState(loadSurveyQuestions);
   const [surveyConfig, setSurveyConfig] = useState({active:true, targetAreas:[]});
   // ── Tüm hook'lar erken return'dan ÖNCE — React Rules of Hooks ──
@@ -11139,9 +11324,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
   const myStudents = teacher.area === "genel"
     ? students.filter(s=>!s.isAdmin)
     : students.filter(s=>s.area===teacher.area);
-  const mySchedule = teacher.area === "genel"
-    ? schedule.filter(s=>s.area==="genel")
-    : schedule.filter(s=>s.area===teacher.area);
+  const mySchedule = schedule.filter(s=>lessonForTeacher(s,teacher));
 
   // ── Anlık / sıradaki ders hesapla ──────────────────────────────────────────
   // Günün ders programından şu anda ya da en yakın ders hangisi?
@@ -12509,7 +12692,7 @@ function StudentSurveyView({student, a, lang, toast}) {
       <div style={{paddingBottom:20}}>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
           <button onClick={()=>setActiveSurvey(null)} style={{padding:"7px 14px",fontSize:12,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:8,cursor:"pointer",color:"var(--text)",fontWeight:600}}>
-            ← {t.back||"Vegere"}
+            ← {lang==="en"?"Back":lang==="de"?"Zurück":"Vegere"}
           </button>
           <div style={{fontSize:14,fontWeight:700,color:"var(--text)",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{activeSurvey.title}</div>
         </div>
@@ -12965,6 +13148,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
             <div style={{display:"flex",align:"center",gap:6,marginTop:4,flexWrap:"wrap"}}>
               <span className="glass-pill">{a.icon} {areaName(student.area,lang)}</span>
               <span className="glass-pill" style={{fontFamily:"monospace"}}>{student.no}</span>
+              <span className="glass-pill">🎓 {(student.classLevel||1)}. Sînif</span>
 
             </div>
           </div>
