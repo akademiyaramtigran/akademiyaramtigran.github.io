@@ -3787,7 +3787,7 @@ function StudentIDCard({student, lang, t}){
         </div>
         <div style={{textAlign:"center"}}>
           <div style={{fontSize:14,color:"var(--text)",fontWeight:800,fontFamily:"monospace",letterSpacing:"0.10em"}}>{student.no}</div>
-          <button onClick={async(e)=>{e.stopPropagation();await copyToClipboard(student.no);hapticLight();}} aria-label="Jimara kopî bike / Copy number" style={{background:"var(--surface)",border:"1px solid #999999",borderRadius:6,padding:"2px 8px",fontSize:10,cursor:"pointer",color:"var(--text)",marginLeft:4}}>📋</button>
+          <div style={{fontSize:9,color:"#2c4f7c",fontWeight:700,marginTop:2}}>{AREA_MAP[student.area]?.icon} {areaName(student.area,"ku")}</div>
         </div>
       </div>
 
@@ -6542,10 +6542,11 @@ function SideMenu({open,onClose,items,activeKey,onSelect,user,roleLabel,extraIte
 }
 
 /* ─── SPECIAL PANEL HEADER (Çapemenî / Karûbar — ortak üst panel) ────────── */
-function SpecialPanelHeader({user,icon,roleLabel,lang,onLogout,siteLink}){
+function SpecialPanelHeader({user,icon,roleLabel,lang,onLogout,siteLink,onMenu}){
   return(
     <div style={{background:"var(--hero-grad)",padding:"calc(env(safe-area-inset-top,0px) + 18px) 16px 14px",borderRadius:"0 0 22px 22px",boxShadow:"0 6px 24px rgba(22,41,63,0.25)"}}>
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}>
+        {onMenu&&<button className="sm-burger" onClick={onMenu} aria-label="Menu">☰</button>}
         {user.photo
           ? <img src={user.photo} alt="" style={{width:46,height:46,borderRadius:14,objectFit:"cover",border:"2px solid rgba(255,255,255,0.35)",flexShrink:0}}/>
           : <div style={{width:46,height:46,borderRadius:14,background:"rgba(255,255,255,0.14)",border:"1px solid rgba(255,255,255,0.22)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{icon}</div>}
@@ -6619,7 +6620,20 @@ function docIsPdf(d, url){
   return typeof url === "string" && (url.indexOf("data:application/pdf") === 0 || /\.pdf(\?|$)/i.test(url.split("?")[0]));
 }
 
-function RegistrarPanel({user,lang,toast,onLogout,students,onDataChange}){
+function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,onDataChange}){
+  // ── Bölümler: serledan | tescil | bername | anket ──
+  const [section,setSection]=useState("serledan");
+  const [menuOpen,setMenuOpen]=useState(false);
+  const [showAddStudent,setShowAddStudent]=useState(false);
+  const [showAddTeacher,setShowAddTeacher]=useState(false);
+  const [editingStudent,setEditingStudent]=useState(null);
+  const [editingTeacher,setEditingTeacher]=useState(null);
+  const regTabs=[
+    {key:"serledan",icon:"📋",label:lang==="en"?"Applications":"Serlêdan"},
+    {key:"tescil",icon:"🎓",label:lang==="en"?"Registration":"Tescîl (Xwendekar/Mamoste)"},
+    {key:"bername",icon:"📅",label:lang==="en"?"Schedule & Terms":"Bername û Demsal"},
+    {key:"anket",icon:"📊",label:lang==="en"?"Surveys":"Ankêt"},
+  ];
   const [cfg,setCfg]=useState({open:false,startDate:"",endDate:"",note:""});
   const [cfgLoaded,setCfgLoaded]=useState(false);
   const [apps,setApps]=useState([]);
@@ -6803,9 +6817,76 @@ function RegistrarPanel({user,lang,toast,onLogout,students,onDataChange}){
 
   return(
     <div style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
-      <SpecialPanelHeader user={user} icon="🗂" lang={lang} onLogout={onLogout} siteLink={true}
+      <SideMenu open={menuOpen} onClose={()=>setMenuOpen(false)} items={regTabs} activeKey={section}
+        onSelect={setSection} user={user}
+        roleLabel={lang==="en"?"Student Affairs":"Karûbarên Xwendekaran"}
+        extraItems={[{icon:"↩",label:(t&&t.logout)||"Derkeve",onClick:onLogout,danger:true}]}/>
+      <SpecialPanelHeader user={user} icon="🗂" lang={lang} onLogout={onLogout} siteLink={true} onMenu={()=>setMenuOpen(true)}
         roleLabel={lang==="en"?"Student Affairs":lang==="de"?"Studierendenbüro":"Karûbarên Xwendekaran"}/>
+      {/* Bölüm sekmeleri */}
+      <div style={{display:"flex",gap:6,padding:"10px 14px 0",overflowX:"auto",flexShrink:0}}>
+        {regTabs.map(tb=>(
+          <button key={tb.key} onClick={()=>setSection(tb.key)}
+            style={{padding:"8px 13px",borderRadius:20,fontSize:11,fontWeight:section===tb.key?800:600,whiteSpace:"nowrap",flexShrink:0,cursor:"pointer",
+              border:"1.5px solid "+(section===tb.key?"#16293f":"var(--border2)"),
+              background:section===tb.key?"#16293f":"var(--surface)",color:section===tb.key?"#fff":"var(--text2)"}}>
+            {tb.icon} {tb.label}
+          </button>
+        ))}
+      </div>
       <div style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
+
+        {section==="bername"&&(
+          <AdminScheduleTab schedule={schedule||[]} teachers={teachers||[]} students={students||[]} lang={lang} t={t||T.ku} toast={toast} onDataChange={onDataChange}/>
+        )}
+        {section==="anket"&&(
+          <AdminSurveyPanel lang={lang} t={t||T.ku} schedule={schedule||[]} teachers={teachers||[]} students={students||[]} toast={toast}/>
+        )}
+        {section==="tescil"&&(
+          <>
+            <SectionHeader>🎓 {lang==="en"?"Register":"Tescîl"}</SectionHeader>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+              <button onClick={()=>setShowAddStudent(true)}
+                style={{padding:"14px 8px",borderRadius:12,border:"none",cursor:"pointer",background:"#16293f",color:"#fff",fontSize:12.5,fontWeight:800}}>
+                🎓 {(t&&t.areaCard_student)||"Xwendekar Tescîl Bike"}
+              </button>
+              <button onClick={()=>setShowAddTeacher(true)}
+                style={{padding:"14px 8px",borderRadius:12,border:"none",cursor:"pointer",background:"rgba(22,163,74,0.12)",color:"#16a34a",fontSize:12.5,fontWeight:800,border:"1.5px solid #16a34a"}}>
+                👨‍🏫 {(t&&t.areaCard_teacher)||"Mamoste Tescîl Bike"}
+              </button>
+            </div>
+            <SectionHeader>🎓 {(t&&t.students)||"Xwendekar"} ({(students||[]).length})</SectionHeader>
+            {(students||[]).map(st=>(
+              <Card key={st.no}>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <Avatar name={st.name} color={AREA_MAP[st.area]?.color||"#16293f"} size={36} photo={st.photo}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:700,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{st.name}</div>
+                    <div style={{fontSize:10,color:"var(--text2)",fontFamily:"monospace"}}>{st.no} · {areaName(st.area,lang)} · {(st.classLevel||1)}. Sînif</div>
+                  </div>
+                  <button onClick={()=>setEditingStudent(st)} style={{background:"var(--bg2)",border:"0.5px solid var(--border2)",color:"var(--text)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>✏️</button>
+                  <button onClick={()=>{if(window.confirm("🗑 "+st.name+"?"))onDataChange("deleteStudent",st);}} style={{background:"var(--red-bg)",border:"0.5px solid var(--red)",color:"var(--red)",borderRadius:8,padding:"6px 10px",fontSize:11,cursor:"pointer"}}>🗑</button>
+                </div>
+              </Card>
+            ))}
+            {(students||[]).length===0&&<Card><div style={{fontSize:12,color:"var(--text2)",textAlign:"center",padding:"8px 0"}}>—</div></Card>}
+            <SectionHeader>👨‍🏫 {(t&&t.teachers)||"Mamoste"} ({(teachers||[]).filter(tc=>!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar).length})</SectionHeader>
+            {(teachers||[]).filter(tc=>!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar).map(tc=>(
+              <Card key={tc.no}>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <Avatar name={tc.name} color={AREA_MAP[tc.area]?.color||"#16a34a"} size={36} photo={tc.photo}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:700,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{tc.name}</div>
+                    <div style={{fontSize:10,color:"var(--text2)",fontFamily:"monospace"}}>{tc.no} · {areaName(tc.area,lang)}</div>
+                  </div>
+                  <button onClick={()=>setEditingTeacher(tc)} style={{background:"var(--bg2)",border:"0.5px solid var(--border2)",color:"var(--text)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>✏️</button>
+                  <button onClick={()=>{if(window.confirm("🗑 "+tc.name+"?"))onDataChange("deleteTeacher",tc);}} style={{background:"var(--red-bg)",border:"0.5px solid var(--red)",color:"var(--red)",borderRadius:8,padding:"6px 10px",fontSize:11,cursor:"pointer"}}>🗑</button>
+                </div>
+              </Card>
+            ))}
+          </>
+        )}
+        {section!=="serledan"?null:(<>
 
         <SectionHeader>{L("settings")}</SectionHeader>
         <Card>
@@ -6923,8 +7004,25 @@ function RegistrarPanel({user,lang,toast,onLogout,students,onDataChange}){
           </Card>
           );
         })}
+        </>)}
       </div>
 
+      {showAddStudent&&(
+        <AddStudentSheet open={showAddStudent} onClose={()=>setShowAddStudent(false)} defaultArea={null} students={students||[]} t={t||T.ku} lang={lang} toast={toast}
+          onSave={(st)=>{onDataChange("addStudent",st);}}/>
+      )}
+      {showAddTeacher&&(
+        <AddTeacherSheet open={showAddTeacher} onClose={()=>setShowAddTeacher(false)} defaultArea={null} teachers={teachers||[]} t={t||T.ku} lang={lang} toast={toast}
+          onSave={(tc)=>{onDataChange("addTeacher",tc);}}/>
+      )}
+      {editingStudent&&(
+        <EditStudentSheet student={editingStudent} onClose={()=>setEditingStudent(null)} t={t||T.ku} lang={lang} toast={toast}
+          onSave={(st)=>{onDataChange("updateStudent",st);setEditingStudent(null);toast("✅ "+st.name);}}/>
+      )}
+      {editingTeacher&&(
+        <EditTeacherSheet teacher={editingTeacher} onClose={()=>setEditingTeacher(null)} t={t||T.ku} lang={lang} toast={toast}
+          onSave={(tc)=>{onDataChange("updateTeacher",tc);setEditingTeacher(null);toast("✅ "+tc.name);}}/>
+      )}
       {regCreds&&(
         <Sheet open={true} onClose={()=>setRegCreds(null)} title={L("regDone")}>
           <div style={{textAlign:"center",padding:"8px 0 20px"}}>
@@ -7861,7 +7959,6 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
     {key:"reports",icon:"📄",label:lang==="ku"?"Rapor":lang==="en"?"Reports":"Berichte"},
     {key:"weekly",icon:"📊",label:lang==="ku"?"Heftewar":lang==="en"?"Weekly":"Wöchentlich"},
     {key:"alerts",icon:"🔔",label:lang==="ku"?"Hişyarî":lang==="en"?"Alerts":"Warnungen"},
-    {key:"survey",icon:"📋",label:t.survey||"Ankêt"},
   ];
 
   // Öğrenci istatistiklerini Firebase'den yükle
@@ -7990,7 +8087,6 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
         {tab==="reports"&&<AdminReportsPanel students={students} teachers={teachers} schedule={schedule} lang={lang} t={t} toast={toast}/>}
         {tab==="weekly"&&<AdminWeeklyReportPanel students={students} teachers={teachers} schedule={schedule} lang={lang} toast={toast}/>}
         {tab==="alerts"&&<AdminAlertsPanel students={students} schedule={schedule} lang={lang} toast={toast}/>}
-        {tab==="survey"&&<AdminSurveyPanel lang={lang} t={t} schedule={schedule} teachers={teachers} students={students} toast={toast}/>}
       </div>
       {activeArea&&(
         <AreaDetailModal areaKey={activeArea} students={students} teachers={teachers} schedule={schedule} onClose={()=>setActiveArea(null)} t={t} lang={lang} toast={toast} onDataChange={onDataChange}/>
@@ -11817,7 +11913,12 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
           />
         )}
         {view==="evaluation"&&(
-          <TeacherSurveyPanel teacher={teacher} schedule={mySchedule} lang={lang} t={t} toast={toast}/>
+          <>
+            {/* Öğretmene hedeflenmiş anketler (yönetim/öğrenci işleri anketleri) */}
+            <StudentSurveyView student={teacher} a={a} lang={lang} toast={toast} mode="teacher"/>
+            <div style={{height:14}}/>
+            <TeacherSurveyPanel teacher={teacher} schedule={mySchedule} lang={lang} t={t} toast={toast}/>
+          </>
         )}
         {view==="materials"&&(
           <>
@@ -12606,7 +12707,7 @@ function BiometricModal({ open, onSuccess, onCancel, lang, aColor, user }) {
 
 /* ─── STUDENT PANEL ─────────────────────────────────────────────────────── */
 /* ─── STUDENT SURVEY VIEW ────────────────────────────────────────────────── */
-function StudentSurveyView({student, a, lang, toast}) {
+function StudentSurveyView({student, a, lang, toast, mode}) {
   const STUDENT_SURVEYS_KEY = "aat-student-surveys";
   const STUDENT_SURVEY_RESPONSES_KEY = "aat-student-survey-responses";
 
@@ -12644,6 +12745,11 @@ function StudentSurveyView({student, a, lang, toast}) {
 
   const visibleSurveys = surveys.filter(sv=>{
     if(!sv.active) return false;
+    if(mode==="teacher"){
+      if(sv.targetType==="teachers") return true;
+      if(sv.targetType==="teachers_area") return (sv.targetAreas||[]).includes(student.area);
+      return false;
+    }
     if(sv.targetType==="teachers"||sv.targetType==="teachers_area") return false; // öğretmenlere özel — öğrencilere gösterme
     if(sv.targetType==="area") return (sv.targetAreas||[]).includes(student.area);
     return true;
@@ -15617,7 +15723,7 @@ function App(){
         <PressPanel user={currentUser} lang={lang} toast={toast} onLogout={handleLogout}/>
       )}
       {screen==="registrar"&&currentUser&&(
-        <RegistrarPanel user={currentUser} lang={lang} toast={toast} onLogout={handleLogout} students={students} onDataChange={onDataChange}/>
+        <RegistrarPanel user={currentUser} lang={lang} toast={toast} onLogout={handleLogout} students={students} teachers={teachers} schedule={schedule} t={t} onDataChange={onDataChange}/>
       )}
       {screen==="student"&&currentUser&&(
         <StudentPanel student={currentUser} schedule={schedule} t={t} lang={lang} toast={toast} onLogout={handleLogout} onDataChange={onDataChange} onSettings={()=>setShowSettings(true)}/>
