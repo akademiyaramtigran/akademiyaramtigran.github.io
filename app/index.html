@@ -6659,6 +6659,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
     {key:"qad",icon:"🎭",label:lang==="en"?"Art Fields":"Qadên Hunerê"},
     {key:"bername",icon:"📅",label:lang==="en"?"Schedule & Terms":"Bername û Demsal"},
     {key:"anket",icon:"📊",label:lang==="en"?"Surveys":"Ankêt"},
+    {key:"rapor",icon:"📄",label:lang==="en"?"Reports":"Rapor"},
   ];
   const [activeArea,setActiveArea]=useState(null);
   const [cfg,setCfg]=useState({open:false,startDate:"",endDate:"",note:""});
@@ -6913,6 +6914,9 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
         )}
         {section==="anket"&&(
           <AdminSurveyPanel lang={lang} t={t||T.ku} schedule={schedule||[]} teachers={teachers||[]} students={students||[]} toast={toast}/>
+        )}
+        {section==="rapor"&&(
+          <AdminReportCenter students={students||[]} teachers={teachers||[]} schedule={schedule||[]} lang={lang} t={t||T.ku} toast={toast}/>
         )}
         {section==="tescil"&&(
           <>
@@ -8051,8 +8055,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
     {key:"announcements",icon:"📢",label:t.announcements},
     {key:"press",icon:"📰",label:lang==="ku"?"Çapemenî":lang==="en"?"Press":"Presse"},
     {key:"messages",icon:"💬",label:t.message+"s"||"Peyam"},
-    {key:"reports",icon:"📄",label:lang==="ku"?"Rapor":lang==="en"?"Reports":"Berichte"},
-    {key:"weekly",icon:"📊",label:lang==="ku"?"Heftewar":lang==="en"?"Weekly":"Wöchentlich"},
+    {key:"reports",icon:"📊",label:lang==="ku"?"Rapor":lang==="en"?"Reports":"Berichte"},
     {key:"alerts",icon:"🔔",label:lang==="ku"?"Hişyarî":lang==="en"?"Alerts":"Warnungen"},
   ];
 
@@ -8124,8 +8127,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
         {tab==="announcements"&&<AnnouncementsPanel t={t} toast={toast} lang={lang} senderName={adminData.name} senderRole="admin" senderArea={null}/>}
         {tab==="press"&&<AdminPressPanel teachers={teachers} onDataChange={onDataChange} lang={lang} toast={toast} t={t}/>}
         {tab==="messages"&&<AdminMessagesPanel students={students} teachers={teachers} lang={lang} t={t} toast={toast} adminName={adminData.name}/>}
-        {tab==="reports"&&<AdminReportsPanel students={students} teachers={teachers} schedule={schedule} lang={lang} t={t} toast={toast}/>}
-        {tab==="weekly"&&<AdminWeeklyReportPanel students={students} teachers={teachers} schedule={schedule} lang={lang} toast={toast}/>}
+        {tab==="reports"&&<AdminReportCenter students={students} teachers={teachers} schedule={schedule} lang={lang} t={t} toast={toast}/>}
         {tab==="alerts"&&<AdminAlertsPanel students={students} schedule={schedule} lang={lang} toast={toast}/>}
       </div>
       {statsModal&&(
@@ -8905,6 +8907,31 @@ tr:hover td{background:#f9fbff}
           {L("print")}
         </button>
       </div>
+    </div>
+  );
+}
+
+/* ─── RAPOR MERKEZİ — lîste + heftane/demsalî raporlar tek çatıda ────────── */
+function AdminReportCenter({students,teachers,schedule,lang,t,toast}){
+  const [rTab,setRTab]=useState("liste"); // liste | donem
+  const tabs=[
+    {key:"liste",icon:"📄",label:lang==="en"?"List Reports":lang==="de"?"Listenberichte":"Raporên Lîsteyê"},
+    {key:"donem",icon:"📅",label:lang==="en"?"Weekly / Term":lang==="de"?"Woche / Semester":"Heftane / Demsalî"},
+  ];
+  return(
+    <div>
+      <div style={{display:"flex",gap:6,marginBottom:14,background:"var(--bg2)",padding:4,borderRadius:12}}>
+        {tabs.map(tb=>(
+          <button key={tb.key} onClick={()=>setRTab(tb.key)}
+            style={{flex:1,padding:"10px 8px",fontSize:12,fontWeight:rTab===tb.key?800:600,borderRadius:9,border:"none",cursor:"pointer",
+              background:rTab===tb.key?"var(--surface)":"transparent",color:rTab===tb.key?"#16293f":"var(--text2)",
+              boxShadow:rTab===tb.key?"0 1px 4px rgba(22,41,63,0.15)":"none",transition:"all .15s"}}>
+            {tb.icon} {tb.label}
+          </button>
+        ))}
+      </div>
+      {rTab==="liste"&&<AdminReportsPanel students={students} teachers={teachers} schedule={schedule} lang={lang} t={t} toast={toast}/>}
+      {rTab==="donem"&&<AdminWeeklyReportPanel students={students} teachers={teachers} schedule={schedule} lang={lang} toast={toast}/>}
     </div>
   );
 }
