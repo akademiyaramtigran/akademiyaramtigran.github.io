@@ -4394,9 +4394,10 @@ function AddStudentSheet({open,onClose,defaultArea,students,t,lang,toast,onSave}
 }
 
 /* ─── ADD TEACHER SHEET ─────────────────────────────────────────────────── */
-function AddTeacherSheet({open,onClose,defaultArea,teachers,t,lang,toast,onSave}){
+function AddTeacherSheet({open,onClose,defaultArea,teachers,t,lang,toast,onSave,schedule,onAssignLessons}){
   const [name,setName]=useState("");
   const [area,setArea]=useState(defaultArea||"sinema");
+  const [assignSel,setAssignSel]=useState({}); // ders ataması: {lessonId:true}
   const [year,setYear]=useState("2026");
   const [phone,setPhone]=useState("");
   const [dob,setDob]=useState("");
@@ -4438,10 +4439,13 @@ function AddTeacherSheet({open,onClose,defaultArea,teachers,t,lang,toast,onSave}
         _plainPass:rawPass
       };
       onSave(tc);
+      // Seçilen bername derslerine ata
+      const ids=Object.keys(assignSel).filter(k=>assignSel[k]);
+      if(ids.length&&onAssignLessons) onAssignLessons(ids,tc);
       setSavedCreds({no, pass:rawPass, name:name.trim()});
       toast("✅ "+name.trim()+" · "+no+" | 🔑 "+rawPass, 8000);
     });
-    setName(""); setPhone(""); setDob(""); setAddress(""); setBio(""); setPhoto(null);
+    setName(""); setPhone(""); setDob(""); setAddress(""); setBio(""); setPhoto(null); setAssignSel({});
   }
 
   // Kayıt sonrası bilgi kartı
@@ -4533,6 +4537,27 @@ function AddTeacherSheet({open,onClose,defaultArea,teachers,t,lang,toast,onSave}
       <FieldWrap label={t.bioLabel}>
         <textarea style={{...inputStyle,minHeight:60,resize:"vertical"}} value={bio} onChange={e=>setBio(e.target.value)} placeholder="Danasîn..."/>
       </FieldWrap>
+      {/* Bernamedeki derslere atama (isteğe bağlı) */}
+      {schedule&&schedule.filter(ls=>ls.area===area||ls.area==="genel").length>0&&(
+        <FieldWrap label={"📅 "+(lang==="en"?"Assign to lessons (optional)":"Dersan tayîn bike (vebijarkî)")}>
+          <div style={{maxHeight:170,overflowY:"auto",border:"1px solid var(--border2)",borderRadius:10,padding:"6px"}}>
+            {schedule.filter(ls=>ls.area===area||ls.area==="genel").map(ls=>{
+              const on=!!assignSel[ls.id];
+              return(
+                <div key={ls.id} onClick={()=>setAssignSel(pv=>({...pv,[ls.id]:!pv[ls.id]}))}
+                  style={{display:"flex",alignItems:"center",gap:8,padding:"7px 8px",borderRadius:8,cursor:"pointer",
+                    background:on?"rgba(22,163,74,0.08)":"transparent"}}>
+                  <span style={{fontSize:13}}>{on?"✅":"⬜"}</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:12,fontWeight:600,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ls.name}</div>
+                    <div style={{fontSize:9.5,color:"var(--text2)"}}>{ls.day||""} {ls.start}–{ls.end}{ls.teacherName?(" · 👨‍🏫 "+ls.teacherName):""}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </FieldWrap>
+      )}
       <PrimaryBtn onClick={handleSave} icon="💾">{t.saveTeacher}</PrimaryBtn>
     </Sheet>
   );
@@ -6631,9 +6656,11 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
   const regTabs=[
     {key:"serledan",icon:"📋",label:lang==="en"?"Applications":"Serlêdan"},
     {key:"tescil",icon:"🎓",label:lang==="en"?"Registration":"Tescîl (Xwendekar/Mamoste)"},
+    {key:"qad",icon:"🎭",label:lang==="en"?"Art Fields":"Qadên Hunerê"},
     {key:"bername",icon:"📅",label:lang==="en"?"Schedule & Terms":"Bername û Demsal"},
     {key:"anket",icon:"📊",label:lang==="en"?"Surveys":"Ankêt"},
   ];
+  const [activeArea,setActiveArea]=useState(null);
   const [cfg,setCfg]=useState({open:false,startDate:"",endDate:"",note:""});
   const [cfgLoaded,setCfgLoaded]=useState(false);
   const [apps,setApps]=useState([]);
@@ -6836,6 +6863,51 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
 
+        {section==="qad"&&(
+          <>
+            <SectionHeader>🎭 {(t&&t.areas)||"Qadên Hunerê"}</SectionHeader>
+            {(()=>{
+              const genelArea = AREA_MAP["genel"];
+              const genelCnt = (students||[]).filter(st=>!st.isAdmin).length;
+              const genelLcnt = (schedule||[]).filter(ls=>ls.area==="genel").length;
+              return(
+                <div onClick={()=>setActiveArea("genel")} className="area-card"
+                  style={{background:"var(--surface)",borderLeft:"4px solid "+genelArea.color,boxShadow:"0 1px 4px rgba(15,23,42,.07)",
+                    marginBottom:12,display:"block",width:"100%",position:"relative"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:12}}>
+                    <div className="area-card-icon" style={{width:52,height:52,borderRadius:16,fontSize:28,background:genelArea.bg}}>🏫</div>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:15,fontWeight:700,color:"var(--text)"}}>{(t&&t.commonArea)||"Hemû Xwendekar"}</div>
+                      <div style={{fontSize:11,color:"#64748b",lineHeight:1.5}}>{(t&&t.commonAreaDesc)||"Dersên Hevpar ên Akademiyê"}</div>
+                    </div>
+                    <div style={{display:"flex",flexDirection:"column",gap:4,alignItems:"flex-end"}}>
+                      <span style={{fontSize:11,padding:"3px 10px",borderRadius:6,background:genelArea.bg,color:genelArea.color,fontWeight:700}}>🎓 {genelCnt}</span>
+                      <span style={{fontSize:11,padding:"3px 10px",borderRadius:6,background:genelArea.bg,color:genelArea.color,fontWeight:700}}>📅 {genelLcnt}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              {AREAS.filter(ar=>ar.key!=="genel").map(ar=>{
+                const am=AREA_MAP[ar.key];
+                const cnt=(students||[]).filter(st=>st.area===ar.key).length;
+                const tcnt=(teachers||[]).filter(t2=>t2.area===ar.key&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar).length;
+                return(
+                  <div key={ar.key} onClick={()=>setActiveArea(ar.key)} className="area-card"
+                    style={{background:"var(--surface)",borderLeft:"4px solid "+am.color,boxShadow:"0 1px 4px rgba(15,23,42,.07)"}}>
+                    <div className="area-card-icon" style={{background:am.bg}}>{ar.icon}</div>
+                    <div style={{fontSize:14,fontWeight:700,color:"var(--text)",marginBottom:3}}>{areaName(ar.key,lang)}</div>
+                    <div style={{display:"flex",gap:6}}>
+                      <span style={{fontSize:10,padding:"3px 9px",borderRadius:6,background:am.bg,color:am.color,fontWeight:600}}>🎓 {cnt}</span>
+                      <span style={{fontSize:10,padding:"3px 9px",borderRadius:6,background:am.bg,color:am.color,fontWeight:600}}>👨‍🏫 {tcnt}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
         {section==="bername"&&(
           <AdminScheduleTab schedule={schedule||[]} teachers={teachers||[]} students={students||[]} lang={lang} t={t||T.ku} toast={toast} onDataChange={onDataChange}/>
         )}
@@ -7007,12 +7079,17 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
         </>)}
       </div>
 
+      {activeArea&&(
+        <AreaDetailModal areaKey={activeArea} students={students||[]} teachers={teachers||[]} schedule={schedule||[]} onClose={()=>setActiveArea(null)} t={t||T.ku} lang={lang} toast={toast} onDataChange={onDataChange}/>
+      )}
       {showAddStudent&&(
         <AddStudentSheet open={showAddStudent} onClose={()=>setShowAddStudent(false)} defaultArea={null} students={students||[]} t={t||T.ku} lang={lang} toast={toast}
           onSave={(st)=>{onDataChange("addStudent",st);}}/>
       )}
       {showAddTeacher&&(
         <AddTeacherSheet open={showAddTeacher} onClose={()=>setShowAddTeacher(false)} defaultArea={null} teachers={teachers||[]} t={t||T.ku} lang={lang} toast={toast}
+          schedule={schedule||[]}
+          onAssignLessons={(ids,tc)=>{ids.forEach(id=>{const ls=(schedule||[]).find(l=>String(l.id)===String(id));if(ls)onDataChange("updateSchedule",{...ls,teacherNo:tc.no,teacherName:tc.name});});}}
           onSave={(tc)=>{onDataChange("addTeacher",tc);}}/>
       )}
       {editingStudent&&(
@@ -7594,6 +7671,9 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
   const [tLabel,setTLabel]=useState("");
   const [tStart,setTStart]=useState("");
   const [tEnd,setTEnd]=useState("");
+  const [tSeason,setTSeason]=useState("bihar");
+  const [tArea,setTArea]=useState("");   // "" = hemû qad
+  const SEASONS={bihar:{ku:"🌱 Bihar",tr:"Bahar"},payiz:{ku:"🍂 Payîz",tr:"Sonbahar"},havin:{ku:"☀️ Havîn",tr:"Yaz"},zivistan:{ku:"❄️ Zivistan",tr:"Kış"}};
   const TL=(k)=>({
     terms:{ku:"📆 Demsal (Dönemler)",en:"📆 Terms",de:"📆 Semester"},
     active:{ku:"Çalak",en:"Active",de:"Aktiv"},
@@ -7606,8 +7686,11 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
     noTerm:{ku:"Bê demsal",en:"No term",de:"Ohne"},
   }[k][lang]||k);
   function addTerm(){
-    if(!tLabel.trim()||!tStart||!tEnd){ toast(TL("needAll")); return; }
-    const nt={id:"t"+Date.now(),label:tLabel.trim(),start:tStart,end:tEnd};
+    if(!tStart||!tEnd){ toast(TL("needAll")); return; }
+    const yr=(tStart||"").slice(0,4);
+    const sName=((SEASONS[tSeason]&&SEASONS[tSeason].ku)||"").replace(/^[^ ]+ /,"");
+    const autoLabel=(yr+" "+sName+(tArea?(" — "+areaName(tArea,lang)):"")).trim();
+    const nt={id:"t"+Date.now(),label:tLabel.trim()||autoLabel,season:tSeason,area:tArea||"",start:tStart,end:tEnd};
     saveTerms({list:[...(terms.list||[]),nt],activeId:terms.activeId||nt.id});
     setTLabel("");setTStart("");setTEnd("");
     toast("✅ "+nt.label);
@@ -7730,7 +7813,10 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
             {(terms.list||[]).map(tm=>(
               <div key={tm.id} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 0",borderBottom:"1px solid var(--border)"}}>
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:12.5,fontWeight:700,color:"var(--text)"}}>{tm.label}</div>
+                  <div style={{fontSize:12.5,fontWeight:700,color:"var(--text)"}}>
+                    {tm.season&&SEASONS[tm.season]?SEASONS[tm.season].ku.split(" ")[0]+" ":""}{tm.label}
+                    {tm.area&&<span style={{marginLeft:6,fontSize:9.5,fontWeight:800,padding:"2px 7px",borderRadius:99,background:AREA_MAP[tm.area]?.bg||"var(--bg2)",color:AREA_MAP[tm.area]?.color||"var(--text2)"}}>{AREA_MAP[tm.area]?.icon} {areaName(tm.area,lang)}</span>}
+                  </div>
                   <div style={{fontSize:10,color:"var(--text2)"}}>{tm.start} → {tm.end}</div>
                 </div>
                 {terms.activeId===tm.id
@@ -7742,7 +7828,18 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
               </div>
             ))}
             <div style={{display:"grid",gridTemplateColumns:"1fr",gap:6,marginTop:10}}>
-              <input value={tLabel} onChange={e=>setTLabel(e.target.value)} placeholder={TL("label")}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+                <select value={tSeason} onChange={e=>setTSeason(e.target.value)}
+                  style={{padding:"9px 8px",border:"1px solid var(--border2)",borderRadius:9,fontSize:12,background:"var(--bg2)",color:"var(--text)"}}>
+                  {Object.entries(SEASONS).map(([k2,v2])=>(<option key={k2} value={k2}>{v2.ku} ({v2.tr})</option>))}
+                </select>
+                <select value={tArea} onChange={e=>setTArea(e.target.value)}
+                  style={{padding:"9px 8px",border:"1px solid var(--border2)",borderRadius:9,fontSize:12,background:"var(--bg2)",color:"var(--text)"}}>
+                  <option value="">🌐 {lang==="en"?"All fields":"Hemû qad"}</option>
+                  {AREAS.filter(ar=>ar.key!=="genel").map(ar=>(<option key={ar.key} value={ar.key}>{ar.icon} {areaName(ar.key,lang)}</option>))}
+                </select>
+              </div>
+              <input value={tLabel} onChange={e=>setTLabel(e.target.value)} placeholder={TL("label")+" — "+(lang==="en"?"blank = auto":"vala = otomatîk")}
                 style={{padding:"9px 11px",border:"1px solid var(--border2)",borderRadius:9,fontSize:12.5,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box"}}/>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
                 <input type="date" value={tStart} onChange={e=>setTStart(e.target.value)}
@@ -7943,7 +8040,7 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
 /* ─── ADMIN PANEL ───────────────────────────────────────────────────────── */
 function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDataChange,onSettings,dark,onThemeToggle}){
   const [activeArea,setActiveArea]=useState(null);
-  const [tab,setTab]=usePanelNav("areas");
+  const [tab,setTab]=usePanelNav("announcements");
   const [statsModal,setStatsModal]=useState(null);
   const [showProfileEdit,setShowProfileEdit]=useState(false);
   const [adminData,setAdminData]=useState(admin);
@@ -7951,8 +8048,6 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
   const [menuOpen,setMenuOpen]=useState(false);
 
   const tabs=[
-    {key:"areas",icon:"🎭",label:t.areas},
-    {key:"schedule",icon:"📅",label:t.schedule},
     {key:"announcements",icon:"📢",label:t.announcements},
     {key:"press",icon:"📰",label:lang==="ku"?"Çapemenî":lang==="en"?"Press":"Presse"},
     {key:"messages",icon:"💬",label:t.message+"s"||"Peyam"},
@@ -8026,61 +8121,6 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
           ))}
         </div>
 
-        {tab==="areas"&&(
-          <>
-            <SectionHeader>{t.areas}</SectionHeader>
-            {/* Ortak Alan kartı — tam genişlik, önce */}
-            {(()=>{
-              const genelArea = AREA_MAP["genel"];
-              const genelCnt = students.filter(s=>!s.isAdmin).length;
-              const genelLcnt = schedule.filter(s=>s.area==="genel").length;
-              return(
-                <div onClick={()=>setActiveArea("genel")}
-                  className="area-card"
-                  style={{background:"var(--surface)",borderLeft:"4px solid "+genelArea.color,boxShadow:"0 1px 4px rgba(15,23,42,.07)",
-                    marginBottom:12,display:"block",gridColumn:"1/-1",width:"100%",position:"relative"}}>
-                  <div style={{position:"absolute",right:-10,bottom:-10,fontSize:80,opacity:.04,pointerEvents:"none",lineHeight:1}}>🏫</div>
-                  <div style={{display:"flex",alignItems:"center",gap:12}}>
-                    <div className="area-card-icon" style={{width:52,height:52,borderRadius:16,fontSize:28,background:genelArea.bg}}>🏫</div>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:15,fontWeight:700,color:"var(--text)"}}>{t.commonArea||"Hemû Xwendekar"}</div>
-                      <div style={{fontSize:11,color:"#64748b",lineHeight:1.5}}>{t.commonAreaDesc||"Dersên Hevpar ên Akademiyê"}</div>
-                    </div>
-                    <div style={{display:"flex",flexDirection:"column",gap:4,alignItems:"flex-end"}}>
-                      <span style={{fontSize:11,padding:"3px 10px",borderRadius:6,background:genelArea.bg,color:genelArea.color,fontWeight:700}}>🎓 {genelCnt}</span>
-                      <span style={{fontSize:11,padding:"3px 10px",borderRadius:6,background:genelArea.bg,color:genelArea.color,fontWeight:700}}>📅 {genelLcnt}</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-            {/* Alan kartları */}
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-              {AREAS.filter(area=>area.key!=="genel").map(area=>{
-                const a=AREA_MAP[area.key];
-                const cnt=students.filter(s=>s.area===area.key).length;
-                const tcnt=teachers.filter(t2=>t2.area===area.key&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar).length;
-                return(
-                  <div key={area.key} onClick={()=>setActiveArea(area.key)}
-                    className="area-card"
-                    style={{background:"var(--surface)",borderLeft:"4px solid "+a.color,boxShadow:"0 1px 4px rgba(15,23,42,.07)"}}>
-                    <div style={{position:"absolute",right:-10,bottom:-10,fontSize:70,opacity:.04,pointerEvents:"none",lineHeight:1}}>{area.icon}</div>
-                    <div className="area-card-icon" style={{background:a.bg}}>{area.icon}</div>
-                    <div style={{fontSize:14,fontWeight:700,color:"var(--text)",marginBottom:3}}>{areaName(area.key,lang)}</div>
-                    <div style={{fontSize:10.5,color:"#64748b",marginBottom:10,lineHeight:1.4,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{a.name.desc?.[lang]||""}</div>
-                    <div style={{display:"flex",gap:6}}>
-                      <span style={{fontSize:10,padding:"3px 9px",borderRadius:6,background:a.bg,color:a.color,fontWeight:600}}>🎓 {cnt}</span>
-                      <span style={{fontSize:10,padding:"3px 9px",borderRadius:6,background:a.bg,color:a.color,fontWeight:600}}>👨‍🏫 {tcnt}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-        {tab==="schedule"&&(
-          <AdminScheduleTab schedule={schedule} teachers={teachers} students={students} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>
-        )}
         {tab==="announcements"&&<AnnouncementsPanel t={t} toast={toast} lang={lang} senderName={adminData.name} senderRole="admin" senderArea={null}/>}
         {tab==="press"&&<AdminPressPanel teachers={teachers} onDataChange={onDataChange} lang={lang} toast={toast} t={t}/>}
         {tab==="messages"&&<AdminMessagesPanel students={students} teachers={teachers} lang={lang} t={t} toast={toast} adminName={adminData.name}/>}
@@ -8088,9 +8128,6 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
         {tab==="weekly"&&<AdminWeeklyReportPanel students={students} teachers={teachers} schedule={schedule} lang={lang} toast={toast}/>}
         {tab==="alerts"&&<AdminAlertsPanel students={students} schedule={schedule} lang={lang} toast={toast}/>}
       </div>
-      {activeArea&&(
-        <AreaDetailModal areaKey={activeArea} students={students} teachers={teachers} schedule={schedule} onClose={()=>setActiveArea(null)} t={t} lang={lang} toast={toast} onDataChange={onDataChange}/>
-      )}
       {statsModal&&(
         <StatsDetailModal type={statsModal} students={students} teachers={teachers} schedule={schedule} onClose={()=>setStatsModal(null)} t={t} lang={lang} toast={toast} onDataChange={onDataChange}/>
       )}
