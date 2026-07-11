@@ -8972,6 +8972,39 @@ function ReportArchiveTab({lang}){
   );
 }
 
+/* ─── ANKET SONUÇ PDF — paylaşılan üretici (anket listesi + rapor merkezi) ── */
+function makeSurveyResultsPdf(sv, allResps, lang, byName){
+  const rs=(allResps||[]).filter(r=>String(r.surveyId)===String(sv.id));
+  const st=(sv.questions||[]).map(q=>{
+    if(q.type==="rating"){
+      const vals=rs.map(r=>parseFloat(r.answers?.[q.id])).filter(v=>!isNaN(v));
+      return {q, kind:"rating", n:vals.length, avg: vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length):null};
+    }
+    const texts=rs.map(r=>({name:r.studentName,area:r.studentArea,val:r.answers?.[q.id]})).filter(x=>x.val!=null&&String(x.val).trim()!=="");
+    return {q, kind:"text", n:texts.length, texts};
+  });
+  const tgt=sv.targetType==="all"?"Hemû Xwendekar":sv.targetType==="area"?("Qad: "+(sv.targetAreas||[]).map(a2=>areaName(a2,lang)).join(", ")):sv.targetType==="teachers"?"Hemû Mamoste":"Mamoste (Qad)";
+  let body='<h1>📊 '+esc(sv.title)+'</h1>'
+    +'<div class="sub">'+(lang==="en"?"Survey Results":"Encamên Ankêtê")+' · '+tgt+' · '+rs.length+' '+(lang==="en"?"responses":"bersiv")+' · '+new Date().toISOString().slice(0,10)+'</div>';
+  st.forEach((row,i)=>{
+    if(row.kind==="rating"){
+      const pct=row.avg!=null?Math.round(row.avg*10):null;
+      body+='<div class="info" style="margin-bottom:8px"><b>'+(i+1)+'. '+esc(row.q.text)+'</b><br/>'
+        +(row.avg!=null
+          ? ('⭐ <b style="font-size:18px;color:'+(pct>=80?"#1a7a4a":pct>=50?"#c07800":"#c0392b")+'">'+row.avg.toFixed(1)+' / 10</b> — '+row.n+' '+(lang==="en"?"answers":"bersiv")
+            +'<div style="height:8px;background:#eee;border-radius:4px;margin-top:6px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+(pct>=80?"#1a7a4a":pct>=50?"#c07800":"#c0392b")+'"></div></div>')
+          : (lang==="en"?"No answers yet":"Hîn bersiv tune"))+'</div>';
+    } else {
+      body+='<div class="info" style="margin-bottom:8px"><b>'+(i+1)+'. '+esc(row.q.text)+'</b> — '+row.n+' '+(lang==="en"?"answers":"bersiv");
+      row.texts.forEach(t2=>{ body+='<div style="border-top:1px solid #eee;padding:6px 0;font-size:12px">💬 '+esc(String(t2.val))+'<span style="color:#999"> — '+esc(t2.name||"")+' ('+esc(areaName(t2.area,lang)||"")+')</span></div>'; });
+      body+='</div>';
+    }
+  });
+  body+='<div style="display:flex;justify-content:space-between;margin-top:34px;padding-top:14px;border-top:1px solid #ddd;font-size:11px;color:#666"><span>Karûbarên Xwendekaran</span><span>'+(lang==="en"?"Stamp / Signature":"Mohr û Îmze")+': ____________</span></div>';
+  openPrintHtml(_printShell((lang==="en"?"Survey Results — ":"Encamên Ankêtê — ")+sv.title, body));
+  logReportArchive({type:"anket",label:(lang==="en"?"Survey: ":"Ankêt: ")+sv.title,by:byName||""});
+}
+
 /* ─── ANKET SONUÇ RAPORLARI — yayınlanan her anketin sonucu PDF/CSV ──────── */
 function AdminSurveyResultsReport({lang,toast,byName}){
   const [surveys,setSurveys]=useState(()=>{try{return JSON.parse(localStorage.getItem("aat-student-surveys")||"[]");}catch(e){return[];}});
@@ -8995,30 +9028,7 @@ function AdminSurveyResultsReport({lang,toast,byName}){
       return {q, kind:"text", n:texts.length, texts};
     });
   }
-  function pdfOf(sv){
-    const rs=respsOf(sv);
-    const st=stats(sv);
-    const tgt=sv.targetType==="all"?"Hemû Xwendekar":sv.targetType==="area"?("Qad: "+(sv.targetAreas||[]).map(a2=>areaName(a2,lang)).join(", ")):sv.targetType==="teachers"?"Hemû Mamoste":"Mamoste (Qad)";
-    let body='<h1>📊 '+esc(sv.title)+'</h1>'
-      +'<div class="sub">'+(lang==="en"?"Survey Results":"Encamên Ankêtê")+' · '+tgt+' · '+rs.length+' '+(lang==="en"?"responses":"bersiv")+' · '+new Date().toISOString().slice(0,10)+'</div>';
-    st.forEach((row,i)=>{
-      if(row.kind==="rating"){
-        const pct=row.avg!=null?Math.round(row.avg*10):null;
-        body+='<div class="info" style="margin-bottom:8px"><b>'+(i+1)+'. '+esc(row.q.text)+'</b><br/>'
-          +(row.avg!=null
-            ? ('⭐ <b style="font-size:18px;color:'+(pct>=80?"#1a7a4a":pct>=50?"#c07800":"#c0392b")+'">'+row.avg.toFixed(1)+' / 10</b> — '+row.n+' '+(lang==="en"?"answers":"bersiv")
-              +'<div style="height:8px;background:#eee;border-radius:4px;margin-top:6px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+(pct>=80?"#1a7a4a":pct>=50?"#c07800":"#c0392b")+'"></div></div>')
-            : (lang==="en"?"No answers yet":"Hîn bersiv tune"))+'</div>';
-      } else {
-        body+='<div class="info" style="margin-bottom:8px"><b>'+(i+1)+'. '+esc(row.q.text)+'</b> — '+row.n+' '+(lang==="en"?"answers":"bersiv");
-        row.texts.forEach(t2=>{ body+='<div style="border-top:1px solid #eee;padding:6px 0;font-size:12px">💬 '+esc(String(t2.val))+'<span style="color:#999"> — '+esc(t2.name||"")+' ('+esc(areaName(t2.area,lang)||"")+')</span></div>'; });
-        body+='</div>';
-      }
-    });
-    body+='<div style="display:flex;justify-content:space-between;margin-top:34px;padding-top:14px;border-top:1px solid #ddd;font-size:11px;color:#666"><span>Karûbarên Xwendekaran</span><span>'+(lang==="en"?"Stamp / Signature":"Mohr û Îmze")+': ____________</span></div>';
-    openPrintHtml(_printShell((lang==="en"?"Survey Results — ":"Encamên Ankêtê — ")+sv.title, body));
-    logReportArchive({type:"anket",label:(lang==="en"?"Survey: ":"Ankêt: ")+sv.title,by:byName||""});
-  }
+  function pdfOf(sv){ makeSurveyResultsPdf(sv, resps, lang, byName); }
   function csvOf(sv){
     const rs=respsOf(sv);
     const rows=[["Xwendekar","Qad",...(sv.questions||[]).map(q=>q.text)]];
@@ -10663,7 +10673,11 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
               </div>
             </div>
             {/* Actions */}
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr",gap:6}}>
+              <button onClick={()=>makeSurveyResultsPdf(sv, studentResponses, lang, "")}
+                style={{padding:"8px 4px",borderRadius:9,background:"#16293f",border:"none",cursor:"pointer",fontSize:10,fontWeight:700,color:"#fff"}}>
+                📄 PDF
+              </button>
               <button onClick={()=>toggleSurveyActive(sv)}
                 style={{padding:"8px 4px",borderRadius:9,border:"none",cursor:"pointer",fontSize:10,fontWeight:700,
                   background:sv.active?"rgba(201,32,32,0.07)":"rgba(21,128,61,0.08)",
