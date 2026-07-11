@@ -4880,6 +4880,7 @@ function EditStudentSheet({student,onClose,t,lang,toast,onSave}){
 function EditTeacherSheet({teacher,onClose,t,lang,toast,onSave}){
   const [name,setName]=useState(teacher.name||"");
   const [area,setArea]=useState(teacher.area||"sinema");
+  const [isAdminFlag,setIsAdminFlag]=useState(!!teacher.isAdmin);
   const [phone,setPhone]=useState(teacher.phone||"");
   const [email,setEmail]=useState(teacher.email||"");
   const [dob,setDob]=useState(teacher.dob||"");
@@ -4911,7 +4912,7 @@ function EditTeacherSheet({teacher,onClose,t,lang,toast,onSave}){
       try{ if(window.__FB&&window.__FB.isConfigured()) await window.__FB.forceResetPassword(teacher.no,"teacher",teacher._plainPass||null,pass); }catch(e){}
       toast("🔑 "+(lang==="en"?"New password: ":"Şîfreya nû: ")+pass, 9000);
     }
-    onSave({...teacher,name:name.trim(),area,phone,email,dob,address,bio,pass:newHash,passHash:newHash,_plainPass:newPlain,photo});
+    onSave({...teacher,name:name.trim(),area,phone,email,dob,address,bio,isAdmin:isAdminFlag,pass:newHash,passHash:newHash,_plainPass:newPlain,photo});
   }
 
   const plainPassDisplay = teacher._plainPass || (teacher.pass && teacher.pass.length < 20 ? teacher.pass : null);
@@ -4940,6 +4941,21 @@ function EditTeacherSheet({teacher,onClose,t,lang,toast,onSave}){
       <FieldWrap label={t.emailLabel}><input style={inputStyle} value={email} onChange={e=>setEmail(e.target.value)} type="email" autoComplete="email" inputMode="email"/></FieldWrap>
       <FieldWrap label={t.addressLabel}><input style={inputStyle} value={address} onChange={e=>setAddress(e.target.value)}/></FieldWrap>
       <FieldWrap label={t.bioLabel}><textarea style={{...inputStyle,minHeight:60,resize:"vertical"}} value={bio} onChange={e=>setBio(e.target.value)}/></FieldWrap>
+
+      {/* ── Yönetici yetkisi ── */}
+      <div onClick={()=>setIsAdminFlag(v=>!v)}
+        style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",marginBottom:14,borderRadius:12,cursor:"pointer",
+          background:isAdminFlag?"rgba(22,41,63,0.08)":"var(--bg2)",
+          border:"1.5px solid "+(isAdminFlag?"#16293f":"var(--border2)")}}>
+        <span style={{fontSize:20}}>🛡</span>
+        <div style={{flex:1}}>
+          <div style={{fontSize:13,fontWeight:800,color:"var(--text)"}}>{lang==="en"?"Administrator":"Rêveberî (Admin)"}</div>
+          <div style={{fontSize:10,color:"var(--text2)",lineHeight:1.5}}>
+            {lang==="en"?"Full admin panel access — same as account 1000.":"Desthilata tevahî ya panela rêveberiyê — wek hesabê 1000."}
+          </div>
+        </div>
+        <span style={{fontSize:22}}>{isAdminFlag?"✅":"⬜"}</span>
+      </div>
 
       {/* ── Şifre Kartı ── */}
       <div style={{background:"#16293f",borderRadius:12,padding:"14px 16px",marginBottom:14,border:"1px solid rgba(79,142,247,0.25)"}}>
@@ -6947,13 +6963,15 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
               </Card>
             ))}
             {(students||[]).length===0&&<Card><div style={{fontSize:12,color:"var(--text2)",textAlign:"center",padding:"8px 0"}}>—</div></Card>}
-            <SectionHeader>👨‍🏫 {(t&&t.teachers)||"Mamoste"} ({(teachers||[]).filter(tc=>!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar).length})</SectionHeader>
-            {(teachers||[]).filter(tc=>!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar).map(tc=>(
+            <SectionHeader>👨‍🏫 {(t&&t.teachers)||"Mamoste"} ({(teachers||[]).filter(tc=>!tc.isPress&&!tc.isRegistrar).length})</SectionHeader>
+            {(teachers||[]).filter(tc=>!tc.isPress&&!tc.isRegistrar).map(tc=>(
               <Card key={tc.no}>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
                   <Avatar name={tc.name} color={AREA_MAP[tc.area]?.color||"#16a34a"} size={36} photo={tc.photo}/>
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:13,fontWeight:700,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{tc.name}</div>
+                    <div style={{fontSize:13,fontWeight:700,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                      {tc.name}{tc.isAdmin&&<span style={{marginLeft:6,fontSize:9,fontWeight:800,padding:"2px 7px",borderRadius:99,background:"rgba(22,41,63,0.10)",color:"#16293f"}}>🛡 Admin</span>}
+                    </div>
                     <div style={{fontSize:10,color:"var(--text2)",fontFamily:"monospace"}}>{tc.no} · {areaName(tc.area,lang)}</div>
                   </div>
                   <button onClick={()=>setEditingTeacher(tc)} style={{background:"var(--bg2)",border:"0.5px solid var(--border2)",color:"var(--text)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>✏️</button>
