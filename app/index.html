@@ -8560,6 +8560,16 @@ function AdminWeeklyReportPanel({students, teachers, schedule, lang, toast}) {
   const pickedTerm=(terms.list||[]).find(x=>x.id===pickedTermId);
   const periodKeys = weeksInRange(rStart,rEnd);
   const weekLabel = (pickedTerm?pickedTerm.label+" · ":"")+rStart+" → "+rEnd;
+  // ── Geçmişe dönük yoklama: attendance koleksiyonundaki gerçek kayıtlar ──
+  const [attDocs,setAttDocs]=useState([]);
+  useEffect(()=>{
+    if(!window.__FB||!window.__FB.isConfigured()) return;
+    let u=()=>{};
+    try{ u=window.__FB.onSnapshot(window.__FB.collection(window.__FB.db,"attendance"),snap=>{
+      setAttDocs(snap.docs.map(d=>d.data()));
+    }); }catch(_){}
+    return ()=>u();
+  },[]);
   const responses = loadSurveyResponses();
   const questions = loadSurveyQuestions();
   const repTitle = pickedTerm
@@ -8569,15 +8579,26 @@ function AdminWeeklyReportPanel({students, teachers, schedule, lang, toast}) {
   const filteredStudents = selectedArea==="all" ? students : students.filter(s=>s.area===selectedArea);
   const filteredSchedule = selectedArea==="all" ? schedule : schedule.filter(l=>l.area===selectedArea);
 
-  // Öğrenci devamsızlık istatistikleri
-  // Hiç ders verisi olmayanlar (totalLessons=0) "değerlendirilmemiş" sayılır —
-  // kırmızı %0 olarak DEĞİL, nötr olarak raporlanır.
-  const studentsWithAtt = filteredStudents.map(s=>({...s,...getStudentStats(s.id)}));
+  // ── Geçmişe dönük devam: seçili tarih aralığındaki yoklama kayıtlarından ──
+  // records:{öğrenciId:"on"|"late"|"off"}; % = (on+late)/toplam.
+  // Aralıkta hiç kaydı olmayan öğrenci "değerlendirilmemiş" (nötr) sayılır.
+  const rangeDocs = attDocs.filter(d=>d.date && d.date>=rStart && d.date<=rEnd);
+  const studentsWithAtt = filteredStudents.map(s=>{
+    let on=0,late=0,off=0;
+    rangeDocs.forEach(d=>{
+      const v=d.records&&d.records[s.id];
+      if(v==="on")on++; else if(v==="late")late++; else if(v==="off")off++;
+    });
+    const total=on+late+off;
+    const pct=total>0?Math.round((on+late)/total*100):0;
+    return {...s, att:pct, attended:on+late, late, absent:off, totalLessons:total};
+  });
   const ratedAtt = studentsWithAtt.filter(s=>(s.totalLessons||0)>0);
   const unratedAtt = studentsWithAtt.filter(s=>(s.totalLessons||0)===0);
   const belowThreshold = ratedAtt.filter(s=>s.att<50);
   const mid = ratedAtt.filter(s=>s.att>=50&&s.att<80);
   const good = ratedAtt.filter(s=>s.att>=80);
+  const rangeDayCount = new Set(rangeDocs.map(d=>d.date)).size;
 
   // Haftalık / dönemsel survey sonuçları
   const weekResps = responses.filter(r=>{
@@ -8677,6 +8698,7 @@ tr:hover td{background:#f9fbff}
       <div class="meta-item">${L("area")}<div class="meta-val">${aLabel}</div></div>
       <div class="meta-item">${lang==="en"?"Report Date":lang==="de"?"Berichtsdatum":"Roja Rapor"}<div class="meta-val">${dateNow}</div></div>
       <div class="meta-item">${L("students")}<div class="meta-val">${filteredStudents.length}</div></div>
+      <div class="meta-item">${lang==="en"?"Attendance days in range":"Rojên yoklamayê"}<div class="meta-val">${rangeDayCount}</div></div>
     </div>
   </div>
 
