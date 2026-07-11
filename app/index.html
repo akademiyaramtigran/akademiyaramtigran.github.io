@@ -9032,78 +9032,6 @@ function AdminSurveyResultsReport({lang,toast,byName}){
   );
 }
 
-/* ─── KARNE — kişi bazlı dönem raporu (notsuz: devam + katılım + not düşümü) ── */
-function AdminStudentReport({students,lang,toast,byName}){
-  const terms=useTerms();
-  const [sid,setSid]=useState("");
-  const [kStart,setKStart]=useState("");
-  const [kEnd,setKEnd]=useState("");
-  const [resps,setResps]=useState([]);
-  useEffect(()=>{
-    if(!window.__FB||!window.__FB.isConfigured()) return;
-    let u=()=>{};
-    try{ u=window.__FB.onSnapshot(window.__FB.collection(window.__FB.db,"studentSurveyResponses"),snap=>setResps(snap.docs.map(d=>d.data()))); }catch(_){}
-    return ()=>u();
-  },[]);
-  const stu=(students||[]).find(x=>String(x.id)===String(sid));
-  function inRange(iso){
-    if(!iso) return true;
-    const d=String(iso).slice(0,10);
-    if(kStart&&d<kStart) return false;
-    if(kEnd&&d>kEnd) return false;
-    return true;
-  }
-  function makePdf(){
-    if(!stu){ toast("⚠"); return; }
-    const st=getStudentStats(stu.id);
-    const myResps=resps.filter(r=>String(r.studentId)===String(stu.id)&&inRange(r.submittedAt));
-    const attTxt=statHasData(st)?st.att+"%":"—";
-    const rangeTxt=(kStart||kEnd)?((kStart||"…")+" → "+(kEnd||"…")):(lang==="en"?"All time":"Hemû dem");
-    let body='<h1>🎓 '+esc(stu.name)+'</h1>'
-      +'<div class="sub">'+(lang==="en"?"Student Report":"Rapora Xwendekar")+' · '+esc(stu.no)+' · '+esc(areaName(stu.area,lang))+' · '+(stu.classLevel||1)+'. Sînif · '+rangeTxt+'</div>'
-      +'<div class="info">'
-      +'📋 <b>'+(lang==="en"?"Attendance":"Amadebûn")+':</b> '+attTxt
-      +'<br/>❌ <b>'+(lang==="en"?"Absent":"Tunebûn")+':</b> '+(st.absent||0)+' roj'
-      +'<br/>⏰ <b>'+(lang==="en"?"Late":"Dereng")+':</b> '+(st.late||0)+' carî'
-      +'<br/>📊 <b>'+(lang==="en"?"Surveys participated":"Beşdariya ankêtan")+':</b> '+myResps.length
-      +(st.note?('<br/>💬 <b>'+(lang==="en"?"Note":"Nîşe")+':</b> '+esc(st.note)):"")
-      +'</div>'
-      +'<div style="display:flex;justify-content:space-between;margin-top:40px;padding-top:14px;border-top:1px solid #ddd;font-size:11px;color:#666"><span>Karûbarên Xwendekaran</span><span>'+(lang==="en"?"Stamp / Signature":"Mohr û Îmze")+': ____________</span></div>';
-    openPrintHtml(_printShell((lang==="en"?"Report — ":"Rapor — ")+stu.name, body));
-    logReportArchive({type:"karne",label:(lang==="en"?"Student report: ":"Rapora xwendekar: ")+stu.name,by:byName||""});
-  }
-  const inp={width:"100%",padding:"10px 12px",border:"1.5px solid var(--border2)",borderRadius:10,fontSize:13,fontFamily:"inherit",color:"var(--text)",background:"var(--surface)",outline:"none",boxSizing:"border-box"};
-  return(
-    <div>
-      <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:12,lineHeight:1.6}}>
-        🎓 {lang==="en"?"Individual student report: attendance, lateness, survey participation and staff note — no grades.":"Rapora ferdî ya xwendekar: amadebûn, derengî, beşdariya ankêtan û nîşeya karmend — bê not."}
-      </div>
-      <Card>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:5,fontWeight:600}}>🎓 {lang==="en"?"Student":"Xwendekar"}</div>
-        <select style={{...inp,marginBottom:10}} value={sid} onChange={e=>setSid(e.target.value)}>
-          <option value="">—</option>
-          {(students||[]).map(x=>(<option key={x.id} value={x.id}>{x.name} ({x.no})</option>))}
-        </select>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-          <div><div style={{fontSize:11,color:"var(--text2)",marginBottom:5,fontWeight:600}}>📅 {lang==="en"?"Start":"Destpêk"}</div>
-            <input type="date" style={inp} value={kStart} onChange={e=>setKStart(e.target.value)}/></div>
-          <div><div style={{fontSize:11,color:"var(--text2)",marginBottom:5,fontWeight:600}}>📅 {lang==="en"?"End":"Dawî"}</div>
-            <input type="date" style={inp} value={kEnd} onChange={e=>setKEnd(e.target.value)}/></div>
-        </div>
-        {(terms.list||[]).length>0&&(
-          <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:6,marginBottom:8}}>
-            {(terms.list||[]).map(tm=>(
-              <button key={tm.id} onClick={()=>{setKStart(tm.start);setKEnd(tm.end);}}
-                style={{padding:"4px 11px",borderRadius:20,fontSize:10,fontWeight:600,flexShrink:0,cursor:"pointer",background:"var(--surface2)",color:"var(--text2)",border:"1px solid var(--border2)"}}>📆 {tm.label}</button>
-            ))}
-          </div>
-        )}
-        <PrimaryBtn onClick={makePdf} icon="📄" disabled={!sid}>{lang==="en"?"Generate Report":"Raporê Çêke"}</PrimaryBtn>
-      </Card>
-    </div>
-  );
-}
-
 /* ─── RAPOR MERKEZİ — lîste + heftane/demsalî raporlar tek çatıda ────────── */
 function AdminReportCenter({students,teachers,schedule,lang,t,toast,byName}){
   const [rTab,setRTab]=useState("liste"); // liste | nirxandin | anket | karne | arsiv
@@ -9111,7 +9039,6 @@ function AdminReportCenter({students,teachers,schedule,lang,t,toast,byName}){
     {key:"liste",icon:"📄",label:lang==="en"?"Lists":"Lîste"},
     {key:"nirxandin",icon:"📅",label:lang==="en"?"Evaluation":"Nirxandin"},
     {key:"anket",icon:"📊",label:lang==="en"?"Surveys":"Ankêt"},
-    {key:"karne",icon:"🎓",label:lang==="en"?"Student":"Karne"},
     {key:"arsiv",icon:"🗂",label:lang==="en"?"Archive":"Arşîv"},
   ];
   return(
@@ -9129,7 +9056,6 @@ function AdminReportCenter({students,teachers,schedule,lang,t,toast,byName}){
       {rTab==="liste"&&<AdminReportsPanel students={students} teachers={teachers} schedule={schedule} lang={lang} t={t} toast={toast}/>}
       {rTab==="nirxandin"&&<AdminWeeklyReportPanel students={students} teachers={teachers} schedule={schedule} lang={lang} toast={toast}/>}
       {rTab==="anket"&&<AdminSurveyResultsReport lang={lang} toast={toast} byName={byName}/>}
-      {rTab==="karne"&&<AdminStudentReport students={students} lang={lang} toast={toast} byName={byName}/>}
       {rTab==="arsiv"&&<ReportArchiveTab lang={lang}/>}
     </div>
   );
