@@ -6609,6 +6609,7 @@ function PressPanel({user,lang,toast,onLogout}){
 
 /* ─── REGISTRAR PANEL (Karûbarên Xwendekaran — serlêdanên tomarkirinê) ──── */
 // Print penceresi (rapor/başvuru PDF'i — yazdır → PDF olarak kaydet)
+function esc(x){ return String(x==null?"":x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 function openPrintHtml(html){
   var w=window.open('','_blank');
   if(w){ w.document.open(); w.document.write(html); w.document.close(); return; }
@@ -6916,7 +6917,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
           <AdminSurveyPanel lang={lang} t={t||T.ku} schedule={schedule||[]} teachers={teachers||[]} students={students||[]} toast={toast}/>
         )}
         {section==="rapor"&&(
-          <AdminReportCenter students={students||[]} teachers={teachers||[]} schedule={schedule||[]} lang={lang} t={t||T.ku} toast={toast}/>
+          <AdminReportCenter students={students||[]} teachers={teachers||[]} schedule={schedule||[]} lang={lang} t={t||T.ku} toast={toast} byName={user.name}/>
         )}
         {section==="tescil"&&(
           <>
@@ -7721,6 +7722,7 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
       n++;
     }
     toast("🎓 "+n+" "+(lang==="en"?"students promoted":"xwendekar derbasî sinifa jorîn bûn"));
+    logReportArchive({type:"donem",label:(lang==="en"?"Term closed: ":"Demsal girtî: ")+promoteTerm.label+" ("+promoteTerm.start+" → "+promoteTerm.end+") · "+n+" xwendekar"});
     setPromoteTerm(null);
   }
 
@@ -8127,7 +8129,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
         {tab==="announcements"&&<AnnouncementsPanel t={t} toast={toast} lang={lang} senderName={adminData.name} senderRole="admin" senderArea={null}/>}
         {tab==="press"&&<AdminPressPanel teachers={teachers} onDataChange={onDataChange} lang={lang} toast={toast} t={t}/>}
         {tab==="messages"&&<AdminMessagesPanel students={students} teachers={teachers} lang={lang} t={t} toast={toast} adminName={adminData.name}/>}
-        {tab==="reports"&&<AdminReportCenter students={students} teachers={teachers} schedule={schedule} lang={lang} t={t} toast={toast}/>}
+        {tab==="reports"&&<AdminReportCenter students={students} teachers={teachers} schedule={schedule} lang={lang} t={t} toast={toast} byName={adminData.name}/>}
         {tab==="alerts"&&<AdminAlertsPanel students={students} schedule={schedule} lang={lang} toast={toast}/>}
       </div>
       {statsModal&&(
@@ -8204,14 +8206,11 @@ function StudentStatModal({student,aColor,onClose,t,lang,toast}){
   const a=AREA_MAP[student.area]||AREA_MAP["genel"]||{color:"#16293f",bg:"rgba(22,41,63,0.08)",icon:"🎓",name:{ku:"",en:"",de:"",desc:{ku:"",en:"",de:""}}};
   const st=getStudentStats(student.id);
   const [note,setNote]=useState(st.note);
-  const [grade,setGrade]=useState(String(st.grade));
   const [attVal,setAttVal]=useState(String(st.att));
   const [saved,setSaved]=useState(false);
 
   const attNum=Math.min(100,Math.max(0,parseInt(attVal)||0));
   const attColor=pctColor(attNum);
-  const gradeVal=Math.min(100,Math.max(0,parseInt(grade)||0));
-  const gradeColor=pctColor(gradeVal);
 
   // absent/attended hesabı
   const totalLessons=st.totalLessons||18;
@@ -8219,7 +8218,7 @@ function StudentStatModal({student,aColor,onClose,t,lang,toast}){
   const attended=totalLessons-absent;
 
   function handleSave(){
-    updateStudentStats(student.id,{grade:gradeVal,att:attNum,note});
+    updateStudentStats(student.id,{att:attNum,note});
     toast("✓ "+student.name+" – "+(lang==="ku"?"Tomarkirin":lang==="en"?"Saved":"Tomarkirin"));
     setSaved(true);
     setTimeout(()=>{setSaved(false);onClose();},1200);
@@ -8306,21 +8305,6 @@ function StudentStatModal({student,aColor,onClose,t,lang,toast}){
           {/* Performance note */}
           <Card style={{marginBottom:12}}>
             <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:10}}>🎯 {lang==="ku"?"Nirxandina Performansê":lang==="en"?"Performance Eval":"Nirxandina Performansê"}</div>
-            {/* Grade input */}
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,padding:"10px 12px",background:"var(--bg2)",borderRadius:8}}>
-              <div style={{fontSize:11,color:"var(--text2)",flex:1}}>{lang==="ku"?"Nota Semestrê":lang==="en"?"Term Grade":"Nota Semestrê"}</div>
-              <input
-                type="number" min="0" max="100"
-                value={grade}
-                onChange={e=>setGrade(e.target.value.slice(0,3))}
-                style={{...inputStyle,width:64,textAlign:"center",fontSize:20,fontWeight:800,color:gradeColor,padding:"6px 4px"}}
-              />
-              <div style={{fontSize:11,color:"var(--text2)"}}>/ 100</div>
-            </div>
-            {/* Visual grade bar */}
-            <div style={{height:6,background:"var(--bg2)",borderRadius:3,overflow:"hidden",marginBottom:12}}>
-              <div style={{height:"100%",width:`${Math.min(100,gradeVal)}%`,background:gradeColor,borderRadius:3,transition:"width 0.3s"}}/>
-            </div>
             {/* Performance tags */}
             <div style={{fontSize:11,color:"var(--text2)",marginBottom:6}}>{lang==="ku"?"Etîketa Performansê":lang==="en"?"Performance Tag":"Etîketa Performansê"}</div>
             <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:12}}>
@@ -8560,27 +8544,27 @@ function AdminAlertsPanel({students, schedule, lang, toast}) {
 
 /* ─── ADMIN WEEKLY REPORT PANEL ──────────────────────────────────────────── */
 function AdminWeeklyReportPanel({students, teachers, schedule, lang, toast}) {
-  const [weekStart, setWeekStart] = useState(()=>{
-    const d=new Date(); d.setDate(d.getDate()-d.getDay()+1); return d.toISOString().slice(0,10);
-  });
-  const [selectedArea, setSelectedArea] = useState("all");
-  // ── Rapor modu: haftalık | dönemsel (demsal) ──
+  // ── Tarih aralığı raporu: başlangıç–bitiş seç; dönem seçimi aralığı doldurur ──
   const terms=useTerms();
-  const [mode,setMode]=useState("week"); // "week" | "term"
-  const [repTermId,setRepTermId]=useState("");
-  const repTerm=(terms.list||[]).find(x=>x.id===(repTermId||terms.activeId));
-
-  const weekKey = getWeekLabel(weekStart);
-  // Dönem modu: dönem aralığındaki TÜM haftalar toplanır
-  const periodKeys = (mode==="term"&&repTerm) ? weeksInRange(repTerm.start,repTerm.end) : [weekKey];
-  const weekLabel = (mode==="term"&&repTerm)
-    ? repTerm.label+" · "+repTerm.start+" → "+repTerm.end
-    : weekRangeLabel(weekKey, lang);
+  const [rStart,setRStart]=useState(()=>{
+    const d=new Date(); d.setDate(d.getDate()-27); return d.toISOString().slice(0,10);
+  });
+  const [rEnd,setREnd]=useState(()=>new Date().toISOString().slice(0,10));
+  const [selectedArea, setSelectedArea] = useState("all");
+  const [pickedTermId,setPickedTermId]=useState("");
+  function pickTerm(id){
+    setPickedTermId(id);
+    const tm=(terms.list||[]).find(x=>x.id===id);
+    if(tm){ setRStart(tm.start); setREnd(tm.end); if(tm.area) setSelectedArea(tm.area); }
+  }
+  const pickedTerm=(terms.list||[]).find(x=>x.id===pickedTermId);
+  const periodKeys = weeksInRange(rStart,rEnd);
+  const weekLabel = (pickedTerm?pickedTerm.label+" · ":"")+rStart+" → "+rEnd;
   const responses = loadSurveyResponses();
   const questions = loadSurveyQuestions();
-  const repTitle = mode==="term"
+  const repTitle = pickedTerm
     ? (lang==="en"?"Term Report":lang==="de"?"Semesterbericht":"Raporta Demsalê")
-    : (lang==="en"?"Weekly Report":lang==="de"?"Wochenbericht":"Raporta Hefteyê");
+    : (lang==="en"?"Evaluation Report":lang==="de"?"Auswertungsbericht":"Raporta Nirxandinê");
 
   const filteredStudents = selectedArea==="all" ? students : students.filter(s=>s.area===selectedArea);
   const filteredSchedule = selectedArea==="all" ? schedule : schedule.filter(l=>l.area===selectedArea);
@@ -8736,6 +8720,11 @@ tr:hover td{background:#f9fbff}
     </tbody></table>`}
   </div>
 
+  <div class="section" style="border-bottom:none">
+    <div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:14px;border-top:1px solid #ddd;font-size:11px;color:#666">
+      <span>Karûbarên Xwendekaran / Rêveberî</span><span>Mohr û Îmze: ____________</span>
+    </div>
+  </div>
   <div class="footer">
     <span>Akademîya Aram Tîgran · ${dateNow}</span>
     <span>${repTitle} · ${weekLabel}</span>
@@ -8750,7 +8739,7 @@ tr:hover td{background:#f9fbff}
     const blob = new Blob([html],{type:"text/html"});
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href=url; a.download=`weekly-report-${weekKey}.html`; a.click();
+    a.href=url; a.download=`rapor-nirxandin-${rStart}_${rEnd}.html`; a.click();
     URL.revokeObjectURL(url);
     toast("✓ "+(lang==="ku"?"Rapor hat dakêşandin":lang==="en"?"Report downloaded":"Bericht heruntergeladen"));
   }
@@ -8760,46 +8749,41 @@ tr:hover td{background:#f9fbff}
     const w = window.open("","_blank");
     if(w){w.document.write(html);w.document.close();setTimeout(()=>w.print(),500);}
     else toast("⚠ "+(lang==="ku"?"Popup hat asteng kirin":lang==="en"?"Popup blocked":"Popup blockiert"));
+    logReportArchive({type:"nirxandin",label:repTitle+" · "+weekLabel});
   }
 
   return (
     <div style={{paddingBottom:20}}>
       <div style={{fontSize:15,fontWeight:700,color:"var(--text)",marginBottom:14}}>📊 {repTitle}</div>
 
-      {/* Rapor modu: haftalık / dönemsel */}
-      <div style={{display:"flex",gap:6,marginBottom:12,background:"var(--bg2)",padding:4,borderRadius:10}}>
-        <button onClick={()=>setMode("week")} style={{flex:1,padding:"8px",fontSize:12,fontWeight:mode==="week"?700:500,borderRadius:8,border:"none",cursor:"pointer",
-          background:mode==="week"?"var(--surface)":"transparent",color:mode==="week"?"#16293f":"var(--text2)",
-          boxShadow:mode==="week"?"0 1px 4px rgba(22,41,63,0.15)":"none"}}>
-          📅 {lang==="en"?"Weekly":lang==="de"?"Wöchentlich":"Heftane"}
-        </button>
-        <button onClick={()=>setMode("term")} style={{flex:1,padding:"8px",fontSize:12,fontWeight:mode==="term"?700:500,borderRadius:8,border:"none",cursor:"pointer",
-          background:mode==="term"?"var(--surface)":"transparent",color:mode==="term"?"#16293f":"var(--text2)",
-          boxShadow:mode==="term"?"0 1px 4px rgba(22,41,63,0.15)":"none"}}>
-          📆 {lang==="en"?"Term":lang==="de"?"Semester":"Demsalî (Dönem)"}
-        </button>
+      {/* Tarih aralığı + hızlı dönem seçimi */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+        <div>
+          <label style={{fontSize:11,color:"var(--text2)",fontWeight:600,display:"block",marginBottom:5}}>📅 {lang==="en"?"Start":"Destpêk"}</label>
+          <input type="date" style={{width:"100%",padding:"10px 12px",border:"1.5px solid var(--border2)",borderRadius:10,fontSize:13,fontFamily:"inherit",color:"var(--text)",background:"var(--surface)",outline:"none"}}
+            value={rStart} onChange={e=>{setRStart(e.target.value);setPickedTermId("");}}/>
+        </div>
+        <div>
+          <label style={{fontSize:11,color:"var(--text2)",fontWeight:600,display:"block",marginBottom:5}}>📅 {lang==="en"?"End":"Dawî"}</label>
+          <input type="date" style={{width:"100%",padding:"10px 12px",border:"1.5px solid var(--border2)",borderRadius:10,fontSize:13,fontFamily:"inherit",color:"var(--text)",background:"var(--surface)",outline:"none"}}
+            value={rEnd} onChange={e=>{setREnd(e.target.value);setPickedTermId("");}}/>
+        </div>
       </div>
-      {mode==="term"&&(terms.list||[]).length===0&&(
-        <div style={{fontSize:11.5,color:"var(--text2)",background:"var(--bg2)",border:"1px dashed var(--border2)",borderRadius:10,padding:"10px 12px",marginBottom:12}}>
-          ⚠ {lang==="en"?"No terms defined yet — add them in Schedule → Terms.":lang==="de"?"Noch keine Semester definiert.":"Hîn demsal nehatiye danîn — di Bername → Demsal de zêde bike."}
+      {(terms.list||[]).length>0&&(
+        <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:6,marginBottom:8}}>
+          {(terms.list||[]).map(tm=>(
+            <button key={tm.id} onClick={()=>pickTerm(tm.id)}
+              style={{padding:"5px 12px",borderRadius:20,fontSize:10,fontWeight:pickedTermId===tm.id?800:500,flexShrink:0,cursor:"pointer",
+                background:pickedTermId===tm.id?"#16293f":"var(--surface)",color:pickedTermId===tm.id?"#fff":"var(--text2)",
+                border:"1px solid "+(pickedTermId===tm.id?"#16293f":"var(--border2)")}}>
+              📆 {tm.label}
+            </button>
+          ))}
         </div>
       )}
 
       {/* Filtreler */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
-        <div>
-          {mode==="week" ? (<>
-            <label style={{fontSize:11,color:"var(--text2)",fontWeight:600,display:"block",marginBottom:5}}>{L("week")}</label>
-            <input type="date" style={{width:"100%",padding:"10px 12px",border:"1.5px solid var(--border2)",borderRadius:10,fontSize:13,fontFamily:"inherit",color:"var(--text)",background:"var(--surface)",outline:"none"}}
-              value={weekStart} onChange={e=>setWeekStart(e.target.value)}/>
-          </>) : (<>
-            <label style={{fontSize:11,color:"var(--text2)",fontWeight:600,display:"block",marginBottom:5}}>📆 {lang==="en"?"Term":lang==="de"?"Semester":"Demsal"}</label>
-            <select style={{width:"100%",padding:"10px 12px",border:"1.5px solid var(--border2)",borderRadius:10,fontSize:13,fontFamily:"inherit",color:"var(--text)",background:"var(--surface)",outline:"none"}}
-              value={repTermId||terms.activeId||""} onChange={e=>setRepTermId(e.target.value)}>
-              {(terms.list||[]).map(tm=><option key={tm.id} value={tm.id}>{tm.label}</option>)}
-            </select>
-          </>)}
-        </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr",gap:10,marginBottom:14}}>
         <div>
           <label style={{fontSize:11,color:"var(--text2)",fontWeight:600,display:"block",marginBottom:5}}>{L("area")}</label>
           <select style={{width:"100%",padding:"10px 12px",border:"1.5px solid var(--border2)",borderRadius:10,fontSize:13,fontFamily:"inherit",color:"var(--text)",background:"var(--surface)",outline:"none"}}
@@ -8911,19 +8895,231 @@ tr:hover td{background:#f9fbff}
   );
 }
 
+/* ─── CSV İNDİRME ────────────────────────────────────────────────────────── */
+function downloadCSV(filename, rows){
+  const csv="\uFEFF"+rows.map(r=>r.map(c=>{
+    const v=String(c==null?"":c);
+    return /[",;\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v;
+  }).join(";")).join("\n");
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download=filename; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+}
+
+/* ─── RAPOR ARŞİVİ — config/reportArchive {list:[...]} (kural değişikliği gerekmez) ── */
+function logReportArchive(entry){
+  if(!window.__FB||!window.__FB.isConfigured()) return;
+  try{
+    window.__FB.getDoc(window.__FB.doc(window.__FB.db,"config","reportArchive")).then(snap=>{
+      const list=(snap.exists()&&Array.isArray(snap.data().list))?snap.data().list:[];
+      list.unshift({...entry,ts:new Date().toISOString()});
+      window.__FB.setDoc(window.__FB.doc(window.__FB.db,"config","reportArchive"),{list:list.slice(0,100)},{merge:false}).catch(()=>{});
+    }).catch(()=>{});
+  }catch(_){}
+}
+function ReportArchiveTab({lang}){
+  const [list,setList]=useState([]);
+  useEffect(()=>{
+    if(!window.__FB||!window.__FB.isConfigured()) return;
+    let unsub=()=>{};
+    try{ unsub=window.__FB.onSnapshot(window.__FB.doc(window.__FB.db,"config","reportArchive"),snap=>{
+      if(snap.exists()&&Array.isArray(snap.data().list)) setList(snap.data().list);
+    }); }catch(_){}
+    return ()=>unsub();
+  },[]);
+  const ICONS={liste:"📄",nirxandin:"📅",anket:"📊",karne:"🎓",csv:"⬇",donem:"📆"};
+  return(
+    <div>
+      <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:12,lineHeight:1.6}}>
+        🗂 {lang==="en"?"Every generated report is logged here (last 100).":"Her rapora hatî çêkirin li vir tê tomarkirin (100 yên dawî)."}
+      </div>
+      {list.length===0&&<Card><div style={{fontSize:12,color:"var(--text2)",textAlign:"center",padding:"10px 0"}}>—</div></Card>}
+      {list.map((r,i)=>(
+        <Card key={i}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontSize:18}}>{ICONS[r.type]||"📄"}</span>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:12.5,fontWeight:700,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.label}</div>
+              <div style={{fontSize:10,color:"var(--text2)"}}>{(r.ts||"").slice(0,16).replace("T"," ")}{r.by?(" · "+r.by):""}</div>
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+/* ─── ANKET SONUÇ RAPORLARI — yayınlanan her anketin sonucu PDF/CSV ──────── */
+function AdminSurveyResultsReport({lang,toast,byName}){
+  const [surveys,setSurveys]=useState(()=>{try{return JSON.parse(localStorage.getItem("aat-student-surveys")||"[]");}catch(e){return[];}});
+  const [resps,setResps]=useState(()=>{try{return JSON.parse(localStorage.getItem("aat-student-survey-responses")||"[]");}catch(e){return[];}});
+  useEffect(()=>{
+    if(!window.__FB||!window.__FB.isConfigured()) return;
+    let u1=()=>{},u2=()=>{};
+    try{ u1=window.__FB.onSnapshot(window.__FB.collection(window.__FB.db,"studentSurveys"),snap=>setSurveys(snap.docs.map(d=>({...d.data(),fireId:d.id})))); }catch(_){}
+    try{ u2=window.__FB.onSnapshot(window.__FB.collection(window.__FB.db,"studentSurveyResponses"),snap=>setResps(snap.docs.map(d=>d.data()))); }catch(_){}
+    return ()=>{u1();u2();};
+  },[]);
+  function respsOf(sv){ return resps.filter(r=>String(r.surveyId)===String(sv.id)); }
+  function stats(sv){
+    const rs=respsOf(sv);
+    return (sv.questions||[]).map(q=>{
+      if(q.type==="rating"){
+        const vals=rs.map(r=>parseFloat(r.answers?.[q.id])).filter(v=>!isNaN(v));
+        return {q, kind:"rating", n:vals.length, avg: vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length):null};
+      }
+      const texts=rs.map(r=>({name:r.studentName,area:r.studentArea,val:r.answers?.[q.id]})).filter(x=>x.val!=null&&String(x.val).trim()!=="");
+      return {q, kind:"text", n:texts.length, texts};
+    });
+  }
+  function pdfOf(sv){
+    const rs=respsOf(sv);
+    const st=stats(sv);
+    const tgt=sv.targetType==="all"?"Hemû Xwendekar":sv.targetType==="area"?("Qad: "+(sv.targetAreas||[]).map(a2=>areaName(a2,lang)).join(", ")):sv.targetType==="teachers"?"Hemû Mamoste":"Mamoste (Qad)";
+    let body='<h1>📊 '+esc(sv.title)+'</h1>'
+      +'<div class="sub">'+(lang==="en"?"Survey Results":"Encamên Ankêtê")+' · '+tgt+' · '+rs.length+' '+(lang==="en"?"responses":"bersiv")+' · '+new Date().toISOString().slice(0,10)+'</div>';
+    st.forEach((row,i)=>{
+      if(row.kind==="rating"){
+        const pct=row.avg!=null?Math.round(row.avg*10):null;
+        body+='<div class="info" style="margin-bottom:8px"><b>'+(i+1)+'. '+esc(row.q.text)+'</b><br/>'
+          +(row.avg!=null
+            ? ('⭐ <b style="font-size:18px;color:'+(pct>=80?"#1a7a4a":pct>=50?"#c07800":"#c0392b")+'">'+row.avg.toFixed(1)+' / 10</b> — '+row.n+' '+(lang==="en"?"answers":"bersiv")
+              +'<div style="height:8px;background:#eee;border-radius:4px;margin-top:6px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+(pct>=80?"#1a7a4a":pct>=50?"#c07800":"#c0392b")+'"></div></div>')
+            : (lang==="en"?"No answers yet":"Hîn bersiv tune"))+'</div>';
+      } else {
+        body+='<div class="info" style="margin-bottom:8px"><b>'+(i+1)+'. '+esc(row.q.text)+'</b> — '+row.n+' '+(lang==="en"?"answers":"bersiv");
+        row.texts.forEach(t2=>{ body+='<div style="border-top:1px solid #eee;padding:6px 0;font-size:12px">💬 '+esc(String(t2.val))+'<span style="color:#999"> — '+esc(t2.name||"")+' ('+esc(areaName(t2.area,lang)||"")+')</span></div>'; });
+        body+='</div>';
+      }
+    });
+    body+='<div style="display:flex;justify-content:space-between;margin-top:34px;padding-top:14px;border-top:1px solid #ddd;font-size:11px;color:#666"><span>Karûbarên Xwendekaran</span><span>'+(lang==="en"?"Stamp / Signature":"Mohr û Îmze")+': ____________</span></div>';
+    openPrintHtml(_printShell((lang==="en"?"Survey Results — ":"Encamên Ankêtê — ")+sv.title, body));
+    logReportArchive({type:"anket",label:(lang==="en"?"Survey: ":"Ankêt: ")+sv.title,by:byName||""});
+  }
+  function csvOf(sv){
+    const rs=respsOf(sv);
+    const rows=[["Xwendekar","Qad",...(sv.questions||[]).map(q=>q.text)]];
+    rs.forEach(r=>rows.push([r.studentName||"",areaName(r.studentArea,lang)||"",...(sv.questions||[]).map(q=>r.answers?.[q.id]!=null?r.answers[q.id]:"")]));
+    downloadCSV("anket-"+String(sv.title).replace(/[^A-Za-z0-9]+/g,"_").slice(0,40)+".csv",rows);
+    logReportArchive({type:"csv",label:"CSV: "+sv.title,by:byName||""});
+    toast("⬇ CSV");
+  }
+  return(
+    <div>
+      <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:12,lineHeight:1.6}}>
+        📊 {lang==="en"?"Results of every published survey — pull as PDF or CSV.":"Encamên her ankêta weşandî — wek PDF an CSV bikişîne."}
+      </div>
+      {surveys.length===0&&<Card><div style={{fontSize:12,color:"var(--text2)",textAlign:"center",padding:"10px 0"}}>{lang==="en"?"No surveys yet.":"Hîn ankêt tune."}</div></Card>}
+      {surveys.map(sv=>{
+        const n=respsOf(sv).length;
+        return(
+        <Card key={sv.fireId||sv.id}>
+          <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+            <div style={{flex:1,minWidth:140}}>
+              <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{sv.title}</div>
+              <div style={{fontSize:10,color:"var(--text2)"}}>
+                {sv.active?"🟢":"⚪"} {(sv.questions||[]).length} {lang==="en"?"questions":"pirs"} · {n} {lang==="en"?"responses":"bersiv"}
+              </div>
+            </div>
+            <button onClick={()=>pdfOf(sv)} style={{padding:"8px 13px",background:"#16293f",color:"#fff",border:"none",borderRadius:9,fontSize:11.5,fontWeight:700,cursor:"pointer"}}>📄 PDF</button>
+            <button onClick={()=>csvOf(sv)} style={{padding:"8px 13px",background:"var(--bg2)",color:"var(--text)",border:"1px solid var(--border2)",borderRadius:9,fontSize:11.5,fontWeight:700,cursor:"pointer"}}>⬇ CSV</button>
+          </div>
+        </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ─── KARNE — kişi bazlı dönem raporu (notsuz: devam + katılım + not düşümü) ── */
+function AdminStudentReport({students,lang,toast,byName}){
+  const terms=useTerms();
+  const [sid,setSid]=useState("");
+  const [kStart,setKStart]=useState("");
+  const [kEnd,setKEnd]=useState("");
+  const [resps,setResps]=useState([]);
+  useEffect(()=>{
+    if(!window.__FB||!window.__FB.isConfigured()) return;
+    let u=()=>{};
+    try{ u=window.__FB.onSnapshot(window.__FB.collection(window.__FB.db,"studentSurveyResponses"),snap=>setResps(snap.docs.map(d=>d.data()))); }catch(_){}
+    return ()=>u();
+  },[]);
+  const stu=(students||[]).find(x=>String(x.id)===String(sid));
+  function inRange(iso){
+    if(!iso) return true;
+    const d=String(iso).slice(0,10);
+    if(kStart&&d<kStart) return false;
+    if(kEnd&&d>kEnd) return false;
+    return true;
+  }
+  function makePdf(){
+    if(!stu){ toast("⚠"); return; }
+    const st=getStudentStats(stu.id);
+    const myResps=resps.filter(r=>String(r.studentId)===String(stu.id)&&inRange(r.submittedAt));
+    const attTxt=statHasData(st)?st.att+"%":"—";
+    const rangeTxt=(kStart||kEnd)?((kStart||"…")+" → "+(kEnd||"…")):(lang==="en"?"All time":"Hemû dem");
+    let body='<h1>🎓 '+esc(stu.name)+'</h1>'
+      +'<div class="sub">'+(lang==="en"?"Student Report":"Rapora Xwendekar")+' · '+esc(stu.no)+' · '+esc(areaName(stu.area,lang))+' · '+(stu.classLevel||1)+'. Sînif · '+rangeTxt+'</div>'
+      +'<div class="info">'
+      +'📋 <b>'+(lang==="en"?"Attendance":"Amadebûn")+':</b> '+attTxt
+      +'<br/>❌ <b>'+(lang==="en"?"Absent":"Tunebûn")+':</b> '+(st.absent||0)+' roj'
+      +'<br/>⏰ <b>'+(lang==="en"?"Late":"Dereng")+':</b> '+(st.late||0)+' carî'
+      +'<br/>📊 <b>'+(lang==="en"?"Surveys participated":"Beşdariya ankêtan")+':</b> '+myResps.length
+      +(st.note?('<br/>💬 <b>'+(lang==="en"?"Note":"Nîşe")+':</b> '+esc(st.note)):"")
+      +'</div>'
+      +'<div style="display:flex;justify-content:space-between;margin-top:40px;padding-top:14px;border-top:1px solid #ddd;font-size:11px;color:#666"><span>Karûbarên Xwendekaran</span><span>'+(lang==="en"?"Stamp / Signature":"Mohr û Îmze")+': ____________</span></div>';
+    openPrintHtml(_printShell((lang==="en"?"Report — ":"Rapor — ")+stu.name, body));
+    logReportArchive({type:"karne",label:(lang==="en"?"Student report: ":"Rapora xwendekar: ")+stu.name,by:byName||""});
+  }
+  const inp={width:"100%",padding:"10px 12px",border:"1.5px solid var(--border2)",borderRadius:10,fontSize:13,fontFamily:"inherit",color:"var(--text)",background:"var(--surface)",outline:"none",boxSizing:"border-box"};
+  return(
+    <div>
+      <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:12,lineHeight:1.6}}>
+        🎓 {lang==="en"?"Individual student report: attendance, lateness, survey participation and staff note — no grades.":"Rapora ferdî ya xwendekar: amadebûn, derengî, beşdariya ankêtan û nîşeya karmend — bê not."}
+      </div>
+      <Card>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:5,fontWeight:600}}>🎓 {lang==="en"?"Student":"Xwendekar"}</div>
+        <select style={{...inp,marginBottom:10}} value={sid} onChange={e=>setSid(e.target.value)}>
+          <option value="">—</option>
+          {(students||[]).map(x=>(<option key={x.id} value={x.id}>{x.name} ({x.no})</option>))}
+        </select>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+          <div><div style={{fontSize:11,color:"var(--text2)",marginBottom:5,fontWeight:600}}>📅 {lang==="en"?"Start":"Destpêk"}</div>
+            <input type="date" style={inp} value={kStart} onChange={e=>setKStart(e.target.value)}/></div>
+          <div><div style={{fontSize:11,color:"var(--text2)",marginBottom:5,fontWeight:600}}>📅 {lang==="en"?"End":"Dawî"}</div>
+            <input type="date" style={inp} value={kEnd} onChange={e=>setKEnd(e.target.value)}/></div>
+        </div>
+        {(terms.list||[]).length>0&&(
+          <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:6,marginBottom:8}}>
+            {(terms.list||[]).map(tm=>(
+              <button key={tm.id} onClick={()=>{setKStart(tm.start);setKEnd(tm.end);}}
+                style={{padding:"4px 11px",borderRadius:20,fontSize:10,fontWeight:600,flexShrink:0,cursor:"pointer",background:"var(--surface2)",color:"var(--text2)",border:"1px solid var(--border2)"}}>📆 {tm.label}</button>
+            ))}
+          </div>
+        )}
+        <PrimaryBtn onClick={makePdf} icon="📄" disabled={!sid}>{lang==="en"?"Generate Report":"Raporê Çêke"}</PrimaryBtn>
+      </Card>
+    </div>
+  );
+}
+
 /* ─── RAPOR MERKEZİ — lîste + heftane/demsalî raporlar tek çatıda ────────── */
-function AdminReportCenter({students,teachers,schedule,lang,t,toast}){
-  const [rTab,setRTab]=useState("liste"); // liste | donem
+function AdminReportCenter({students,teachers,schedule,lang,t,toast,byName}){
+  const [rTab,setRTab]=useState("liste"); // liste | nirxandin | anket | karne | arsiv
   const tabs=[
-    {key:"liste",icon:"📄",label:lang==="en"?"List Reports":lang==="de"?"Listenberichte":"Raporên Lîsteyê"},
-    {key:"donem",icon:"📅",label:lang==="en"?"Weekly / Term":lang==="de"?"Woche / Semester":"Heftane / Demsalî"},
+    {key:"liste",icon:"📄",label:lang==="en"?"Lists":"Lîste"},
+    {key:"nirxandin",icon:"📅",label:lang==="en"?"Evaluation":"Nirxandin"},
+    {key:"anket",icon:"📊",label:lang==="en"?"Surveys":"Ankêt"},
+    {key:"karne",icon:"🎓",label:lang==="en"?"Student":"Karne"},
+    {key:"arsiv",icon:"🗂",label:lang==="en"?"Archive":"Arşîv"},
   ];
   return(
     <div>
-      <div style={{display:"flex",gap:6,marginBottom:14,background:"var(--bg2)",padding:4,borderRadius:12}}>
+      <div style={{display:"flex",gap:5,marginBottom:14,background:"var(--bg2)",padding:4,borderRadius:12,overflowX:"auto"}}>
         {tabs.map(tb=>(
           <button key={tb.key} onClick={()=>setRTab(tb.key)}
-            style={{flex:1,padding:"10px 8px",fontSize:12,fontWeight:rTab===tb.key?800:600,borderRadius:9,border:"none",cursor:"pointer",
+            style={{flex:"1 0 auto",padding:"9px 10px",fontSize:11.5,fontWeight:rTab===tb.key?800:600,borderRadius:9,border:"none",cursor:"pointer",whiteSpace:"nowrap",
               background:rTab===tb.key?"var(--surface)":"transparent",color:rTab===tb.key?"#16293f":"var(--text2)",
               boxShadow:rTab===tb.key?"0 1px 4px rgba(22,41,63,0.15)":"none",transition:"all .15s"}}>
             {tb.icon} {tb.label}
@@ -8931,14 +9127,17 @@ function AdminReportCenter({students,teachers,schedule,lang,t,toast}){
         ))}
       </div>
       {rTab==="liste"&&<AdminReportsPanel students={students} teachers={teachers} schedule={schedule} lang={lang} t={t} toast={toast}/>}
-      {rTab==="donem"&&<AdminWeeklyReportPanel students={students} teachers={teachers} schedule={schedule} lang={lang} toast={toast}/>}
+      {rTab==="nirxandin"&&<AdminWeeklyReportPanel students={students} teachers={teachers} schedule={schedule} lang={lang} toast={toast}/>}
+      {rTab==="anket"&&<AdminSurveyResultsReport lang={lang} toast={toast} byName={byName}/>}
+      {rTab==="karne"&&<AdminStudentReport students={students} lang={lang} toast={toast} byName={byName}/>}
+      {rTab==="arsiv"&&<ReportArchiveTab lang={lang}/>}
     </div>
   );
 }
 
 function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
   const [selectedArea,setSelectedArea]=useState("all");
-  const [reportType,setReportType]=useState("attendance"); // attendance | grades | full | survey | teachers
+  const [reportType,setReportType]=useState("attendance"); // attendance | full | survey | teachers
   const [surveyTarget,setSurveyTarget]=useState("all_students"); // all_students | all_teachers | area_students | area_teachers
   const [showReport,setShowReport]=useState(false);
   const [reportTab,setReportTab]=useState("config"); // config | preview
@@ -8961,15 +9160,11 @@ function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
       const attColor = attColorOf(st);
       const attBg = pctBg(st.att);
       const attTxt = statHasData(st)?st.att+"%":"—";
-      const gradeColor = st.grade>=85?"#3B6D11":st.grade>=70?"#854F0B":"#A32D2D";
       let cols = "";
       if(reportType==="attendance"||reportType==="full"){
         cols += `<td style="text-align:center;font-weight:700;color:${attColor};background:${attBg};border-radius:6px;">${attTxt}</td>
                  <td style="text-align:center;color:#A32D2D;">${st.absent} roj</td>
                  <td style="text-align:center;color:#854F0B;">${st.late} carî</td>`;
-      }
-      if(reportType==="grades"||reportType==="full"){
-        cols += `<td style="text-align:center;font-weight:700;color:${gradeColor};">${st.grade}/100</td>`;
       }
       if(reportType==="full"){
         cols += `<td style="font-size:11px;color:#666;font-style:italic;">${st.note}</td>`;
@@ -8987,9 +9182,6 @@ function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
     if(reportType==="attendance"||reportType==="full"){
       headerCols += `<th>Amadebûn %</th><th>Tunebûn</th><th>Dereng</th>`;
     }
-    if(reportType==="grades"||reportType==="full"){
-      headerCols += `<th>Not</th>`;
-    }
     if(reportType==="full"){
       headerCols += `<th>Nîşeya Mamoste</th>`;
     }
@@ -8997,8 +9189,6 @@ function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
     const ratedStudents = filteredStudents.filter(s=>getStudentStats(s.id).totalLessons>0);
     const avgAtt = ratedStudents.length
       ? Math.round(ratedStudents.reduce((a,s)=>a+getStudentStats(s.id).att,0)/ratedStudents.length) : 0;
-    const avgGrade = filteredStudents.length
-      ? Math.round(filteredStudents.reduce((a,s)=>a+getStudentStats(s.id).grade,0)/filteredStudents.length) : 0;
     const riskCount = ratedStudents.filter(s=>getStudentStats(s.id).att<75).length;
 
     return `<!DOCTYPE html>
@@ -9040,31 +9230,27 @@ ${`<body>`}
 <div class="page">
   <div class="header">
     <div class="academy-name">🏛 Akademîya Aram Tîgran</div>
-    <div class="report-title">${reportType==="attendance"?(lang==="en"?"Attendance Report":lang==="de"?"Anwesenheitsbericht":"Raporu Amadebûnê"):reportType==="grades"?(lang==="en"?"Grades Report":lang==="de"?"Notenbericht":"Raporu Notan"):(lang==="en"?"Full Student Report":lang==="de"?"Vollständiger Schülerbericht":"Raporu Tevahî ya Xwendekaran")}</div>
+    <div class="report-title">${reportType==="attendance"?(lang==="en"?"Attendance Report":lang==="de"?"Anwesenheitsbericht":"Raporu Amadebûnê"):(lang==="en"?"Full Student Report":lang==="de"?"Vollständiger Schülerbericht":"Raporu Tevahî ya Xwendekaran")}</div>
     <div class="report-sub">${areaLabel} · ${reportDate}</div>
     <div class="summary-row">
       <div class="summary-card">
         <div class="summary-val">${filteredStudents.length}</div>
         <div class="summary-label">Xwendekarên Tevahî</div>
       </div>
-      ${reportType!=="grades"?`<div class="summary-card">
+      <div class="summary-card">
         <div class="summary-val">${avgAtt}%</div>
         <div class="summary-label">Navgîna Amadebûnê</div>
       </div>
       <div class="summary-card">
         <div class="summary-val">${riskCount}</div>
         <div class="summary-label">Di Xeterê de</div>
-      </div>`:""}
-      ${reportType!=="attendance"?`<div class="summary-card">
-        <div class="summary-val">${avgGrade}</div>
-        <div class="summary-label">Navgîna Notan</div>
-      </div>`:""}
+      </div>
     </div>
   </div>
   <div class="meta-row">
     <div class="meta-item">📅 ${lang==="en"?"Date":lang==="de"?"Datum":"Tarîx"}: <strong>${reportDate}</strong></div>
     <div class="meta-item">🎓 ${lang==="en"?"Field":lang==="de"?"Bereich":"Qad"}: <strong>${areaLabel}</strong></div>
-    <div class="meta-item">📊 ${lang==="en"?"Report Type":lang==="de"?"Berichtstyp":"Cureyê Rapor"}: <strong>${reportType==="attendance"?(lang==="en"?"Attendance":lang==="de"?"Anwesenheit":"Amadebûn"):reportType==="grades"?(lang==="en"?"Grades":lang==="de"?"Noten":"Not"):(lang==="en"?"Full Report":lang==="de"?"Vollbericht":"Rapor Tevahî")}</strong></div>
+    <div class="meta-item">📊 ${lang==="en"?"Report Type":lang==="de"?"Berichtstyp":"Cureyê Rapor"}: <strong>${reportType==="attendance"?(lang==="en"?"Attendance":lang==="de"?"Anwesenheit":"Amadebûn"):(lang==="en"?"Full Report":lang==="de"?"Vollbericht":"Rapor Tevahî")}</strong></div>
   </div>
   <div class="content">
     <table>
@@ -9098,11 +9284,24 @@ ${`</html>`}`;
     const a = document.createElement("a");
     a.href = url;
     const areaLabel = selectedArea==="all"?"hemû-qad":selectedArea;
-    const typeLabel = reportType==="attendance"?"attendance":reportType==="grades"?"grades":"full";
+    const typeLabel = reportType==="attendance"?"attendance":"full";
     a.download = `rapor-${areaLabel}-${typeLabel}-${new Date().toISOString().slice(0,10)}.html`;
     a.click();
     URL.revokeObjectURL(url);
+    logReportArchive({type:"liste",label:(reportType==="attendance"?"Amadebûn":"Tevahî")+" · "+(selectedArea==="all"?"Hemû qad":areaName(selectedArea,lang))});
     toast("✓ "+(lang==="ku"?"Rapor hat dakêşîn!":lang==="en"?"Report downloaded!":"Bericht heruntergeladen!"));
+  }
+
+  // ⬇ CSV: mevcut liste raporunun tablo hâli
+  function downloadListCSV(){
+    const rows=[["Xwendekar","No","Qad","Sînif","Amadebûn %","Tunebûn (roj)","Dereng"]];
+    filteredStudents.forEach(st2=>{
+      const d=getStudentStats(st2.id);
+      rows.push([st2.name,st2.no,areaName(st2.area,lang),(st2.classLevel||1),statHasData(d)?d.att:"",d.absent||0,d.late||0]);
+    });
+    downloadCSV("rapor-"+(selectedArea==="all"?"hemu":selectedArea)+"-"+new Date().toISOString().slice(0,10)+".csv",rows);
+    logReportArchive({type:"csv",label:"CSV lîste · "+(selectedArea==="all"?"Hemû qad":areaName(selectedArea,lang))});
+    toast("⬇ CSV");
   }
 
   const areaInfo = selectedArea==="all"
@@ -9115,8 +9314,6 @@ ${`</html>`}`;
   const hasAttData = ratedStudents.length>0;
   const avgAtt = hasAttData
     ? Math.round(ratedStudents.reduce((a,s)=>a+getStudentStats(s.id).att,0)/ratedStudents.length) : 0;
-  const avgGrade = filteredStudents.length
-    ? Math.round(filteredStudents.reduce((a,s)=>a+getStudentStats(s.id).grade,0)/filteredStudents.length) : 0;
   const riskCount = ratedStudents.filter(s=>getStudentStats(s.id).att<75).length;
 
   // Survey data for report
@@ -9230,7 +9427,6 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           {[
             {key:"attendance",icon:"📋",label:lang==="en"?"Attendance":lang==="de"?"Anwesenheit":"Amadebûn"},
-            {key:"grades",icon:"🎯",label:lang==="en"?"Grades":lang==="de"?"Noten":"Not"},
             {key:"full",icon:"📄",label:lang==="en"?"Full Report":lang==="de"?"Vollbericht":"Rapor Tevahî"},
             {key:"survey",icon:"📊",label:lang==="en"?"Survey":lang==="de"?"Umfrage":"Ankêt"},
             {key:"teachers",icon:"👨‍🏫",label:lang==="ku"?"Mamoste":lang==="en"?"Teachers":"Lehrer"},
@@ -9338,9 +9534,6 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
               </div>
               {(reportType==="attendance"||reportType==="full"||reportType==="attendance_lesson")&&(
                 <div style={{fontSize:12,fontWeight:700,color:attColor,minWidth:38,textAlign:"right"}}>{attTextOf(st)}</div>
-              )}
-              {(reportType==="grades"||reportType==="full")&&(
-                <div style={{fontSize:11,color:statHasData(st)?pctColor(st.grade):"#94a3b8",minWidth:36,textAlign:"right"}}>{statHasData(st)?st.grade+"/100":"—"}</div>
               )}
             </div>
           );
@@ -9497,6 +9690,12 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
           style={{width:"100%",padding:"12px",background:"var(--bg2)",color:"var(--text)",border:"0.5px solid var(--border2)",borderRadius:12,fontSize:13,fontWeight:600,cursor:"pointer"}}>
           👁 {lang==="ku"?"Raporu Pêşbinê":lang==="en"?"Preview Report":"Vorschau"}
         </button>
+        {reportType!=="survey"&&reportType!=="teachers"&&(
+          <button onClick={downloadListCSV}
+            style={{width:"100%",padding:"12px",background:"var(--bg2)",color:"var(--text)",border:"0.5px solid var(--border2)",borderRadius:12,fontSize:13,fontWeight:600,cursor:"pointer"}}>
+            ⬇ CSV (Excel)
+          </button>
+        )}
       </div>
     </>
   );
@@ -11341,7 +11540,7 @@ function TeacherSurveyPanel({teacher, schedule, lang, t, toast}) {
 }
 
 /* ─── TEACHER PROFILE VIEW ───────────────────────────────────────────────── */
-function TeacherProfileView({teacher,a,lang,t,toast,avgAtt,avgGrade,riskCount,myStudents,studentsWithStats,onLogout,onGoStats,onSelectStudent,onSaveTeacherPass}){
+function TeacherProfileView({teacher,a,lang,t,toast,avgAtt,riskCount,myStudents,studentsWithStats,onLogout,onGoStats,onSelectStudent,onSaveTeacherPass}){
   const [showChangePass,setShowChangePass]=useState(false);
   return(
     <>
@@ -11542,7 +11741,6 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
   const studentsWithStats=myStudents.map(s=>({...s,...getStudentStats(s.id)}));
   const ratedStats=studentsWithStats.filter(s=>statHasData(s));
   const avgAtt=ratedStats.length?Math.round(ratedStats.reduce((acc,s)=>acc+s.att,0)/ratedStats.length):0;
-  const avgGrade=ratedStats.length?Math.round(ratedStats.reduce((acc,s)=>acc+s.grade,0)/ratedStats.length):0;
   const riskCount=ratedStats.filter(s=>s.att<75).length;
 
   const filteredStudents=statsFilter==="risk"
@@ -12342,7 +12540,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
         {view==="profile"&&(
           <TeacherProfileView
             teacher={teacher} a={a} lang={lang} t={t} toast={toast}
-            avgAtt={avgAtt} avgGrade={avgGrade} riskCount={riskCount}
+            avgAtt={avgAtt} riskCount={riskCount}
             myStudents={myStudents} studentsWithStats={studentsWithStats}
             onLogout={onLogout}
             onGoStats={()=>{setStatsFilter("all");setView("stats");}}
