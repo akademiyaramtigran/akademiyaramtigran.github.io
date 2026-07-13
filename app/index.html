@@ -5933,6 +5933,9 @@ function AdminNewsPanel({lang,toast,adminName}){
   const [items,setItems]=useState([]);
   const [title,setTitle]=useState("");
   const [body,setBody]=useState("");
+  // Çeviriler: KU ana metin; TR/EN/DE isteğe bağlı — site dil değişince bunlar gösterilir
+  const [trTab,setTrTab]=useState("ku");
+  const [i18n,setI18n]=useState({tr:{title:"",body:""},en:{title:"",body:""},de:{title:"",body:""}});
   const [ytUrl,setYtUrl]=useState("");
   const [images,setImages]=useState([]);      // data-url listesi (max 10)
   const [videos,setVideos]=useState([]);      // {file, name, size} (max 3)
@@ -6083,8 +6086,16 @@ function AdminNewsPanel({lang,toast,adminName}){
         vidList.push({url:u,name:v.name,qualities,subs:subList});
       }
       setProgress(null);
+      // Yalnızca doldurulmuş çeviriler kaydedilir
+      const i18nOut={};
+      ["tr","en","de"].forEach(l2=>{
+        const e2=i18n[l2]||{};
+        if((e2.title||"").trim()||(e2.body||"").trim())
+          i18nOut[l2]={title:(e2.title||"").trim(),body:(e2.body||"").trim()};
+      });
       await window.__FB.addDoc(window.__FB.collection(window.__FB.db,"news"),{
         title:title.trim(), body:body.trim(),
+        i18n: Object.keys(i18nOut).length?i18nOut:null,
         youtubeId: ytIdFromUrl(ytUrl.trim()),
         // Kapak: yalnız URL ise ayrıca yaz; base64 kapağı tekrar yazmak
         // dokümanı ikiye katlayıp 1MB sınırını aşırıyordu (Çewtî hatasının nedeni)
@@ -6097,6 +6108,7 @@ function AdminNewsPanel({lang,toast,adminName}){
         createdAt: window.__FB.serverTimestamp()
       });
       setTitle("");setBody("");setYtUrl("");setImages([]);setVideos([]);setArea("genel");
+      setI18n({tr:{title:"",body:""},en:{title:"",body:""},de:{title:"",body:""}});setTrTab("ku");
       toast(L("done"));
     }catch(e){ console.warn("news publish:",e); toast(L("err")+" ["+String(e&&(e.code||e.message)||"").slice(0,48)+"]", 7000); }
     clearTimeout(failsafe);
@@ -6114,11 +6126,39 @@ function AdminNewsPanel({lang,toast,adminName}){
     <div>
       <SectionHeader>{L("heading")}</SectionHeader>
       <Card>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v11.3</span></div>
-        <input value={title} onChange={e=>setTitle(e.target.value)} placeholder={L("title")}
-          style={{width:"100%",padding:"11px 12px",marginBottom:8,border:"1px solid var(--border2)",borderRadius:10,fontSize:14,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box"}}/>
-        <textarea value={body} onChange={e=>setBody(e.target.value)} placeholder={L("body")} rows={4}
-          style={{width:"100%",padding:"11px 12px",marginBottom:8,border:"1px solid var(--border2)",borderRadius:10,fontSize:14,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box",resize:"vertical",fontFamily:"inherit"}}/>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v11.4</span></div>
+        {/* Dil sekmeleri: KU zorunlu ana metin, diğerleri çeviri */}
+        <div style={{display:"flex",gap:5,marginBottom:8}}>
+          {[["ku","KU"],["tr","TR"],["en","EN"],["de","DE"]].map(([lk,lb])=>{
+            const filled=lk==="ku"?!!title.trim():!!((i18n[lk]&&(i18n[lk].title||i18n[lk].body))||"").trim();
+            return(
+              <button key={lk} onClick={()=>setTrTab(lk)}
+                style={{flex:1,padding:"7px 4px",borderRadius:9,fontSize:11,fontWeight:trTab===lk?800:600,cursor:"pointer",
+                  border:"1.5px solid "+(trTab===lk?"#16293f":"var(--border2)"),
+                  background:trTab===lk?"#16293f":"var(--bg2)",color:trTab===lk?"#fff":"var(--text2)"}}>
+                {lb}{filled&&lk!=="ku"?" ●":""}{lk==="ku"?" *":""}
+              </button>
+            );
+          })}
+        </div>
+        {trTab==="ku"?(
+          <>
+            <input value={title} onChange={e=>setTitle(e.target.value)} placeholder={L("title")}
+              style={{width:"100%",padding:"11px 12px",marginBottom:8,border:"1px solid var(--border2)",borderRadius:10,fontSize:14,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box"}}/>
+            <textarea value={body} onChange={e=>setBody(e.target.value)} placeholder={L("body")} rows={4}
+              style={{width:"100%",padding:"11px 12px",marginBottom:8,border:"1px solid var(--border2)",borderRadius:10,fontSize:14,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box",resize:"vertical",fontFamily:"inherit"}}/>
+          </>
+        ):(
+          <>
+            <div style={{fontSize:10,color:"var(--text2)",marginBottom:6}}>
+              🌐 {trTab.toUpperCase()} {lang==="en"?"translation (optional — shown when site language is switched)":"çeviri (isteğe bağlı — site dili değişince gösterilir)"}
+            </div>
+            <input value={i18n[trTab].title} onChange={e=>setI18n(p2=>({...p2,[trTab]:{...p2[trTab],title:e.target.value}}))} placeholder={L("title")+" ("+trTab.toUpperCase()+")"}
+              style={{width:"100%",padding:"11px 12px",marginBottom:8,border:"1px solid var(--border2)",borderRadius:10,fontSize:14,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box"}}/>
+            <textarea value={i18n[trTab].body} onChange={e=>setI18n(p2=>({...p2,[trTab]:{...p2[trTab],body:e.target.value}}))} placeholder={L("body")+" ("+trTab.toUpperCase()+")"} rows={4}
+              style={{width:"100%",padding:"11px 12px",marginBottom:8,border:"1px solid var(--border2)",borderRadius:10,fontSize:14,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box",resize:"vertical",fontFamily:"inherit"}}/>
+          </>
+        )}
         <input value={ytUrl} onChange={e=>setYtUrl(e.target.value)} placeholder={L("yt")}
           style={{width:"100%",padding:"11px 12px",marginBottom:8,border:"1px solid var(--border2)",borderRadius:10,fontSize:13,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box",fontFamily:"monospace"}}/>
         <div style={{fontSize:11,color:"var(--text2)",marginBottom:4}}>{lang==="en"?"Art area (for site filter)":lang==="de"?"Bereich (Website-Filter)":"Qad (ji bo parzûna malperê)"}</div>

@@ -519,6 +519,14 @@ const AREA_LABELS = {muzik:"🎵 Muzîk",tiyatro:"🎭 Şano",sinema:"🎬 Sîne
 let allNews = [];
 let newsArea = null; // aktif qad parzûnê / null = hepsi
 
+// Haber metnini seçili site diline göre döndür (çeviri yoksa Kurdî ana metin)
+function newsText(item, field){
+  const l=window.SITE_LANG;
+  if(l && l!=="ku" && item.i18n && item.i18n[l] && (item.i18n[l][field]||"").trim())
+    return item.i18n[l][field];
+  return item[field]||"";
+}
+
 function fmtDate(s){
   if(!s) return "";
   const months = ["Rêbendan","Sibat","Adar","Nîsan","Gulan","Hezîran","Tîrmeh","Tebax","Îlon","Cotmeh","Mijdar","Berfanbar"];
@@ -748,9 +756,9 @@ function newsCard(item, featured){
   }
   const h = document.createElement('h3');
   if(featured) h.className = 'serif';
-  h.textContent = item.title || "";
+  h.textContent = newsText(item,'title');
   const p = document.createElement('p');
-  p.textContent = item.body || "";
+  p.textContent = newsText(item,'body');
   body.appendChild(h); body.appendChild(p);
   a.appendChild(thumb); a.appendChild(body);
   return a;
@@ -775,9 +783,9 @@ function render(items){
   const vidEntries = [];
   items.forEach(it => {
     newsMedia(it).filter(m=>m.type==='video').forEach(m=>{
-      vidEntries.push({kind:'file', entry:m, title: it.title});
+      vidEntries.push({kind:'file', entry:m, title: newsText(it,'title')});
     });
-    if(it.youtubeId) vidEntries.push({kind:'yt', id: it.youtubeId, title: it.title});
+    if(it.youtubeId) vidEntries.push({kind:'yt', id: it.youtubeId, title: newsText(it,'title')});
   });
   const vids = vidEntries.slice(0,6);
   videoSec.style.display = vids.length ? "" : "none";
@@ -1000,7 +1008,10 @@ function renderApply(cfg, templates){
 
 let _lastApplyArgs=[{open:false},[]];
 function renderApplyKeep(cfg,tpls){ _lastApplyArgs=[cfg,tpls]; renderApply(cfg,tpls); }
-document.addEventListener('sitelang',()=>{ try{ renderApply(_lastApplyArgs[0],_lastApplyArgs[1]); }catch(e){} });
+document.addEventListener('sitelang',()=>{
+  try{ renderApply(_lastApplyArgs[0],_lastApplyArgs[1]); }catch(e){}
+  try{ applyNewsFilter(); }catch(e){}
+});
 (async()=>{
   try{
     const [snap, templates] = await Promise.all([ getDoc(doc(db,"config","applications")), loadTemplates() ]);
