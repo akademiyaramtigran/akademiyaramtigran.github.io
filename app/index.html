@@ -362,13 +362,18 @@
   // Storage kapalı / kurallar reddediyor / hata varsa null döner → çağıran base64'e düşer.
   async function uploadPhotoOrNull(dataUrl, path) {
     try {
-      const mod = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js").catch(() => null);
+      const mod = await Promise.race([
+        import("https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js"),
+        new Promise((_, rej) => setTimeout(() => rej(new Error("t")), 12000))
+      ]).catch(() => null);
       if (!mod) return null;
       const { getStorage, ref: sRef, uploadString, getDownloadURL } = mod;
       const storage = getStorage();
       const r = sRef(storage, path);
-      await uploadString(r, dataUrl, "data_url");
-      return await getDownloadURL(r);
+      // Storage kapalıysa SDK uzun süre yeniden dener — 18 sn'de vazgeç, base64'e düş
+      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("storage-timeout")), 18000));
+      await Promise.race([uploadString(r, dataUrl, "data_url"), timeout]);
+      return await Promise.race([getDownloadURL(r), timeout]);
     } catch (e) {
       return null;
     }
@@ -377,23 +382,43 @@
   // Haber medyasını (görsel data-url / video File) Storage'a yükle → URL döndür.
   // onProgress(0..100) — video gibi büyük dosyalarda ilerleme için.
   // Storage kapalı/hata → null (görselde çağıran base64'e düşebilir; video düşemez).
+  // Storage kapalı/erişilemezse SDK hatayı dakikalarca yeniden dener ve ekran
+  // asılı kalır — bu yüzden: küçük yüklemelere sert zaman aşımı, büyük
+  // yüklemelere "ilerleme durdu" bekçisi. Zamanında cevap yoksa null döner
+  // ve çağıran base64 yedeğine düşer.
+  function _withTimeout(promise, ms) {
+    return Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error("storage-timeout")), ms))]);
+  }
   async function uploadNewsMedia(payload, path, onProgress) {
     try {
-      const mod = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js").catch(() => null);
+      const mod = await _withTimeout(import("https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js"), 15000).catch(() => null);
       if (!mod) return null;
       const { getStorage, ref: sRef, uploadString, uploadBytesResumable, getDownloadURL } = mod;
       const r = sRef(getStorage(), path);
-      if (typeof payload === "string") {           // data-url (görsel)
-        await uploadString(r, payload, "data_url");
-      } else {                                      // File (video)
+      if (typeof payload === "string") {           // data-url (görsel) — 25 sn sınır
+        await _withTimeout(uploadString(r, payload, "data_url"), 25000);
+      } else {                                      // File/Blob (video, altyazı)
         await new Promise((resolve, reject) => {
           const task = uploadBytesResumable(r, payload, { contentType: payload.type || "video/mp4" });
+          let lastBytes = -1, lastTick = Date.now();
+          const watchdog = setInterval(() => {
+            // 30 sn boyunca tek bayt ilerlemediyse Storage yok/duvara çarptı say
+            if (Date.now() - lastTick > 30000) {
+              clearInterval(watchdog);
+              try { task.cancel(); } catch(_){}
+              reject(new Error("storage-stall"));
+            }
+          }, 5000);
           task.on("state_changed",
-            s => { if (onProgress && s.totalBytes) onProgress(Math.round(s.bytesTransferred / s.totalBytes * 100)); },
-            reject, resolve);
+            st => {
+              if (st.bytesTransferred !== lastBytes) { lastBytes = st.bytesTransferred; lastTick = Date.now(); }
+              if (onProgress && st.totalBytes) onProgress(Math.round(st.bytesTransferred / st.totalBytes * 100));
+            },
+            err => { clearInterval(watchdog); reject(err); },
+            () => { clearInterval(watchdog); resolve(); });
         });
       }
-      return await getDownloadURL(r);
+      return await _withTimeout(getDownloadURL(r), 15000);
     } catch (e) { return null; }
   }
 

@@ -842,15 +842,17 @@ function fileToDataUrl(file){
 // Storage kapalı / kural reddi / ağ hatasında null döner; çağıran base64'e düşer.
 // (Storage yolu Firestore'un 1MB doküman sınırına takılmaz — büyük PDF'ler için şart.)
 async function uploadAppDoc(f, dataUrl, isPdf){
+  // Storage kapalıysa SDK uzun süre yeniden dener — zaman aşımıyla base64'e düş
+  const withTimeout=(pr,ms)=>Promise.race([pr,new Promise((_,rej)=>setTimeout(()=>rej(new Error('storage-timeout')),ms))]);
   try{
-    const mod = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js");
+    const mod = await withTimeout(import("https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js"),15000);
     const { getStorage, ref, uploadBytes, uploadString, getDownloadURL } = mod;
     const st = getStorage(app);
     const safe = (f.name||'belge').replace(/[^A-Za-z0-9_.\-]/g,'_').slice(-60);
     const r = ref(st, 'applications/'+Date.now()+'_'+Math.random().toString(36).slice(2,8)+'/'+safe);
-    if(isPdf) await uploadBytes(r, f, {contentType:'application/pdf'});
-    else await uploadString(r, dataUrl, 'data_url');
-    return await getDownloadURL(r);
+    if(isPdf) await withTimeout(uploadBytes(r, f, {contentType:'application/pdf'}), 90000);
+    else await withTimeout(uploadString(r, dataUrl, 'data_url'), 25000);
+    return await withTimeout(getDownloadURL(r),15000);
   }catch(e){ return null; }
 }
 
