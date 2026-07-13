@@ -360,7 +360,9 @@
 
   // data-url fotoğrafı Firebase Storage'a yükle, indirme URL'sini döndür.
   // Storage kapalı / kurallar reddediyor / hata varsa null döner → çağıran base64'e düşer.
+  let _storageDown = false;
   async function uploadPhotoOrNull(dataUrl, path) {
+    if (_storageDown) return null;
     try {
       const mod = await Promise.race([
         import("https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js"),
@@ -371,10 +373,11 @@
       const storage = getStorage();
       const r = sRef(storage, path);
       // Storage kapalıysa SDK uzun süre yeniden dener — 18 sn'de vazgeç, base64'e düş
-      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("storage-timeout")), 18000));
+      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("storage-timeout")), 10000));
       await Promise.race([uploadString(r, dataUrl, "data_url"), timeout]);
       return await Promise.race([getDownloadURL(r), timeout]);
     } catch (e) {
+      _storageDown = true;
       return null;
     }
   }
@@ -389,14 +392,17 @@
   function _withTimeout(promise, ms) {
     return Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error("storage-timeout")), ms))]);
   }
+  // Devre kesici: Storage bir kez başarısız olduysa bu oturumda bir daha
+  // denenmez — her çağrı ANINDA null döner ve base64 yedeği kullanılır.
   async function uploadNewsMedia(payload, path, onProgress) {
+    if (_storageDown) return null;
     try {
-      const mod = await _withTimeout(import("https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js"), 15000).catch(() => null);
-      if (!mod) return null;
+      const mod = await _withTimeout(import("https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js"), 8000).catch(() => null);
+      if (!mod) { _storageDown = true; return null; }
       const { getStorage, ref: sRef, uploadString, uploadBytesResumable, getDownloadURL } = mod;
       const r = sRef(getStorage(), path);
-      if (typeof payload === "string") {           // data-url (görsel) — 25 sn sınır
-        await _withTimeout(uploadString(r, payload, "data_url"), 25000);
+      if (typeof payload === "string") {           // data-url (görsel) — 10 sn sınır
+        await _withTimeout(uploadString(r, payload, "data_url"), 10000);
       } else {                                      // File/Blob (video, altyazı)
         await new Promise((resolve, reject) => {
           const task = uploadBytesResumable(r, payload, { contentType: payload.type || "video/mp4" });
@@ -418,8 +424,8 @@
             () => { clearInterval(watchdog); resolve(); });
         });
       }
-      return await _withTimeout(getDownloadURL(r), 15000);
-    } catch (e) { return null; }
+      return await _withTimeout(getDownloadURL(r), 8000);
+    } catch (e) { _storageDown = true; return null; }
   }
 
   window.__FB = {
@@ -6025,6 +6031,8 @@ function AdminNewsPanel({lang,toast,adminName}){
     if(!title.trim()){ toast(L("needTitle")); return; }
     if(!window.__FB||!window.__FB.isConfigured()){ toast(L("err")); return; }
     setSaving(true);
+    // Emniyet sigortası: beklenmedik bir takılmada 90 sn sonra düğmeyi kurtar
+    const failsafe=setTimeout(()=>{ setSaving(false); setProgress(null); toast(L("err")); },90000);
     try{
       const folder="news/"+Date.now()+"_"+Math.random().toString(36).slice(2,8);
       // ── Görseller: Storage'a; olmuyorsa base64 (toplam 700KB koruması) ──
@@ -6086,6 +6094,7 @@ function AdminNewsPanel({lang,toast,adminName}){
       setTitle("");setBody("");setYtUrl("");setImages([]);setVideos([]);setArea("genel");
       toast(L("done"));
     }catch(e){ console.warn("news publish:",e); toast(L("err")); }
+    clearTimeout(failsafe);
     setSaving(false); setProgress(null);
   }
 
@@ -6100,7 +6109,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     <div>
       <SectionHeader>{L("heading")}</SectionHeader>
       <Card>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")}</div>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v11.2</span></div>
         <input value={title} onChange={e=>setTitle(e.target.value)} placeholder={L("title")}
           style={{width:"100%",padding:"11px 12px",marginBottom:8,border:"1px solid var(--border2)",borderRadius:10,fontSize:14,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box"}}/>
         <textarea value={body} onChange={e=>setBody(e.target.value)} placeholder={L("body")} rows={4}
