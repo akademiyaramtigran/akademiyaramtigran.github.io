@@ -6042,7 +6042,10 @@ function AdminNewsPanel({lang,toast,adminName}){
         setProgress({label:L("imgUploading")+" "+(i+1)+"/"+images.length,pct:Math.round(i/Math.max(1,images.length)*100)});
         let u=await window.__FB.uploadNewsMedia(images[i], folder+"/img_"+i+".jpg", null);
         if(!u){
-          if(b64Total+images[i].length<=700000){ u=images[i]; b64Total+=images[i].length; }
+          // Storage yok → base64 gömme. Doküman 1MB sınırına sığsın diye küçült.
+          let b64=images[i];
+          try{ b64=await compressImage(images[i],1000,1000,0.72); }catch(_){}
+          if(b64Total+b64.length<=700000){ u=b64; b64Total+=b64.length; }
         }
         if(u) imgUrls.push(u);
       }
@@ -6083,7 +6086,9 @@ function AdminNewsPanel({lang,toast,adminName}){
       await window.__FB.addDoc(window.__FB.collection(window.__FB.db,"news"),{
         title:title.trim(), body:body.trim(),
         youtubeId: ytIdFromUrl(ytUrl.trim()),
-        image: imgUrls[0]||null,          // eski istemciler için kapak
+        // Kapak: yalnız URL ise ayrıca yaz; base64 kapağı tekrar yazmak
+        // dokümanı ikiye katlayıp 1MB sınırını aşırıyordu (Çewtî hatasının nedeni)
+        image: (imgUrls[0]&&imgUrls[0].indexOf("data:")!==0)?imgUrls[0]:null,
         images: imgUrls,
         videos: vidList,
         area: area||"genel",
@@ -6093,7 +6098,7 @@ function AdminNewsPanel({lang,toast,adminName}){
       });
       setTitle("");setBody("");setYtUrl("");setImages([]);setVideos([]);setArea("genel");
       toast(L("done"));
-    }catch(e){ console.warn("news publish:",e); toast(L("err")); }
+    }catch(e){ console.warn("news publish:",e); toast(L("err")+" ["+String(e&&(e.code||e.message)||"").slice(0,48)+"]", 7000); }
     clearTimeout(failsafe);
     setSaving(false); setProgress(null);
   }
@@ -6109,7 +6114,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     <div>
       <SectionHeader>{L("heading")}</SectionHeader>
       <Card>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v11.2</span></div>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v11.3</span></div>
         <input value={title} onChange={e=>setTitle(e.target.value)} placeholder={L("title")}
           style={{width:"100%",padding:"11px 12px",marginBottom:8,border:"1px solid var(--border2)",borderRadius:10,fontSize:14,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box"}}/>
         <textarea value={body} onChange={e=>setBody(e.target.value)} placeholder={L("body")} rows={4}
