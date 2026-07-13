@@ -6033,6 +6033,13 @@ function AdminNewsPanel({lang,toast,adminName}){
   async function publish(){
     if(!title.trim()){ toast(L("needTitle")); return; }
     if(!window.__FB||!window.__FB.isConfigured()){ toast(L("err")); return; }
+    // Ön kontrol: Firebase oturumu yoksa yazma kesin reddedilir — net söyle
+    if(!window.__FB.auth||!window.__FB.auth.currentUser){
+      toast(lang==="en"
+        ? "⚠ No Firebase session — sign out and sign in again"
+        : "⚠ Danişîna Firebase tune — derkeve û ji nû ve têkeve", 8000);
+      return;
+    }
     setSaving(true);
     // Emniyet sigortası: beklenmedik bir takılmada 90 sn sonra düğmeyi kurtar
     const failsafe=setTimeout(()=>{ setSaving(false); setProgress(null); toast(L("err")); },90000);
@@ -6110,7 +6117,11 @@ function AdminNewsPanel({lang,toast,adminName}){
       setTitle("");setBody("");setYtUrl("");setImages([]);setVideos([]);setArea("genel");
       setI18n({tr:{title:"",body:""},en:{title:"",body:""},de:{title:"",body:""}});setTrTab("ku");
       toast(L("done"));
-    }catch(e){ console.warn("news publish:",e); toast(L("err")+" ["+String(e&&(e.code||e.message)||"").slice(0,48)+"]", 7000); }
+    }catch(e){
+      console.warn("news publish:",e);
+      const who=(window.__FB.auth&&window.__FB.auth.currentUser)?window.__FB.auth.currentUser.email:"auth:tune";
+      toast(L("err")+" ["+String(e&&(e.code||e.message)||"").slice(0,40)+" · "+who+"]", 9000);
+    }
     clearTimeout(failsafe);
     setSaving(false); setProgress(null);
   }
@@ -6126,7 +6137,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     <div>
       <SectionHeader>{L("heading")}</SectionHeader>
       <Card>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v11.4</span></div>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v11.5</span></div>
         {/* Dil sekmeleri: KU zorunlu ana metin, diğerleri çeviri */}
         <div style={{display:"flex",gap:5,marginBottom:8}}>
           {[["ku","KU"],["tr","TR"],["en","EN"],["de","DE"]].map(([lk,lb])=>{
