@@ -6137,7 +6137,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     <div>
       <SectionHeader>{L("heading")}</SectionHeader>
       <Card>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v11.5</span></div>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v11.6</span></div>
         {/* Dil sekmeleri: KU zorunlu ana metin, diğerleri çeviri */}
         <div style={{display:"flex",gap:5,marginBottom:8}}>
           {[["ku","KU"],["tr","TR"],["en","EN"],["de","DE"]].map(([lk,lb])=>{
@@ -15606,6 +15606,8 @@ function App(){
   const [lang,setLang]=useState(()=>{try{return localStorage.getItem("aat-lang")||"ku";}catch{return "ku";}});
   const [screen,setScreen]=useState("login");
   const [currentUser,setCurrentUser]=useState(null);
+  const currentUserRef=useRef(null);
+  useEffect(()=>{ currentUserRef.current=currentUser; },[currentUser]);
   const [authEmail,setAuthEmail]=useState(null); // Firebase Auth oturumu (refresh sonrası geri yükleme için)
   const [authChecked,setAuthChecked]=useState(false); // Auth durumu ilk kez kontrol edildi mi (login flash'ını önler)
   const [students,setStudents]=useState(INIT_STUDENTS);
@@ -15670,6 +15672,13 @@ function App(){
       setAuthEmail(authUser ? (authUser.email || null) : null);
       setAuthChecked(true);
 
+      if (!authUser && currentUserRef.current) {
+        // Oturum düştü (şifre değişti / iptal edildi) — kullanıcıyı içeride
+        // "ölü oturumla" bırakma: girişe dön (permission-denied tuzağının kökü)
+        setCurrentUser(null);
+        setScreen("login");
+        try{ toast("⚠ "+(lang==="en"?"Session expired — sign in again":"Danişîn qediya — ji nû ve têkeve"), 7000); }catch(_){}
+      }
       if (authUser) {
         const _em = authUser.email || "";
         const _isStudent = _em.indexOf("@ogrenci.aat") !== -1;
