@@ -4819,7 +4819,7 @@ function EditStudentSheet({student,onClose,t,lang,toast,onSave}){
     if(pass && pass.length >= 4){
       newHash = await hashPassword(pass);
       newPlain = pass;
-      try{ if(window.__FB&&window.__FB.isConfigured()) await window.__FB.forceResetPassword(student.no,"student",student._plainPass||null,pass); }catch(e){}
+      try{ if(window.__FB&&window.__FB.isConfigured()){ const _fr=await window.__FB.forceResetPassword(student.no,"student",student._plainPass||null,pass); if(_fr===null) toast("⚠ "+(lang==="en"?"Firebase Auth password could NOT be updated. Fix: Firebase Console → Authentication → delete this account; it recreates on next login.":"Şîfreya Firebase Auth NEHAT nûkirin. Çare: Firebase Console → Authentication → vî hesabî jê bibe; di têketina pêş de bixweber ji nû ve tê çêkirin."), 12000); } }catch(e){}
       toast("🔑 "+(lang==="en"?"New password: ":"Şîfreya nû: ")+pass, 9000);
     }
     onSave({...student,name:name.trim(),area,classLevel,phone,email,dob,address,pass:newHash,passHash:newHash,_plainPass:newPlain,photo});
@@ -4940,7 +4940,7 @@ function EditTeacherSheet({teacher,onClose,t,lang,toast,onSave}){
     if(pass && pass.length >= 4){
       newHash = await hashPassword(pass);
       newPlain = pass;
-      try{ if(window.__FB&&window.__FB.isConfigured()) await window.__FB.forceResetPassword(teacher.no,"teacher",teacher._plainPass||null,pass); }catch(e){}
+      try{ if(window.__FB&&window.__FB.isConfigured()){ const _fr=await window.__FB.forceResetPassword(teacher.no,"teacher",teacher._plainPass||null,pass); if(_fr===null) toast("⚠ "+(lang==="en"?"Firebase Auth password could NOT be updated. Fix: Firebase Console → Authentication → delete this account; it recreates on next login.":"Şîfreya Firebase Auth NEHAT nûkirin. Çare: Firebase Console → Authentication → vî hesabî jê bibe; di têketina pêş de bixweber ji nû ve tê çêkirin."), 12000); } }catch(e){}
       toast("🔑 "+(lang==="en"?"New password: ":"Şîfreya nû: ")+pass, 9000);
     }
     onSave({...teacher,name:name.trim(),area,phone,email,dob,address,bio,isAdmin:isAdminFlag,pass:newHash,passHash:newHash,_plainPass:newPlain,photo});
@@ -6137,7 +6137,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     <div>
       <SectionHeader>{L("heading")}</SectionHeader>
       <Card>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v11.6</span></div>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v11.7</span></div>
         {/* Dil sekmeleri: KU zorunlu ana metin, diğerleri çeviri */}
         <div style={{display:"flex",gap:5,marginBottom:8}}>
           {[["ku","KU"],["tr","TR"],["en","EN"],["de","DE"]].map(([lk,lb])=>{
@@ -6466,7 +6466,7 @@ function EditSpecialCardSheet({card,onClose,t,lang,toast,onSave}){
       newHash = await hashPassword(pass);
       newPlain = pass;
       // Firebase Auth şifresini de eşitle (eski şifre biliniyorsa; değilse hash yeter)
-      try{ if(window.__FB&&window.__FB.isConfigured()) await window.__FB.forceResetPassword(card.no,"teacher",currentPlain||null,pass); }catch(e){}
+      try{ if(window.__FB&&window.__FB.isConfigured()){ const _fr=await window.__FB.forceResetPassword(card.no,"teacher",currentPlain||null,pass); if(_fr===null) toast("⚠ "+(lang==="en"?"Firebase Auth password could NOT be updated. Fix: Firebase Console → Authentication → delete this account; it recreates on next login.":"Şîfreya Firebase Auth NEHAT nûkirin. Çare: Firebase Console → Authentication → vî hesabî jê bibe; di têketina pêş de bixweber ji nû ve tê çêkirin."), 12000); } }catch(e){}
     }
     onSave({...card,name:name.trim(),phone,email,dob,address,bio,pass:newHash,passHash:newHash,_plainPass:newPlain,photo});
   }
@@ -14298,15 +14298,32 @@ function LoginScreen({students,teachers,t,lang,setLang,onLogin,onForgot,dark,onT
     // Firebase Auth token olmadan giriş yapıldıysa ÖNCE sign-in bekle, sonra devam et
     if(matched && matchedType && window.__FB && window.__FB.isConfigured() && !window.__FB.auth.currentUser){
       const _role = matchedType === "student" ? "student" : "teacher";
+      let _authErr = null;
       try {
         await window.__FB.authSignIn(matched.no, passInput, _role);
       } catch(e) {
+        _authErr = e;
         if(e.code === "auth/user-not-found" || e.code === "auth/invalid-credential") {
           try {
             await window.__FB.createAuthUser(matched.no, passInput, _role);
             await window.__FB.authSignIn(matched.no, passInput, _role);
-          } catch(e2){}
+            _authErr = null;
+          } catch(e2){ _authErr = e2; }
         }
+      }
+      // Danişîn hîn jî tune → İÇERİ ALMA. (Auth şifresi Firestore hash'inden
+      // ayrı düşmüş: şifre panelden yenilendi ama Firebase Auth eskisinde kaldı.)
+      if(!window.__FB.auth.currentUser){
+        recordFailedAttempt(uid);
+        hapticError();
+        const _code = (_authErr && _authErr.code) ? _authErr.code.replace("auth/","") : "session";
+        setErr(
+          (lang==="ku" ? "⚠ Hesabê Firebase bi şîfreya nû re ne wek hev e. Rêveber: Firebase Console → Authentication → vî hesabî jê bibe; di têketina pêş de bixweber ji nû ve tê çêkirin." :
+           lang==="en" ? "⚠ Firebase account is out of sync with the new password. Admin: delete this account in Firebase Console → Authentication; it recreates itself on next login." :
+                         "⚠ Firebase-Konto ist mit dem neuen Passwort nicht synchron. Admin: Konto in Firebase Console → Authentication löschen; es wird beim nächsten Login neu erstellt.")
+          + " ["+_code+"]"
+        );
+        return;
       }
     }
 
