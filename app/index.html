@@ -6920,7 +6920,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
     let mailed=false;
     if(app.email && window.emailjs){
       try{
-        await window.emailjs.send("service_g6nqjtq","template_eoswbej",
+        await window.emailjs.send("service_g6nqjtq","template_9tmt5ja",
           {to_email:app.email, to_name:app.name, password:pass, student_no:no});
         mailed=true;
       }catch(e){ console.warn("emailjs kabul:", e); }
