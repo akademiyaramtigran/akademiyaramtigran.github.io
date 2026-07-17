@@ -86,7 +86,7 @@ service cloud.firestore {
     match /applications/{id} {
       allow create: if applicationsOpen()
                     && request.resource.data.keys().hasOnly(
-                      ['name','phone','dob','area','note','docs','status','dateStr','createdAt'])
+                      ['name','phone','dob','area','note','docs','status','dateStr','createdAt','email'])
                     && request.resource.data.name is string
                     && request.resource.data.name.size() > 0
                     && request.resource.data.name.size() <= 80
@@ -95,6 +95,7 @@ service cloud.firestore {
                     && (!('dob'  in request.resource.data) || request.resource.data.dob.size()  <= 20)
                     && (!('area' in request.resource.data) || request.resource.data.area.size() <= 20)
                     && (!('note' in request.resource.data) || request.resource.data.note.size() <= 500)
+                    && (!('email' in request.resource.data) || request.resource.data.email.size() <= 80)
                     && (!('dateStr' in request.resource.data) || request.resource.data.dateStr.size() <= 20)
                     && request.resource.data.status == 'new'
                     && request.resource.data.docs is list

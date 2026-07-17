@@ -920,18 +920,18 @@ input,select,textarea{font-family:inherit;}
 }
 .app-nav::-webkit-scrollbar{display:none;}
 .app-nav-item{
-  flex:1 0 auto;min-width:60px;max-width:80px;display:flex;flex-direction:column;align-items:center;
+  flex:1 0 auto;min-width:64px;max-width:118px;display:flex;flex-direction:column;align-items:center;
   gap:3px;cursor:pointer;padding:4px 2px;position:relative;
   transition:opacity .15s;
 }
 .app-nav-item:active{opacity:.7;}
 .app-nav-pill{
-  width:44px;height:28px;border-radius:10px;
+  min-width:48px;height:30px;border-radius:999px;padding:0 12px;
   display:flex;align-items:center;justify-content:center;
-  font-size:18px;transition:background .18s var(--ease),transform .18s var(--spring);
+  transition:background .18s var(--ease),transform .18s var(--spring);
 }
 .app-nav-item.active .app-nav-pill{background:rgba(22,41,63,.08);transform:scale(1.03);}
-.app-nav-label{font-size:9px;font-weight:500;color:var(--text2);transition:color .15s;white-space:nowrap;letter-spacing:0.02em;}
+.app-nav-label{font-size:10.5px;font-weight:600;color:var(--text2);transition:color .15s;white-space:nowrap;letter-spacing:0.02em;}
 .app-nav-item.active .app-nav-label{color:var(--accent);font-weight:700;}
 .app-nav-badge{
   position:absolute;top:0;right:calc(50% - 26px);
@@ -5086,7 +5086,7 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
           <div style={{display:"flex",gap:0,borderBottom:"1px solid rgba(15,23,42,0.08)"}}>
             {tabs.map(tb=>(
               <button key={tb.key} onClick={()=>setTab(tb.key)} style={{flex:1,padding:"9px 4px",fontSize:11,fontWeight:tab===tb.key?600:400,color:tab===tb.key?"#16293f":"#94a3b8",background:"none",border:"none",cursor:"pointer",borderBottom:tab===tb.key?"2px solid #16293f":"2px solid transparent",marginBottom:-2}}>
-                {tb.icon} {tb.label}
+                {tb.label}
               </button>
             ))}
           </div>
@@ -6140,7 +6140,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     <div>
       <SectionHeader>{L("heading")}</SectionHeader>
       <Card>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v11.9</span></div>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v12.0</span></div>
         {/* Dil sekmeleri: KU zorunlu ana metin, diğerleri çeviri */}
         <div style={{display:"flex",gap:5,marginBottom:8}}>
           {[["ku","KU"],["tr","TR"],["en","EN"],["de","DE"]].map(([lk,lb])=>{
@@ -6913,10 +6913,19 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
     const pass=genAutoPassword();
     const hashed=await hashPassword(pass);
     const student={id:Date.now(),name:sanitizeText(app.name),area,no,classLevel:1,pass:hashed,passHash:hashed,
-      phone:app.phone||"",dob:app.dob||"",address:"",email:"",photo:null,_plainPass:pass};
+      phone:app.phone||"",dob:app.dob||"",address:"",email:app.email||"",photo:null,_plainPass:pass};
     onDataChange&&onDataChange("addStudent",student);
     await setStatus(app,"accepted",{studentNo:no});
-    setRegCreds({name:app.name,no,pass});
+    // Serlêdanê e-peyam hebe: jimare + şîfre bişîne (EmailJS — heman servîsa "şîfre ji bîr kir")
+    let mailed=false;
+    if(app.email && window.emailjs){
+      try{
+        await window.emailjs.send("service_g6nqjtq","template_eoswbej",
+          {to_email:app.email, to_name:app.name, password:pass, student_no:no});
+        mailed=true;
+      }catch(e){ console.warn("emailjs kabul:", e); }
+    }
+    setRegCreds({name:app.name,no,pass,email:app.email||"",mailed});
   }
 
   function esc(x){ return String(x==null?"":x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
@@ -6968,7 +6977,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
             style={{padding:"8px 13px",borderRadius:20,fontSize:11,fontWeight:section===tb.key?800:600,whiteSpace:"nowrap",flexShrink:0,cursor:"pointer",
               border:"1.5px solid "+(section===tb.key?"#16293f":"var(--border2)"),
               background:section===tb.key?"#16293f":"var(--surface)",color:section===tb.key?"#fff":"var(--text2)"}}>
-            {tb.icon} {tb.label}
+            {tb.label}
           </button>
         ))}
       </div>
@@ -7222,6 +7231,13 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
             <div style={{fontSize:48,marginBottom:8}}>🎓</div>
             <div style={{fontSize:16,fontWeight:700,color:"var(--text)",marginBottom:4}}>{regCreds.name}</div>
             <div style={{fontSize:12,color:"var(--text2)"}}>{L("regNote")}</div>
+            {regCreds.email?(
+              <div style={{marginTop:8,fontSize:12,fontWeight:700,color:regCreds.mailed?"#5DC48A":"#e8a13c"}}>
+                {regCreds.mailed
+                  ? "\u2709 "+(lang==="en"?"Login details emailed to ":"Agahiyên têketinê bi e-peyamê çûn: ")+regCreds.email
+                  : "\u26a0 "+(lang==="en"?"Email failed — share the details manually":"E-peyam neçû — agahiyan bi destan bide")}
+              </div>
+            ):null}
           </div>
           <div style={{background:"#16293f",borderRadius:16,padding:"20px 18px",marginBottom:16,border:"1px solid rgba(79,142,247,0.3)"}}>
             <div style={{fontSize:10,color:"rgba(255,255,255,0.5)",marginBottom:4}}>{lang==="en"?"Student No":"Jimara Xwendekar"}</div>
@@ -8216,7 +8232,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
         <div className="tab-bar">
           {tabs.map(tb=>(
             <button key={tb.key} onClick={()=>setTab(tb.key)} className={`tab-btn${tab===tb.key?" active":""}`}>
-              <span>{tb.icon}</span>{tb.label}
+              {tb.label}
             </button>
           ))}
         </div>
@@ -9192,7 +9208,7 @@ function AdminReportCenter({students,teachers,schedule,lang,t,toast,byName}){
             style={{flex:"1 0 auto",padding:"9px 10px",fontSize:11.5,fontWeight:rTab===tb.key?800:600,borderRadius:9,border:"none",cursor:"pointer",whiteSpace:"nowrap",
               background:rTab===tb.key?"var(--surface)":"transparent",color:rTab===tb.key?"#16293f":"var(--text2)",
               boxShadow:rTab===tb.key?"0 1px 4px rgba(22,41,63,0.15)":"none",transition:"all .15s"}}>
-            {tb.icon} {tb.label}
+            {tb.label}
           </button>
         ))}
       </div>
@@ -10983,7 +10999,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
               background:mainTab===tab.k?"linear-gradient(135deg,#16293f,#16293f)":"transparent",
               color:mainTab===tab.k?"#fff":"var(--text2)",border:"none",borderRadius:11,cursor:"pointer",
               display:"flex",alignItems:"center",justifyContent:"center",gap:5,transition:"all .2s"}}>
-            {tab.icon} {tab.lbl}
+            {tab.lbl}
           </button>
         ))}
       </div>
@@ -12631,10 +12647,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
           <div key={item.key} onClick={()=>setView(item.key)}
             className={`app-nav-item${view===item.key?" active":""}`}
             >
-            <div className="app-nav-pill">
-              <span style={{filter:view===item.key?"none":"grayscale(.5)",opacity:view===item.key?1:.6,fontSize:18}}>{item.icon}</span>
-            </div>
-            <span className="app-nav-label">{item.label}</span>
+            <div className="app-nav-pill"><span className="app-nav-label">{item.label}</span></div>
           </div>
         ))}
       </nav>
@@ -14125,10 +14138,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
           <div key={item.key} onClick={()=>setView(item.key)}
             className={`app-nav-item${view===item.key?" active":""}`}
             >
-            <div className="app-nav-pill">
-              <span style={{filter:view===item.key?"none":"grayscale(.5)",opacity:view===item.key?1:.6,fontSize:19}}>{item.icon}</span>
-            </div>
-            <span className="app-nav-label">{item.label}</span>
+            <div className="app-nav-pill"><span className="app-nav-label">{item.label}</span></div>
             {item.badge>0&&<div className="app-nav-badge">{item.badge}</div>}
           </div>
         ))}
