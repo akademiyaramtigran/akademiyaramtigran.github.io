@@ -25,7 +25,7 @@ try{
   :root{
     --navy:#16293f; --navy-2:#1e3a5f; --navy-3:#274d75;
     --hero-grad:linear-gradient(160deg,#16293f 0%,#1e3a5f 55%,#274d75 100%);
-    --gold:#F7D116;
+    --gold:#F7D116; --gold-2:#8a6d0b; --rm:#1e3a5f;
     --paper:#FFFFFF; --paper-2:#F6F8FB; --surface:#FFFFFF;
     --ink:#16293f; --body:#33415C; --muted:#69748C;
     --line:rgba(22,41,63,.12); --card-shadow:0 8px 26px rgba(22,41,63,.08);
@@ -35,6 +35,7 @@ try{
       --paper:#0F1826; --paper-2:#121D2E; --surface:#18233A;
       --ink:#EEF1F8; --body:#C6CFE0; --muted:#8E9BB5;
       --line:rgba(238,241,248,.12); --card-shadow:0 10px 30px rgba(0,0,0,.4);
+      --gold-2:#F7D116; --rm:#8FBBE8;
     }
     .only-light{display:none !important}
   }
@@ -269,11 +270,13 @@ try{
   .drawer-title{font-weight:800;font-size:14px;color:var(--ink);letter-spacing:.16em}
   .drawer-close{background:none;border:none;font-size:20px;color:var(--muted);cursor:pointer;padding:4px 8px;line-height:1}
   .drawer-nav{display:flex;flex-direction:column;padding:6px 0}
-  .drawer-nav a{padding:14px 22px;font-size:15.5px;font-weight:600;color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line)}
+  .drawer-nav a{display:flex;align-items:center;justify-content:space-between;padding:15px 24px;font-size:15px;font-weight:600;letter-spacing:.01em;color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line)}
+  .drawer-nav a::after{content:"\203A";color:var(--muted);font-size:18px;font-weight:400;line-height:1}
+  .drawer-nav a.drawer-login{color:var(--gold-2);font-weight:800}
   .drawer-nav a:active{background:var(--paper-2)}
   .drawer-sec{padding:18px 22px 8px;font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
   .drawer-areas{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 18px 26px}
-  .drawer-area{display:flex;align-items:center;gap:8px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--paper-2);cursor:pointer;font-size:13.5px;font-weight:700;color:var(--ink);text-align:left}
+  .drawer-area{display:flex;align-items:center;justify-content:center;padding:12px 10px;border:1px solid var(--line);border-radius:10px;background:var(--paper-2);cursor:pointer;font-size:13.5px;font-weight:600;letter-spacing:.01em;color:var(--ink);text-align:center;font-family:inherit}
   .drawer-area.active{border-color:var(--navy);background:var(--navy);color:#fff}
   .drawer-area-all{grid-column:1/-1;justify-content:center}
   /* area cards clickable */
@@ -281,9 +284,17 @@ try{
   .area.active{border-color:var(--navy);box-shadow:0 0 0 2px var(--navy) inset}
   /* news filter chip */
   .news-filter-chip{margin-left:auto;background:var(--navy);color:#fff;border:none;border-radius:999px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}
-  .nf-row{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 22px}
-  .nf-chip{background:var(--surface);border:1px solid var(--line);color:var(--body);border-radius:999px;padding:8px 15px;font-size:13px;font-weight:700;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
-  .nf-chip.active{background:var(--navy);border-color:var(--navy);color:#fff}
+  .read-more{background:none;border:none;padding:10px 0 0;font:inherit;font-size:13px;font-weight:800;letter-spacing:.02em;color:var(--rm);cursor:pointer;text-align:left}
+  /* nûçe modal (tam metin) */
+  .nmodal-bd{position:fixed;inset:0;background:rgba(10,16,28,.6);z-index:120;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px)}
+  .nmodal{background:var(--paper);border-radius:16px;max-width:640px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 70px rgba(0,0,0,.4)}
+  .nmodal-head{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--paper);z-index:2}
+  .nmodal-date{font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--muted)}
+  .nmodal-close{margin-left:auto;background:var(--paper-2);border:1px solid var(--line);border-radius:50%;width:32px;height:32px;font-size:14px;line-height:1;cursor:pointer;color:var(--ink);flex-shrink:0}
+  .nmodal-body{padding:16px 20px 26px}
+  .nmodal-body h3{margin:14px 0 0;font-size:22px;line-height:1.3;color:var(--ink)}
+  .nmodal-body p{margin:10px 0 0;white-space:pre-wrap;color:var(--body);font-size:15px;line-height:1.7}
+  .nmodal-yt{width:100%;aspect-ratio:16/9;border:none;border-radius:12px;margin-top:16px}
   /* news card area badge */
   .news-area-badge{display:inline-block;margin-bottom:8px;font-size:10.5px;font-weight:800;letter-spacing:.04em;padding:3px 9px;border-radius:7px;background:var(--paper-2);border:1px solid var(--line);color:var(--navy)}
 
@@ -327,23 +338,23 @@ try{
     <button class="drawer-close" id="hb-close" aria-label="Bigire">✕</button>
   </div>
   <nav class="drawer-nav">
-    <a href="#top" data-close>🏠 <span data-i18n="home">Serûpel</span></a>
-    <a href="#nuce" data-close>📰 <span data-i18n="nav_news">Nûçe</span></a>
-    <a href="#video" data-close>▶️ <span data-i18n="nav_video">Vîdyo</span></a>
-    <a href="#qad" data-close>🎭 <span data-i18n="nav_areas">Qadên Hunerê</span></a>
-    <a href="#derbare" data-close>ℹ️ <span data-i18n="about_us">Derbarê Me</span></a>
-    <a href="#serledan" data-close>📝 <span data-i18n="nav_apply">Serlêdan</span></a>
-    <a href="/app/" rel="nofollow" style="color:var(--gold-2,#b8860b);font-weight:800">🔐 <span data-i18n="nav_login">Têketina Sîstemê</span></a>
+    <a href="#top" data-close><span data-i18n="home">Serûpel</span></a>
+    <a href="#nuce" data-close><span data-i18n="nav_news">Nûçe</span></a>
+    <a href="#video" data-close><span data-i18n="nav_video">Vîdyo</span></a>
+    <a href="#qad" data-close><span data-i18n="nav_areas">Qadên Hunerê</span></a>
+    <a href="#derbare" data-close><span data-i18n="about_us">Derbarê Me</span></a>
+    <a href="#serledan" data-close><span data-i18n="nav_apply">Serlêdan</span></a>
+    <a href="/app/" rel="nofollow" class="drawer-login"><span data-i18n="nav_login">Têketina Sîstemê</span></a>
   </nav>
   <div class="drawer-sec" data-i18n="filter">Parzûna Qadê</div>
   <div class="drawer-areas">
-    <button class="drawer-area" data-area="muzik"><span>🎵</span> Muzîk</button>
-    <button class="drawer-area" data-area="tiyatro"><span>🎭</span> Şano</button>
-    <button class="drawer-area" data-area="sinema"><span>🎬</span> Sînema</button>
-    <button class="drawer-area" data-area="dans"><span>💃</span> Dans</button>
-    <button class="drawer-area" data-area="edebiyat"><span>📚</span> Wêje</button>
-    <button class="drawer-area" data-area="wenesazi"><span>🎨</span> Wênesazî</button>
-    <button class="drawer-area drawer-area-all" data-area="">🌐 <span data-i18n="all">Hemû</span></button>
+    <button class="drawer-area" data-area="muzik"><span data-areakey="muzik">Muzîk</span></button>
+    <button class="drawer-area" data-area="tiyatro"><span data-areakey="tiyatro">Şano</span></button>
+    <button class="drawer-area" data-area="sinema"><span data-areakey="sinema">Sînema</span></button>
+    <button class="drawer-area" data-area="dans"><span data-areakey="dans">Dans</span></button>
+    <button class="drawer-area" data-area="edebiyat"><span data-areakey="edebiyat">Wêje</span></button>
+    <button class="drawer-area" data-area="wenesazi"><span data-areakey="wenesazi">Wênesazî</span></button>
+    <button class="drawer-area drawer-area-all" data-area=""><span data-i18n="all">Hemû</span></button>
   </div>
 </aside>
 
@@ -353,7 +364,7 @@ try{
     <div>
       <div class="eyebrow" data-i18n="since">Ji sala 2010'an ve</div>
       <h1 class="serif">Akademîya<br/>Aram Tîgran</h1>
-      <p class="lede">Muzîk · Şano · Sînema · Dans · Wêje · Wênesazî</p>
+      <p class="lede" data-i18n="areas_line">Muzîk · Şano · Sînema · Dans · Wêje · Wênesazî</p>
       <div class="cta-row">
         <a class="btn-ghost" href="#nuce" data-i18n="nav_news">Nûçe</a>
       </div>
@@ -372,15 +383,6 @@ try{
       <span class="sec-eyebrow" data-i18n="nav_news">Nûçe</span>
       <h2 class="serif" data-i18n="news_title">Nûçe û Çalakî</h2>
       <button class="news-filter-chip" id="news-filter" style="display:none"></button>
-    </div>
-    <div class="nf-row" role="group" aria-label="Parzûna qadê">
-      <button class="nf-chip active" data-area="" data-i18n="all">Hemû</button>
-      <button class="nf-chip" data-area="muzik">🎵 Muzîk</button>
-      <button class="nf-chip" data-area="tiyatro">🎭 Şano</button>
-      <button class="nf-chip" data-area="sinema">🎬 Sînema</button>
-      <button class="nf-chip" data-area="dans">💃 Dans</button>
-      <button class="nf-chip" data-area="edebiyat">📚 Wêje</button>
-      <button class="nf-chip" data-area="wenesazi">🎨 Wênesazî</button>
     </div>
     <div id="news-root">
       <div class="empty" id="news-empty">⏳ Nûçe tên barkirin…</div>
@@ -407,12 +409,12 @@ try{
       <h2 class="serif" data-i18n="nav_areas">Qadên Hunerê</h2>
     </div>
     <div class="areas-grid">
-      <button class="area" data-area="muzik"><span class="ic">🎵</span><b>Muzîk</b></button>
-      <button class="area" data-area="tiyatro"><span class="ic">🎭</span><b>Şano</b></button>
-      <button class="area" data-area="sinema"><span class="ic">🎬</span><b>Sînema</b></button>
-      <button class="area" data-area="dans"><span class="ic">💃</span><b>Dans</b></button>
-      <button class="area" data-area="edebiyat"><span class="ic">📚</span><b>Wêje</b></button>
-      <button class="area" data-area="wenesazi"><span class="ic">🎨</span><b>Wênesazî</b></button>
+      <button class="area" data-area="muzik"><span class="ic">🎵</span><b data-areakey="muzik">Muzîk</b></button>
+      <button class="area" data-area="tiyatro"><span class="ic">🎭</span><b data-areakey="tiyatro">Şano</b></button>
+      <button class="area" data-area="sinema"><span class="ic">🎬</span><b data-areakey="sinema">Sînema</b></button>
+      <button class="area" data-area="dans"><span class="ic">💃</span><b data-areakey="dans">Dans</b></button>
+      <button class="area" data-area="edebiyat"><span class="ic">📚</span><b data-areakey="edebiyat">Wêje</b></button>
+      <button class="area" data-area="wenesazi"><span class="ic">🎨</span><b data-areakey="wenesazi">Wênesazî</b></button>
     </div>
     <p style="margin:14px 2px 0;font-size:12.5px;color:var(--muted)">👆 <span data-i18n="area_hint">Li qadekê bikirtîne da ku nûçeyên wê qadê bibînî.</span></p>
   </div>
@@ -474,19 +476,27 @@ try{
 <script>
 // ── Çok dilli site metinleri (ku varsayılan) ──────────────────────────────
 window.SITE_T={
- ku:{nav_news:"Nûçe",nav_video:"Vîdyo",nav_areas:"Qadên Hunerê",nav_apply:"Serlêdan",nav_login:"Têketin",menu:"MENÛ",home:"Serûpel",about_us:"Derbarê Me",filter:"Parzûna Qadê",all:"Hemû",since:"Ji sala 2010'an ve",news_title:"Nûçe û Çalakî",edu:"Perwerde",who:"Em kî ne",about_title:"Derbarê Akademiyê",about_p:"dibistana hunerê, ji sala 2010'an ve.",founded:"Damezrandin",fields:"Qadên hunerê",enroll:"Tomarkirin",apply_title:"Serlêdana Xwendekariyê",area_hint:"Li qadekê bikirtîne da ku nûçeyên wê qadê bibînî.",school:"Dibistana hunerê",links:"Girêdan",login_sys:"Têketina Sîstemê",
+ ku:{nav_news:"Nûçe",nav_video:"Vîdyo",nav_areas:"Qadên Hunerê",nav_apply:"Serlêdan",nav_login:"Têketin",menu:"MENÛ",home:"Serûpel",about_us:"Derbarê Me",filter:"Parzûna Qadê",all:"Hemû",since:"Ji sala 2010'an ve",read_more:"Bêtir bixwîne",areas_line:"Muzîk · Şano · Sînema · Dans · Wêje · Wênesazî",news_none:"Hîn nûçe nehatine weşandin.",news_none_area:"Di vê qadê de hîn nûçe tune.",news_title:"Nûçe û Çalakî",edu:"Perwerde",who:"Em kî ne",about_title:"Derbarê Akademiyê",about_p:"dibistana hunerê, ji sala 2010'an ve.",founded:"Damezrandin",fields:"Qadên hunerê",enroll:"Tomarkirin",apply_title:"Serlêdana Xwendekariyê",area_hint:"Li qadekê bikirtîne da ku nûçeyên wê qadê bibînî.",school:"Dibistana hunerê",links:"Girêdan",login_sys:"Têketina Sîstemê",
   ap_closed:"Serlêdan niha girtî ye. Dema tomarkirinê li vir tê ragihandin.",ap_docshead:"Belgeyên ku divê werin dagirtin:",ap_name:"Nav û paşnav *",ap_dob:"Roja jidayikbûnê",ap_phone:"Têlefon *",ap_area:"Qada hunerê *",ap_note:"Nîşe (vebijarkî)",ap_docs:"Belgeyên pêwîst *",ap_upload:"📎 Bar bike",ap_change:"🔄 Biguherîne",ap_notyet:"necar",ap_done:"✅ barkir",ap_send:"📨 Serlêdanê Bişîne",ap_need:"⚠ Nav û têlefon pêwîst in.",ap_missing:"⚠ Ev belge kêm in: ",ap_toobig:"⚠ Belge bi tevahî pir mezin in — wêne/PDF-yên biçûktir bar bike.",ap_sending:"⏳ Tê şandin…",ap_ok1:"Serlêdana te hate wergirtin!",ap_ok2:"Karûbarên xwendekaran dê bi te re têkilî deyne.",ap_fail:"❌ Neçû — dîsa biceribîne."},
- tr:{nav_news:"Haberler",nav_video:"Video",nav_areas:"Sanat Alanları",nav_apply:"Başvuru",nav_login:"Giriş",menu:"MENÜ",home:"Ana Sayfa",about_us:"Hakkımızda",filter:"Alan Filtresi",all:"Tümü",since:"2010'dan beri",news_title:"Haberler ve Etkinlikler",edu:"Eğitim",who:"Biz kimiz",about_title:"Akademi Hakkında",about_p:"sanat okulu, 2010'dan beri.",founded:"Kuruluş",fields:"Sanat alanı",enroll:"Kayıt",apply_title:"Öğrencilik Başvurusu",area_hint:"Bir alana dokun, o alanın haberlerini gör.",school:"Sanat okulu",links:"Bağlantılar",login_sys:"Sisteme Giriş",
+ tr:{nav_news:"Haberler",nav_video:"Video",nav_areas:"Sanat Alanları",nav_apply:"Başvuru",nav_login:"Giriş",menu:"MENÜ",home:"Ana Sayfa",about_us:"Hakkımızda",filter:"Alan Filtresi",all:"Tümü",since:"2010'dan beri",read_more:"Devamını oku",areas_line:"Müzik · Tiyatro · Sinema · Dans · Edebiyat · Resim",news_none:"Henüz haber yayınlanmadı.",news_none_area:"Bu alanda henüz haber yok.",news_title:"Haberler ve Etkinlikler",edu:"Eğitim",who:"Biz kimiz",about_title:"Akademi Hakkında",about_p:"sanat okulu, 2010'dan beri.",founded:"Kuruluş",fields:"Sanat alanı",enroll:"Kayıt",apply_title:"Öğrencilik Başvurusu",area_hint:"Bir alana dokun, o alanın haberlerini gör.",school:"Sanat okulu",links:"Bağlantılar",login_sys:"Sisteme Giriş",
   ap_closed:"Başvurular şu an kapalı. Kayıt dönemi burada duyurulacak.",ap_docshead:"Doldurulması gereken belgeler:",ap_name:"Ad ve soyad *",ap_dob:"Doğum tarihi",ap_phone:"Telefon *",ap_area:"Sanat alanı *",ap_note:"Not (isteğe bağlı)",ap_docs:"İstenen belgeler *",ap_upload:"📎 Yükle",ap_change:"🔄 Değiştir",ap_notyet:"yüklenmedi",ap_done:"✅ yüklendi",ap_send:"📨 Başvuruyu Gönder",ap_need:"⚠ Ad ve telefon zorunludur.",ap_missing:"⚠ Şu belgeler eksik: ",ap_toobig:"⚠ Belgeler toplamda çok büyük — daha küçük görsel/PDF yükleyin.",ap_sending:"⏳ Gönderiliyor…",ap_ok1:"Başvurunuz alındı!",ap_ok2:"Öğrenci işleri sizinle iletişime geçecek.",ap_fail:"❌ Gönderilemedi — tekrar deneyin."},
- en:{nav_news:"News",nav_video:"Video",nav_areas:"Art Fields",nav_apply:"Apply",nav_login:"Sign in",menu:"MENU",home:"Home",about_us:"About Us",filter:"Field Filter",all:"All",since:"Since 2010",news_title:"News & Events",edu:"Education",who:"Who we are",about_title:"About the Academy",about_p:"a school of arts, since 2010.",founded:"Founded",fields:"Art fields",enroll:"Enrollment",apply_title:"Student Application",area_hint:"Tap a field to see its news.",school:"School of arts",links:"Links",login_sys:"System Login",
+ en:{nav_news:"News",nav_video:"Video",nav_areas:"Art Fields",nav_apply:"Apply",nav_login:"Sign in",menu:"MENU",home:"Home",about_us:"About Us",filter:"Field Filter",all:"All",since:"Since 2010",read_more:"Read more",areas_line:"Music · Theatre · Cinema · Dance · Literature · Painting",news_none:"No news published yet.",news_none_area:"No news in this field yet.",news_title:"News & Events",edu:"Education",who:"Who we are",about_title:"About the Academy",about_p:"a school of arts, since 2010.",founded:"Founded",fields:"Art fields",enroll:"Enrollment",apply_title:"Student Application",area_hint:"Tap a field to see its news.",school:"School of arts",links:"Links",login_sys:"System Login",
   ap_closed:"Applications are currently closed. The enrollment period will be announced here.",ap_docshead:"Documents to fill in:",ap_name:"Full name *",ap_dob:"Date of birth",ap_phone:"Phone *",ap_area:"Art field *",ap_note:"Note (optional)",ap_docs:"Required documents *",ap_upload:"📎 Upload",ap_change:"🔄 Change",ap_notyet:"not yet",ap_done:"✅ uploaded",ap_send:"📨 Submit Application",ap_need:"⚠ Name and phone are required.",ap_missing:"⚠ Missing documents: ",ap_toobig:"⚠ Files are too large in total — upload smaller images/PDFs.",ap_sending:"⏳ Sending…",ap_ok1:"Your application has been received!",ap_ok2:"Student affairs will contact you.",ap_fail:"❌ Failed — please try again."},
- de:{nav_news:"Nachrichten",nav_video:"Video",nav_areas:"Kunstbereiche",nav_apply:"Bewerbung",nav_login:"Anmelden",menu:"MENÜ",home:"Startseite",about_us:"Über uns",filter:"Bereichsfilter",all:"Alle",since:"Seit 2010",news_title:"Nachrichten & Veranstaltungen",edu:"Bildung",who:"Wer wir sind",about_title:"Über die Akademie",about_p:"eine Kunstschule, seit 2010.",founded:"Gegründet",fields:"Kunstbereiche",enroll:"Anmeldung",apply_title:"Studienbewerbung",area_hint:"Tippe auf einen Bereich, um seine Nachrichten zu sehen.",school:"Kunstschule",links:"Links",login_sys:"System-Login",
+ de:{nav_news:"Nachrichten",nav_video:"Video",nav_areas:"Kunstbereiche",nav_apply:"Bewerbung",nav_login:"Anmelden",menu:"MENÜ",home:"Startseite",about_us:"Über uns",filter:"Bereichsfilter",all:"Alle",since:"Seit 2010",read_more:"Weiterlesen",areas_line:"Musik · Theater · Kino · Tanz · Literatur · Malerei",news_none:"Noch keine Nachrichten veröffentlicht.",news_none_area:"In diesem Bereich noch keine Nachrichten.",news_title:"Nachrichten & Veranstaltungen",edu:"Bildung",who:"Wer wir sind",about_title:"Über die Akademie",about_p:"eine Kunstschule, seit 2010.",founded:"Gegründet",fields:"Kunstbereiche",enroll:"Anmeldung",apply_title:"Studienbewerbung",area_hint:"Tippe auf einen Bereich, um seine Nachrichten zu sehen.",school:"Kunstschule",links:"Links",login_sys:"System-Login",
   ap_closed:"Bewerbungen sind derzeit geschlossen. Der Anmeldezeitraum wird hier bekannt gegeben.",ap_docshead:"Auszufüllende Dokumente:",ap_name:"Vor- und Nachname *",ap_dob:"Geburtsdatum",ap_phone:"Telefon *",ap_area:"Kunstbereich *",ap_note:"Notiz (optional)",ap_docs:"Erforderliche Dokumente *",ap_upload:"📎 Hochladen",ap_change:"🔄 Ändern",ap_notyet:"offen",ap_done:"✅ hochgeladen",ap_send:"📨 Bewerbung senden",ap_need:"⚠ Name und Telefon sind erforderlich.",ap_missing:"⚠ Fehlende Dokumente: ",ap_toobig:"⚠ Dateien insgesamt zu groß — kleinere Bilder/PDFs hochladen.",ap_sending:"⏳ Wird gesendet…",ap_ok1:"Ihre Bewerbung ist eingegangen!",ap_ok2:"Das Studierendenbüro wird Sie kontaktieren.",ap_fail:"❌ Fehlgeschlagen — bitte erneut versuchen."}
 };
 window.SITE_LANG=(function(){try{return localStorage.getItem('aat-site-lang')||'ku';}catch(e){return 'ku';}})();
 window.ST=function(k){var d=window.SITE_T[window.SITE_LANG]||window.SITE_T.ku;return d[k]||window.SITE_T.ku[k]||k;};
+window.AREA_I18N={
+ ku:{muzik:"Muzîk",tiyatro:"Şano",sinema:"Sînema",dans:"Dans",edebiyat:"Wêje",wenesazi:"Wênesazî"},
+ tr:{muzik:"Müzik",tiyatro:"Tiyatro",sinema:"Sinema",dans:"Dans",edebiyat:"Edebiyat",wenesazi:"Resim"},
+ en:{muzik:"Music",tiyatro:"Theatre",sinema:"Cinema",dans:"Dance",edebiyat:"Literature",wenesazi:"Painting"},
+ de:{muzik:"Musik",tiyatro:"Theater",sinema:"Kino",dans:"Tanz",edebiyat:"Literatur",wenesazi:"Malerei"}
+};
+window.areaName=function(k){var d=window.AREA_I18N[window.SITE_LANG]||window.AREA_I18N.ku;return d[k]||window.AREA_I18N.ku[k]||k;};
 window.applySiteLang=function(){
   document.querySelectorAll('[data-i18n]').forEach(function(el){ el.textContent=window.ST(el.getAttribute('data-i18n')); });
+  document.querySelectorAll('[data-areakey]').forEach(function(el){ el.textContent=window.areaName(el.getAttribute('data-areakey')); });
   document.querySelectorAll('.lang-sw button').forEach(function(b){ b.className=b.getAttribute('data-lang')===window.SITE_LANG?'on':''; });
   document.documentElement.lang=window.SITE_LANG;
 };
@@ -527,7 +537,8 @@ const newsRoot  = document.getElementById('news-root');
 const videoSec  = document.getElementById('video');
 const videoGrid = document.getElementById('video-grid');
 
-const AREA_LABELS = {muzik:"🎵 Muzîk",tiyatro:"🎭 Şano",sinema:"🎬 Sînema",dans:"💃 Dans",edebiyat:"📚 Wêje",wenesazi:"🎨 Wênesazî"};
+const AREA_ICONS = {muzik:"🎵",tiyatro:"🎭",sinema:"🎬",dans:"💃",edebiyat:"📚",wenesazi:"🎨"};
+const areaLabel = k => (AREA_ICONS[k]?AREA_ICONS[k]+" ":"") + window.areaName(k);
 let allNews = [];
 let newsArea = null; // aktif qad parzûnê / null = hepsi
 
@@ -731,6 +742,40 @@ function mediaCarousel(media, title){
   return car;
 }
 
+// ── Nûçe modal: tam metin + medya ──
+function openNewsModal(item){
+  const bd = document.createElement('div'); bd.className='nmodal-bd';
+  const m = document.createElement('div'); m.className='nmodal';
+  const head = document.createElement('div'); head.className='nmodal-head';
+  const dc = document.createElement('span'); dc.className='nmodal-date'; dc.textContent = fmtDate(item.dateStr).toUpperCase(); head.appendChild(dc);
+  if(item.area && item.area!=="genel" && AREA_ICONS[item.area]){
+    const b = document.createElement('span'); b.className='news-area-badge'; b.style.marginBottom='0';
+    b.textContent = areaLabel(item.area); head.appendChild(b);
+  }
+  const x = document.createElement('button'); x.className='nmodal-close'; x.textContent='\u2715'; x.setAttribute('aria-label','Bigire'); head.appendChild(x);
+  const body = document.createElement('div'); body.className='nmodal-body';
+  const media = newsMedia(item);
+  if(media.length) body.appendChild(mediaCarousel(media, item.title));
+  const h = document.createElement('h3'); h.className='serif'; h.textContent = newsText(item,'title');
+  const p = document.createElement('p'); p.textContent = newsText(item,'body');
+  body.appendChild(h); body.appendChild(p);
+  if(item.youtubeId){
+    const f = document.createElement('iframe');
+    f.src = "https://www.youtube-nocookie.com/embed/" + encodeURIComponent(item.youtubeId);
+    f.setAttribute('allowfullscreen',''); f.setAttribute('loading','lazy');
+    f.className='nmodal-yt'; f.title = newsText(item,'title');
+    body.appendChild(f);
+  }
+  m.appendChild(head); m.appendChild(body); bd.appendChild(m);
+  const esc = (e)=>{ if(e.key==='Escape') close(); };
+  const close = ()=>{ bd.remove(); document.body.style.overflow=''; document.removeEventListener('keydown', esc); };
+  x.addEventListener('click', close);
+  bd.addEventListener('click', e=>{ if(e.target===bd) close(); });
+  document.addEventListener('keydown', esc);
+  document.body.appendChild(bd);
+  document.body.style.overflow='hidden';
+}
+
 function newsCard(item, featured){
   const a = document.createElement('div');
   a.className = 'card' + (featured ? ' featured' : ' row-card');
@@ -760,10 +805,10 @@ function newsCard(item, featured){
   thumb.appendChild(chip);
   const body = document.createElement('div');
   body.className = 'card-body';
-  if(item.area && item.area!=="genel" && AREA_LABELS[item.area]){
+  if(item.area && item.area!=="genel" && AREA_ICONS[item.area]){
     const badge = document.createElement('span');
     badge.className = 'news-area-badge';
-    badge.textContent = AREA_LABELS[item.area];
+    badge.textContent = areaLabel(item.area);
     body.appendChild(badge);
   }
   const h = document.createElement('h3');
@@ -772,7 +817,17 @@ function newsCard(item, featured){
   const p = document.createElement('p');
   p.textContent = newsText(item,'body');
   body.appendChild(h); body.appendChild(p);
+  const rm = document.createElement('button');
+  rm.className = 'read-more';
+  rm.textContent = window.ST('read_more') + ' \u2192';
+  rm.addEventListener('click', e=>{ e.stopPropagation(); openNewsModal(item); });
+  body.appendChild(rm);
   a.appendChild(thumb); a.appendChild(body);
+  a.style.cursor = 'pointer';
+  a.addEventListener('click', e=>{
+    if(e.target.closest('video,iframe,button,a,.marrow')) return;
+    openNewsModal(item);
+  });
   return a;
 }
 
@@ -781,7 +836,7 @@ function render(items){
   if(!items.length){
     const d = document.createElement('div');
     d.className = 'empty';
-    d.textContent = newsArea ? "Di vê qadê de hîn nûçe tune." : "Hîn nûçe nehatine weşandin.";
+    d.textContent = newsArea ? window.ST('news_none_area') : window.ST('news_none');
     newsRoot.appendChild(d);
   } else {
     const grid = document.createElement('div'); grid.className = 'news-grid';
@@ -1038,13 +1093,12 @@ function applyNewsFilter(){
     ? allNews.filter(it => it.area===newsArea)
     : allNews;
   render(items);
-  if(newsArea && AREA_LABELS[newsArea]){
+  if(newsArea && AREA_ICONS[newsArea]){
     filterChip.style.display = "";
-    filterChip.textContent = AREA_LABELS[newsArea] + "  \u2715";
+    filterChip.textContent = areaLabel(newsArea) + "  \u2715";
   } else { filterChip.style.display = "none"; }
   document.querySelectorAll('.area').forEach(el=>el.classList.toggle('active', el.dataset.area===newsArea));
   document.querySelectorAll('.drawer-area').forEach(el=>el.classList.toggle('active', (el.dataset.area||null)===newsArea));
-  document.querySelectorAll('.nf-chip').forEach(el=>el.classList.toggle('active', (el.dataset.area||null)===newsArea));
 }
 function setNewsArea(key){
   newsArea = key || null;
@@ -1054,7 +1108,6 @@ function setNewsArea(key){
 }
 filterChip.addEventListener('click', ()=>setNewsArea(null));
 document.querySelectorAll('.area').forEach(el=>{ el.addEventListener('click', ()=>setNewsArea(el.dataset.area)); });
-document.querySelectorAll('.nf-chip').forEach(el=>{ el.addEventListener('click', ()=>{ newsArea = el.dataset.area||null; applyNewsFilter(); }); });
 
 // ── Drawer (hamburger menü) ──
 const drawer = document.getElementById('drawer');
