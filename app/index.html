@@ -6141,7 +6141,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     <div>
       <SectionHeader>{L("heading")}</SectionHeader>
       <Card>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v12.2</span></div>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v12.3</span></div>
         {/* Dil sekmeleri: KU zorunlu ana metin, diğerleri çeviri */}
         <div style={{display:"flex",gap:5,marginBottom:8}}>
           {[["ku","KU"],["tr","TR"],["en","EN"],["de","DE"]].map(([lk,lb])=>{
@@ -7899,7 +7899,9 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
             </span>}
             {ls.term&&(()=>{const tm=(terms.list||[]).find(x=>x.id===ls.term);
               return tm?<span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:"rgba(22,41,63,0.08)",color:"#16293f",fontWeight:700}}>📆 {tm.label}</span>:null;})()}
-            {ls.teacherName&&<span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:"rgba(22,163,74,0.08)",color:"#16a34a",fontWeight:700}}>👨‍🏫 {ls.teacherName}</span>}
+            {ls.teacherName
+              ? <span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:"rgba(22,163,74,0.08)",color:"#16a34a",fontWeight:700}}>👨‍🏫 {ls.teacherName}</span>
+              : <span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:"rgba(220,38,38,0.08)",color:"#dc2626",fontWeight:700,border:"1px solid rgba(220,38,38,0.2)"}}>{lang==="en"?"⚠ unassigned":"⚠ mamoste nehatiye tayînkirin"}</span>}
           </div>
           <div style={{fontSize:11,color:isExtra?"#ea580c":a.color,marginBottom:2}}>📍 {ls.loc||"—"}</div>
           {isExtra ? (
@@ -9863,10 +9865,11 @@ function saveTerms(data){
     try{ window.__FB.setDoc(window.__FB.doc(window.__FB.db,"config","terms"),{..._termsCache,updatedAt:window.__FB.serverTimestamp()},{merge:false}).catch(()=>{}); }catch(_){}
   }
 }
-// Ders bu öğretmene görünür mü? Öğretmen atanmışsa yalnız o; atanmamışsa alan kuralı
+// Ders bu öğretmene görünür mü? YALNIZ atanmış öğretmen görür.
+// Atanmamış dersler hiçbir öğretmen paneline düşmez (izolasyon kuralı).
 function lessonForTeacher(ls,teacher){
-  if(ls.teacherNo) return String(ls.teacherNo)===String(teacher.no);
-  return teacher.area==="genel" ? ls.area==="genel" : ls.area===teacher.area;
+  if(!ls.teacherNo) return false;
+  return String(ls.teacherNo)===String(teacher.no);
 }
 // Bir ders aktif dönemde mi? (dönemsiz dersler her dönemde görünür)
 function lessonInActiveTerm(ls,terms){
@@ -13478,6 +13481,8 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
   const a=AREA_MAP[student.area]||AREA_MAP["genel"]||{color:"#16293f",bg:"rgba(22,41,63,0.08)",icon:"🎓",name:{ku:"",en:"",de:"",desc:{ku:"",en:"",de:""}}};
   const mySchedule=schedule.filter(s=>{
     if(!s.area||!student.area) return false;
+    // Öğretmeni atanmamış ders henüz aktif değildir — kimseye gösterilmez
+    if(!s.teacherNo) return false;
     // Genel alan dersleri herkese görünür
     if(s.area==="genel") return true;
     // Direkt eşleşme
