@@ -6141,7 +6141,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     <div>
       <SectionHeader>{L("heading")}</SectionHeader>
       <Card>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v12.1</span></div>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v12.2</span></div>
         {/* Dil sekmeleri: KU zorunlu ana metin, diğerleri çeviri */}
         <div style={{display:"flex",gap:5,marginBottom:8}}>
           {[["ku","KU"],["tr","TR"],["en","EN"],["de","DE"]].map(([lk,lb])=>{
@@ -6677,7 +6677,7 @@ function SideMenu({open,onClose,items,activeKey,onSelect,user,roleLabel,extraIte
 }
 
 /* ─── SPECIAL PANEL HEADER (Çapemenî / Karûbar — ortak üst panel) ────────── */
-function SpecialPanelHeader({user,icon,roleLabel,lang,onLogout,siteLink,onMenu}){
+function SpecialPanelHeader({user,icon,roleLabel,lang,onLogout,siteLink,onMenu,tabs,activeKey,onTab}){
   return(
     <div style={{background:"var(--hero-grad)",padding:"calc(env(safe-area-inset-top,0px) + 18px) 16px 14px",borderRadius:"0 0 22px 22px",boxShadow:"0 6px 24px rgba(22,41,63,0.25)"}}>
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}>
@@ -6700,15 +6700,36 @@ function SpecialPanelHeader({user,icon,roleLabel,lang,onLogout,siteLink,onMenu})
           ↩ {lang==="en"?"Sign out":lang==="de"?"Abmelden":"Derkeve"}
         </button>
       </div>
+      {tabs&&tabs.length>0&&(
+        <div style={{display:"flex",gap:0,overflowX:"auto",marginTop:12,borderBottom:"1px solid rgba(255,255,255,0.15)"}}>
+          {tabs.map(tb=>(
+            <button key={tb.key} onClick={()=>onTab&&onTab(tb.key)}
+              style={{flexShrink:0,padding:"9px 12px",fontSize:12,fontWeight:activeKey===tb.key?700:500,background:"none",border:"none",cursor:"pointer",whiteSpace:"nowrap",
+                color:activeKey===tb.key?"#fff":"rgba(255,255,255,0.58)",
+                borderBottom:activeKey===tb.key?"2px solid rgba(255,255,255,0.95)":"2px solid transparent",marginBottom:-1}}>
+              {tb.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 /* ─── PRESS PANEL (basın kullanıcısının ekranı — yalnızca malper haberleri) ── */
 function PressPanel({user,lang,toast,onLogout}){
+  const [menuOpen,setMenuOpen]=useState(false);
+  const pressTabs=[{key:"nuce",label:lang==="en"?"Website News":lang==="de"?"Website-News":"Nûçeyên Malperê"}];
   return(
     <div style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
-      <SpecialPanelHeader user={user} icon="📰" lang={lang} onLogout={onLogout} siteLink={true}
+      <SideMenu open={menuOpen} onClose={()=>setMenuOpen(false)} items={pressTabs} activeKey="nuce"
+        onSelect={()=>{}} user={user}
+        roleLabel={lang==="en"?"Press":"Çapemenî"}
+        extraItems={[
+          {label:lang==="en"?"View site":lang==="de"?"Website":"Malperê bibîne",onClick:()=>{try{window.open("../","_blank");}catch(_){}}},
+          {label:lang==="en"?"Sign out":lang==="de"?"Abmelden":"Derkeve",onClick:onLogout,danger:true},
+        ]}/>
+      <SpecialPanelHeader user={user} icon="📰" lang={lang} onLogout={onLogout} siteLink={true} onMenu={()=>setMenuOpen(true)}
         roleLabel={lang==="en"?"Press · Website Editor":lang==="de"?"Presse · Website-Redaktion":"Çapemenî · Edîtorê Malperê"}/>
       <div style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
         <AdminNewsPanel lang={lang} toast={toast} adminName={user.name}/>
@@ -6970,18 +6991,8 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
         roleLabel={lang==="en"?"Student Affairs":"Karûbarên Xwendekaran"}
         extraItems={[{icon:"↩",label:(t&&t.logout)||"Derkeve",onClick:onLogout,danger:true}]}/>
       <SpecialPanelHeader user={user} icon="🗂" lang={lang} onLogout={onLogout} siteLink={true} onMenu={()=>setMenuOpen(true)}
-        roleLabel={lang==="en"?"Student Affairs":lang==="de"?"Studierendenbüro":"Karûbarên Xwendekaran"}/>
-      {/* Bölüm sekmeleri */}
-      <div style={{display:"flex",gap:6,padding:"10px 14px 0",overflowX:"auto",flexShrink:0}}>
-        {regTabs.map(tb=>(
-          <button key={tb.key} onClick={()=>setSection(tb.key)}
-            style={{padding:"8px 13px",borderRadius:20,fontSize:11,fontWeight:section===tb.key?800:600,whiteSpace:"nowrap",flexShrink:0,cursor:"pointer",
-              border:"1.5px solid "+(section===tb.key?"#16293f":"var(--border2)"),
-              background:section===tb.key?"#16293f":"var(--surface)",color:section===tb.key?"#fff":"var(--text2)"}}>
-            {tb.label}
-          </button>
-        ))}
-      </div>
+        roleLabel={lang==="en"?"Student Affairs":lang==="de"?"Studierendenbüro":"Karûbarên Xwendekaran"}
+        tabs={regTabs} activeKey={section} onTab={setSection}/>
       <div style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
 
         {section==="qad"&&(
