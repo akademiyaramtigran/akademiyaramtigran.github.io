@@ -921,18 +921,18 @@ input,select,textarea{font-family:inherit;}
 }
 .app-nav::-webkit-scrollbar{display:none;}
 .app-nav-item{
-  flex:1 0 auto;min-width:64px;max-width:118px;display:flex;flex-direction:column;align-items:center;
+  flex:1 0 auto;min-width:60px;max-width:80px;display:flex;flex-direction:column;align-items:center;
   gap:3px;cursor:pointer;padding:4px 2px;position:relative;
   transition:opacity .15s;
 }
 .app-nav-item:active{opacity:.7;}
 .app-nav-pill{
-  min-width:48px;height:30px;border-radius:999px;padding:0 12px;
+  width:44px;height:28px;border-radius:10px;
   display:flex;align-items:center;justify-content:center;
-  transition:background .18s var(--ease),transform .18s var(--spring);
+  font-size:18px;transition:background .18s var(--ease),transform .18s var(--spring);
 }
 .app-nav-item.active .app-nav-pill{background:rgba(22,41,63,.08);transform:scale(1.03);}
-.app-nav-label{font-size:10.5px;font-weight:600;color:var(--text2);transition:color .15s;white-space:nowrap;letter-spacing:0.02em;}
+.app-nav-label{font-size:9px;font-weight:500;color:var(--text2);transition:color .15s;white-space:nowrap;letter-spacing:0.02em;}
 .app-nav-item.active .app-nav-label{color:var(--accent);font-weight:700;}
 .app-nav-badge{
   position:absolute;top:0;right:calc(50% - 26px);
@@ -953,7 +953,7 @@ input,select,textarea{font-family:inherit;}
 /* ── STUDENT HERO — premium lacivert ── */
 .student-hero{
   background:var(--hero-grad);
-  padding:16px 16px 20px;flex-shrink:0;position:relative;overflow:hidden;
+  padding:12px 14px 14px;flex-shrink:0;position:relative;overflow:hidden;
   border-bottom:none;
 }
 .student-hero::before{
@@ -6141,7 +6141,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     <div>
       <SectionHeader>{L("heading")}</SectionHeader>
       <Card>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v12.3</span></div>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v12.4</span></div>
         {/* Dil sekmeleri: KU zorunlu ana metin, diğerleri çeviri */}
         <div style={{display:"flex",gap:5,marginBottom:8}}>
           {[["ku","KU"],["tr","TR"],["en","EN"],["de","DE"]].map(([lk,lb])=>{
@@ -12068,15 +12068,13 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
         ]}/>
       {/* Teacher Header — professional strip */}
       <div style={{background:"#16293f",
-        padding:"14px 16px 12px",flexShrink:0,display:"flex",alignItems:"center",gap:12}}>
+        padding:"10px 14px",flexShrink:0,display:"flex",alignItems:"center",gap:10}}>
         <button className="sm-burger" onClick={()=>setMenuOpen(true)} aria-label="Menu">☰</button>
-        <Avatar name={teacher.name} color={a.color} size={44} photo={teacher.photo}/>
+        <Avatar name={teacher.name} color={a.color} size={40} photo={teacher.photo}/>
         <div style={{flex:1,minWidth:0}}>
-          <div style={{color:"rgba(255,255,255,.5)",fontSize:10,fontWeight:600,letterSpacing:"0.07em",textTransform:"uppercase"}}>
-            {a.icon} {areaName(teacher.area,lang)}
-          </div>
           <div style={{color:"#fff",fontSize:15,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{teacher.name}</div>
-          <div style={{display:"flex",gap:6,marginTop:3}}>
+          <div style={{display:"flex",gap:6,marginTop:3,overflow:"hidden",whiteSpace:"nowrap"}}>
+            <span className="glass-pill">{a.icon} {areaName(teacher.area,lang)}</span>
             <span className="glass-pill" style={{fontFamily:"monospace"}}>{teacher.no}</span>
             <span className="glass-pill" style={{background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.28)"}}>{myStudents.length} {lang==="ku"?"xwendekar":lang==="en"?"students":"xwendekar"}</span>
           </div>
@@ -12662,7 +12660,10 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
           <div key={item.key} onClick={()=>setView(item.key)}
             className={`app-nav-item${view===item.key?" active":""}`}
             >
-            <div className="app-nav-pill"><span className="app-nav-label">{item.label}</span></div>
+            <div className="app-nav-pill">
+              <span style={{filter:view===item.key?"none":"grayscale(.5)",opacity:view===item.key?1:.6,fontSize:18}}>{item.icon}</span>
+            </div>
+            <span className="app-nav-label">{item.label}</span>
           </div>
         ))}
       </nav>
@@ -13608,19 +13609,15 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
         ]}/>
       {/* Student Hero Header */}
       <div className="student-hero">
-        <div style={{display:"flex",alignItems:"center",gap:14}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
           <button className="sm-burger" onClick={()=>setMenuOpen(true)} aria-label="Menu">☰</button>
-          <Avatar name={student.name} color={a.color} size={52} photo={student.photo}/>
+          <Avatar name={student.name} color={a.color} size={44} photo={student.photo}/>
           <div style={{flex:1,minWidth:0}}>
-            <div style={{color:"rgba(255,255,255,.55)",fontSize:10,fontWeight:600,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:2}}>
-              {lang==="ku"?"Xwendekar":lang==="en"?"Student":"Schüler"}
-            </div>
-            <div style={{color:"#fff",fontSize:17,fontWeight:800,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{student.name}</div>
-            <div style={{display:"flex",align:"center",gap:6,marginTop:4,flexWrap:"wrap"}}>
+            <div style={{color:"#fff",fontSize:16,fontWeight:800,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{student.name}</div>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginTop:3,overflow:"hidden",whiteSpace:"nowrap"}}>
               <span className="glass-pill">{a.icon} {areaName(student.area,lang)}</span>
               <span className="glass-pill" style={{fontFamily:"monospace"}}>{student.no}</span>
-              <span className="glass-pill">🎓 {(student.classLevel||1)}. Sînif</span>
-
+              <span className="glass-pill">{(student.classLevel||1)}. Sînif</span>
             </div>
           </div>
           <button onClick={onLogout} style={{color:"rgba(255,255,255,.6)",background:"rgba(255,255,255,.1)",
@@ -14155,7 +14152,10 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
           <div key={item.key} onClick={()=>setView(item.key)}
             className={`app-nav-item${view===item.key?" active":""}`}
             >
-            <div className="app-nav-pill"><span className="app-nav-label">{item.label}</span></div>
+            <div className="app-nav-pill">
+              <span style={{filter:view===item.key?"none":"grayscale(.5)",opacity:view===item.key?1:.6,fontSize:18}}>{item.icon}</span>
+            </div>
+            <span className="app-nav-label">{item.label}</span>
             {item.badge>0&&<div className="app-nav-badge">{item.badge}</div>}
           </div>
         ))}
