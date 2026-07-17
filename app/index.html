@@ -892,13 +892,13 @@ input,select,textarea{font-family:inherit;}
 .sm-head .sm-rl{color:rgba(255,255,255,.6);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;margin-top:2px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sm-items{flex:1;overflow-y:auto;padding:10px 10px calc(env(safe-area-inset-bottom,0px) + 14px)}
-.sm-it{display:flex;align-items:center;gap:12px;width:100%;padding:12px 13px;margin-bottom:2px;
+.sm-it{display:flex;align-items:center;gap:10px;width:100%;padding:13px 14px;margin-bottom:2px;letter-spacing:.01em;
   border:none;border-radius:12px;background:none;cursor:pointer;text-align:left;
   font-size:13.5px;font-weight:600;color:var(--text);transition:background .15s}
 .sm-it:hover{background:var(--bg2)}
 .sm-it.active{background:rgba(22,41,63,.09);color:#16293f;font-weight:800}
 [data-theme="dark"] .sm-it.active{background:rgba(79,142,247,.14);color:#7eb3ff}
-.sm-it .sm-ic{font-size:18px;width:24px;text-align:center;flex-shrink:0}
+.sm-it .sm-ar{margin-left:2px;color:var(--text2);font-size:17px;font-weight:400;line-height:1;flex-shrink:0;opacity:.7}
 .sm-it .sm-bdg{margin-left:auto;background:#dc2626;color:#fff;font-size:10px;font-weight:800;
   min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 5px}
 .sm-sep{height:1px;background:var(--border);margin:8px 4px}
@@ -6140,7 +6140,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     <div>
       <SectionHeader>{L("heading")}</SectionHeader>
       <Card>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v11.8</span></div>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v11.9</span></div>
         {/* Dil sekmeleri: KU zorunlu ana metin, diğerleri çeviri */}
         <div style={{display:"flex",gap:5,marginBottom:8}}>
           {[["ku","KU"],["tr","TR"],["en","EN"],["de","DE"]].map(([lk,lb])=>{
@@ -6652,9 +6652,9 @@ function SideMenu({open,onClose,items,activeKey,onSelect,user,roleLabel,extraIte
           {items.map(it=>(
             <button key={it.key} className={"sm-it"+(activeKey===it.key?" active":"")}
               onClick={()=>{onSelect(it.key);onClose();}}>
-              <span className="sm-ic">{it.icon}</span>
               <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{it.label}</span>
               {it.badge>0&&<span className="sm-bdg">{it.badge>99?"99+":it.badge}</span>}
+              <span className="sm-ar" aria-hidden="true">›</span>
             </button>
           ))}
           {extraItems&&extraItems.length>0&&(
@@ -6663,8 +6663,8 @@ function SideMenu({open,onClose,items,activeKey,onSelect,user,roleLabel,extraIte
               {extraItems.map((it,i)=>(
                 <button key={i} className="sm-it" onClick={()=>{it.onClick();onClose();}}
                   style={it.danger?{color:"var(--red)"}:null}>
-                  <span className="sm-ic">{it.icon}</span>
-                  <span>{it.label}</span>
+                  <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{it.label}</span>
+                  <span className="sm-ar" aria-hidden="true">›</span>
                 </button>
               ))}
             </>
