@@ -525,9 +525,10 @@
     // ── CRUD helpers ──
     async saveStudent(s) {
       const hasPhoto = !!(s.photo);
-      // _plainPass ASLA Firestore'a yazılmaz — düz metin şifre yalnızca yerel
-      // oturum belleğinde kalır (oluşturma anındaki bilgi kartı için).
-      const SKIP = new Set(["pass","_plainPass","_authEmail","docs","id"]);
+      // _plainPass: personelin ürettiği şifrelerin düz hali — panelde
+      // görüntüleme için kaydedilir. Kullanıcının KENDİ seçtiği şifre
+      // hiçbir zaman düz yazılmaz (kendi-değiştirme akışları "" gönderir).
+      const SKIP = new Set(["pass","_authEmail","docs","id"]);
       const cleanData = {};
       for(const [k,v] of Object.entries(s)){
         if(SKIP.has(k)) continue;
@@ -551,7 +552,7 @@
     },
     async saveTeacher(tc) {
       const hasPhoto = !!(tc.photo);
-      const SKIP = new Set(["pass","_plainPass","_authEmail","docs","id"]);
+      const SKIP = new Set(["pass","_authEmail","docs","id"]);
       const cleanData = {};
       for(const [k,v] of Object.entries(tc)){
         if(SKIP.has(k)) continue;
@@ -6140,7 +6141,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     <div>
       <SectionHeader>{L("heading")}</SectionHeader>
       <Card>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v12.0</span></div>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v12.1</span></div>
         {/* Dil sekmeleri: KU zorunlu ana metin, diğerleri çeviri */}
         <div style={{display:"flex",gap:5,marginBottom:8}}>
           {[["ku","KU"],["tr","TR"],["en","EN"],["de","DE"]].map(([lk,lb])=>{
@@ -12635,7 +12636,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
             onGoStats={()=>{setStatsFilter("all");setView("stats");}}
             onSelectStudent={setSelectedStudentStat}
             onSaveTeacherPass={async(newHash, newPlain)=>{
-              if(onDataChange) onDataChange("updateTeacher",{...teacher,pass:newHash,passHash:newHash,_plainPass:newPlain||teacher._plainPass});
+              if(onDataChange) onDataChange("updateTeacher",{...teacher,pass:newHash,passHash:newHash,_plainPass:""});
             }}
           />
         )}
@@ -14149,7 +14150,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
       <StudentQRScanner student={student} onClose={()=>setShowScanner(false)} toast={toast} lang={lang}/>
     )}
     {showChangePass&&(
-      <StudentChangePassSheet onClose={()=>setShowChangePass(false)} toast={toast} lang={lang} user={student} userType="student" onSavePass={(newHash, newPlain)=>onDataChange&&onDataChange("updateStudent",{...student,pass:newHash,passHash:newHash,_plainPass:newPlain||student._plainPass})}/>
+      <StudentChangePassSheet onClose={()=>setShowChangePass(false)} toast={toast} lang={lang} user={student} userType="student" onSavePass={(newHash, newPlain)=>onDataChange&&onDataChange("updateStudent",{...student,pass:newHash,passHash:newHash,_plainPass:""})}/>
     )}
     {showBiometric&&(
       <BiometricModal
