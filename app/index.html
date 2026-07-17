@@ -5957,7 +5957,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     list:{ku:"Nûçeyên weşandî",en:"Published posts",de:"Veröffentlichte Beiträge"},
     empty:{ku:"Hîn nûçe tune. Ya yekem biweşîne!",en:"No posts yet. Publish the first one!",de:"Noch keine Beiträge."},
     del:{ku:"Jê bibe",en:"Delete",de:"Löschen"},
-    needTitle:{ku:"⚠ Sernav pêwîst e",en:"⚠ Title required",de:"⚠ Titel erforderlich"},
+    needTitle:{ku:"⚠ Sernav pêwîst e — bi kêmanî bi zimanekî (KU/TR/EN/DE)",en:"⚠ Title required — in at least one language (KU/TR/EN/DE)",de:"⚠ Titel erforderlich — in mindestens einer Sprache (KU/TR/EN/DE)"},
     done:{ku:"✅ Nûçe hate weşandin",en:"✅ Published",de:"✅ Veröffentlicht"},
     deleted:{ku:"🗑 Hate jêbirin",en:"🗑 Deleted",de:"🗑 Gelöscht"},
     err:{ku:"❌ Çewtî — dîsa biceribîne",en:"❌ Error — try again",de:"❌ Fehler"},
@@ -6031,7 +6031,10 @@ function AdminNewsPanel({lang,toast,adminName}){
   const SUB_LANGS={ "Kurdî":"ku","Zazakî":"zza","Tirkî":"tr","English":"en","Deutsch":"de","Erebî":"ar" };
 
   async function publish(){
-    if(!title.trim()){ toast(L("needTitle")); return; }
+    // Sernav: KU an jî çevirilerden herhangi biri yeterli
+    const _anyTitle = title.trim()||((i18n.tr||{}).title||"").trim()||((i18n.en||{}).title||"").trim()||((i18n.de||{}).title||"").trim();
+    const _anyBody  = body.trim() ||((i18n.tr||{}).body ||"").trim()||((i18n.en||{}).body ||"").trim()||((i18n.de||{}).body ||"").trim();
+    if(!_anyTitle){ toast(L("needTitle")); return; }
     if(!window.__FB||!window.__FB.isConfigured()){ toast(L("err")); return; }
     // Ön kontrol: Firebase oturumu yoksa yazma kesin reddedilir — net söyle
     if(!window.__FB.auth||!window.__FB.auth.currentUser){
@@ -6101,7 +6104,7 @@ function AdminNewsPanel({lang,toast,adminName}){
           i18nOut[l2]={title:(e2.title||"").trim(),body:(e2.body||"").trim()};
       });
       await window.__FB.addDoc(window.__FB.collection(window.__FB.db,"news"),{
-        title:title.trim(), body:body.trim(),
+        title:(title.trim()||_anyTitle), body:(body.trim()||_anyBody),
         i18n: Object.keys(i18nOut).length?i18nOut:null,
         youtubeId: ytIdFromUrl(ytUrl.trim()),
         // Kapak: yalnız URL ise ayrıca yaz; base64 kapağı tekrar yazmak
@@ -6137,7 +6140,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     <div>
       <SectionHeader>{L("heading")}</SectionHeader>
       <Card>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v11.7</span></div>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v11.8</span></div>
         {/* Dil sekmeleri: KU zorunlu ana metin, diğerleri çeviri */}
         <div style={{display:"flex",gap:5,marginBottom:8}}>
           {[["ku","KU"],["tr","TR"],["en","EN"],["de","DE"]].map(([lk,lb])=>{
@@ -6162,7 +6165,7 @@ function AdminNewsPanel({lang,toast,adminName}){
         ):(
           <>
             <div style={{fontSize:10,color:"var(--text2)",marginBottom:6}}>
-              🌐 {trTab.toUpperCase()} {lang==="en"?"translation (optional — shown when site language is switched)":"çeviri (isteğe bağlı — site dili değişince gösterilir)"}
+              🌐 {trTab.toUpperCase()} {lang==="en"?"translation (optional — shown when site language is switched). If KU is left empty, this becomes the main text.":"çeviri (isteğe bağlı — site dili değişince gösterilir). KU boş bırakılırsa ana başlık/metin bu olur."}
             </div>
             <input value={i18n[trTab].title} onChange={e=>setI18n(p2=>({...p2,[trTab]:{...p2[trTab],title:e.target.value}}))} placeholder={L("title")+" ("+trTab.toUpperCase()+")"}
               style={{width:"100%",padding:"11px 12px",marginBottom:8,border:"1px solid var(--border2)",borderRadius:10,fontSize:14,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box"}}/>

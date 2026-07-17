@@ -281,6 +281,9 @@ try{
   .area.active{border-color:var(--navy);box-shadow:0 0 0 2px var(--navy) inset}
   /* news filter chip */
   .news-filter-chip{margin-left:auto;background:var(--navy);color:#fff;border:none;border-radius:999px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}
+  .nf-row{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 22px}
+  .nf-chip{background:var(--surface);border:1px solid var(--line);color:var(--body);border-radius:999px;padding:8px 15px;font-size:13px;font-weight:700;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+  .nf-chip.active{background:var(--navy);border-color:var(--navy);color:#fff}
   /* news card area badge */
   .news-area-badge{display:inline-block;margin-bottom:8px;font-size:10.5px;font-weight:800;letter-spacing:.04em;padding:3px 9px;border-radius:7px;background:var(--paper-2);border:1px solid var(--line);color:var(--navy)}
 
@@ -369,6 +372,15 @@ try{
       <span class="sec-eyebrow" data-i18n="nav_news">Nûçe</span>
       <h2 class="serif" data-i18n="news_title">Nûçe û Çalakî</h2>
       <button class="news-filter-chip" id="news-filter" style="display:none"></button>
+    </div>
+    <div class="nf-row" role="group" aria-label="Parzûna qadê">
+      <button class="nf-chip active" data-area="" data-i18n="all">Hemû</button>
+      <button class="nf-chip" data-area="muzik">🎵 Muzîk</button>
+      <button class="nf-chip" data-area="tiyatro">🎭 Şano</button>
+      <button class="nf-chip" data-area="sinema">🎬 Sînema</button>
+      <button class="nf-chip" data-area="dans">💃 Dans</button>
+      <button class="nf-chip" data-area="edebiyat">📚 Wêje</button>
+      <button class="nf-chip" data-area="wenesazi">🎨 Wênesazî</button>
     </div>
     <div id="news-root">
       <div class="empty" id="news-empty">⏳ Nûçe tên barkirin…</div>
@@ -1023,7 +1035,7 @@ document.addEventListener('sitelang',()=>{
 const filterChip = document.getElementById('news-filter');
 function applyNewsFilter(){
   const items = newsArea
-    ? allNews.filter(it => it.area===newsArea || !it.area || it.area==="genel")
+    ? allNews.filter(it => it.area===newsArea)
     : allNews;
   render(items);
   if(newsArea && AREA_LABELS[newsArea]){
@@ -1032,6 +1044,7 @@ function applyNewsFilter(){
   } else { filterChip.style.display = "none"; }
   document.querySelectorAll('.area').forEach(el=>el.classList.toggle('active', el.dataset.area===newsArea));
   document.querySelectorAll('.drawer-area').forEach(el=>el.classList.toggle('active', (el.dataset.area||null)===newsArea));
+  document.querySelectorAll('.nf-chip').forEach(el=>el.classList.toggle('active', (el.dataset.area||null)===newsArea));
 }
 function setNewsArea(key){
   newsArea = key || null;
@@ -1041,6 +1054,7 @@ function setNewsArea(key){
 }
 filterChip.addEventListener('click', ()=>setNewsArea(null));
 document.querySelectorAll('.area').forEach(el=>{ el.addEventListener('click', ()=>setNewsArea(el.dataset.area)); });
+document.querySelectorAll('.nf-chip').forEach(el=>{ el.addEventListener('click', ()=>{ newsArea = el.dataset.area||null; applyNewsFilter(); }); });
 
 // ── Drawer (hamburger menü) ──
 const drawer = document.getElementById('drawer');
