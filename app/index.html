@@ -6141,7 +6141,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     <div>
       <SectionHeader>{L("heading")}</SectionHeader>
       <Card>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v12.4</span></div>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v12.5</span></div>
         {/* Dil sekmeleri: KU zorunlu ana metin, diğerleri çeviri */}
         <div style={{display:"flex",gap:5,marginBottom:8}}>
           {[["ku","KU"],["tr","TR"],["en","EN"],["de","DE"]].map(([lk,lb])=>{
@@ -7925,11 +7925,30 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
         <div style={{display:"flex",flexDirection:"column",gap:5,justifyContent:"center",flexShrink:0}}>
           <button onClick={()=>setEditingLesson(ls)}
             style={{padding:"6px 9px",fontSize:12,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:7,cursor:"pointer",color:"var(--text)"}}>✏️</button>
+          <button onClick={()=>markTeacherAbsent(ls)} title={lang==="en"?"Teacher absent today":"Mamoste nehat (îro)"}
+            style={{padding:"6px 9px",fontSize:12,background:"rgba(220,38,38,0.06)",border:"0.5px solid rgba(220,38,38,0.3)",borderRadius:7,cursor:"pointer"}}>🚫</button>
           <button onClick={()=>deleteLesson(ls)}
             style={{padding:"6px 9px",fontSize:12,background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:7,cursor:"pointer",color:"var(--red)"}}>🗑</button>
         </div>
       </div>
     );
+  }
+
+  async function markTeacherAbsent(ls){
+    const now=new Date();
+    const todayStr=now.toISOString().slice(0,10);
+    const DAYS=["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"];
+    const isToday=(ls.lessonType==="extra") ? (ls.extraDates||[]).includes(todayStr) : ls.day===DAYS[now.getDay()];
+    if(!isToday){ toast(lang==="en"?"⚠ This lesson is not scheduled today":"⚠ Ev ders îro nîne"); return; }
+    if(!window.confirm((lang==="en"?"Record: teacher did NOT come today?":"Îro mamoste NEHAT — were tomarkirin?")+"\n"+ls.name)) return;
+    try{
+      if(window.__FB&&window.__FB.isConfigured()){
+        await window.__FB.setDoc(window.__FB.doc(window.__FB.db,"attendance",ls.id+"-"+todayStr),
+          {lessonId:ls.id,lessonName:ls.name,area:ls.area,teacherId:ls.teacherNo||null,teacherName:ls.teacherName||null,
+           date:todayStr,teacherAbsent:true,records:{},updatedAt:window.__FB.serverTimestamp()},{merge:true});
+      }
+      toast("🚫 "+(lang==="en"?"Recorded: teacher absent":"Hat tomarkirin: mamoste nehat"));
+    }catch(e){ toast("❌"); }
   }
 
   return(
@@ -8723,7 +8742,9 @@ function AdminWeeklyReportPanel({students, teachers, schedule, lang, toast}) {
   // ── Geçmişe dönük devam: seçili tarih aralığındaki yoklama kayıtlarından ──
   // records:{öğrenciId:"on"|"late"|"off"}; % = (on+late)/toplam.
   // Aralıkta hiç kaydı olmayan öğrenci "değerlendirilmemiş" (nötr) sayılır.
-  const rangeDocs = attDocs.filter(d=>d.date && d.date>=rStart && d.date<=rEnd);
+  const rangeDocsAll = attDocs.filter(d=>d.date && d.date>=rStart && d.date<=rEnd);
+  const absentDocs = rangeDocsAll.filter(d=>d.teacherAbsent && (selectedArea==="all"||d.area===selectedArea));
+  const rangeDocs = rangeDocsAll.filter(d=>!d.teacherAbsent);
   const studentsWithAtt = filteredStudents.map(s=>{
     let on=0,late=0,off=0;
     rangeDocs.forEach(d=>{
@@ -8840,8 +8861,19 @@ tr:hover td{background:#f9fbff}
       <div class="meta-item">${lang==="en"?"Report Date":lang==="de"?"Berichtsdatum":"Roja Rapor"}<div class="meta-val">${dateNow}</div></div>
       <div class="meta-item">${L("students")}<div class="meta-val">${filteredStudents.length}</div></div>
       <div class="meta-item">${lang==="en"?"Attendance days in range":"Rojên yoklamayê"}<div class="meta-val">${rangeDayCount}</div></div>
+      <div class="meta-item">${lang==="en"?"Teacher no-show":"Mamoste nehat"}<div class="meta-val">${absentDocs.length}</div></div>
     </div>
   </div>
+
+  ${absentDocs.length?`<div class="section">
+    <div class="sec-title">🚫 ${lang==="en"?"Teacher no-show days":lang==="de"?"Lehrer nicht erschienen":"Rojên ku mamoste nehat"}</div>
+    ${absentDocs.slice().sort((a,b)=>(a.date||"").localeCompare(b.date||"")).map(d=>
+      `<div style="display:flex;gap:10px;padding:7px 10px;border-bottom:1px solid #eef1f6;font-size:12px">
+        <span style="font-weight:700;font-family:monospace">${d.date}</span>
+        <span style="flex:1">${(d.lessonName||d.lessonId||"")}</span>
+        <span style="color:#69748C">${(d.teacherName||"—")}</span>
+      </div>`).join("")}
+  </div>`:""}
 
   <div class="section">
     <div class="sec-title">🎓 ${L("attSec")}</div>
@@ -11853,22 +11885,59 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     ? studentsWithStats.filter(s=>s.att>=80)
     : studentsWithStats;
 
-  // Sync attendance from QR checkins
+  // Sync attendance from QR checkins (geç gelenler "late")
   useEffect(()=>{
     if(!activeQRSession) return;
     const interval = setInterval(()=>{
       const checkins = getSessionCheckins();
       setAttendance(prev=>{
         const updated = {...prev};
-        Object.keys(checkins).forEach(sid=>{ updated[sid]="on"; });
+        Object.keys(checkins).forEach(sid=>{ updated[sid]=checkins[sid].late?"late":"on"; });
         return updated;
       });
     }, 800);
     return ()=>clearInterval(interval);
   },[activeQRSession]);
 
+  // Başka cihazlardan gelen check-in'leri oturum doc'undan canlı al
+  useEffect(()=>{
+    if(!qrToken||!window.__FB||!window.__FB.isConfigured()) return;
+    let unsub=()=>{};
+    try{
+      unsub=window.__FB.onSnapshot(window.__FB.doc(window.__FB.db,"qrSessions",qrToken),snap=>{
+        const d=snap&&snap.exists&&snap.exists()?snap.data():null;
+        const sess=window._aat_qr_session;
+        if(d&&d.checkins&&sess&&sess.active){ sess.checkins={...sess.checkins,...d.checkins}; }
+      });
+    }catch(_){}
+    return ()=>{ try{unsub();}catch(_){} };
+  },[qrToken]);
+
   function openLessonQR(selectedLesson){
     const lesson = selectedLesson || currentLesson || mySchedule[0];
+    // ── Ders saati kapısı: ders yalnız kendi gününde, başlangıçtan en fazla
+    //    10 dk önce → bitiş saatine kadar açılabilir ──
+    if(lesson && lesson.id){
+      const _now=new Date();
+      const _nowM=_now.getHours()*60+_now.getMinutes();
+      const _today=_now.toISOString().slice(0,10);
+      const _dayOk = (lesson.lessonType==="extra")
+        ? (lesson.extraDates||[]).includes(_today)
+        : (lesson.day===DAY_NAMES_KU[_now.getDay()]);
+      let _timeOk=true;
+      if(lesson.start&&lesson.end){
+        const [_sh,_sm]=lesson.start.split(":").map(Number);
+        const [_eh,_em]=lesson.end.split(":").map(Number);
+        _timeOk = _nowM >= (_sh*60+_sm-10) && _nowM <= (_eh*60+_em);
+      }
+      if(!_dayOk || !_timeOk){
+        toast("⏰ "+(lang==="en"
+          ? "Lesson can only be started on its scheduled day/time"
+          : "Ders tenê di roj û saeta xwe de dest pê dike")
+          +" ("+(lesson.day||"")+" "+(lesson.start||"")+"–"+(lesson.end||"")+")", 6000);
+        return;
+      }
+    }
     const lessonName = lesson ? lesson.name : (lang==="ku"?"Ders":lang==="en"?"Class":"Unterricht");
     const lessonId   = lesson ? lesson.id   : ("manual_"+Date.now());
     const sessionId  = generateSessionToken(lessonId, teacher.id);
@@ -11904,7 +11973,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
         // Yeni oturum dokümanı — öğrenciler yeni QR'ı doğrulayabilsin
         window.__FB.setDoc(window.__FB.doc(window.__FB.db,"qrSessions",newId),{
           sessionId:newId, lessonName:s.lessonName, teacherName:s.teacherName, area:s.area,
-          openedAt: window.__FB.serverTimestamp(), expiresAt: s.expiresAt, active:true
+          openedAt: window.__FB.serverTimestamp(), openedAtMs: s.openedAt, expiresAt: s.expiresAt, active:true
         });
         // Eski QR'ı geçersiz kıl
         window.__FB.setDoc(window.__FB.doc(window.__FB.db,"qrSessions",oldId),{active:false},{merge:true});
@@ -11941,7 +12010,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     const lessonId = session?.lessonId || ("manual_"+Date.now());
     const records  = {};
     myStudents.forEach(s=>{
-      records[s.id] = checkins[s.id] ? "on" : "off";
+      records[s.id] = checkins[s.id] ? (checkins[s.id].late ? "late" : "on") : "off";
     });
     fbSaveAttendance(lessonId, teacher.id, dateStr, records);
 
@@ -14553,6 +14622,7 @@ function openQRSession(sessionId, lessonName, teacherName, area, expiresInMs=600
       window.__FB.setDoc(window.__FB.doc(window.__FB.db,"qrSessions",sessionId),{
         sessionId, lessonName, teacherName, area,
         openedAt: window.__FB.serverTimestamp(),
+        openedAtMs: session.openedAt,
         expiresAt: Date.now() + expiresInMs,
         teacherLocation: teacherLocation||null,
         active: true
@@ -14584,15 +14654,19 @@ function checkinToSession(qrContent, student){
   const uArea = (student.area||"").trim() || null;
   if(sArea && uArea && sArea !== uArea) return {ok:false, reason:"wrong_area"};
 
-  // Kaydet
+  // Kaydet — dersin İLK açılışından 15 dk sonrası "geç" sayılır
+  const _startMs = (typeof s.openedAtMs==="number"&&s.openedAtMs>0) ? s.openedAtMs
+                 : (typeof s.openedAt==="number" ? s.openedAt : 0);
+  const isLate = _startMs>0 && (Date.now() - _startMs) > 15*60*1000;
   s.checkins[student.id] = {
     confirmed: true,
     name: student.name,
     no:   student.no,
-    time: new Date().toLocaleTimeString()
+    time: new Date().toLocaleTimeString(),
+    late: isLate
   };
 
-  // Firebase'e checkin kaydet
+  // Firebase'e checkin kaydet + oturum doc'una merge (öğretmen cihazı canlı görsün)
   try {
 
     if(window.__FB && window.__FB.isConfigured()){
@@ -14600,7 +14674,13 @@ function checkinToSession(qrContent, student){
         window.__FB.doc(window.__FB.db, "attendance", s.sessionId + "_" + student.id),
         { sessionId: s.sessionId, lessonName: s.lessonName, area: s.area,
           studentId: student.id, studentName: student.name, studentNo: student.no,
-          time: new Date().toISOString(), teacherName: s.teacherName },
+          time: new Date().toISOString(), late: isLate, teacherName: s.teacherName },
+        {merge:true}
+      );
+      window.__FB.setDoc(
+        window.__FB.doc(window.__FB.db, "qrSessions", s.sessionId),
+        { checkins: { [student.id]: {confirmed:true, name:student.name, no:student.no,
+            time:s.checkins[student.id].time, late:isLate} } },
         {merge:true}
       );
     }
@@ -14643,7 +14723,7 @@ function closeQRSession(){
           closedAt,
           checkinCount,
           checkins: Object.fromEntries(
-            Object.entries(checkins).map(([id,v])=>[id,{name:v.name,no:v.no,time:v.time}])
+            Object.entries(checkins).map(([id,v])=>[id,{name:v.name,no:v.no,time:v.time,late:!!v.late}])
           ),
           savedAt: window.__FB.serverTimestamp()
         },{merge:true});
