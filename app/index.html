@@ -1352,6 +1352,22 @@ input, textarea, [contenteditable] {
 *,*::before,*::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{width:100%;height:100%;overflow:hidden;background:#ffffff;margin:0;padding:0;}
 #root{position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;overflow:hidden;background:#ffffff;display:flex;flex-direction:column;}
+#desktop-pwa{display:none;}
+/* ── MASAÜSTÜ: uygulama telefon çerçevesinde ortalanır + PWA kartı ── */
+@media (min-width:900px) and (pointer:fine){
+  html{overflow:auto!important;background:#0d1626;}
+  body{position:static!important;top:auto!important;left:auto!important;right:auto!important;bottom:auto!important;
+    width:100%!important;height:auto!important;min-height:100vh!important;overflow-x:hidden!important;overflow-y:auto!important;
+    display:flex!important;align-items:center;justify-content:center;gap:44px;padding:40px 28px;
+    background:radial-gradient(1100px 760px at 72% 18%,#274d75 0%,#1e3a5f 40%,#16293f 68%,#0d1626 100%)!important;}
+  #splash-screen{display:none!important;}
+  #root{position:relative!important;top:auto!important;left:auto!important;right:auto!important;bottom:auto!important;
+    flex:0 0 auto;width:404px;height:min(872px,92vh);max-height:920px;
+    border-radius:46px;overflow:hidden;border:11px solid #0a1220;
+    box-shadow:0 0 0 2px rgba(255,255,255,0.05),0 44px 100px rgba(0,0,0,0.6),0 12px 30px rgba(0,0,0,0.4);
+    transform:translateZ(0);}
+  #desktop-pwa{display:flex!important;}
+}
 </style>
 </head>
 <body style="position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;overflow:hidden;background:#ffffff;margin:0;padding:0;overscroll-behavior:none;">
@@ -1419,6 +1435,29 @@ html,body{width:100%;height:100%;overflow:hidden;background:#ffffff;margin:0;pad
 })();
 </script>
 <div id="root"></div>
+
+<!-- Masaüstü PWA / mobil yönlendirme kartı -->
+<aside id="desktop-pwa" style="flex-direction:column;width:308px;max-width:32vw;color:#eaf0f8;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(234,240,248,0.55);font-weight:800;margin-bottom:12px">Akademîya Aram Tîgran</div>
+  <h2 style="font-size:27px;line-height:1.24;margin:0 0 14px;font-weight:800;letter-spacing:-0.01em">Li têlefona xwe saz bike<br><span style="font-size:16px;font-weight:600;color:rgba(234,240,248,0.7)">Telefonuna uygulama olarak ekle</span></h2>
+  <p style="font-size:13.5px;line-height:1.65;color:rgba(234,240,248,0.72);margin:0 0 20px">Ji bo ezmûneke herî baş sepanê wek PWA li têlefona xwe zêde bike. QR-ê bi kameraya têlefonê veke:</p>
+  <div id="pwa-qr" style="background:#fff;padding:14px;border-radius:18px;width:fit-content;box-shadow:0 14px 34px rgba(0,0,0,0.4)"></div>
+  <ol style="margin:22px 0 0;padding-left:20px;font-size:13px;line-height:1.95;color:rgba(234,240,248,0.82)">
+    <li><b>iPhone (Safari):</b> ⬆ Parve bike → «Add to Home Screen»</li>
+    <li><b>Android (Chrome):</b> ⋮ → «Uygulamayı yükle»</li>
+  </ol>
+  <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.12);font-size:12.5px;color:rgba(234,240,248,0.6)">↩ Li aliyê çepê jî dikarî rasterast têkevî.<br><span style="color:rgba(234,240,248,0.42)">Soldaki ekrandan doğrudan da giriş yapabilirsin.</span></div>
+</aside>
+<script>
+window.addEventListener('load',function(){
+  try{
+    var el=document.getElementById('pwa-qr');
+    if(el && window.QRCode && window.matchMedia('(min-width:900px) and (pointer:fine)').matches){
+      new window.QRCode(el,{text:window.location.href,width:154,height:154,colorDark:'#16293f',colorLight:'#ffffff',correctLevel:window.QRCode.CorrectLevel.M});
+    }
+  }catch(e){}
+});
+</script>
 
 <!-- ══════════════════════════════════════════════
      SERVICE WORKER + PWA MANIFEST INSTALLER
@@ -6141,7 +6180,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     <div>
       <SectionHeader>{L("heading")}</SectionHeader>
       <Card>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v12.5</span></div>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v12.6</span></div>
         {/* Dil sekmeleri: KU zorunlu ana metin, diğerleri çeviri */}
         <div style={{display:"flex",gap:5,marginBottom:8}}>
           {[["ku","KU"],["tr","TR"],["en","EN"],["de","DE"]].map(([lk,lb])=>{
