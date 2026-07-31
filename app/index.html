@@ -1352,21 +1352,29 @@ input, textarea, [contenteditable] {
 *,*::before,*::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{width:100%;height:100%;overflow:hidden;background:#ffffff;margin:0;padding:0;}
 #root{position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;overflow:hidden;background:#ffffff;display:flex;flex-direction:column;}
-#desktop-pwa{display:none;}
-/* ── MASAÜSTÜ: uygulama telefon çerçevesinde ortalanır + PWA kartı ── */
-@media (min-width:900px) and (pointer:fine){
-  html{overflow:auto!important;background:#071a1f;}
-  body{position:static!important;top:auto!important;left:auto!important;right:auto!important;bottom:auto!important;
-    width:100%!important;height:auto!important;min-height:100vh!important;overflow-x:hidden!important;overflow-y:auto!important;
-    display:flex!important;align-items:center;justify-content:center;gap:44px;padding:40px 28px;
-    background:radial-gradient(1100px 760px at 72% 18%,#2c6b74 0%,#1c4a55 40%,#0f2f38 68%,#071a1f 100%)!important;}
+/* ══ MASAÜSTÜ (WEB) DÜZENİ — sabit yan menü + geniş içerik ══ */
+@media (min-width:1000px) and (pointer:fine){
   #splash-screen{display:none!important;}
-  #root{position:relative!important;top:auto!important;left:auto!important;right:auto!important;bottom:auto!important;
-    flex:0 0 auto;width:404px;height:min(872px,92vh);max-height:920px;
-    border-radius:46px;overflow:hidden;border:11px solid #05161a;
-    box-shadow:0 0 0 2px rgba(255,255,255,0.05),0 44px 100px rgba(0,0,0,0.6),0 12px 30px rgba(0,0,0,0.4);
-    transform:translateZ(0);}
-  #desktop-pwa{display:flex!important;}
+  #root{background:radial-gradient(1200px 820px at 72% 12%,#2c6b74 0%,#1c4a55 36%,#0f2f38 66%,#071a1f 100%);}
+  /* uygulama kabuğu şeffaf → gradient görünür (paneller kendi arka planıyla kapatır) */
+  #root>div{background:transparent!important;}
+  /* Yan menü sabit — her zaman açık */
+  .sm{transform:none!important;width:272px!important;max-width:272px!important;box-shadow:none!important;border-right:1px solid var(--border);}
+  .sm-ov{display:none!important;}
+  .sm-burger,.sm-x{display:none!important;}
+  .app-nav{display:none!important;}
+  .sm-it{font-size:14px;padding:14px 16px;}
+  .sm-head{padding-top:22px;}
+  /* Panel gövdesi menünün sağında */
+  .panel-shell{padding-left:272px;}
+  .scroll-area{padding-left:30px!important;padding-right:30px!important;}
+  .scroll-area>*{max-width:1120px;margin-left:auto!important;margin-right:auto!important;}
+  /* Giriş ekranı: ortalanmış kart */
+  .login-shell{margin:auto!important;width:100%!important;max-width:460px;height:auto!important;max-height:94vh;
+    border-radius:28px;overflow-y:auto!important;overflow-x:hidden!important;
+    box-shadow:0 40px 100px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.06);}
+  /* Alt sayfalar masaüstünde dar pencere */
+  .sheet-shell{max-width:620px!important;}
 }
 </style>
 </head>
@@ -1436,28 +1444,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#ffffff;margin:0;pad
 </script>
 <div id="root"></div>
 
-<!-- Masaüstü PWA / mobil yönlendirme kartı -->
-<aside id="desktop-pwa" style="flex-direction:column;width:308px;max-width:32vw;color:#eaf0f8;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <div style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(234,240,248,0.55);font-weight:800;margin-bottom:12px">Akademîya Aram Tîgran</div>
-  <h2 style="font-size:27px;line-height:1.24;margin:0 0 14px;font-weight:800;letter-spacing:-0.01em">Li têlefona xwe saz bike<br><span style="font-size:16px;font-weight:600;color:rgba(234,240,248,0.7)">Telefonuna uygulama olarak ekle</span></h2>
-  <p style="font-size:13.5px;line-height:1.65;color:rgba(234,240,248,0.72);margin:0 0 20px">Ji bo ezmûneke herî baş sepanê wek PWA li têlefona xwe zêde bike. QR-ê bi kameraya têlefonê veke:</p>
-  <div id="pwa-qr" style="background:#fff;padding:14px;border-radius:18px;width:fit-content;box-shadow:0 14px 34px rgba(0,0,0,0.4)"></div>
-  <ol style="margin:22px 0 0;padding-left:20px;font-size:13px;line-height:1.95;color:rgba(234,240,248,0.82)">
-    <li><b>iPhone (Safari):</b> ⬆ Parve bike → «Add to Home Screen»</li>
-    <li><b>Android (Chrome):</b> ⋮ → «Uygulamayı yükle»</li>
-  </ol>
-  <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.12);font-size:12.5px;color:rgba(234,240,248,0.6)">↩ Li aliyê çepê jî dikarî rasterast têkevî.<br><span style="color:rgba(234,240,248,0.42)">Soldaki ekrandan doğrudan da giriş yapabilirsin.</span></div>
-</aside>
-<script>
-window.addEventListener('load',function(){
-  try{
-    var el=document.getElementById('pwa-qr');
-    if(el && window.QRCode && window.matchMedia('(min-width:900px) and (pointer:fine)').matches){
-      new window.QRCode(el,{text:window.location.href,width:154,height:154,colorDark:'#0f2f38',colorLight:'#ffffff',correctLevel:window.QRCode.CorrectLevel.M});
-    }
-  }catch(e){}
-});
-</script>
+
 
 <!-- ══════════════════════════════════════════════
      SERVICE WORKER + PWA MANIFEST INSTALLER
@@ -3749,7 +3736,7 @@ function Sheet({open,onClose,title,children}){
   return(
     <>
       {open&&<div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:200,backdropFilter:"blur(2px)"}}/>}
-      <div style={{
+      <div className="sheet-shell" style={{
         position:"fixed",bottom:0,left:"50%",
         transform:"translateX(-50%) translateY("+(open?0:110)+"%)",
         width:"100%",
@@ -5975,6 +5962,8 @@ function AdminNewsPanel({lang,toast,adminName}){
   const [body,setBody]=useState("");
   // Çeviriler: KU ana metin; TR/EN/DE isteğe bağlı — site dil değişince bunlar gösterilir
   const [trTab,setTrTab]=useState("ku");
+  const [showPreview,setShowPreview]=useState(false);
+  const [pvLang,setPvLang]=useState("ku");
   const [i18n,setI18n]=useState({tr:{title:"",body:""},en:{title:"",body:""},de:{title:"",body:""}});
   const [ytUrl,setYtUrl]=useState("");
   const [images,setImages]=useState([]);      // data-url listesi (max 10)
@@ -6180,7 +6169,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     <div>
       <SectionHeader>{L("heading")}</SectionHeader>
       <Card>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v12.7</span></div>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v12.8</span></div>
         {/* Dil sekmeleri: KU zorunlu ana metin, diğerleri çeviri */}
         <div style={{display:"flex",gap:5,marginBottom:8}}>
           {[["ku","KU"],["tr","TR"],["en","EN"],["de","DE"]].map(([lk,lb])=>{
@@ -6295,8 +6284,66 @@ function AdminNewsPanel({lang,toast,adminName}){
             </div>
           </div>
         )}
+        <button onClick={()=>{setPvLang("ku");setShowPreview(true);}}
+          style={{width:"100%",padding:"12px",marginBottom:8,borderRadius:12,border:"1.5px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:13.5,fontWeight:700,cursor:"pointer"}}>
+          👁 {lang==="en"?"Preview before publishing":lang==="de"?"Vorschau":"Pêşdîtin berî weşandinê"}
+        </button>
         <PrimaryBtn onClick={publish} icon="📤" disabled={saving}>{saving?"⏳ ...":L("publish")}</PrimaryBtn>
       </Card>
+
+      {/* ── Pêşdîtin: nûçe li malperê wisa xuya dike ── */}
+      {showPreview&&(()=>{
+        const pvT = pvLang==="ku" ? title.trim() : ((i18n[pvLang]||{}).title||"").trim();
+        const pvB = pvLang==="ku" ? body.trim()  : ((i18n[pvLang]||{}).body ||"").trim();
+        const missing = !pvT && !pvB;
+        const cover = images[0]||null;
+        const aIcon = (AREA_MAP[area]||{}).icon||"🌐";
+        return (
+        <div onClick={()=>setShowPreview(false)}
+          style={{position:"fixed",inset:0,background:"rgba(6,20,24,0.74)",zIndex:900,display:"flex",alignItems:"center",justifyContent:"center",padding:16,backdropFilter:"blur(3px)"}}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{background:"var(--surface)",borderRadius:20,maxWidth:540,width:"100%",maxHeight:"88vh",overflowY:"auto",boxShadow:"0 30px 80px rgba(0,0,0,0.5)"}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,padding:"13px 16px",borderBottom:"1px solid var(--border2)",position:"sticky",top:0,background:"var(--surface)",zIndex:2}}>
+              <span style={{fontSize:12.5,fontWeight:800,color:"var(--text)"}}>👁 {lang==="en"?"Preview":"Pêşdîtin"}</span>
+              <div style={{display:"flex",gap:4,marginLeft:8}}>
+                {["ku","tr","en","de"].map(lk=>(
+                  <button key={lk} onClick={()=>setPvLang(lk)}
+                    style={{padding:"4px 9px",borderRadius:8,fontSize:10.5,fontWeight:pvLang===lk?800:600,cursor:"pointer",
+                      border:"1px solid "+(pvLang===lk?"#0f2f38":"var(--border2)"),
+                      background:pvLang===lk?"#0f2f38":"var(--bg2)",color:pvLang===lk?"#fff":"var(--text2)"}}>
+                    {lk.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+              <button onClick={()=>setShowPreview(false)}
+                style={{marginLeft:"auto",background:"var(--bg2)",border:"1px solid var(--border2)",borderRadius:"50%",width:30,height:30,cursor:"pointer",color:"var(--text)",fontSize:13,flexShrink:0}}>✕</button>
+            </div>
+            <div style={{padding:"16px 18px 24px"}}>
+              {missing ? (
+                <div style={{padding:"26px 10px",textAlign:"center",fontSize:13,color:"var(--text2)",lineHeight:1.7}}>
+                  ⚠ {lang==="en"?"No text for this language — visitors will see the Kurdish version."
+                       :"Ji bo vî zimanî nivîs tune — mêvan dê guhertoya kurdî bibînin."}
+                </div>
+              ) : (<>
+                {cover&&<img src={cover} alt="" style={{width:"100%",borderRadius:14,marginBottom:14,display:"block",maxHeight:280,objectFit:"cover"}}/>}
+                <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:9,flexWrap:"wrap"}}>
+                  <span style={{fontSize:10,fontWeight:800,letterSpacing:"0.05em",padding:"3px 9px",borderRadius:7,background:"var(--bg2)",border:"1px solid var(--border2)",color:"var(--text2)"}}>
+                    {aIcon} {area==="genel"?(lang==="en"?"General":"Giştî"):areaName(area,lang)}
+                  </span>
+                  <span style={{fontSize:10,color:"var(--text2)",fontFamily:"monospace"}}>{new Date().toISOString().slice(0,10)}</span>
+                  {images.length>1&&<span style={{fontSize:10,color:"var(--text2)"}}>📷 {images.length}</span>}
+                  {videos.length>0&&<span style={{fontSize:10,color:"var(--text2)"}}>🎬 {videos.length}</span>}
+                  {ytIdFromUrl(ytUrl.trim())&&<span style={{fontSize:10,color:"var(--text2)"}}>▶️ YouTube</span>}
+                </div>
+                <div style={{fontSize:20,fontWeight:800,lineHeight:1.3,color:"var(--text)",marginBottom:8}}>
+                  {pvT||(lang==="en"?"(no title)":"(sernav tune)")}
+                </div>
+                <div style={{fontSize:14,lineHeight:1.75,color:"var(--text2)",whiteSpace:"pre-wrap"}}>{pvB}</div>
+              </>)}
+            </div>
+          </div>
+        </div>);
+      })()}
 
       <SectionHeader>{L("list")} ({items.length})</SectionHeader>
       {items.length===0 && <Card><div style={{fontSize:13,color:"var(--text2)",textAlign:"center",padding:"8px 0"}}>{L("empty")}</div></Card>}
@@ -6686,7 +6733,7 @@ function SideMenu({open,onClose,items,activeKey,onSelect,user,roleLabel,extraIte
             <div className="sm-nm">{user?.name||""}</div>
             <div className="sm-rl">{roleLabel||""}{user?.no?(" · "+user.no):""}</div>
           </div>
-          <button onClick={onClose} style={{background:"rgba(255,255,255,.1)",border:"none",color:"rgba(255,255,255,.7)",width:30,height:30,borderRadius:"50%",cursor:"pointer",fontSize:14,flexShrink:0}}>✕</button>
+          <button className="sm-x" onClick={onClose} style={{background:"rgba(255,255,255,.1)",border:"none",color:"rgba(255,255,255,.7)",width:30,height:30,borderRadius:"50%",cursor:"pointer",fontSize:14,flexShrink:0}}>✕</button>
         </div>
         <div className="sm-items">
           {items.map(it=>(
@@ -6760,7 +6807,7 @@ function PressPanel({user,lang,toast,onLogout}){
   const [menuOpen,setMenuOpen]=useState(false);
   const pressTabs=[{key:"nuce",label:lang==="en"?"Website News":lang==="de"?"Website-News":"Nûçeyên Malperê"}];
   return(
-    <div style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
+    <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
       <SideMenu open={menuOpen} onClose={()=>setMenuOpen(false)} items={pressTabs} activeKey="nuce"
         onSelect={()=>{}} user={user}
         roleLabel={lang==="en"?"Press":"Çapemenî"}
@@ -6770,7 +6817,7 @@ function PressPanel({user,lang,toast,onLogout}){
         ]}/>
       <SpecialPanelHeader user={user} icon="📰" lang={lang} onLogout={onLogout} siteLink={true} onMenu={()=>setMenuOpen(true)}
         roleLabel={lang==="en"?"Press · Website Editor":lang==="de"?"Presse · Website-Redaktion":"Çapemenî · Edîtorê Malperê"}/>
-      <div style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
+      <div className="scroll-area" style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
         <AdminNewsPanel lang={lang} toast={toast} adminName={user.name}/>
       </div>
     </div>
@@ -6842,6 +6889,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
   const [reqName,setReqName]=useState("");
   const [reqFile,setReqFile]=useState(null); // {file,fileName}
   const [regCreds,setRegCreds]=useState(null); // kabul sonrası öğrenci bilgileri
+  const [showPass,setShowPass]=useState(false); // liste içinde şîfre göster/gizle
   const reqFileRef=useRef(null);
   const L=(k)=>({
     settings:{ku:"⚙️ Mîhengên Serlêdanê",en:"⚙️ Application Settings",de:"⚙️ Einstellungen"},
@@ -7024,7 +7072,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
   const inputStyle2={width:"100%",padding:"10px 12px",border:"1px solid var(--border2)",borderRadius:10,fontSize:13,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box"};
 
   return(
-    <div style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
+    <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
       <SideMenu open={menuOpen} onClose={()=>setMenuOpen(false)} items={regTabs} activeKey={section}
         onSelect={setSection} user={user}
         roleLabel={lang==="en"?"Student Affairs":"Karûbarên Xwendekaran"}
@@ -7032,7 +7080,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
       <SpecialPanelHeader user={user} icon="🗂" lang={lang} onLogout={onLogout} siteLink={true} onMenu={()=>setMenuOpen(true)}
         roleLabel={lang==="en"?"Student Affairs":lang==="de"?"Studierendenbüro":"Karûbarên Xwendekaran"}
         tabs={regTabs} activeKey={section} onTab={setSection}/>
-      <div style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
+      <div className="scroll-area" style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
 
         {section==="qad"&&(
           <>
@@ -7102,6 +7150,14 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
               </button>
             </div>
             <SectionHeader>🎓 {(t&&t.students)||"Xwendekar"} ({(students||[]).length})</SectionHeader>
+            <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8}}>
+              <button onClick={()=>setShowPass(v=>!v)}
+                style={{padding:"7px 13px",borderRadius:20,fontSize:11,fontWeight:700,cursor:"pointer",
+                  border:"1.5px solid "+(showPass?"#0f2f38":"var(--border2)"),
+                  background:showPass?"#0f2f38":"var(--surface)",color:showPass?"#fff":"var(--text2)"}}>
+                {showPass?"🙈 ":"👁 "}{lang==="en"?"Passwords":lang==="de"?"Passwörter":"Şîfre"}
+              </button>
+            </div>
             {(students||[]).map(st=>(
               <Card key={st.no}>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -7109,6 +7165,19 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:13,fontWeight:700,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{st.name}</div>
                     <div style={{fontSize:10,color:"var(--text2)",fontFamily:"monospace"}}>{st.no} · {areaName(st.area,lang)} · {(st.classLevel||1)}. Sînif</div>
+                    {showPass&&(
+                      <div style={{marginTop:5,display:"flex",alignItems:"center",gap:6}}>
+                        <span style={{fontSize:11.5,fontFamily:"monospace",fontWeight:800,letterSpacing:"0.06em",
+                          color:st._plainPass?"#2f8f78":"var(--text2)",background:"var(--bg2)",
+                          border:"1px solid var(--border2)",borderRadius:7,padding:"3px 8px"}}>
+                          {st._plainPass || (lang==="en"?"🔒 hidden — set a new one":"🔒 veşartî — ya nû saz bike")}
+                        </span>
+                        {st._plainPass&&(
+                          <button onClick={async()=>{await copyToClipboard(st._plainPass);hapticLight();toast("📋 "+st.name);}}
+                            style={{background:"var(--bg2)",border:"1px solid var(--border2)",borderRadius:7,padding:"3px 7px",fontSize:11,cursor:"pointer",color:"var(--text)"}}>📋</button>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <button onClick={()=>setEditingStudent(st)} style={{background:"var(--bg2)",border:"0.5px solid var(--border2)",color:"var(--text)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>✏️</button>
                   <button onClick={()=>{if(window.confirm("🗑 "+st.name+"?"))onDataChange("deleteStudent",st);}} style={{background:"var(--red-bg)",border:"0.5px solid var(--red)",color:"var(--red)",borderRadius:8,padding:"6px 10px",fontSize:11,cursor:"pointer"}}>🗑</button>
@@ -8273,7 +8342,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
   ];
 
   return(
-    <div style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg2)",overflow:"hidden"}}>
+    <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg2)",overflow:"hidden"}}>
       <StatusBar/>
       <SideMenu open={menuOpen} onClose={()=>setMenuOpen(false)} items={tabs} activeKey={tab}
         onSelect={setTab} user={adminData}
@@ -12165,7 +12234,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
 
   return(
     <>
-    <div style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg2)",overflow:"hidden"}}>
+    <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg2)",overflow:"hidden"}}>
       <StatusBar/>
       <SideMenu open={menuOpen} onClose={()=>setMenuOpen(false)} items={navItems} activeKey={view}
         onSelect={setView} user={teacher}
@@ -13706,7 +13775,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
 
   return(
     <>
-    <div style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg2)",overflow:"hidden"}}>
+    <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg2)",overflow:"hidden"}}>
       <StatusBar/>
       <SideMenu open={menuOpen} onClose={()=>setMenuOpen(false)} items={navItems} activeKey={view}
         onSelect={setView} user={student}
@@ -14504,7 +14573,7 @@ function LoginScreen({students,teachers,t,lang,setLang,onLogin,onForgot,dark,onT
   }
 
   return(
-    <div style={{background:"var(--surface)",height:"100%",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+    <div className="login-shell" style={{background:"var(--surface)",height:"100%",display:"flex",flexDirection:"column",overflow:"hidden"}}>
       {/* Hero */}
       <div style={{
         flexShrink:0,
