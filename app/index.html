@@ -6406,7 +6406,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     <div>
       <SectionHeader>{L("heading")}</SectionHeader>
       <Card>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v13.1</span></div>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v13.2</span></div>
         {/* Dil sekmeleri: KU zorunlu ana metin, diğerleri çeviri */}
         <div style={{display:"flex",gap:5,marginBottom:8}}>
           {[["ku","KU"],["tr","TR"],["en","EN"],["de","DE"]].map(([lk,lb])=>{
@@ -12250,10 +12250,21 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     if(!qrToken||!window.__FB||!window.__FB.isConfigured()) return;
     let unsub=()=>{};
     try{
-      unsub=window.__FB.onSnapshot(window.__FB.doc(window.__FB.db,"qrSessions",qrToken),snap=>{
-        const d=snap&&snap.exists&&snap.exists()?snap.data():null;
+      // Öğrencinin kendi telefonundan yaptığı okutmalar attendance'a yazılır
+      // (kurallar: attendance authed read/write). Öğretmen bunları canlı dinler.
+      const q=window.__FB.query(
+        window.__FB.collection(window.__FB.db,"attendance"),
+        window.__FB.where("sessionId","==",qrToken));
+      unsub=window.__FB.onSnapshot(q,snap=>{
         const sess=window._aat_qr_session;
-        if(d&&d.checkins&&sess&&sess.active){ sess.checkins={...sess.checkins,...d.checkins}; }
+        if(!sess||!sess.active) return;
+        const merged={...sess.checkins};
+        snap.docs.forEach(d=>{
+          const v=d.data(); if(!v||v.studentId==null) return;
+          merged[v.studentId]={confirmed:true,name:v.studentName,no:v.studentNo,
+            time:v.time?new Date(v.time).toLocaleTimeString():"",late:!!v.late};
+        });
+        sess.checkins=merged;
       });
     }catch(_){}
     return ()=>{ try{unsub();}catch(_){} };
@@ -15048,12 +15059,6 @@ function checkinToSession(qrContent, student){
         { sessionId: s.sessionId, lessonName: s.lessonName, area: s.area,
           studentId: student.id, studentName: student.name, studentNo: student.no,
           time: new Date().toISOString(), late: isLate, teacherName: s.teacherName },
-        {merge:true}
-      );
-      window.__FB.setDoc(
-        window.__FB.doc(window.__FB.db, "qrSessions", s.sessionId),
-        { checkins: { [student.id]: {confirmed:true, name:student.name, no:student.no,
-            time:s.checkins[student.id].time, late:isLate} } },
         {merge:true}
       );
     }
