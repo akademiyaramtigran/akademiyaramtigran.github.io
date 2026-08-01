@@ -6406,7 +6406,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     <div>
       <SectionHeader>{L("heading")}</SectionHeader>
       <Card>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v13.2</span></div>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v13.4</span></div>
         {/* Dil sekmeleri: KU zorunlu ana metin, diğerleri çeviri */}
         <div style={{display:"flex",gap:5,marginBottom:8}}>
           {[["ku","KU"],["tr","TR"],["en","EN"],["de","DE"]].map(([lk,lb])=>{
@@ -12305,7 +12305,10 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
       ? (lesson.extraDates.find(d=>d===new Date().toISOString().slice(0,10)) || lesson.extraDates.filter(d=>d>=new Date().toISOString().slice(0,10)).sort()[0] || lesson.extraDates.sort().slice(-1)[0])
       : null;
 
-    const session = openQRSession(sessionId, lessonName, teacher.name, teacher.area, 36000000, null, lessonId, teacher.id); // 10 saat
+    // Oturumun alanı DERSİN alanıdır (öğretmenin değil): ortak/genel dersler ve
+    // öğretmenin başka alandan bir derse atandığı durumlar için gerekli.
+    const sessionArea = (lesson && lesson.area) ? lesson.area : teacher.area;
+    const session = openQRSession(sessionId, lessonName, teacher.name, sessionArea, 36000000, null, lessonId, teacher.id); // 10 saat
     // Ek ders tarihini session'a ekle
     if(lessonDate && window._aat_qr_session) window._aat_qr_session._lessonDate = lessonDate;
     setQrToken(sessionId);
@@ -15033,10 +15036,11 @@ function checkinToSession(qrContent, student){
   // 2. Tekrar giriş engeli
   if(s.checkins[student.id]?.confirmed) return {ok:false, reason:"already_checked_in"};
 
-  // 3. Alan kontrolü — öğrenci kendi alanının dersine girebilir
+  // 3. Alan kontrolü — öğrenci kendi alanının dersine girebilir.
+  //    "genel" (ortak) ders: akademinin tüm öğrencileri katılabilir.
   const sArea = s.area || null;
   const uArea = (student.area||"").trim() || null;
-  if(sArea && uArea && sArea !== uArea) return {ok:false, reason:"wrong_area"};
+  if(sArea && sArea !== "genel" && uArea && sArea !== uArea) return {ok:false, reason:"wrong_area"};
 
   // Kaydet — dersin İLK açılışından 15 dk sonrası "geç" sayılır
   const _startMs = (typeof s.openedAtMs==="number"&&s.openedAtMs>0) ? s.openedAtMs
@@ -15512,14 +15516,14 @@ function StudentQRScanner({student, onClose, toast, lang="ku"}){
   async function handleToken(qrContent){
     setStatus("loading");
 
-    // Session local yoksa Firebase'den çek
+    // Okutulan QR'ın oturumu yerelde yoksa (ya da BAŞKA bir dersin oturumu
+    // bellekte kaldıysa) Firebase'den o oturumu çek.
+    const sid = qrContent.startsWith("AAT|") ? qrContent.slice(4)
+              : qrContent.startsWith("AATSTAT|") ? qrContent.slice(8)
+              : qrContent.split("|")[0];
     let sess = getActiveQRSession();
-    if(!sess){
+    if(!sess || String(sess.sessionId) !== String(sid)){
       try {
-        const sid = qrContent.startsWith("AAT|") ? qrContent.slice(4)
-                  : qrContent.startsWith("AATSTAT|") ? qrContent.slice(8)
-                  : qrContent.split("|")[0];
-
         if(window.__FB && window.__FB.isConfigured() && sid){
           const snap = await window.__FB.getDoc(window.__FB.doc(window.__FB.db,"qrSessions",sid));
           if(snap.exists()){
