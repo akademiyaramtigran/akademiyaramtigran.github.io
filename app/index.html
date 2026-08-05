@@ -4671,21 +4671,15 @@ function AddStudentSheet({open,onClose,defaultArea,students,t,lang,toast,onSave}
           <option value={t.sch25}>{t.sch25}</option>
         </select>
       </FieldWrap>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-        <FieldWrap label={t.phone}>
-          <input style={inputStyle} value={phone} onChange={e=>setPhone(e.target.value)} type="tel" inputMode="tel" autoComplete="tel" placeholder="05XX..." type="tel" inputMode="tel" autoComplete="tel"/>
-        </FieldWrap>
-        <FieldWrap label={t.dobLabel}>
-          <input style={inputStyle} type="date" value={dob} onChange={e=>setDob(e.target.value)}/>
-        </FieldWrap>
-      </div>
-
-      <FieldWrap label={t.addressLabel}>
-        <input style={inputStyle} value={address} onChange={e=>setAddress(e.target.value)} placeholder="Navnîşan..."/>
-      </FieldWrap>
       <FieldWrap label={lang==="ku"?"E-Posta":lang==="en"?"E-Mail":"E-Mail"}>
         <input style={inputStyle} value={email} onChange={e=>setEmail(e.target.value)} type="email" inputMode="email" autoComplete="email" placeholder="ornek@mail.com"/>
       </FieldWrap>
+      <div style={{fontSize:11,color:"var(--text2)",lineHeight:1.65,background:"var(--bg2)",
+        border:"1px solid var(--border2)",borderRadius:6,padding:"10px 12px",marginBottom:12}}>
+        ℹ️ {lang==="en"
+          ? "Name and e-mail are enough. Photo, phone, date of birth and address are filled in by the student from their own panel after they receive their password."
+          : "Nav û e-peyam bes in. Wêne, têlefon, roja jidayikbûnê û navnîşan piştî ku şîfre gihîşt, ji aliyê xwendekar ve ji panela wî/wê tên dagirtin."}
+      </div>
 
       {/* Belgeyên Serlêdanê */}
       <div style={{marginBottom:12,padding:"10px 12px",background:"var(--bg2)",borderRadius:10,border:"0.5px solid var(--border2)"}}>
@@ -4863,25 +4857,17 @@ function AddTeacherSheet({open,onClose,defaultArea,teachers,t,lang,toast,onSave,
           </select>
         )}
       </FieldWrap>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-        <FieldWrap label={t.regYear}>
-          <select style={selectStyle} value={year} onChange={e=>setYear(e.target.value)}>
-            {["2025","2026","2027"].map(y=>(<option key={y}>{y}</option>))}
-          </select>
-        </FieldWrap>
-        <FieldWrap label={t.phone}>
-          <input style={inputStyle} value={phone} onChange={e=>setPhone(e.target.value)} type="tel" inputMode="tel" autoComplete="tel" placeholder="05XX..."/>
-        </FieldWrap>
+      <FieldWrap label={t.regYear}>
+        <select style={selectStyle} value={year} onChange={e=>setYear(e.target.value)}>
+          {["2025","2026","2027"].map(y=>(<option key={y}>{y}</option>))}
+        </select>
+      </FieldWrap>
+      <div style={{fontSize:11,color:"var(--text2)",lineHeight:1.65,background:"var(--bg2)",
+        border:"1px solid var(--border2)",borderRadius:6,padding:"10px 12px",marginBottom:12}}>
+        ℹ️ {lang==="en"
+          ? "Name and e-mail are enough. Photo, phone, date of birth, address and bio are filled in by the teacher from their own panel."
+          : "Nav û e-peyam bes in. Wêne, têlefon, roja jidayikbûnê, navnîşan û danasîn ji aliyê mamoste ve ji panela wî/wê tên dagirtin."}
       </div>
-      <FieldWrap label={t.dobLabel}>
-        <input style={inputStyle} type="date" value={dob} onChange={e=>setDob(e.target.value)}/>
-      </FieldWrap>
-      <FieldWrap label={t.addressLabel}>
-        <input style={inputStyle} value={address} onChange={e=>setAddress(e.target.value)} placeholder="Amed..."/>
-      </FieldWrap>
-      <FieldWrap label={t.bioLabel}>
-        <textarea style={{...inputStyle,minHeight:60,resize:"vertical"}} value={bio} onChange={e=>setBio(e.target.value)} placeholder="Danasîn..."/>
-      </FieldWrap>
       {/* Bernamedeki derslere atama (isteğe bağlı) */}
       {schedule&&schedule.filter(ls=>ls.area===area||ls.area==="genel").length>0&&(
         <FieldWrap label={"📅 "+(lang==="en"?"Assign to lessons (optional)":"Dersan tayîn bike (vebijarkî)")}>
@@ -6486,7 +6472,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     <div>
       <SectionHeader>{L("heading")}</SectionHeader>
       <Card>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v13.7</span></div>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v13.8</span></div>
         {/* Dil sekmeleri: KU zorunlu ana metin, diğerleri çeviri */}
         <div style={{display:"flex",gap:5,marginBottom:8}}>
           {[["ku","KU"],["tr","TR"],["en","EN"],["de","DE"]].map(([lk,lb])=>{
@@ -12106,8 +12092,9 @@ function TeacherSurveyPanel({teacher, schedule, lang, t, toast}) {
 }
 
 /* ─── TEACHER PROFILE VIEW ───────────────────────────────────────────────── */
-function TeacherProfileView({teacher,a,lang,t,toast,avgAtt,riskCount,myStudents,studentsWithStats,onLogout,onGoStats,onSelectStudent,onSaveTeacherPass}){
+function TeacherProfileView({teacher,a,lang,t,toast,avgAtt,riskCount,myStudents,studentsWithStats,onLogout,onGoStats,onSelectStudent,onSaveTeacherPass,onSaveProfile}){
   const [showChangePass,setShowChangePass]=useState(false);
+  const [showSelfProfile,setShowSelfProfile]=useState(false);
   return(
     <>
       {/* Header card */}
@@ -12164,6 +12151,11 @@ function TeacherProfileView({teacher,a,lang,t,toast,avgAtt,riskCount,myStudents,
       {/* Mîhengên hesabê */}
       <Card>
         <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:12}}>⚙️ {lang==="de"?"Kontoeinstellungen":lang==="en"?"Account Settings":"Mîhengên Hesabê"}</div>
+        <button onClick={()=>setShowSelfProfile(true)}
+          style={{width:"100%",padding:"12px",marginBottom:8,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer",color:"var(--text)",textAlign:"left",display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:18}}>👤</span> {lang==="de"?"Profil bearbeiten":lang==="en"?"Edit Profile":"Profîla Min"}
+          <span style={{marginLeft:"auto",color:"var(--text2)"}}>›</span>
+        </button>
         <button onClick={()=>setShowChangePass(true)}
           style={{width:"100%",padding:"12px",marginBottom:8,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer",color:"var(--text)",textAlign:"left",display:"flex",alignItems:"center",gap:10}}>
           <span style={{fontSize:18}}>🔒</span> {lang==="de"?"Passwort Ändern":lang==="en"?"Change Password":"Şîfre Biguherîne"}
@@ -12181,6 +12173,11 @@ function TeacherProfileView({teacher,a,lang,t,toast,avgAtt,riskCount,myStudents,
         </button>
       </Card>
 
+      {showSelfProfile&&(
+        <SelfProfileSheet user={teacher} userType="teacher" lang={lang} toast={toast}
+          onClose={()=>setShowSelfProfile(false)}
+          onSave={async(u)=>{ if(onSaveProfile) await onSaveProfile(u); }}/>
+      )}
       {showChangePass&&<StudentChangePassSheet onClose={()=>setShowChangePass(false)} toast={toast} lang={lang} user={teacher} userType="teacher" onSavePass={onSaveTeacherPass}/>}
     </>
   );
@@ -13183,6 +13180,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
             onLogout={onLogout}
             onGoStats={null}
             onSelectStudent={setSelectedStudentStat}
+            onSaveProfile={async(u)=>{ if(onDataChange) await onDataChange("updateTeacher",u); }}
             onSaveTeacherPass={async(newHash, newPlain)=>{
               if(onDataChange) onDataChange("updateTeacher",{...teacher,pass:newHash,passHash:newHash,_plainPass:""});
             }}
@@ -13244,6 +13242,98 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
 }
 
 /* ─── STUDENT CHANGE PASSWORD SHEET ────────────────────────────────────── */
+/* ─── KENDİ PROFİLİNİ DÜZENLE (öğrenci & öğretmen) ─────────────────────────
+   Kayıt sırasında yalnız ad-soyad ve e-posta alınır; kalan bilgileri
+   kullanıcı kendi panelinden doldurur. Ad, numara ve alan personelde kalır. */
+function SelfProfileSheet({user,userType,lang,toast,onClose,onSave}){
+  const [photo,setPhoto]=useState(user.photo||null);
+  const [phone,setPhone]=useState(user.phone||"");
+  const [email,setEmail]=useState(user.email||"");
+  const [dob,setDob]=useState(user.dob||"");
+  const [address,setAddress]=useState(user.address||"");
+  const [bio,setBio]=useState(user.bio||"");
+  const [saving,setSaving]=useState(false);
+  const fileRef=useRef();
+  const L=(ku,en,de)=>lang==="en"?en:lang==="de"?de:ku;
+
+  async function pickPhoto(e){
+    const f=e.target.files&&e.target.files[0]; if(!f) return;
+    try{
+      const dataUrl=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f);});
+      const small=await compressImage(dataUrl,600,600,0.8);
+      setPhoto(small);
+    }catch(_){ toast("⚠ "+L("Wêne nehat barkirin","Photo upload failed","Foto fehlgeschlagen")); }
+    finally{ if(fileRef.current) fileRef.current.value=""; }
+  }
+  async function save(){
+    if(email && email.indexOf("@")<0){ toast("⚠ "+L("E-peyam ne rast e","Invalid e-mail","Ungültige E-Mail")); return; }
+    setSaving(true);
+    try{
+      await onSave({...user, photo, phone:phone.trim(), email:email.trim(), dob, address:address.trim(),
+        ...(userType==="teacher"?{bio:bio.trim()}:{})});
+      toast("✅ "+L("Profîl hate nûkirin","Profile updated","Profil aktualisiert"));
+      onClose();
+    }catch(e){ toast("❌ "+L("Tomarkirin serneket","Save failed","Speichern fehlgeschlagen")); }
+    finally{ setSaving(false); }
+  }
+  const inp={width:"100%",padding:"11px 12px",border:"1px solid var(--border2)",borderRadius:5,
+    fontSize:14,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box"};
+  const lbl={fontSize:10,fontWeight:800,letterSpacing:".1em",textTransform:"uppercase",color:"var(--text2)",marginBottom:5};
+
+  return(
+    <Sheet open={true} onClose={onClose} title={"👤 "+L("Profîla Min","My Profile","Mein Profil")}>
+      <div style={{fontSize:11.5,color:"var(--text2)",lineHeight:1.65,background:"var(--bg2)",
+        border:"1px solid var(--border2)",borderRadius:6,padding:"10px 12px",marginBottom:14}}>
+        ℹ️ {L("Nav, jimare û qad ji aliyê karûbarên xwendekaran ve tên guhertin. Yên din tu bi xwe dagirî.",
+              "Name, number and field are managed by student affairs. You fill in the rest.",
+              "Name, Nummer und Bereich verwaltet das Studierendenbüro. Den Rest füllst du aus.")}
+      </div>
+
+      <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16}}>
+        <Avatar name={user.name} color="var(--accent2)" size={64} photo={photo}/>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:15,fontWeight:700,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.name}</div>
+          <div style={{fontSize:11,color:"var(--text2)",fontFamily:"monospace",marginBottom:8}}>{user.no}</div>
+          <button onClick={()=>fileRef.current&&fileRef.current.click()}
+            style={{padding:"7px 13px",borderRadius:5,border:"1px solid var(--border2)",background:"var(--bg2)",
+              color:"var(--text)",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+            📷 {photo?L("Wêneyê biguherîne","Change photo","Foto ändern"):L("Wêne zêde bike","Add photo","Foto hinzufügen")}
+          </button>
+          {photo&&<button onClick={()=>setPhoto(null)}
+            style={{marginLeft:6,padding:"7px 11px",borderRadius:5,border:"1px solid var(--red)",background:"var(--red-bg)",
+              color:"var(--red)",fontSize:12,cursor:"pointer"}}>🗑</button>}
+        </div>
+      </div>
+      <input ref={fileRef} type="file" accept="image/*" onChange={pickPhoto} style={{display:"none"}}/>
+
+      <div style={lbl}>{L("Têlefon","Phone","Telefon")}</div>
+      <input style={{...inp,marginBottom:12}} value={phone} onChange={e=>setPhone(e.target.value)}
+        type="tel" inputMode="tel" placeholder="05XX XXX XX XX"/>
+
+      <div style={lbl}>{L("E-peyam","E-mail","E-Mail")}</div>
+      <input style={{...inp,marginBottom:12}} value={email} onChange={e=>setEmail(e.target.value)}
+        type="email" inputMode="email" placeholder="minak@mail.com"/>
+
+      <div style={lbl}>{L("Roja jidayikbûnê","Date of birth","Geburtsdatum")}</div>
+      <input style={{...inp,marginBottom:12}} type="date" value={dob} onChange={e=>setDob(e.target.value)}/>
+
+      <div style={lbl}>{L("Navnîşan","Address","Adresse")}</div>
+      <input style={{...inp,marginBottom:12}} value={address} onChange={e=>setAddress(e.target.value)}
+        placeholder={L("Navnîşan…","Address…","Adresse…")}/>
+
+      {userType==="teacher"&&(<>
+        <div style={lbl}>{L("Danasîn","Bio","Bio")}</div>
+        <textarea style={{...inp,marginBottom:12,minHeight:74,resize:"vertical"}} value={bio}
+          onChange={e=>setBio(e.target.value)} placeholder={L("Kurte danasîn…","Short bio…","Kurze Bio…")}/>
+      </>)}
+
+      <PrimaryBtn onClick={save} icon="💾" disabled={saving}>
+        {saving?"⏳ …":L("Tomar bike","Save","Speichern")}
+      </PrimaryBtn>
+    </Sheet>
+  );
+}
+
 function StudentChangePassSheet({onClose,toast,user,onSavePass,userType,lang}){
   const [cur,setCur]=useState("");
   const [next,setNext]=useState("");
@@ -14015,6 +14105,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
   const [showBiometric,setShowBiometric]=useState(false);
   const [biometricTarget,setBiometricTarget]=useState(null); // "scanner" | "qr"
   const [showChangePass,setShowChangePass]=useState(false);
+  const [showSelfProfile,setShowSelfProfile]=useState(false);
   const a=AREA_MAP[student.area]||AREA_MAP["genel"]||{color:"#0f2f38",bg:"rgba(15,47,56,0.08)",icon:"🎓",name:{ku:"",en:"",de:"",desc:{ku:"",en:"",de:""}}};
   const mySchedule=schedule.filter(s=>{
     if(!s.area||!student.area) return false;
@@ -14660,6 +14751,11 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
             {/* Şîfre biguherîne & derkeve */}
             <Card>
               <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:12}}>⚙️ {lang==="de"?"Kontoeinstellungen":lang==="en"?"Account Settings":"Mîhengên Hesabê"}</div>
+              <button onClick={()=>setShowSelfProfile(true)}
+                style={{width:"100%",padding:"12px",marginBottom:8,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer",color:"var(--text)",textAlign:"left",display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:18}}>👤</span> {lang==="de"?"Profil bearbeiten":lang==="en"?"Edit Profile":"Profîla Min"}
+                <span style={{marginLeft:"auto",color:"var(--text2)"}}>›</span>
+              </button>
               <button onClick={()=>setShowChangePass(true)}
                 style={{width:"100%",padding:"12px",marginBottom:8,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer",color:"var(--text)",textAlign:"left",display:"flex",alignItems:"center",gap:10}}>
                 <span style={{fontSize:18}}>🔒</span> {lang==="de"?"Passwort Ändern":lang==="en"?"Change Password":"Şîfre Biguherîne"}
@@ -14700,6 +14796,11 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
 
     {showScanner&&(
       <StudentQRScanner student={student} onClose={()=>setShowScanner(false)} toast={toast} lang={lang}/>
+    )}
+    {showSelfProfile&&(
+      <SelfProfileSheet user={student} userType="student" lang={lang} toast={toast}
+        onClose={()=>setShowSelfProfile(false)}
+        onSave={async(u)=>{ if(onDataChange) await onDataChange("updateStudent",u); }}/>
     )}
     {showChangePass&&(
       <StudentChangePassSheet onClose={()=>setShowChangePass(false)} toast={toast} lang={lang} user={student} userType="student" onSavePass={(newHash, newPlain)=>onDataChange&&onDataChange("updateStudent",{...student,pass:newHash,passHash:newHash,_plainPass:""})}/>
