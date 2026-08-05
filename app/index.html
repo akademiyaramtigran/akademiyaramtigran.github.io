@@ -6486,7 +6486,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     <div>
       <SectionHeader>{L("heading")}</SectionHeader>
       <Card>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v13.6</span></div>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v13.7</span></div>
         {/* Dil sekmeleri: KU zorunlu ana metin, diğerleri çeviri */}
         <div style={{display:"flex",gap:5,marginBottom:8}}>
           {[["ku","KU"],["tr","TR"],["en","EN"],["de","DE"]].map(([lk,lb])=>{
@@ -10708,7 +10708,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
 
       {/* Sub-tabs */}
       <div style={{display:"flex",gap:0,background:"var(--bg2)",borderRadius:12,padding:4,marginBottom:16}}>
-        {[{k:"questions",icon:"❓",lbl:lang==="ku"?"Pirsên":lang==="en"?"Questions":"Fragen"},
+        {[{k:"questions",icon:"❓",lbl:lang==="en"?"Lesson evaluation":"Nirxandina dersê"},
           {k:"results",icon:"📊",lbl:lang==="ku"?"Encamên":lang==="en"?"Results":"Ergebnisse"}].map(sub=>(
           <button key={sub.k} onClick={()=>setTViewTab(sub.k)}
             style={{flex:1,padding:"10px 8px",fontSize:12,fontWeight:700,
@@ -10723,6 +10723,11 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
       {/* Questions tab */}
       {tViewTab==="questions"&&(
         <>
+        <div style={{background:"var(--bg2)",border:"1px solid var(--border2)",borderRadius:8,padding:"10px 12px",marginBottom:12,fontSize:11.5,lineHeight:1.65,color:"var(--text2)"}}>
+          ℹ️ {lang==="en"
+            ? "These questions are answered by TEACHERS in their weekly lesson evaluation. To create a survey for students, use the survey builder below."
+            : "Ev pirs ji aliyê MAMOSTEYAN ve, di nirxandina dersê ya hefteyî de tên bersivdan. Ji bo ankêta xwendekaran, sêrbazê ankêtê yê jêrîn bikar bîne."}
+        </div>
         {questions.map((q,qi)=>(
           <div key={q.id} style={{background:"var(--surface)",borderRadius:12,padding:"12px 14px",marginBottom:8,border:"1px solid var(--border)",display:"flex",alignItems:"flex-start",gap:10}}>
             <div style={{width:26,height:26,borderRadius:"50%",background:"#0f2f38",color:"#fff",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{qi+1}</div>
@@ -12601,11 +12606,10 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
           <div className="pill-row">
             <span className="glass-pill">{a.icon} {areaName(teacher.area,lang)}</span>
             <span className="glass-pill" style={{fontFamily:"monospace"}}>{teacher.no}</span>
-            <span className="glass-pill" style={{background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.28)"}}>{myStudents.length} {lang==="ku"?"xwendekar":lang==="en"?"students":"xwendekar"}</span>
+            <span className="glass-pill" style={{background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.28)"}} title={lang==="en"?"students":"xwendekar"}>🎓 {myStudents.length}</span>
           </div>
         </div>
         <div style={{display:"flex",gap:6,flexShrink:0}}>
-          {onSettings&&<button onClick={onSettings} style={{color:"rgba(255,255,255,.6)",background:"rgba(255,255,255,.1)",border:"none",borderRadius:"50%",width:36,height:36,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>⚙️</button>}
           <button onClick={onLogout} style={{color:"rgba(255,255,255,.6)",background:"rgba(255,255,255,.1)",
             border:"none",borderRadius:"50%",width:36,height:36,cursor:"pointer",flexShrink:0,
             display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>↩</button>
@@ -12821,9 +12825,8 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
         )}
         {view==="evaluation"&&(
           <>
-            {/* Öğretmene hedeflenmiş anketler (yönetim/öğrenci işleri anketleri) */}
-            <StudentSurveyView student={teacher} a={a} lang={lang} toast={toast} mode="teacher"/>
-            <div style={{height:14}}/>
+            {/* Yönetimden gelen anketler + haftalık ders değerlendirmesi
+                (ikisi de TeacherSurveyPanel içinde; mükerrer liste kaldırıldı) */}
             <TeacherSurveyPanel teacher={teacher} schedule={mySchedule} lang={lang} t={t} toast={toast}/>
           </>
         )}
