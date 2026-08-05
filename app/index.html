@@ -909,6 +909,14 @@ input,select,textarea{font-family:inherit;}
   width:38px;height:38px;border-radius:11px;cursor:pointer;font-size:17px;flex-shrink:0;
   display:flex;align-items:center;justify-content:center}
 
+/* Başlık rozet satırı — dar ekranda kesilmesin, kaydırılabilsin */
+.pill-row{display:flex;align-items:center;gap:5px;margin-top:3px;
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch;
+  -webkit-mask-image:linear-gradient(90deg,#000 88%,transparent 100%);
+          mask-image:linear-gradient(90deg,#000 88%,transparent 100%);}
+.pill-row::-webkit-scrollbar{display:none}
+.pill-row>*{flex-shrink:0}
+
 /* ══ KOYU MOD DÜZELTMELERİ ══ */
 html.theme-dark .aat-logo,html.theme-dark #splash-screen img{border-radius:10px;filter:brightness(.82) saturate(.9) contrast(1.05);box-shadow:0 0 0 1px rgba(255,255,255,.10);opacity:.94}
 html.theme-dark .card,html.theme-dark .list-row{background:var(--surface)}
@@ -1023,8 +1031,8 @@ button{letter-spacing:.01em}
 
 /* ── GLASS PILL (header badges) ── */
 .glass-pill{
-  display:inline-flex;align-items:center;gap:5px;
-  padding:4px 11px;border-radius:7px;
+  display:inline-flex;align-items:center;gap:4px;
+  padding:4px 9px;border-radius:7px;
   background:rgba(255,255,255,.15);
   border:1px solid rgba(255,255,255,.25);
   backdrop-filter:blur(10px);
@@ -6406,7 +6414,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     <div>
       <SectionHeader>{L("heading")}</SectionHeader>
       <Card>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v13.4</span></div>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v13.5</span></div>
         {/* Dil sekmeleri: KU zorunlu ana metin, diğerleri çeviri */}
         <div style={{display:"flex",gap:5,marginBottom:8}}>
           {[["ku","KU"],["tr","TR"],["en","EN"],["de","DE"]].map(([lk,lb])=>{
@@ -12518,7 +12526,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
         <Avatar name={teacher.name} color={a.color} size={40} photo={teacher.photo}/>
         <div style={{flex:1,minWidth:0}}>
           <div style={{color:"#fff",fontSize:15,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{teacher.name}</div>
-          <div style={{display:"flex",gap:6,marginTop:3,overflow:"hidden",whiteSpace:"nowrap"}}>
+          <div className="pill-row">
             <span className="glass-pill">{a.icon} {areaName(teacher.area,lang)}</span>
             <span className="glass-pill" style={{fontFamily:"monospace"}}>{teacher.no}</span>
             <span className="glass-pill" style={{background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.28)"}}>{myStudents.length} {lang==="ku"?"xwendekar":lang==="en"?"students":"xwendekar"}</span>
@@ -14067,7 +14075,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
           <Avatar name={student.name} color={a.color} size={44} photo={student.photo}/>
           <div style={{flex:1,minWidth:0}}>
             <div style={{color:"#fff",fontSize:16,fontWeight:800,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{student.name}</div>
-            <div style={{display:"flex",alignItems:"center",gap:6,marginTop:3,overflow:"hidden",whiteSpace:"nowrap"}}>
+            <div className="pill-row">
               <span className="glass-pill">{a.icon} {areaName(student.area,lang)}</span>
               <span className="glass-pill" style={{fontFamily:"monospace"}}>{student.no}</span>
               <span className="glass-pill">{(student.classLevel||1)}. Sînif</span>
