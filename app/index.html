@@ -232,7 +232,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, query, orderBy, where, limit } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, createUserWithEmailAndPassword, updatePassword, updateEmail, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, createUserWithEmailAndPassword, updatePassword, updateEmail, deleteUser, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
 
   // ══════════════════════════════════════════════════════════════════════
@@ -462,6 +462,25 @@
       } catch(e) {
         try { await signOut(secondaryAuth); } catch(_) {}
         throw e;
+      }
+    },
+
+    // Kullanıcı silinince Firebase Auth hesabını da sil.
+    // (Aksi halde aynı numara yeniden eklendiğinde Auth'ta ESKİ şifreli
+    //  "hayalet hesap" kalır ve giriş "email-already-in-use" ile patlar.)
+    async deleteAuthUser(no, role, plainPass) {
+      if(!plainPass) return { ok:false, reason:"no-password" };
+      const email = noToEmail(no, role);
+      const secAuth = getSecondaryAuth();
+      try {
+        const cred = await signInWithEmailAndPassword(secAuth, email, plainPass);
+        const uid = cred.user.uid;
+        try { await deleteDoc(doc(db, "roles", uid)); } catch(_) {}
+        await deleteUser(cred.user);
+        return { ok:true, email };
+      } catch(e) {
+        try { await signOut(secAuth); } catch(_) {}
+        return { ok:false, reason:(e.code||e.message||"error"), email };
       }
     },
 
@@ -1506,6 +1525,16 @@ async function verifyPassword(plain, storedHash) {
   const hashed = await hashPassword(plain);
   return hashed === storedHash;
 }
+// Giriş bilgilerini (numara + şifre) kullanıcının e-postasına gönder.
+// Kabul akışıyla aynı "hoş geldin" şablonu kullanılır.
+async function sendCredsEmail(name, email, no, pass){
+  if(!window.emailjs) throw new Error("emailjs");
+  if(!email || email.indexOf("@")<0) throw new Error("no-email");
+  if(!pass) throw new Error("no-pass");
+  await window.emailjs.send("service_g6nqjtq","template_9tmt5ja",
+    { to_email:email, to_name:name||"", password:pass, student_no:no });
+}
+
 function checkPasswordStrength(pass) {
   if (!pass || pass.length < 8)
     return { ok: false, msg: "Min 8 chars / 8 tîp" };
@@ -1578,7 +1607,14 @@ async function fbSave(type, data) {
         await window.__FB.createAuthUser(data.no, data._plainPass, "student");
       } catch(authErr) {
         const code = authErr.code || authErr.message || String(authErr);
-        if (code !== "auth/email-already-in-use") {
+        if (code === "auth/email-already-in-use") {
+          // Bu numaraya ait ESKİ bir Auth hesabı var. Yeni şifreyle eşitlemeyi dene.
+          const fixed = await window.__FB.forceResetPassword(data.no, "student", null, data._plainPass);
+          if(!fixed){
+            const em = String(data.no)+"@ogrenci.aat";
+            throw new Error("AUTH_ORPHAN:"+em);
+          }
+        } else {
           throw new Error("Auth hatasi: " + code);
         }
       }
@@ -1609,7 +1645,13 @@ async function fbSave(type, data) {
         await window.__FB.createAuthUser(data.no, data._plainPass, role);
       } catch(authErr) {
         const code = authErr.code || authErr.message || String(authErr);
-        if (code !== "auth/email-already-in-use") {
+        if (code === "auth/email-already-in-use") {
+          const fixed = await window.__FB.forceResetPassword(data.no, role, null, data._plainPass);
+          if(!fixed){
+            const em = String(data.no)+"@ogretmen.aat";
+            throw new Error("AUTH_ORPHAN:"+em);
+          }
+        } else {
           throw new Error("Auth hatasi: " + code);
         }
       }
@@ -5151,6 +5193,21 @@ function EditStudentSheet({student,onClose,t,lang,toast,onSave}){
           {plainPassDisplay&&(
             <button onClick={async()=>{await copyToClipboard(plainPassDisplay);hapticLight();toast("📋");}} style={{background:"rgba(95,185,142,0.15)",border:"1px solid rgba(95,185,142,0.3)",borderRadius:6,padding:"3px 7px",fontSize:11,color:"#5fb98e",cursor:"pointer"}}>📋</button>
           )}
+          {plainPassDisplay&&(
+            <button onClick={async()=>{
+              const _em=(student.email||"").trim();
+              if(!_em||_em.indexOf("@")<0){ toast("⚠ "+(lang==="en"?"No e-mail on this record — add one first":"E-peyam di vê tomarê de tune — pêşî zêde bike"),6000); return; }
+              try{
+                await sendCredsEmail(student.name, _em, student.no, plainPassDisplay);
+                hapticSuccess(); toast("✉ "+(lang==="en"?"Sent to ":"Hate şandin: ")+_em, 7000);
+              }catch(e){
+                hapticError();
+                toast("⚠ "+(lang==="en"?"Could not send e-mail":"E-peyam neçû")+" ("+(e&&e.text?e.text:(e&&e.message)||"?")+")", 8000);
+              }
+            }} style={{background:"rgba(231,199,123,0.16)",border:"1px solid rgba(231,199,123,0.4)",borderRadius:6,padding:"3px 8px",fontSize:11,color:"#9c7d33",cursor:"pointer",whiteSpace:"nowrap"}}>
+              ✉ {lang==="en"?"Send":lang==="de"?"Senden":"Bişîne"}
+            </button>
+          )}
         </div>
         {/* Şifre Güncelleme */}
         <div style={{marginTop:12,borderTop:"1px solid rgba(255,255,255,0.1)",paddingTop:10}}>
@@ -5282,6 +5339,21 @@ function EditTeacherSheet({teacher,onClose,t,lang,toast,onSave}){
           )}
           {plainPassDisplay&&(
             <button onClick={async()=>{await copyToClipboard(plainPassDisplay);hapticLight();toast("📋");}} style={{background:"rgba(95,185,142,0.15)",border:"1px solid rgba(95,185,142,0.3)",borderRadius:6,padding:"3px 7px",fontSize:11,color:"#5fb98e",cursor:"pointer"}}>📋</button>
+          )}
+          {plainPassDisplay&&(
+            <button onClick={async()=>{
+              const _em=(teacher.email||"").trim();
+              if(!_em||_em.indexOf("@")<0){ toast("⚠ "+(lang==="en"?"No e-mail on this record — add one first":"E-peyam di vê tomarê de tune — pêşî zêde bike"),6000); return; }
+              try{
+                await sendCredsEmail(teacher.name, _em, teacher.no, plainPassDisplay);
+                hapticSuccess(); toast("✉ "+(lang==="en"?"Sent to ":"Hate şandin: ")+_em, 7000);
+              }catch(e){
+                hapticError();
+                toast("⚠ "+(lang==="en"?"Could not send e-mail":"E-peyam neçû")+" ("+(e&&e.text?e.text:(e&&e.message)||"?")+")", 8000);
+              }
+            }} style={{background:"rgba(231,199,123,0.16)",border:"1px solid rgba(231,199,123,0.4)",borderRadius:6,padding:"3px 8px",fontSize:11,color:"#9c7d33",cursor:"pointer",whiteSpace:"nowrap"}}>
+              ✉ {lang==="en"?"Send":lang==="de"?"Senden":"Bişîne"}
+            </button>
           )}
         </div>
         {/* Şifre Güncelleme */}
@@ -6414,7 +6486,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     <div>
       <SectionHeader>{L("heading")}</SectionHeader>
       <Card>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v13.5</span></div>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v13.6</span></div>
         {/* Dil sekmeleri: KU zorunlu ana metin, diğerleri çeviri */}
         <div style={{display:"flex",gap:5,marginBottom:8}}>
           {[["ku","KU"],["tr","TR"],["en","EN"],["de","DE"]].map(([lk,lb])=>{
@@ -16393,6 +16465,12 @@ function App(){
         } catch(e) {
           if(attempt === 3){
             const errCode = e.message || e.code || String(e);
+            if(String(errCode).indexOf("AUTH_ORPHAN:")===0){
+              const em = String(errCode).split(":")[1]||"";
+              toast("⚠ "+(lang==="en"
+                ? "This number already has an old Firebase account ("+em+"). Delete it in Console → Authentication, then add again."
+                : "Ji vê jimarê re hesabekî Firebase yê kevn heye ("+em+"). Di Console → Authentication de jê bibe, paşê dîsa zêde bike."), 14000);
+            } else
             toast((lang==="en"?"❌ Save failed: ":lang==="de"?"❌ Fehler: ":"❌ Xelet: ")+errCode, 6000);
           } else {
             await new Promise(r => setTimeout(r, 1000 * attempt));
@@ -16454,6 +16532,18 @@ function App(){
       try { await fbDelete("schedule", delFire || null); } catch(e) { console.warn("Firebase delete error:", e); }
     }
     if(action==="deleteStudent") {
+      // Firebase Auth hesabını da sil — yoksa aynı numara yeniden eklendiğinde
+      // eski şifreli hesap kalır ve öğrenci giriş yapamaz.
+      if(window.__FB && window.__FB.isConfigured() && payload && payload.no){
+        try{
+          const dres = await window.__FB.deleteAuthUser(payload.no, "student", payload._plainPass);
+          if(!dres.ok && dres.reason!=="auth/user-not-found"){
+            toast("⚠ "+(lang==="en"
+              ? "Auth account not deleted — remove "+(dres.email||payload.no)+" in Firebase Console"
+              : "Hesabê Auth nehat jêbirin — di Firebase Console de "+(dres.email||payload.no)+" jê bibe"), 9000);
+          }
+        }catch(_){}
+      }
       setStudents(p=>p.filter(s=>{
         const matchFire = payload.fireId && s.fireId && s.fireId===payload.fireId;
         const matchId   = payload.id   && s.id   && String(s.id)===String(payload.id);
@@ -16471,6 +16561,16 @@ function App(){
       }
     }
     if(action==="deleteTeacher") {
+      if(window.__FB && window.__FB.isConfigured() && payload && payload.no){
+        try{
+          const dres = await window.__FB.deleteAuthUser(payload.no, "teacher", payload._plainPass);
+          if(!dres.ok && dres.reason!=="auth/user-not-found"){
+            toast("⚠ "+(lang==="en"
+              ? "Auth account not deleted — remove "+(dres.email||payload.no)+" in Firebase Console"
+              : "Hesabê Auth nehat jêbirin — di Firebase Console de "+(dres.email||payload.no)+" jê bibe"), 9000);
+          }
+        }catch(_){}
+      }
       setTeachers(p=>p.filter(tc=>{
         const matchFire = payload.fireId && tc.fireId && tc.fireId===payload.fireId;
         const matchId   = payload.id   && tc.id   && String(tc.id)===String(payload.id);
