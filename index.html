@@ -230,6 +230,74 @@ try{
   .stat span{font-size:12px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;font-weight:700}
   @media(max-width:760px){.about-grid{grid-template-columns:1fr}}
 
+  /* ══ ARŞÎV — Dîroka Akademiyê (zaman çizgisi) ══════════════════════════ */
+  .arch{margin-top:52px;padding-top:46px;border-top:1px solid var(--line)}
+  .arch-note{font-size:13.5px;color:var(--muted);line-height:1.7;margin:0 0 20px;max-width:660px}
+  .arch-note b{color:var(--body);font-weight:700}
+  .arch-years{display:flex;flex-wrap:wrap;align-items:center;column-gap:2px;row-gap:6px;
+    border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:9px 0;margin:0 0 30px}
+  .arch-y{font-family:Georgia,"Times New Roman",serif;font-size:15.5px;color:var(--muted);
+    background:none;border:none;cursor:pointer;padding:5px 13px;position:relative;letter-spacing:.02em;
+    font-family:Georgia,serif;transition:color .16s ease}
+  .arch-y:hover{color:var(--ink)}
+  .arch-y.on{color:var(--ink);font-weight:700}
+  .arch-y.on::after{content:"";position:absolute;left:13px;right:13px;bottom:-1px;height:2px;background:var(--gold)}
+  .arch-count{font-size:10px;color:var(--muted);margin-left:5px;letter-spacing:.06em}
+
+  .tl{position:relative;padding-left:104px}
+  .tl::before{content:"";position:absolute;left:66px;top:8px;bottom:8px;width:1px;background:var(--line)}
+  .tl-item{position:relative;padding-bottom:26px}
+  .tl-year{position:absolute;left:-104px;top:-2px;width:96px;text-align:right;padding-right:42px;
+    font-family:Georgia,"Times New Roman",serif;font-size:26px;color:var(--navy-3);letter-spacing:.01em}
+  .tl-dot{position:absolute;left:-42px;top:14px;width:9px;height:9px;border-radius:50%;
+    background:var(--gold);box-shadow:0 0 0 4px var(--paper-2)}
+  .tl-card{border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--surface);
+    display:grid;grid-template-columns:150px 1fr;cursor:pointer;transition:border-color .18s ease}
+  .tl-card:hover{border-color:var(--navy-3)}
+  .tl-card.notext{grid-template-columns:1fr}
+  .tl-img{background-size:cover;background-position:center;background-color:#1c4a55;min-height:106px;position:relative;
+    background-image:radial-gradient(circle at 80% 18%, rgba(231,199,123,.22), transparent 42%),linear-gradient(150deg,#1c4a55,#0f2f38 78%)}
+  .tl-img .tl-ic{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:28px;opacity:.8}
+  .tl-img .mcount{top:auto;right:7px;bottom:7px;font-size:9.5px;padding:2px 7px}
+  .tl-body{padding:15px 18px;min-width:0}
+  .tl-body h3{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:17.5px;
+    color:var(--ink);margin:0 0 5px;line-height:1.35}
+  .tl-body p{font-size:13.5px;color:var(--muted);margin:0;line-height:1.62;
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .tl-meta{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-top:10px}
+  .tl-tag{display:inline-block;font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;font-weight:800;
+    color:var(--gold-2);border:1px solid var(--line);border-radius:3px;padding:4px 9px}
+  .tl-date{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .arch-more{display:block;margin:6px auto 0;background:none;border:1.5px solid var(--line);border-radius:4px;
+    color:var(--ink);font-family:inherit;font-size:13px;font-weight:700;letter-spacing:.02em;
+    padding:11px 26px;cursor:pointer;transition:border-color .18s ease}
+  .arch-more:hover{border-color:var(--navy-3)}
+  .arch-empty{border:1.5px dashed var(--line);border-radius:4px;padding:34px 20px;text-align:center;
+    color:var(--muted);font-size:13.5px}
+  @media(max-width:760px){
+    .tl{padding-left:76px}
+    .tl::before{left:50px}
+    .tl-year{left:-76px;width:72px;font-size:20px;padding-right:34px;top:0}
+    .tl-dot{left:-30px;top:12px}
+    .tl-card{grid-template-columns:104px 1fr}
+    .tl-img{min-height:96px}
+    .tl-body{padding:12px 14px}
+    .tl-body h3{font-size:15.5px}
+    .tl-body p{font-size:12.5px;-webkit-line-clamp:2}
+  }
+  /* Koyu modda yıl rakamı sönük kalıyordu (kontrast ~2.8:1) — açık teal */
+  @media (prefers-color-scheme: dark){
+    .tl-year{color:#7fd0c0}
+    .tl-img{background-color:#16303a}
+  }
+  @media(max-width:420px){
+    .tl{padding-left:0}
+    .tl::before{display:none}
+    .tl-item{padding-bottom:22px}
+    .tl-year{position:static;width:auto;text-align:left;padding:0 0 7px;font-size:22px;display:block}
+    .tl-dot{display:none}
+  }
+
 
   /* ── Serlêdan (başvuru) ── */
   .apply-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--card-shadow);padding:26px 22px;max-width:640px}
@@ -324,6 +392,7 @@ try{
       <a class="link" href="#nuce" data-i18n="nav_news">Nûçe</a>
       <a class="link" href="#video" data-i18n="nav_video">Vîdyo</a>
       <a class="link" href="#qad" data-i18n="nav_areas">Qadên Hunerê</a>
+      <a class="link" href="#derbare" data-i18n="about_us">Derbarê Me</a>
       <a class="link" href="#serledan" data-i18n="nav_apply">Serlêdan</a>
       <a class="link" href="/app/" rel="nofollow" data-i18n="nav_login" style="font-weight:800">Têketin</a>
     </nav>
@@ -440,6 +509,17 @@ try{
         <div class="stat"><b>6</b><span data-i18n="fields">Qadên hunerê</span></div>
       </div>
     </div>
+
+    <!-- ══ ARŞÎV — zaman çizgisi ══ -->
+    <div class="arch" id="arsiv">
+      <div class="sec-head">
+        <span class="sec-eyebrow" data-i18n="arch_eyebrow">Arşîv</span>
+        <h2 class="serif" data-i18n="arch_title">Dîroka Akademiyê</h2>
+      </div>
+      <p class="arch-note" data-i18n="arch_note">Ji damezrandinê heta îro — salên akademiyê.</p>
+      <div class="arch-years" id="arch-years"></div>
+      <div id="arch-root"><div class="arch-empty" data-i18n="arch_loading">…</div></div>
+    </div>
   </div>
 </section>
 
@@ -470,6 +550,7 @@ try{
       <a href="#nuce" data-i18n="nav_news">Nûçe</a>
       <a href="#video" data-i18n="nav_video">Vîdyo</a>
       <a href="#qad" data-i18n="nav_areas">Qadên Hunerê</a>
+      <a href="#derbare" data-i18n="about_us">Derbarê Me</a>
       <a href="#serledan" data-i18n="nav_apply">Serlêdan</a>
       <a href="/app/" rel="nofollow" data-i18n="login_sys">Têketina Sîstemê</a>
     </div>
@@ -480,13 +561,13 @@ try{
 <script>
 // ── Çok dilli site metinleri (ku varsayılan) ──────────────────────────────
 window.SITE_T={
- ku:{nav_news:"Nûçe",nav_video:"Vîdyo",nav_areas:"Qadên Hunerê",nav_apply:"Serlêdan",nav_login:"Têketin",menu:"MENÛ",home:"Serûpel",about_us:"Derbarê Me",filter:"Parzûna Qadê",all:"Hemû",since:"Ji sala 2010'an ve",read_more:"Bêtir bixwîne",areas_line:"Muzîk · Şano · Sînema · Dans · Wêje · Wênesazî",news_none:"Hîn nûçe nehatine weşandin.",news_none_area:"Di vê qadê de hîn nûçe tune.",news_title:"Nûçe û Çalakî",edu:"Perwerde",who:"Em kî ne",about_title:"Derbarê Akademiyê",about_p:"dibistana hunerê, ji sala 2010'an ve.",founded:"Damezrandin",fields:"Qadên hunerê",enroll:"Tomarkirin",apply_title:"Serlêdana Xwendekariyê",area_hint:"Li qadekê bikirtîne da ku nûçeyên wê qadê bibînî.",school:"Dibistana hunerê",links:"Girêdan",login_sys:"Têketina Sîstemê",
+ ku:{nav_news:"Nûçe",nav_video:"Vîdyo",nav_areas:"Qadên Hunerê",nav_apply:"Serlêdan",nav_login:"Têketin",menu:"MENÛ",home:"Serûpel",about_us:"Derbarê Me",arch_eyebrow:"Arşîv",arch_title:"Dîroka Akademiyê",arch_note:"Ji damezrandinê heta îro, salên akademiyê li vir têne komkirin. Her nûçeya ku tê weşandin bixweber li sala xwe zêde dibe — arşîv bi xwe mezin dibe.",arch_loading:"Arşîv tê barkirin…",arch_empty:"Hîn di arşîvê de tomar tune.",arch_empty_year:"Di vê salê de tomar tune.",arch_more:"Bêtir nîşan bide",arch_rec:"tomar",arch_news:"Nûçe",filter:"Parzûna Qadê",all:"Hemû",since:"Ji sala 2010'an ve",read_more:"Bêtir bixwîne",areas_line:"Muzîk · Şano · Sînema · Dans · Wêje · Wênesazî",news_none:"Hîn nûçe nehatine weşandin.",news_none_area:"Di vê qadê de hîn nûçe tune.",news_title:"Nûçe û Çalakî",edu:"Perwerde",who:"Em kî ne",about_title:"Derbarê Akademiyê",about_p:"dibistana hunerê, ji sala 2010'an ve.",founded:"Damezrandin",fields:"Qadên hunerê",enroll:"Tomarkirin",apply_title:"Serlêdana Xwendekariyê",area_hint:"Li qadekê bikirtîne da ku nûçeyên wê qadê bibînî.",school:"Dibistana hunerê",links:"Girêdan",login_sys:"Têketina Sîstemê",
   ap_closed:"Serlêdan niha girtî ye. Dema tomarkirinê li vir tê ragihandin.",ap_docshead:"Belgeyên ku divê werin dagirtin:",ap_name:"Nav û paşnav *",ap_dob:"Roja jidayikbûnê",ap_phone:"Têlefon *",ap_email:"E-peyam (ji bo agahiyên têketinê)",ap_area:"Qada hunerê *",ap_note:"Nîşe (vebijarkî)",ap_docs:"Belgeyên pêwîst *",ap_upload:"📎 Bar bike",ap_change:"🔄 Biguherîne",ap_notyet:"necar",ap_done:"✅ barkir",ap_send:"📨 Serlêdanê Bişîne",ap_need:"⚠ Nav û têlefon pêwîst in.",ap_missing:"⚠ Ev belge kêm in: ",ap_toobig:"⚠ Belge bi tevahî pir mezin in — wêne/PDF-yên biçûktir bar bike.",ap_sending:"⏳ Tê şandin…",ap_ok1:"Serlêdana te hate wergirtin!",ap_ok2:"Karûbarên xwendekaran dê bi te re têkilî deyne.",ap_fail:"❌ Neçû — dîsa biceribîne."},
- tr:{nav_news:"Haberler",nav_video:"Video",nav_areas:"Sanat Alanları",nav_apply:"Başvuru",nav_login:"Giriş",menu:"MENÜ",home:"Ana Sayfa",about_us:"Hakkımızda",filter:"Alan Filtresi",all:"Tümü",since:"2010'dan beri",read_more:"Devamını oku",areas_line:"Müzik · Tiyatro · Sinema · Dans · Edebiyat · Resim",news_none:"Henüz haber yayınlanmadı.",news_none_area:"Bu alanda henüz haber yok.",news_title:"Haberler ve Etkinlikler",edu:"Eğitim",who:"Biz kimiz",about_title:"Akademi Hakkında",about_p:"sanat okulu, 2010'dan beri.",founded:"Kuruluş",fields:"Sanat alanı",enroll:"Kayıt",apply_title:"Öğrencilik Başvurusu",area_hint:"Bir alana dokun, o alanın haberlerini gör.",school:"Sanat okulu",links:"Bağlantılar",login_sys:"Sisteme Giriş",
+ tr:{nav_news:"Haberler",nav_video:"Video",nav_areas:"Sanat Alanları",nav_apply:"Başvuru",nav_login:"Giriş",menu:"MENÜ",home:"Ana Sayfa",about_us:"Hakkımızda",arch_eyebrow:"Arşiv",arch_title:"Akademinin Tarihi",arch_note:"Kuruluşundan bugüne akademinin yılları burada toplanıyor. Yayınlanan her haber otomatik olarak kendi yılına eklenir — arşiv kendiliğinden büyür.",arch_loading:"Arşiv yükleniyor…",arch_empty:"Arşivde henüz kayıt yok.",arch_empty_year:"Bu yılda kayıt yok.",arch_more:"Daha fazla göster",arch_rec:"kayıt",arch_news:"Haber",filter:"Alan Filtresi",all:"Tümü",since:"2010'dan beri",read_more:"Devamını oku",areas_line:"Müzik · Tiyatro · Sinema · Dans · Edebiyat · Resim",news_none:"Henüz haber yayınlanmadı.",news_none_area:"Bu alanda henüz haber yok.",news_title:"Haberler ve Etkinlikler",edu:"Eğitim",who:"Biz kimiz",about_title:"Akademi Hakkında",about_p:"sanat okulu, 2010'dan beri.",founded:"Kuruluş",fields:"Sanat alanı",enroll:"Kayıt",apply_title:"Öğrencilik Başvurusu",area_hint:"Bir alana dokun, o alanın haberlerini gör.",school:"Sanat okulu",links:"Bağlantılar",login_sys:"Sisteme Giriş",
   ap_closed:"Başvurular şu an kapalı. Kayıt dönemi burada duyurulacak.",ap_docshead:"Doldurulması gereken belgeler:",ap_name:"Ad ve soyad *",ap_dob:"Doğum tarihi",ap_phone:"Telefon *",ap_email:"E-posta (giriş bilgileriniz buraya gönderilir)",ap_area:"Sanat alanı *",ap_note:"Not (isteğe bağlı)",ap_docs:"İstenen belgeler *",ap_upload:"📎 Yükle",ap_change:"🔄 Değiştir",ap_notyet:"yüklenmedi",ap_done:"✅ yüklendi",ap_send:"📨 Başvuruyu Gönder",ap_need:"⚠ Ad ve telefon zorunludur.",ap_missing:"⚠ Şu belgeler eksik: ",ap_toobig:"⚠ Belgeler toplamda çok büyük — daha küçük görsel/PDF yükleyin.",ap_sending:"⏳ Gönderiliyor…",ap_ok1:"Başvurunuz alındı!",ap_ok2:"Öğrenci işleri sizinle iletişime geçecek.",ap_fail:"❌ Gönderilemedi — tekrar deneyin."},
- en:{nav_news:"News",nav_video:"Video",nav_areas:"Art Fields",nav_apply:"Apply",nav_login:"Sign in",menu:"MENU",home:"Home",about_us:"About Us",filter:"Field Filter",all:"All",since:"Since 2010",read_more:"Read more",areas_line:"Music · Theatre · Cinema · Dance · Literature · Painting",news_none:"No news published yet.",news_none_area:"No news in this field yet.",news_title:"News & Events",edu:"Education",who:"Who we are",about_title:"About the Academy",about_p:"a school of arts, since 2010.",founded:"Founded",fields:"Art fields",enroll:"Enrollment",apply_title:"Student Application",area_hint:"Tap a field to see its news.",school:"School of arts",links:"Links",login_sys:"System Login",
+ en:{nav_news:"News",nav_video:"Video",nav_areas:"Art Fields",nav_apply:"Apply",nav_login:"Sign in",menu:"MENU",home:"Home",about_us:"About Us",arch_eyebrow:"Archive",arch_title:"History of the Academy",arch_note:"The academy's years, from its founding to today. Every published post is automatically filed under its own year — the archive grows by itself.",arch_loading:"Loading archive…",arch_empty:"No archive entries yet.",arch_empty_year:"No entries for this year.",arch_more:"Show more",arch_rec:"entries",arch_news:"News",filter:"Field Filter",all:"All",since:"Since 2010",read_more:"Read more",areas_line:"Music · Theatre · Cinema · Dance · Literature · Painting",news_none:"No news published yet.",news_none_area:"No news in this field yet.",news_title:"News & Events",edu:"Education",who:"Who we are",about_title:"About the Academy",about_p:"a school of arts, since 2010.",founded:"Founded",fields:"Art fields",enroll:"Enrollment",apply_title:"Student Application",area_hint:"Tap a field to see its news.",school:"School of arts",links:"Links",login_sys:"System Login",
   ap_closed:"Applications are currently closed. The enrollment period will be announced here.",ap_docshead:"Documents to fill in:",ap_name:"Full name *",ap_dob:"Date of birth",ap_phone:"Phone *",ap_email:"E-mail (your login details are sent here)",ap_area:"Art field *",ap_note:"Note (optional)",ap_docs:"Required documents *",ap_upload:"📎 Upload",ap_change:"🔄 Change",ap_notyet:"not yet",ap_done:"✅ uploaded",ap_send:"📨 Submit Application",ap_need:"⚠ Name and phone are required.",ap_missing:"⚠ Missing documents: ",ap_toobig:"⚠ Files are too large in total — upload smaller images/PDFs.",ap_sending:"⏳ Sending…",ap_ok1:"Your application has been received!",ap_ok2:"Student affairs will contact you.",ap_fail:"❌ Failed — please try again."},
- de:{nav_news:"Nachrichten",nav_video:"Video",nav_areas:"Kunstbereiche",nav_apply:"Bewerbung",nav_login:"Anmelden",menu:"MENÜ",home:"Startseite",about_us:"Über uns",filter:"Bereichsfilter",all:"Alle",since:"Seit 2010",read_more:"Weiterlesen",areas_line:"Musik · Theater · Kino · Tanz · Literatur · Malerei",news_none:"Noch keine Nachrichten veröffentlicht.",news_none_area:"In diesem Bereich noch keine Nachrichten.",news_title:"Nachrichten & Veranstaltungen",edu:"Bildung",who:"Wer wir sind",about_title:"Über die Akademie",about_p:"eine Kunstschule, seit 2010.",founded:"Gegründet",fields:"Kunstbereiche",enroll:"Anmeldung",apply_title:"Studienbewerbung",area_hint:"Tippe auf einen Bereich, um seine Nachrichten zu sehen.",school:"Kunstschule",links:"Links",login_sys:"System-Login",
+ de:{nav_news:"Nachrichten",nav_video:"Video",nav_areas:"Kunstbereiche",nav_apply:"Bewerbung",nav_login:"Anmelden",menu:"MENÜ",home:"Startseite",about_us:"Über uns",arch_eyebrow:"Archiv",arch_title:"Geschichte der Akademie",arch_note:"Die Jahre der Akademie, von der Gründung bis heute. Jeder veröffentlichte Beitrag wird automatisch seinem Jahr zugeordnet — das Archiv wächst von selbst.",arch_loading:"Archiv wird geladen…",arch_empty:"Noch keine Archiveinträge.",arch_empty_year:"Keine Einträge in diesem Jahr.",arch_more:"Mehr anzeigen",arch_rec:"Einträge",arch_news:"Nachricht",filter:"Bereichsfilter",all:"Alle",since:"Seit 2010",read_more:"Weiterlesen",areas_line:"Musik · Theater · Kino · Tanz · Literatur · Malerei",news_none:"Noch keine Nachrichten veröffentlicht.",news_none_area:"In diesem Bereich noch keine Nachrichten.",news_title:"Nachrichten & Veranstaltungen",edu:"Bildung",who:"Wer wir sind",about_title:"Über die Akademie",about_p:"eine Kunstschule, seit 2010.",founded:"Gegründet",fields:"Kunstbereiche",enroll:"Anmeldung",apply_title:"Studienbewerbung",area_hint:"Tippe auf einen Bereich, um seine Nachrichten zu sehen.",school:"Kunstschule",links:"Links",login_sys:"System-Login",
   ap_closed:"Bewerbungen sind derzeit geschlossen. Der Anmeldezeitraum wird hier bekannt gegeben.",ap_docshead:"Auszufüllende Dokumente:",ap_name:"Vor- und Nachname *",ap_dob:"Geburtsdatum",ap_phone:"Telefon *",ap_email:"E-Mail (Zugangsdaten werden hierhin gesendet)",ap_area:"Kunstbereich *",ap_note:"Notiz (optional)",ap_docs:"Erforderliche Dokumente *",ap_upload:"📎 Hochladen",ap_change:"🔄 Ändern",ap_notyet:"offen",ap_done:"✅ hochgeladen",ap_send:"📨 Bewerbung senden",ap_need:"⚠ Name und Telefon sind erforderlich.",ap_missing:"⚠ Fehlende Dokumente: ",ap_toobig:"⚠ Dateien insgesamt zu groß — kleinere Bilder/PDFs hochladen.",ap_sending:"⏳ Wird gesendet…",ap_ok1:"Ihre Bewerbung ist eingegangen!",ap_ok2:"Das Studierendenbüro wird Sie kontaktieren.",ap_fail:"❌ Fehlgeschlagen — bitte erneut versuchen."}
 };
 window.SITE_LANG=(function(){try{return localStorage.getItem('aat-site-lang')||'ku';}catch(e){return 'ku';}})();
@@ -1145,10 +1226,160 @@ document.querySelectorAll('.drawer-area').forEach(el=>{ el.addEventListener('cli
     allNews = snap.docs.map(d => d.data());
     allNews.sort((a,b) => (b.dateStr||"").localeCompare(a.dateStr||""));
     applyNewsFilter();
+    renderArchive();
   } catch(e) {
     console.warn("news load:", e);
-    allNews = []; applyNewsFilter();
+    allNews = []; applyNewsFilter(); renderArchive();
   }
+})();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ARŞÎV — Dîroka Akademiyê (zaman çizgisi)
+   İki kaynak birleşir:
+     1) archive koleksiyonu — yönetici panelinden elle girilen kilometre taşları
+     2) news koleksiyonu     — yayınlanan her haber otomatik olarak kendi yılına
+   Böylece arşiv elle bakım gerektirmeden kendiliğinden büyür.
+   ══════════════════════════════════════════════════════════════════════════ */
+const archRoot  = document.getElementById('arch-root');
+const archYears = document.getElementById('arch-years');
+const ARCH_PAGE = 8;
+let archDocs = [];       // elle girilen kayıtlar
+let archLoaded = false;
+let archYear = null;     // null = hemû sal
+let archShown = ARCH_PAGE;
+
+function itemYear(it){
+  if(it.year) return parseInt(it.year,10)||null;
+  const d = String(it.dateStr||"");
+  const y = parseInt(d.slice(0,4),10);
+  return isFinite(y) && y>1900 ? y : null;
+}
+// Sıralama anahtarı: tam tarih varsa onu, yoksa yılın sonunu kullan
+function itemKey(it){
+  const d = String(it.dateStr||"");
+  if(/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+  const y = itemYear(it);
+  return y ? (y + "-12-31") : "0000-00-00";
+}
+
+function archEntries(){
+  const list = [];
+  archDocs.forEach(a => { if(itemYear(a)) list.push({...a, _kind:'arch'}); });
+  allNews.forEach(n  => { if(itemYear(n)) list.push({...n, _kind:'news'}); });
+  list.sort((a,b) => itemKey(b).localeCompare(itemKey(a)));
+  return list;
+}
+
+function archTagText(it){
+  if(it._kind === 'news') return window.ST('arch_news');
+  const l = window.SITE_LANG;
+  if(l && l !== "ku" && it.i18n && it.i18n[l] && (it.i18n[l].tag||"").trim()) return it.i18n[l].tag;
+  return (it.tag||"").trim();
+}
+
+function archCard(it, showYear){
+  const wrap = document.createElement('div'); wrap.className = 'tl-item';
+  // Yıl rakamı yalnızca o yılın ilk kaydında yazılır (tekrar etmesin)
+  const y = document.createElement('div'); y.className = 'tl-year serif';
+  if(showYear) y.textContent = itemYear(it);
+  const dot = document.createElement('div'); dot.className = 'tl-dot';
+  const card = document.createElement('div'); card.className = 'tl-card';
+
+  const media = newsMedia(it);
+  const cover = media.find(m => m.type === 'img');
+  const img = document.createElement('div'); img.className = 'tl-img';
+  if(cover){
+    img.style.backgroundImage = "url('" + cover.src.replace(/'/g, "%27") + "')";
+    if(media.length > 1){
+      const mc = document.createElement('span'); mc.className = 'mcount';
+      const nImg = media.filter(m => m.type === 'img').length, nVid = media.length - nImg;
+      mc.textContent = (nImg>1?('📷 '+nImg):'') + (nImg>1&&nVid?' · ':'') + (nVid?('🎬 '+nVid):'');
+      img.appendChild(mc);
+    }
+  } else {
+    // Görselsiz kayıt: yalnızca yazılı metin — alan simgesiyle sade kapak
+    const ic = document.createElement('span'); ic.className = 'tl-ic';
+    ic.textContent = AREA_ICONS[it.area] || '🏛';
+    img.appendChild(ic);
+  }
+  card.appendChild(img);
+
+  const body = document.createElement('div'); body.className = 'tl-body';
+  const h = document.createElement('h3'); h.textContent = newsText(it,'title'); body.appendChild(h);
+  const txt = newsText(it,'body');
+  if(txt){ const p = document.createElement('p'); p.textContent = txt; body.appendChild(p); }
+  const meta = document.createElement('div'); meta.className = 'tl-meta';
+  const dtxt = fmtDate(it.dateStr);
+  if(dtxt){ const d = document.createElement('span'); d.className = 'tl-date'; d.textContent = dtxt.toUpperCase(); meta.appendChild(d); }
+  const tg = archTagText(it);
+  if(tg){ const b = document.createElement('span'); b.className = 'tl-tag'; b.textContent = tg; meta.appendChild(b); }
+  if(it.area && it.area !== "genel" && AREA_ICONS[it.area]){
+    const b = document.createElement('span'); b.className = 'tl-tag'; b.textContent = areaLabel(it.area); meta.appendChild(b);
+  }
+  if(meta.childNodes.length) body.appendChild(meta);
+  card.appendChild(body);
+
+  card.addEventListener('click', () => openNewsModal(it));
+  wrap.appendChild(y); wrap.appendChild(dot); wrap.appendChild(card);
+  return wrap;
+}
+
+function renderArchive(){
+  if(!archRoot) return;
+  const all = archEntries();
+  // ── yıl şeridi ──
+  const years = [...new Set(all.map(itemYear))].sort((a,b) => b-a);
+  if(archYear !== null && years.indexOf(archYear) === -1) archYear = null;
+  archYears.innerHTML = "";
+  if(years.length){
+    const mk = (label, val, count) => {
+      const b = document.createElement('button');
+      b.className = 'arch-y' + (archYear === val ? ' on' : '');
+      b.textContent = label;
+      if(count != null){ const c = document.createElement('span'); c.className='arch-count'; c.textContent = count; b.appendChild(c); }
+      b.addEventListener('click', () => { archYear = val; archShown = ARCH_PAGE; renderArchive(); });
+      archYears.appendChild(b);
+    };
+    mk(window.ST('all'), null, all.length);
+    years.forEach(y => mk(String(y), y, all.filter(it => itemYear(it) === y).length));
+  }
+  // ── liste ──
+  const items = archYear === null ? all : all.filter(it => itemYear(it) === archYear);
+  archRoot.innerHTML = "";
+  if(!items.length){
+    if(!archLoaded && !allNews.length){ archRoot.innerHTML = '<div class="arch-empty">' + window.ST('arch_loading') + '</div>'; return; }
+    const d = document.createElement('div'); d.className = 'arch-empty';
+    d.textContent = archYear === null ? window.ST('arch_empty') : window.ST('arch_empty_year');
+    archRoot.appendChild(d); return;
+  }
+  const tl = document.createElement('div'); tl.className = 'tl';
+  let prevYear = null;
+  items.slice(0, archShown).forEach(it => {
+    const y = itemYear(it);
+    tl.appendChild(archCard(it, y !== prevYear));
+    prevYear = y;
+  });
+  archRoot.appendChild(tl);
+  if(items.length > archShown){
+    const more = document.createElement('button');
+    more.className = 'arch-more';
+    more.textContent = window.ST('arch_more') + '  (' + (items.length - archShown) + ' ' + window.ST('arch_rec') + ')';
+    more.addEventListener('click', () => { archShown += ARCH_PAGE; renderArchive(); });
+    archRoot.appendChild(more);
+  }
+}
+
+document.addEventListener('sitelang', () => { try{ renderArchive(); }catch(e){} });
+
+(async () => {
+  try{
+    let snap;
+    try{ snap = await getDocs(query(collection(db,"archive"), orderBy("dateStr","desc"), limit(200))); }
+    catch(e){ snap = await getDocs(collection(db,"archive")); }
+    archDocs = snap.docs.map(d => d.data());
+  }catch(e){ console.warn("archive load:", e); archDocs = []; }
+  archLoaded = true;
+  renderArchive();
 })();
 </script>
 </body>

@@ -82,6 +82,13 @@ service cloud.firestore {
       allow write: if isStaff();
     }
 
+    // ── Arşîv (ana sayfa "Dîroka Akademiyê" zaman çizgisi) — açık okuma ─
+    // Yönetici/basın panelinden girilen yıl bazlı kayıtlar; site girişsiz okur.
+    match /archive/{id} {
+      allow read:  if true;
+      allow write: if isStaff();
+    }
+
     // ── Serlêdan (kayıt başvuruları) — public create, sıkı sınırlı ─────
     match /applications/{id} {
       allow create: if applicationsOpen()

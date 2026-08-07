@@ -6472,7 +6472,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     <div>
       <SectionHeader>{L("heading")}</SectionHeader>
       <Card>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v13.8</span></div>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v13.9</span></div>
         {/* Dil sekmeleri: KU zorunlu ana metin, diğerleri çeviri */}
         <div style={{display:"flex",gap:5,marginBottom:8}}>
           {[["ku","KU"],["tr","TR"],["en","EN"],["de","DE"]].map(([lk,lb])=>{
@@ -7105,14 +7105,341 @@ function SpecialPanelHeader({user,icon,roleLabel,lang,onLogout,siteLink,onMenu,t
   );
 }
 
+/* ─── ARCHIVE PANEL (Arşîv — malperê "Dîroka Akademiyê" zaman çizgisi) ────
+   Yönetici/basın buradan yıl bazlı kilometre taşı ekler. Ana sayfadaki arşiv
+   bu kayıtları + yayınlanan haberleri birleştirip yıla göre dizer; yani haber
+   paylaştıkça arşiv kendiliğinden büyür, buraya yalnızca geçmiş yılların
+   önemli anları elle girilir. Görsel zorunlu değildir — yalnız yazı da olur. */
+function AdminArchivePanel({lang,toast,adminName}){
+  const [items,setItems]=useState([]);
+  const [editId,setEditId]=useState(null);
+  const [year,setYear]=useState(String(new Date().getFullYear()));
+  const [dateStr,setDateStr]=useState("");
+  const [title,setTitle]=useState("");
+  const [body,setBody]=useState("");
+  const [tag,setTag]=useState("");
+  const [area,setArea]=useState("genel");
+  const [images,setImages]=useState([]);
+  const [trTab,setTrTab]=useState("ku");
+  const [i18n,setI18n]=useState({tr:{title:"",body:"",tag:""},en:{title:"",body:"",tag:""},de:{title:"",body:"",tag:""}});
+  const [saving,setSaving]=useState(false);
+  const fileRef=useRef(null);
+  const MAX_IMGS=6;
+  const L=(k)=>({
+    heading:{ku:"🏛 Arşîva Malperê",en:"🏛 Website Archive",de:"🏛 Website-Archiv"},
+    hint:{ku:"Van tomaran li ser rûpela sereke di beşa «Dîroka Akademiyê» de bi salan têne rêzkirin. Nûçeyên weşandî bixweber tên zêdekirin — li vir tenê bûyerên girîng ên salên borî binivîse.",
+          en:"These entries appear on the homepage under “History of the Academy”, ordered by year. Published news is added automatically — enter only the milestones of past years here.",
+          de:"Diese Einträge erscheinen auf der Startseite unter „Geschichte der Akademie“. Veröffentlichte Beiträge werden automatisch ergänzt — trage hier nur die Meilensteine vergangener Jahre ein."},
+    year:{ku:"Sal *",en:"Year *",de:"Jahr *"},
+    date:{ku:"Dîrok (vebijarkî)",en:"Date (optional)",de:"Datum (optional)"},
+    title:{ku:"Sernav",en:"Title",de:"Titel"},
+    body:{ku:"Nivîs (vebijarkî)",en:"Text (optional)",de:"Text (optional)"},
+    tag:{ku:"Etîket (mînak: Damezrandin)",en:"Tag (e.g. Founding)",de:"Etikett (z. B. Gründung)"},
+    photo:{ku:"📷 Wêne zêde bike (vebijarkî)",en:"📷 Add photos (optional)",de:"📷 Fotos hinzufügen (optional)"},
+    save:{ku:"💾 Tomar bike",en:"💾 Save",de:"💾 Speichern"},
+    update:{ku:"💾 Nû bike",en:"💾 Update",de:"💾 Aktualisieren"},
+    cancel:{ku:"Betal bike",en:"Cancel",de:"Abbrechen"},
+    edit:{ku:"Biguherîne",en:"Edit",de:"Bearbeiten"},
+    del:{ku:"Jê bibe",en:"Delete",de:"Löschen"},
+    list:{ku:"Tomarên arşîvê",en:"Archive entries",de:"Archiveinträge"},
+    empty:{ku:"Hîn tomar tune. Ya yekem zêde bike!",en:"No entries yet. Add the first one!",de:"Noch keine Einträge."},
+    needYear:{ku:"⚠ Sal pêwîst e (mînak 2010)",en:"⚠ Year required (e.g. 2010)",de:"⚠ Jahr erforderlich (z. B. 2010)"},
+    needTitle:{ku:"⚠ Sernav pêwîst e — bi kêmanî bi zimanekî",en:"⚠ Title required — in at least one language",de:"⚠ Titel erforderlich — in mindestens einer Sprache"},
+    done:{ku:"✅ Tomar hate qeydkirin",en:"✅ Saved",de:"✅ Gespeichert"},
+    deleted:{ku:"🗑 Hate jêbirin",en:"🗑 Deleted",de:"🗑 Gelöscht"},
+    err:{ku:"❌ Çewtî — dîsa biceribîne",en:"❌ Error — try again",de:"❌ Fehler"},
+    confirmDel:{ku:"Ev tomar were jêbirin?",en:"Delete this entry?",de:"Diesen Eintrag löschen?"},
+  }[k][lang]||k);
+
+  useEffect(()=>{
+    if(!window.__FB||!window.__FB.isConfigured()) return;
+    let unsub=()=>{};
+    const sortIt=(list)=>list.sort((a,b)=>String(b.dateStr||(b.year+"-12-31")).localeCompare(String(a.dateStr||(a.year+"-12-31"))));
+    try{
+      const q=window.__FB.query(window.__FB.collection(window.__FB.db,"archive"),window.__FB.orderBy("dateStr","desc"),window.__FB.limit(200));
+      unsub=window.__FB.onSnapshot(q,snap=>setItems(sortIt(snap.docs.map(d=>({...d.data(),fireId:d.id})))));
+    }catch(e){
+      try{ unsub=window.__FB.onSnapshot(window.__FB.collection(window.__FB.db,"archive"),snap=>setItems(sortIt(snap.docs.map(d=>({...d.data(),fireId:d.id}))))); }catch(_){}
+    }
+    return ()=>unsub();
+  },[]);
+
+  function reset(){
+    setEditId(null); setYear(String(new Date().getFullYear())); setDateStr("");
+    setTitle(""); setBody(""); setTag(""); setArea("genel"); setImages([]); setTrTab("ku");
+    setI18n({tr:{title:"",body:"",tag:""},en:{title:"",body:"",tag:""},de:{title:"",body:"",tag:""}});
+  }
+  function startEdit(it){
+    setEditId(it.fireId);
+    setYear(String(it.year||"")); setDateStr(it.dateStr||"");
+    setTitle(it.title||""); setBody(it.body||""); setTag(it.tag||""); setArea(it.area||"genel");
+    setImages(Array.isArray(it.images)?it.images:(it.image?[it.image]:[]));
+    const src=it.i18n||{};
+    setI18n({
+      tr:{title:(src.tr&&src.tr.title)||"",body:(src.tr&&src.tr.body)||"",tag:(src.tr&&src.tr.tag)||""},
+      en:{title:(src.en&&src.en.title)||"",body:(src.en&&src.en.body)||"",tag:(src.en&&src.en.tag)||""},
+      de:{title:(src.de&&src.de.title)||"",body:(src.de&&src.de.body)||"",tag:(src.de&&src.de.tag)||""},
+    });
+    setTrTab("ku");
+    try{ window.scrollTo({top:0,behavior:"smooth"}); }catch(_){}
+    const sa=document.querySelector(".scroll-area"); if(sa) sa.scrollTo({top:0,behavior:"smooth"});
+  }
+
+  async function pickImages(e){
+    const files=[...(e.target.files||[])];
+    for(const f of files){
+      if(images.length>=MAX_IMGS) break;
+      const dataUrl=await new Promise((res,rej)=>{const r=new FileReader();r.onload=ev=>res(ev.target.result);r.onerror=rej;r.readAsDataURL(f);});
+      const compressed=await compressImage(dataUrl,1400,1400,0.8);
+      setImages(p=>p.length>=MAX_IMGS?p:[...p,compressed]);
+    }
+    if(fileRef.current) fileRef.current.value="";
+  }
+
+  async function save(){
+    const y=parseInt(String(year).trim(),10);
+    if(!isFinite(y)||y<1900||y>2200){ toast(L("needYear")); return; }
+    const anyTitle=(title.trim()||(i18n.tr.title||"").trim()||(i18n.en.title||"").trim()||(i18n.de.title||"").trim());
+    if(!anyTitle){ toast(L("needTitle")); return; }
+    if(!window.__FB||!window.__FB.isConfigured()){ toast(L("err")); return; }
+    if(!window.__FB.auth||!window.__FB.auth.currentUser){
+      toast(lang==="en"?"⚠ No Firebase session — sign out and sign in again"
+                       :"⚠ Danişîna Firebase tune — derkeve û ji nû ve têkeve",8000);
+      return;
+    }
+    setSaving(true);
+    const failsafe=setTimeout(()=>{setSaving(false);toast(L("err"));},60000);
+    try{
+      const folder="archive/"+y+"_"+Date.now().toString(36);
+      const imgUrls=[]; let b64Total=0;
+      for(let i=0;i<images.length;i++){
+        // Zaten yüklü (http) görselleri olduğu gibi koru
+        if(typeof images[i]==="string" && images[i].indexOf("data:")!==0){ imgUrls.push(images[i]); continue; }
+        let u=await window.__FB.uploadNewsMedia(images[i], folder+"/img_"+i+".jpg", null);
+        if(!u){
+          let b64=images[i];
+          try{ b64=await compressImage(images[i],1000,1000,0.72); }catch(_){}
+          if(b64Total+b64.length<=700000){ u=b64; b64Total+=b64.length; }
+        }
+        if(u) imgUrls.push(u);
+      }
+      const i18nOut={};
+      ["tr","en","de"].forEach(l2=>{
+        const e2=i18n[l2]||{};
+        if((e2.title||"").trim()||(e2.body||"").trim()||(e2.tag||"").trim())
+          i18nOut[l2]={title:(e2.title||"").trim(),body:(e2.body||"").trim(),tag:(e2.tag||"").trim()};
+      });
+      const payload={
+        year:y,
+        dateStr:(dateStr||(y+"-12-31")),
+        title:(title.trim()||anyTitle),
+        body:body.trim(),
+        tag:tag.trim(),
+        i18n:Object.keys(i18nOut).length?i18nOut:null,
+        image:(imgUrls[0]&&imgUrls[0].indexOf("data:")!==0)?imgUrls[0]:null,
+        images:imgUrls,
+        area:area||"genel",
+        author:adminName||"Admin",
+      };
+      if(editId){
+        await window.__FB.setDoc(window.__FB.doc(window.__FB.db,"archive",editId),payload,{merge:true});
+      }else{
+        payload.createdAt=window.__FB.serverTimestamp();
+        await window.__FB.addDoc(window.__FB.collection(window.__FB.db,"archive"),payload);
+      }
+      reset();
+      toast(L("done"));
+    }catch(e){
+      console.warn("archive save:",e);
+      toast(L("err")+" ["+String(e&&(e.code||e.message)||"").slice(0,40)+"]",9000);
+    }
+    clearTimeout(failsafe);
+    setSaving(false);
+  }
+
+  async function remove(it){
+    if(!window.confirm(L("confirmDel"))) return;
+    try{
+      await window.__FB.deleteDoc(window.__FB.doc(window.__FB.db,"archive",it.fireId));
+      if(editId===it.fireId) reset();
+      toast(L("deleted"));
+    }catch(e){ toast(L("err")); }
+  }
+
+  const inpStyle={width:"100%",padding:"11px 12px",marginBottom:8,border:"1px solid var(--border2)",borderRadius:10,
+    fontSize:14,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box",fontFamily:"inherit"};
+
+  // Yıl bazlı gruplama (liste görünümü)
+  const groups=[];
+  items.forEach(it=>{
+    const y=it.year||parseInt(String(it.dateStr||"").slice(0,4),10)||0;
+    let g=groups.find(x=>x.y===y);
+    if(!g){ g={y,list:[]}; groups.push(g); }
+    g.list.push(it);
+  });
+  groups.sort((a,b)=>b.y-a.y);
+
+  return(
+    <div>
+      <SectionHeader>{L("heading")}</SectionHeader>
+      <Card>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12,lineHeight:1.6}}>{L("hint")}</div>
+        {editId&&(
+          <div style={{fontSize:11.5,fontWeight:700,color:"#0f2f38",background:"rgba(231,199,123,0.18)",
+            border:"1px solid rgba(231,199,123,0.6)",borderRadius:8,padding:"7px 10px",marginBottom:10}}>
+            ✏️ {lang==="en"?"Editing entry":lang==="de"?"Eintrag wird bearbeitet":"Tomar tê guhertin"}
+          </div>
+        )}
+        {/* Dil sekmeleri */}
+        <div style={{display:"flex",gap:5,marginBottom:8}}>
+          {[["ku","KU"],["tr","TR"],["en","EN"],["de","DE"]].map(([lk,lb])=>{
+            const filled=lk==="ku"?!!title.trim():!!(((i18n[lk]||{}).title||"")+((i18n[lk]||{}).body||"")).trim();
+            return(
+              <button key={lk} onClick={()=>setTrTab(lk)}
+                style={{flex:1,padding:"7px 4px",borderRadius:9,fontSize:11,fontWeight:trTab===lk?800:600,cursor:"pointer",
+                  border:"1.5px solid "+(trTab===lk?"#0f2f38":"var(--border2)"),
+                  background:trTab===lk?"#0f2f38":"var(--bg2)",color:trTab===lk?"#fff":"var(--text2)"}}>
+                {lb}{filled&&lk!=="ku"?" ●":""}{lk==="ku"?" *":""}
+              </button>
+            );
+          })}
+        </div>
+        {trTab==="ku"?(
+          <>
+            <input value={title} onChange={e=>setTitle(e.target.value)} placeholder={L("title")} style={inpStyle}/>
+            <textarea value={body} onChange={e=>setBody(e.target.value)} placeholder={L("body")} rows={4} style={{...inpStyle,resize:"vertical"}}/>
+            <input value={tag} onChange={e=>setTag(e.target.value)} placeholder={L("tag")} style={inpStyle}/>
+          </>
+        ):(
+          <>
+            <div style={{fontSize:10,color:"var(--text2)",marginBottom:6}}>
+              🌐 {trTab.toUpperCase()} {lang==="en"?"translation (optional — shown when site language is switched)."
+                 :lang==="de"?"Übersetzung (optional — wird bei Sprachwechsel angezeigt)."
+                 :"wergera (vebijarkî — dema zimanê malperê tê guhertin xuya dibe)."}
+            </div>
+            <input value={i18n[trTab].title} onChange={e=>setI18n(p=>({...p,[trTab]:{...p[trTab],title:e.target.value}}))}
+              placeholder={L("title")+" ("+trTab.toUpperCase()+")"} style={inpStyle}/>
+            <textarea value={i18n[trTab].body} onChange={e=>setI18n(p=>({...p,[trTab]:{...p[trTab],body:e.target.value}}))}
+              placeholder={L("body")+" ("+trTab.toUpperCase()+")"} rows={4} style={{...inpStyle,resize:"vertical"}}/>
+            <input value={i18n[trTab].tag} onChange={e=>setI18n(p=>({...p,[trTab]:{...p[trTab],tag:e.target.value}}))}
+              placeholder={L("tag")+" ("+trTab.toUpperCase()+")"} style={inpStyle}/>
+          </>
+        )}
+        {/* Yıl + tarih */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1.4fr",gap:8}}>
+          <div>
+            <div style={{fontSize:11,color:"var(--text2)",marginBottom:4}}>{L("year")}</div>
+            <input value={year} onChange={e=>setYear(e.target.value.replace(/[^0-9]/g,"").slice(0,4))}
+              inputMode="numeric" placeholder="2010" style={{...inpStyle,fontFamily:"monospace",letterSpacing:"0.06em"}}/>
+          </div>
+          <div>
+            <div style={{fontSize:11,color:"var(--text2)",marginBottom:4}}>{L("date")}</div>
+            <input type="date" value={dateStr} onChange={e=>setDateStr(e.target.value)} style={inpStyle}/>
+          </div>
+        </div>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:4}}>
+          {lang==="en"?"Art area (optional)":lang==="de"?"Bereich (optional)":"Qad (vebijarkî)"}
+        </div>
+        <select value={area} onChange={e=>setArea(e.target.value)} style={inpStyle}>
+          <option value="genel">🌐 {lang==="en"?"General (all)":lang==="de"?"Allgemein":"Giştî (hemû)"}</option>
+          {AREAS.map(a=>(<option key={a.key} value={a.key}>{a.icon} {areaName(a.key,lang)}</option>))}
+        </select>
+        {/* Görseller */}
+        {images.length>0&&(
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(84px,1fr))",gap:8,marginBottom:10}}>
+            {images.map((im,i)=>(
+              <div key={i} style={{position:"relative",aspectRatio:"1",borderRadius:10,overflow:"hidden",border:"1px solid var(--border2)"}}>
+                <img src={im} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+                <button onClick={()=>setImages(p=>p.filter((_,j)=>j!==i))}
+                  style={{position:"absolute",top:4,right:4,width:22,height:22,borderRadius:"50%",border:"none",
+                    background:"rgba(0,0,0,0.6)",color:"#fff",fontSize:12,cursor:"pointer",lineHeight:1}}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+        <input ref={fileRef} type="file" accept="image/*" multiple onChange={pickImages} style={{display:"none"}}/>
+        <button onClick={()=>fileRef.current&&fileRef.current.click()} disabled={images.length>=MAX_IMGS}
+          style={{width:"100%",padding:"11px",marginBottom:10,border:"1.5px dashed var(--border2)",borderRadius:10,
+            background:"var(--bg2)",color:"var(--text2)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+          {L("photo")} {images.length>0?("· "+images.length+"/"+MAX_IMGS):""}
+        </button>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={save} disabled={saving}
+            style={{flex:1,padding:"13px",border:"none",borderRadius:10,background:saving?"#94a3b8":"#0f2f38",
+              color:"#fff",fontSize:14,fontWeight:700,cursor:saving?"default":"pointer",fontFamily:"inherit"}}>
+            {saving?"…":(editId?L("update"):L("save"))}
+          </button>
+          {editId&&(
+            <button onClick={reset}
+              style={{padding:"13px 16px",border:"1.5px solid var(--border2)",borderRadius:10,background:"var(--bg2)",
+                color:"var(--text2)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+              {L("cancel")}
+            </button>
+          )}
+        </div>
+      </Card>
+
+      <SectionHeader>{L("list")} ({items.length})</SectionHeader>
+      {items.length===0 && <Card><div style={{fontSize:13,color:"var(--text2)",textAlign:"center",padding:"8px 0"}}>{L("empty")}</div></Card>}
+      {groups.map(g=>(
+        <div key={g.y}>
+          <div style={{display:"flex",alignItems:"center",gap:10,margin:"14px 2px 8px"}}>
+            <span style={{fontFamily:"Georgia,serif",fontSize:22,color:"var(--text)",lineHeight:1}}>{g.y}</span>
+            <span style={{flex:1,height:1,background:"var(--border2)"}}/>
+            <span style={{fontSize:10,color:"var(--text2)",letterSpacing:"0.08em"}}>{g.list.length}</span>
+          </div>
+          {g.list.map(it=>{
+            const cover=(it.images&&it.images[0])||it.image;
+            return(
+              <Card key={it.fireId}>
+                <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
+                  {cover
+                    ? <img src={cover} alt="" style={{width:64,height:48,objectFit:"cover",borderRadius:8,flexShrink:0}}/>
+                    : <div style={{width:64,height:48,borderRadius:8,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",
+                        background:"linear-gradient(150deg,#1c4a55,#0f2f38)",color:"rgba(231,199,123,0.85)",fontSize:19}}>🏛</div>}
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:14,fontWeight:700,color:"var(--text)",lineHeight:1.3}}>{it.title}</div>
+                    <div style={{fontSize:11,color:"var(--text2)",marginTop:3}}>
+                      {it.dateStr||it.year}
+                      {it.tag?(" · "+it.tag):""}
+                      {it.area&&it.area!=="genel"?(" · "+areaName(it.area,lang)):""}
+                      {it.images&&it.images.length>0?(" · 📷 "+it.images.length):""}
+                    </div>
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",gap:5,flexShrink:0}}>
+                    <button onClick={()=>startEdit(it)}
+                      style={{background:"var(--bg2)",border:"1px solid var(--border2)",color:"var(--text)",borderRadius:8,
+                        padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                      ✏️ {L("edit")}
+                    </button>
+                    <button onClick={()=>remove(it)}
+                      style={{background:"var(--red-bg)",border:"0.5px solid var(--red)",color:"var(--red)",borderRadius:8,
+                        padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                      🗑 {L("del")}
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ─── PRESS PANEL (basın kullanıcısının ekranı — yalnızca malper haberleri) ── */
 function PressPanel({user,lang,toast,onLogout}){
   const [menuOpen,setMenuOpen]=useState(false);
-  const pressTabs=[{key:"nuce",label:lang==="en"?"Website News":lang==="de"?"Website-News":"Nûçeyên Malperê"}];
+  const [ptab,setPtab]=useState("nuce");
+  const pressTabs=[
+    {key:"nuce",label:lang==="en"?"Website News":lang==="de"?"Website-News":"Nûçeyên Malperê"},
+    {key:"arsiv",label:lang==="en"?"Archive":lang==="de"?"Archiv":"Arşîv"},
+  ];
   return(
     <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
-      <SideMenu open={menuOpen} onClose={()=>setMenuOpen(false)} items={pressTabs} activeKey="nuce"
-        onSelect={()=>{}} user={user}
+      <SideMenu open={menuOpen} onClose={()=>setMenuOpen(false)} items={pressTabs} activeKey={ptab}
+        onSelect={setPtab} user={user}
         roleLabel={lang==="en"?"Press":"Çapemenî"}
         extraItems={[
           {label:lang==="en"?"View site":lang==="de"?"Website":"Malperê bibîne",onClick:()=>{try{window.open("../","_blank");}catch(_){}}},
@@ -7120,8 +7447,17 @@ function PressPanel({user,lang,toast,onLogout}){
         ]}/>
       <SpecialPanelHeader user={user} icon="📰" lang={lang} onLogout={onLogout} siteLink={true} onMenu={()=>setMenuOpen(true)}
         roleLabel={lang==="en"?"Press · Website Editor":lang==="de"?"Presse · Website-Redaktion":"Çapemenî · Edîtorê Malperê"}/>
+      <div className="tab-bar" style={{padding:"0 14px",background:"var(--bg3)"}}>
+        {pressTabs.map(tb=>(
+          <button key={tb.key} onClick={()=>setPtab(tb.key)} className={`tab-btn${ptab===tb.key?" active":""}`}>
+            {tb.label}
+          </button>
+        ))}
+      </div>
       <div className="scroll-area" style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
-        <AdminNewsPanel lang={lang} toast={toast} adminName={user.name}/>
+        {ptab==="nuce"
+          ? <AdminNewsPanel lang={lang} toast={toast} adminName={user.name}/>
+          : <AdminArchivePanel lang={lang} toast={toast} adminName={user.name}/>}
       </div>
     </div>
   );
@@ -8627,6 +8963,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
   const tabs=[
     {key:"announcements",icon:"📢",label:t.announcements},
     {key:"press",icon:"📰",label:lang==="ku"?"Çapemenî":lang==="en"?"Press":"Presse"},
+    {key:"arsiv",icon:"🏛",label:lang==="en"?"Archive":lang==="de"?"Archiv":"Arşîv"},
     {key:"messages",icon:"💬",label:t.message+"s"||"Peyam"},
     {key:"reports",icon:"📊",label:lang==="ku"?"Rapor":lang==="en"?"Reports":"Berichte"},
     {key:"alerts",icon:"🔔",label:lang==="ku"?"Hişyarî":lang==="en"?"Alerts":"Warnungen"},
@@ -8699,6 +9036,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
 
         {tab==="announcements"&&<AnnouncementsPanel t={t} toast={toast} lang={lang} senderName={adminData.name} senderRole="admin" senderArea={null}/>}
         {tab==="press"&&<AdminPressPanel teachers={teachers} onDataChange={onDataChange} lang={lang} toast={toast} t={t}/>}
+        {tab==="arsiv"&&<AdminArchivePanel lang={lang} toast={toast} adminName={adminData.name}/>}
         {tab==="messages"&&<AdminMessagesPanel students={students} teachers={teachers} lang={lang} t={t} toast={toast} adminName={adminData.name}/>}
         {tab==="reports"&&<AdminReportCenter students={students} teachers={teachers} schedule={schedule} lang={lang} t={t} toast={toast} byName={adminData.name}/>}
         {tab==="alerts"&&<AdminAlertsPanel students={students} schedule={schedule} lang={lang} toast={toast}/>}
