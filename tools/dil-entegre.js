@@ -5,6 +5,7 @@
 //
 //  • Zazakî raporu   → app/lang-pack.js içinde AAT_TX.zz / AAT_SITE.zz / AAT_SITE_AREA.zz
 //  • Kurmancî raporu → AAT_TX.ku / AAT_SITE.ku / AAT_SITE_AREA.ku (düzeltmeler)
+//  • Akademiya Zarokan → AAT_ZAROK (veli uygulaması) / AAT_ZAROK_SITE (tanıtım sayfası)
 //  Kaynak kod değişmez; uygulama ve site dil paketini açılışta okur.
 //  Ardından: tools/dil-rapor-uret.js ile raporları yenileyin, commit + push.
 // ════════════════════════════════════════════════════════════════════════
@@ -20,7 +21,7 @@ function load() {
   vm.runInNewContext(fs.readFileSync(PACK, 'utf8'), ctx);
   const w = ctx.window;
   const norm = o => { const r = {}; for (const l of LANGS) r[l] = Object.assign({}, (o || {})[l] || {}); return r; };
-  return { TX: norm(w.AAT_TX), SITE: norm(w.AAT_SITE), AREA: norm(w.AAT_SITE_AREA) };
+  return { TX: norm(w.AAT_TX), SITE: norm(w.AAT_SITE), AREA: norm(w.AAT_SITE_AREA), ZAROK: norm(w.AAT_ZAROK), ZSITE: norm(w.AAT_ZAROK_SITE) };
 }
 
 function write(p) {
@@ -28,7 +29,9 @@ function write(p) {
   const head = fs.readFileSync(PACK, 'utf8').split('window.AAT_TX=')[0];
   fs.writeFileSync(PACK, head + 'window.AAT_TX=' + dump(p.TX) + ';\n' +
     'window.AAT_SITE=' + dump(p.SITE) + ';\n' +
-    'window.AAT_SITE_AREA=' + dump(p.AREA) + ';\n');
+    'window.AAT_SITE_AREA=' + dump(p.AREA) + ';\n' +
+    'window.AAT_ZAROK=' + dump(p.ZAROK) + ';\n' +
+    'window.AAT_ZAROK_SITE=' + dump(p.ZSITE) + ';\n');
 }
 
 // Yer tutucular ({0},{1}…) çeviride korunmuş mu?
@@ -56,6 +59,8 @@ for (const f of files) {
   for (const [k, v] of Object.entries(o.app || {})) put(pack.TX, k, v, k);
   for (const [k, v] of Object.entries(o.site || {})) put(pack.SITE, k, v, null);
   for (const [k, v] of Object.entries(o.area || {})) put(pack.AREA, k, v, null);
+  for (const [k, v] of Object.entries(o.zarok || {})) put(pack.ZAROK, k, v, null);
+  for (const [k, v] of Object.entries(o.zarokSite || {})) put(pack.ZSITE, k, v, null);
   total += n;
   console.log(`✓ ${path.basename(f)} — ${L} — ${o.by || '?'} — ${n} satır işlendi` + (skipped.length ? `, ${skipped.length} atlandı:\n   - ` + skipped.join('\n   - ') : ''));
 }

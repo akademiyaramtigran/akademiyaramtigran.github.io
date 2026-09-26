@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="ku">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://firebasestorage.googleapis.com https://*.firebasestorage.app https://www.gstatic.com; base-uri 'self'; form-action 'self'"/>
+<meta name="referrer" content="strict-origin-when-cross-origin"/>
+<meta name="theme-color" content="#0f2f38"/>
+<title>Akademiya Zarokan — Akademîya Aram Tîgran</title>
+<meta name="description" content="Akademiya Zarokan: zarok 5–14 salî bi lîstikê muzîk, şano, dans, wênesazî û çîrokan hîn dibin. Serlêdan û têketina dêûbavan."/>
+<meta property="og:title" content="Akademiya Zarokan — Akademîya Aram Tîgran"/>
+<meta property="og:description" content="Hunerê bi lîstikê hîn bibin — muzîk, şano, dans, wênesazî, çîrok."/>
+<meta property="og:image" content="app/icons/icon-512.png"/>
+<link rel="icon" type="image/png" href="app/icons/icon-192.png"/>
+<link rel="apple-touch-icon" href="app/icons/apple-180.png"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#fffaf2;--card:#fff;--ink:#1d2b33;--muted:#5f6f7a;--line:#efe6d8;--brand:#0f2f38;--brand2:#12505c;--sun:#ffc93c;--coral:#ff7a59;--grass:#3bb273;--sky:#4aa3df;--plum:#9b6bd3;--soft:#fff3dc;--bad:#d9463b;--shadow:0 8px 24px rgba(15,47,56,.08)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0c1a1f;--card:#13262d;--ink:#eef4f6;--muted:#a3b5bd;--line:#1f3942;--soft:#1b3038;--shadow:0 8px 24px rgba(0,0,0,.35)}}
+:root[data-theme="dark"]{--bg:#0c1a1f;--card:#13262d;--ink:#eef4f6;--muted:#a3b5bd;--line:#1f3942;--soft:#1b3038;--shadow:0 8px 24px rgba(0,0,0,.35)}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Nunito,"Segoe UI",system-ui,sans-serif;font-size:17px;line-height:1.55;-webkit-text-size-adjust:100%}
+a{color:inherit}
+button,input,textarea,select{font:inherit;color:inherit}
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px}
+header{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+header .wrap{display:flex;align-items:center;gap:10px;padding-top:calc(10px + env(safe-area-inset-top));padding-bottom:10px}
+.logo{width:42px;height:42px;border-radius:14px}
+.brand b{display:block;font-weight:900;font-size:17px;line-height:1.1}
+.brand span{font-size:12px;color:var(--muted);font-weight:700}
+.sp{flex:1}
+.lang{display:flex;gap:4px}
+.lang button{border:1.5px solid var(--line);background:var(--card);border-radius:10px;padding:6px 8px;font-weight:800;font-size:12.5px;min-width:38px;min-height:36px;cursor:pointer}
+.lang button.on{border-color:var(--brand);background:var(--soft)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;border-radius:18px;padding:14px 22px;font-weight:900;font-size:16.5px;background:var(--brand);color:#fff;text-decoration:none;cursor:pointer;min-height:52px}
+.btn.coral{background:var(--coral)}
+.btn.ghost{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+.btn.sm{padding:9px 14px;font-size:14px;min-height:40px;border-radius:14px}
+.hero{padding:44px 0 26px;position:relative;overflow:hidden}
+.hero .grid{display:grid;grid-template-columns:1.15fr .85fr;gap:28px;align-items:center}
+.hero h1{font-size:clamp(32px,6vw,54px);line-height:1.05;margin:10px 0 14px;font-weight:900;letter-spacing:-.01em}
+.hero h1 em{font-style:normal;background:linear-gradient(90deg,var(--coral),#f0a92e);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{font-size:18.5px;color:var(--muted);margin:0 0 22px;max-width:560px}
+.badge{display:inline-block;background:var(--soft);border-radius:999px;padding:6px 14px;font-weight:900;font-size:13.5px}
+.cta{display:flex;gap:10px;flex-wrap:wrap}
+.art{position:relative;aspect-ratio:1;max-width:400px;justify-self:center;width:100%}
+.blob{position:absolute;border-radius:40% 60% 55% 45%/45% 45% 55% 55%}
+.art .b1{inset:6% 8% 10% 6%;background:var(--sun)}
+.art .b2{width:34%;height:34%;right:0;top:0;background:var(--coral)}
+.art .b3{width:26%;height:26%;left:0;bottom:4%;background:var(--grass)}
+.art .b4{width:18%;height:18%;right:12%;bottom:0;background:var(--sky)}
+.art .star{position:absolute;inset:18%;display:grid;place-items:center;font-size:clamp(90px,18vw,170px);filter:drop-shadow(0 10px 18px rgba(0,0,0,.15))}
+.art .f{position:absolute;font-size:clamp(30px,5vw,46px)}
+section{padding:34px 0}
+h2{font-size:clamp(25px,4vw,34px);margin:0 0 6px;font-weight:900}
+.lead{color:var(--muted);margin:0 0 20px}
+.cards{display:grid;gap:14px}
+.c3{grid-template-columns:repeat(3,1fr)}
+.c6{grid-template-columns:repeat(3,1fr)}
+.card{background:var(--card);border-radius:24px;padding:20px;box-shadow:var(--shadow)}
+.card .e{font-size:40px;line-height:1}
+.card h3{margin:10px 0 4px;font-size:19px;font-weight:900}
+.card p{margin:0;color:var(--muted);font-size:15.5px}
+.age{border-top:8px solid}
+.area{display:flex;gap:14px;align-items:center}
+.area .e{width:62px;height:62px;border-radius:20px;display:grid;place-items:center;font-size:32px;flex-shrink:0}
+.safe{background:var(--brand);color:#eaf4f6;border-radius:30px;padding:28px}
+.safe h2{color:#fff}
+.safe .lead{color:#b9d3d9}
+.safe .card{background:rgba(255,255,255,.07);box-shadow:none}
+.safe .card p{color:#cfe2e6}
+.safe .card h3{color:#fff}
+.steps{counter-reset:s;display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.steps .card::before{counter-increment:s;content:counter(s);display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:var(--sun);color:#3a2a00;font-weight:900;margin-bottom:8px}
+form.card{max-width:760px}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+label.lb{display:block;font-weight:800;font-size:14.5px;margin:14px 0 6px}
+.in{width:100%;border:2px solid var(--line);background:var(--bg);border-radius:14px;padding:12px 14px;font-size:16px;outline:none;min-height:50px}
+.in:focus{border-color:var(--brand2)}
+.chk{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-weight:700;font-size:15px;cursor:pointer}
+.chk input{width:22px;height:22px;margin:1px 0 0;flex-shrink:0;accent-color:var(--brand2)}
+.ftitle{grid-column:1/-1;margin:18px 0 0;font-weight:900;font-size:17px;border-top:2px dashed var(--line);padding-top:16px}
+.msg{margin-top:12px;font-weight:800;min-height:22px}
+.closed{background:var(--soft);border-radius:20px;padding:18px;font-weight:800}
+.file{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--bg);border:2px dashed var(--line);border-radius:14px;padding:10px 12px;margin-top:6px}
+.file span{font-size:14px;color:var(--muted);font-weight:700}
+footer{padding:30px 0 calc(40px + env(safe-area-inset-bottom));color:var(--muted);font-size:14.5px}
+footer .wrap{display:flex;flex-wrap:wrap;gap:12px 22px;justify-content:space-between}
+footer a{font-weight:800;text-decoration:none}
+.demo{background:var(--coral);color:#fff;text-align:center;font-weight:800;font-size:13px;padding:6px}
+@media (max-width:820px){
+  .hero .grid{grid-template-columns:1fr}
+  .art{max-width:260px;order:-1}
+  .c3,.c6,.steps{grid-template-columns:1fr 1fr}
+}
+@media (max-width:560px){
+  .c3,.steps,.fgrid{grid-template-columns:1fr}
+  .c6{grid-template-columns:1fr}
+  header .login-t{display:none}
+  header .wrap{gap:6px;padding-left:12px;padding-right:12px}
+  .brand span{display:none}
+  .brand b{font-size:15px}
+  .logo{width:34px;height:34px;border-radius:11px}
+  .lang{gap:2px}
+  header .btn.sm{padding:8px 10px}
+  .lang button{min-width:34px;padding:6px 5px}
+  .hero{padding-top:26px}
+  .safe{padding:22px 16px;border-radius:24px}
+}
+</style>
+</head>
+<body>
+<div id="demo" class="demo" hidden></div>
+<header>
+  <div class="wrap">
+    <img class="logo" src="app/icons/icon-192.png" alt=""/>
+    <div class="brand"><b data-t="title">Akademiya Zarokan</b><span data-t="sub">Akademîya Aram Tîgran</span></div>
+    <div class="sp"></div>
+    <div class="lang" id="lang" role="group" aria-label="Ziman / Language"></div>
+    <a class="btn sm" href="app/" aria-label="Têketina dêûbavan">👨‍👩‍👧<span class="login-t" data-t="login">Têketina Dêûbavan</span></a>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap grid">
+      <div>
+        <span class="badge" data-t="ages">5–14 salî</span>
+        <h1><span data-t="h1a">Hunerê bi</span> <em data-t="h1b">lîstikê</em> <span data-t="h1c">hîn dibin</span></h1>
+        <p data-t="heroP">Muzîk, şano, dans, wênesazî û çîrok — di hawîrdoreke ewle de, bi mamosteyên pispor û bi zimanê dayikê.</p>
+        <div class="cta">
+          <a class="btn coral" href="#serledan" data-t="apply">📝 Serlêdan bike</a>
+          <a class="btn ghost" href="app/" data-t="parentApp">📲 Sepana Dêûbavan</a>
+        </div>
+      </div>
+      <div class="art" aria-hidden="true">
+        <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="blob b4"></div>
+        <div class="star">⭐</div>
+        <div class="f" style="left:4%;top:8%">🎵</div><div class="f" style="right:6%;top:44%">🎨</div>
+        <div class="f" style="left:10%;bottom:24%">🎭</div><div class="f" style="right:30%;bottom:6%">💃</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="kom">
+    <div class="wrap">
+      <h2 data-t="groupsH">Komên temenî</h2>
+      <p class="lead" data-t="groupsP">Her zarok li gorî temenê xwe, di komeke biçûk de (herî zêde 12 zarok) hîn dibe.</p>
+      <div class="cards c3">
+        <div class="card age" style="border-color:var(--grass)"><div class="e">🌱</div><h3 data-t="g1">Tov · 5–7 salî</h3><p data-t="g1p">Bi lîstik, stran û rengan: guhdarî, ritm û xeyal.</p></div>
+        <div class="card age" style="border-color:var(--sun)"><div class="e">🌼</div><h3 data-t="g2">Kulîlk · 8–10 salî</h3><p data-t="g2p">Destpêka amûran, şanoya biçûk, çîroknivîsîn.</p></div>
+        <div class="card age" style="border-color:var(--coral)"><div class="e">🌳</div><h3 data-t="g3">Dar · 11–14 salî</h3><p data-t="g3p">Kom, koro, fîlmê kurt û pêşandana dawiya demsalê.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="qad">
+    <div class="wrap">
+      <h2 data-t="areasH">Qad</h2>
+      <p class="lead" data-t="areasP">Zarokê we dikare yek an du qadan hilbijêre.</p>
+      <div class="cards c6" id="areas"></div>
+    </div>
+  </section>
+
+  <section id="ewlehi">
+    <div class="wrap">
+      <div class="safe">
+        <h2 data-t="safeH">Ewlehî pêşî tê</h2>
+        <p class="lead" data-t="safeP">Sepana dêûbavan tenê ji bo we ye — zarok hesabê xwe tune ne.</p>
+        <div class="cards c3">
+          <div class="card"><div class="e">🟢</div><h3 data-t="s1">Gihîşt · Derket</h3><p data-t="s1p">Dema zarok dikeve dersê û tê teslîmkirin, di cih de agahdarî li ser têlefona we.</p></div>
+          <div class="card"><div class="e">🚸</div><h3 data-t="s2">Lîsteya teslîmkirinê</h3><p data-t="s2p">Hûn diyar dikin kî dikare zarokê bibe — mamoste li gorî vê lîsteyê teslîm dike.</p></div>
+          <div class="card"><div class="e">📷</div><h3 data-t="s3">Wêne tenê bi destûrê</h3><p data-t="s3p">Bê destûra we wêneyê zarokê nayê kişandin û li malperê nayê parvekirin.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="gav">
+    <div class="wrap">
+      <h2 data-t="howH">Çawa tomar dibin?</h2>
+      <div class="steps">
+        <div class="card"><h3 data-t="st1">Serlêdan</h3><p data-t="st1p">Forma jêrîn wek dêûbav dagirin (5 deqe).</p></div>
+        <div class="card"><h3 data-t="st2">Hevdîtin</h3><p data-t="st2p">Karûbarên Xwendekaran bi we re têkilî datînin û komê diyar dikin.</p></div>
+        <div class="card"><h3 data-t="st3">Sepan</h3><p data-t="st3p">Jimara têketinê û şîfre bi e-peyamê tên; sepanê li têlefonê saz bikin.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="serledan">
+    <div class="wrap">
+      <h2 data-t="formH">Serlêdana Zarokan</h2>
+      <p class="lead" data-t="formP">Formê dêûbav an serperişt dagire.</p>
+      <div id="formRoot"><div class="closed" data-t="loading">Tê barkirin…</div></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>© <span id="yr">2026</span> Akademîya Aram Tîgran · ✉ info@aramtigran.edu</div>
+    <div style="display:flex;gap:18px;flex-wrap:wrap">
+      <a href="app/" data-t="parentApp">📲 Sepana Dêûbavan</a>
+      <a href="../kvkk.html" data-t="kvkk">KVKK / Nepenî</a>
+      <a href="../" data-t="mainSite">Akademîya Aram Tîgran →</a>
+    </div>
+  </div>
+</footer>
+
+<script id="zs" type="application/json">
+{
+ "ku":{
+  "title":"Akademiya Zarokan","sub":"Akademîya Aram Tîgran","login":"Têketina Dêûbavan","ages":"5–14 salî",
+  "h1a":"Hunerê bi","h1b":"lîstikê","h1c":"hîn dibin",
+  "heroP":"Muzîk, şano, dans, wênesazî û çîrok — di hawîrdoreke ewle de, bi mamosteyên pispor û bi zimanê dayikê.",
+  "apply":"📝 Serlêdan bike","parentApp":"📲 Sepana Dêûbavan",
+  "groupsH":"Komên temenî","groupsP":"Her zarok li gorî temenê xwe, di komeke biçûk de (herî zêde 12 zarok) hîn dibe.",
+  "g1":"Tov · 5–7 salî","g1p":"Bi lîstik, stran û rengan: guhdarî, ritm û xeyal.",
+  "g2":"Kulîlk · 8–10 salî","g2p":"Destpêka amûran, şanoya biçûk, çîroknivîsîn.",
+  "g3":"Dar · 11–14 salî","g3p":"Kom, koro, fîlmê kurt û pêşandana dawiya demsalê.",
+  "areasH":"Qad","areasP":"Zarokê we dikare yek an du qadan hilbijêre.",
+  "a_muzik":"Muzîk","a_muzik_p":"Stran, ritm, tembûr û koro","a_tiyatro":"Şano","a_tiyatro_p":"Lîstik, laşê xwe nas kirin, wêrekî",
+  "a_dans":"Dans","a_dans_p":"Govend û dansên afirîner","a_wenesazi":"Wênesazî","a_wenesazi_p":"Reng, destkar û xeyal",
+  "a_edebiyat":"Çîrok û Wêje","a_edebiyat_p":"Çîrokxwendin û nivîsandin bi zimanê dayikê","a_sinema":"Sînema","a_sinema_p":"Anîmasyon û fîlmê kurt (11–14)",
+  "safeH":"Ewlehî pêşî tê","safeP":"Sepana dêûbavan tenê ji bo we ye — zarok hesabê xwe tune ne.",
+  "s1":"Gihîşt · Derket","s1p":"Dema zarok dikeve dersê û tê teslîmkirin, di cih de agahdarî li ser têlefona we.",
+  "s2":"Lîsteya teslîmkirinê","s2p":"Hûn diyar dikin kî dikare zarokê bibe — mamoste li gorî vê lîsteyê teslîm dike.",
+  "s3":"Wêne tenê bi destûrê","s3p":"Bê destûra we wêneyê zarokê nayê kişandin û li malperê nayê parvekirin.",
+  "howH":"Çawa tomar dibin?","st1":"Serlêdan","st1p":"Forma jêrîn wek dêûbav dagirin (5 deqe).",
+  "st2":"Hevdîtin","st2p":"Karûbarên Xwendekaran bi we re têkilî datînin û komê diyar dikin.",
+  "st3":"Sepan","st3p":"Jimara têketinê û şîfre bi e-peyamê tên; sepanê li têlefonê saz bikin.",
+  "formH":"Serlêdana Zarokan","formP":"Formê dêûbav an serperişt dagire.","loading":"Tê barkirin…",
+  "closed":"Serlêdana zarokan niha girtî ye. Dema tomarkirinê li vir tê ragihandin.",
+  "fKid":"👧 Agahiyên zarokê","kidName":"Nav û paşnavê zarokê *","kidDob":"Roja jidayikbûnê","area":"Qada hunerê","school":"Dibistan / sinif (vebijarkî)",
+  "fParent":"👤 Agahiyên dêûbav","guardianName":"Nav û paşnavê we *","relation":"Yekîtî (dayik, bav…)","phone":"Têlefon *","email":"E-peyam (agahiyên têketinê diçin vir)",
+  "phone2":"Têkiliya acil (kesekî din, têlefon)","fHealth":"🩺 Tenduristî (vebijarkî)","health":"Alerjî, nexweşiya domdar, derman…","note":"Nîşe (vebijarkî)",
+  "fDocs":"📎 Belge (vebijarkî)","doc1":"Nasnameya zarokê / belgeya nifûsê","doc2":"Nasnameya dêûbav","choose":"📎 Hilbijêre","none":"nehatiye hilbijartin",
+  "fConsent":"✅ Destûr","cKvkk":"Min nivîsa agahdariyê ya KVKK xwend û qebûl dikim *","cPhoto":"Di dersê de wêne/vîdyoya zarokê min were kişandin",
+  "cShare":"Wêneyên zarokê min li ser malperê were parvekirin","send":"📨 Serlêdanê Bişîne",
+  "need":"⚠ Navê zarokê, navê we û têlefon pêwîst in.","needKvkk":"⚠ Ji kerema xwe nivîsa KVKK qebûl bike.","tooBig":"⚠ Belge pir mezin e (herî zêde 8MB).",
+  "sending":"⏳ Tê şandin…","ok1":"Serlêdana we gihîşt me! 🎉","ok2":"Karûbarên Xwendekaran di nêzîk de bi we re têkilî datînin.","fail":"❌ Neçû — dîsa biceribîne.",
+  "kvkk":"KVKK / Nepenî","mainSite":"Akademîya Aram Tîgran →","demo":"DEMO — serlêdan nayê şandin"
+ },
+ "tr":{
+  "title":"Çocuk Akademisi","sub":"Aram Tîgran Akademisi","login":"Veli Girişi","ages":"5–14 yaş",
+  "h1a":"Sanatı","h1b":"oyunla","h1c":"öğreniyorlar",
+  "heroP":"Müzik, tiyatro, dans, resim ve masal — güvenli bir ortamda, uzman öğretmenlerle ve ana dilde.",
+  "apply":"📝 Başvuru yap","parentApp":"📲 Veli Uygulaması",
+  "groupsH":"Yaş grupları","groupsP":"Her çocuk yaşına göre küçük gruplarda (en fazla 12 çocuk) öğrenir.",
+  "g1":"Tohum · 5–7 yaş","g1p":"Oyun, şarkı ve renklerle: dinleme, ritim ve hayal gücü.",
+  "g2":"Çiçek · 8–10 yaş","g2p":"Enstrümana giriş, küçük tiyatro, hikâye yazma.",
+  "g3":"Ağaç · 11–14 yaş","g3p":"Grup, koro, kısa film ve dönem sonu gösterisi.",
+  "areasH":"Alanlar","areasP":"Çocuğunuz bir veya iki alan seçebilir.",
+  "a_muzik":"Müzik","a_muzik_p":"Şarkı, ritim, tembur ve koro","a_tiyatro":"Tiyatro","a_tiyatro_p":"Oyun, bedenini tanıma, özgüven",
+  "a_dans":"Dans","a_dans_p":"Halay ve yaratıcı dans","a_wenesazi":"Resim","a_wenesazi_p":"Renk, el işi ve hayal gücü",
+  "a_edebiyat":"Masal ve Edebiyat","a_edebiyat_p":"Ana dilde masal okuma ve yazma","a_sinema":"Sinema","a_sinema_p":"Animasyon ve kısa film (11–14)",
+  "safeH":"Önce güvenlik","safeP":"Veli uygulaması yalnızca sizin içindir — çocukların kendi hesabı yoktur.",
+  "s1":"Geldi · Çıktı","s1p":"Çocuğunuz derse girdiğinde ve teslim edildiğinde telefonunuza anında bildirim.",
+  "s2":"Teslim listesi","s2p":"Çocuğu kimin alabileceğini siz belirlersiniz — öğretmen bu listeye göre teslim eder.",
+  "s3":"Fotoğraf yalnızca izinle","s3p":"İzniniz olmadan çocuğunuzun fotoğrafı çekilmez ve sitede paylaşılmaz.",
+  "howH":"Nasıl kayıt olunur?","st1":"Başvuru","st1p":"Aşağıdaki formu veli olarak doldurun (5 dakika).",
+  "st2":"Görüşme","st2p":"Öğrenci işleri sizinle iletişime geçer ve grubu belirler.",
+  "st3":"Uygulama","st3p":"Giriş numarası ve şifre e-postayla gelir; uygulamayı telefonunuza yükleyin.",
+  "formH":"Çocuk Başvurusu","formP":"Formu veli veya vasi doldurur.","loading":"Yükleniyor…",
+  "closed":"Çocuk başvuruları şu an kapalı. Kayıt dönemi burada duyurulacak.",
+  "fKid":"👧 Çocuğun bilgileri","kidName":"Çocuğun adı soyadı *","kidDob":"Doğum tarihi","area":"Sanat alanı","school":"Okul / sınıf (isteğe bağlı)",
+  "fParent":"👤 Veli bilgileri","guardianName":"Adınız soyadınız *","relation":"Yakınlık (anne, baba…)","phone":"Telefon *","email":"E-posta (giriş bilgileri buraya gönderilir)",
+  "phone2":"Acil durumda aranacak kişi (ad, telefon)","fHealth":"🩺 Sağlık (isteğe bağlı)","health":"Alerji, kronik hastalık, ilaç…","note":"Not (isteğe bağlı)",
+  "fDocs":"📎 Belgeler (isteğe bağlı)","doc1":"Çocuğun kimliği / nüfus kayıt örneği","doc2":"Veli kimliği","choose":"📎 Seç","none":"seçilmedi",
+  "fConsent":"✅ İzinler","cKvkk":"KVKK aydınlatma metnini okudum, kabul ediyorum *","cPhoto":"Derste çocuğumun fotoğraf/videosu çekilebilir",
+  "cShare":"Çocuğumun fotoğrafları sitede paylaşılabilir","send":"📨 Başvuruyu Gönder",
+  "need":"⚠ Çocuğun adı, adınız ve telefon zorunludur.","needKvkk":"⚠ Lütfen KVKK metnini onaylayın.","tooBig":"⚠ Belge çok büyük (en fazla 8MB).",
+  "sending":"⏳ Gönderiliyor…","ok1":"Başvurunuz bize ulaştı! 🎉","ok2":"Öğrenci işleri yakında sizinle iletişime geçecek.","fail":"❌ Gönderilemedi — tekrar deneyin.",
+  "kvkk":"KVKK Aydınlatma Metni","mainSite":"Aram Tîgran Akademisi →","demo":"DEMO — başvuru gönderilmez"
+ },
+ "en":{
+  "title":"Kids Academy","sub":"Aram Tîgran Academy","login":"Parent Sign-in","ages":"Ages 5–14",
+  "h1a":"Learning art","h1b":"through play","h1c":"",
+  "heroP":"Music, theatre, dance, painting and stories — in a safe place, with expert teachers, in their mother tongue.",
+  "apply":"📝 Apply","parentApp":"📲 Parent App",
+  "groupsH":"Age groups","groupsP":"Every child learns in a small group (max. 12 children) matched to their age.",
+  "g1":"Seed · ages 5–7","g1p":"Through play, songs and colours: listening, rhythm and imagination.",
+  "g2":"Flower · ages 8–10","g2p":"First instruments, little theatre, story writing.",
+  "g3":"Tree · ages 11–14","g3p":"Band, choir, short film and an end-of-term show.",
+  "areasH":"Fields","areasP":"Your child can choose one or two fields.",
+  "a_muzik":"Music","a_muzik_p":"Songs, rhythm, tembûr and choir","a_tiyatro":"Theatre","a_tiyatro_p":"Play, body awareness, confidence",
+  "a_dans":"Dance","a_dans_p":"Folk and creative dance","a_wenesazi":"Painting","a_wenesazi_p":"Colour, crafts and imagination",
+  "a_edebiyat":"Stories & Literature","a_edebiyat_p":"Reading and writing stories in the mother tongue","a_sinema":"Cinema","a_sinema_p":"Animation and short film (11–14)",
+  "safeH":"Safety first","safeP":"The parent app is only for you — children do not have their own accounts.",
+  "s1":"Arrived · Left","s1p":"Instant notification on your phone when your child checks in and is picked up.",
+  "s2":"Pick-up list","s2p":"You decide who may pick up your child — teachers hand over according to this list.",
+  "s3":"Photos only with consent","s3p":"Without your permission no photo of your child is taken or shared on the website.",
+  "howH":"How to enrol","st1":"Apply","st1p":"Fill in the form below as a parent (5 minutes).",
+  "st2":"Meeting","st2p":"Student Affairs will contact you and choose the group.",
+  "st3":"App","st3p":"Your login number and password arrive by e-mail; install the app on your phone.",
+  "formH":"Kids Application","formP":"To be filled in by a parent or guardian.","loading":"Loading…",
+  "closed":"Kids applications are currently closed. The enrolment period will be announced here.",
+  "fKid":"👧 Child","kidName":"Child's full name *","kidDob":"Date of birth","area":"Art field","school":"School / grade (optional)",
+  "fParent":"👤 Parent","guardianName":"Your full name *","relation":"Relation (mother, father…)","phone":"Phone *","email":"E-mail (login details are sent here)",
+  "phone2":"Emergency contact (name, phone)","fHealth":"🩺 Health (optional)","health":"Allergies, chronic conditions, medication…","note":"Note (optional)",
+  "fDocs":"📎 Documents (optional)","doc1":"Child's ID / birth record","doc2":"Parent's ID","choose":"📎 Choose","none":"not selected",
+  "fConsent":"✅ Consent","cKvkk":"I have read and accept the privacy notice (KVKK) *","cPhoto":"Photos/videos of my child may be taken in class",
+  "cShare":"Photos of my child may be shared on the website","send":"📨 Submit Application",
+  "need":"⚠ Child's name, your name and phone are required.","needKvkk":"⚠ Please accept the privacy notice.","tooBig":"⚠ File too large (max. 8MB).",
+  "sending":"⏳ Sending…","ok1":"We received your application! 🎉","ok2":"Student Affairs will contact you soon.","fail":"❌ Failed — please try again.",
+  "kvkk":"Privacy notice (KVKK)","mainSite":"Aram Tîgran Academy →","demo":"DEMO — application is not sent"
+ },
+ "zz":{}
+}
+</script>
+<script src="../app/lang-pack.js"></script>
+<script type="module">
+// Akademiya Zarokan — tanıtım + veli başvuru formu (girişsiz)
+const FB_CONFIG = { apiKey: "AIzaSyDwzScCH_NTnpEfmSlgIRlOkGivMWc9bGw", authDomain: "aram2026-a9fd7.firebaseapp.com", projectId: "aram2026-a9fd7",
+  storageBucket: "aram2026-a9fd7.firebasestorage.app", messagingSenderId: "326496145672", appId: "1:326496145672:web:199c6cdd6db08ac3ea9cbd" };
+const SDK = "https://www.gstatic.com/firebasejs/10.12.0/";
+const DEMO = new URLSearchParams(location.search).has("demo");
+const ZS = JSON.parse(document.getElementById("zs").textContent);
+(function(){ const P = window.AAT_ZAROK_SITE || {}; Object.keys(P).forEach(l => { ZS[l] = Object.assign({}, ZS[l] || {}, P[l]); }); })();
+const LANGS = [["ku","KU"],["zz","ZZ"],["tr","TR"],["en","EN"]];
+let lang = (() => { try { const v = localStorage.getItem("zarok-lang") || localStorage.getItem("aat-site-lang"); return LANGS.some(l => l[0] === v) ? v : "ku"; } catch (_) { return "ku"; } })();
+const T = k => (ZS[lang] && ZS[lang][k] != null ? ZS[lang][k] : ZS.ku[k] != null ? ZS.ku[k] : k);
+const AREAS = [["muzik","🎵","#9b6bd3"],["tiyatro","🎭","#ff7a59"],["dans","💃","#e0559b"],["wenesazi","🎨","#f0a92e"],["edebiyat","📖","#3bb273"],["sinema","🎬","#4aa3df"]];
+function h(tag, props, ...kids) {
+  const el = document.createElement(tag);
+  if (props) for (const [k, v] of Object.entries(props)) { if (v == null || v === false) continue;
+    if (k === "class") el.className = v; else if (k === "style") el.setAttribute("style", v); else if (k.startsWith("on")) el.addEventListener(k.slice(2), v); else el.setAttribute(k, v === true ? "" : v); }
+  for (const c of kids.flat(9)) { if (c == null || c === false) continue; el.appendChild(typeof c === "object" ? c : document.createTextNode(String(c))); }
+  return el;
+}
+function applyLang() {
+  document.documentElement.lang = lang === "zz" ? "zza" : lang;
+  document.querySelectorAll("[data-t]").forEach(el => { el.textContent = T(el.getAttribute("data-t")); });
+  document.getElementById("lang").replaceChildren(...LANGS.map(([k, lb]) => h("button", { class: lang === k ? "on" : "", onclick: () => { lang = k; try { localStorage.setItem("zarok-lang", k); } catch (_) {} applyLang(); renderForm(); } }, lb)));
+  document.getElementById("areas").replaceChildren(...AREAS.map(([k, e, c]) => h("div", { class: "card area" }, h("div", { class: "e", style: "background:" + c + "26" }, e), h("div", null, h("h3", { style: "margin:0" }, T("a_" + k)), h("p", null, T("a_" + k + "_p"))))));
+  document.getElementById("yr").textContent = new Date().getFullYear();
+}
+
+let cfg = null, fb = null, sent = false;
+const draft = {};
+async function firebase() {
+  if (fb) return fb;
+  const [appM, fsM] = await Promise.all([import(SDK + "firebase-app.js"), import(SDK + "firebase-firestore.js")]);
+  const app = appM.initializeApp(FB_CONFIG, "zarok-site");
+  fb = { app, db: fsM.getFirestore(app), fs: fsM, appM };
+  return fb;
+}
+async function uploadDoc(file, i) {
+  // Storage-öncelikli; Storage kapalıysa küçük dosyalar (≤300KB) belgeye gömülür
+  try {
+    const f = await firebase();
+    const st = await import(SDK + "firebase-storage.js");
+    const path = "zarok-applications/" + Date.now() + "-" + i + "-" + file.name.replace(/[^A-Za-z0-9._-]/g, "_").slice(-60);
+    const r = st.ref(st.getStorage(f.app), path);
+    await Promise.race([st.uploadBytes(r, file, { contentType: file.type }), new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 20000))]);
+    return { name: T(i === 0 ? "doc1" : "doc2"), fileName: file.name.slice(0, 80), file: await st.getDownloadURL(r) };
+  } catch (e) {
+    if (file.size > 300 * 1024) return null;
+    const b64 = await new Promise(res => { const rd = new FileReader(); rd.onload = () => res(rd.result); rd.readAsDataURL(file); });
+    return { name: T(i === 0 ? "doc1" : "doc2"), fileName: file.name.slice(0, 80), file: b64 };
+  }
+}
+function renderForm() {
+  const root = document.getElementById("formRoot");
+  if (sent) { root.replaceChildren(h("div", { class: "card", style: "text-align:center" }, h("div", { style: "font-size:56px" }, "🎉"), h("h3", null, T("ok1")), h("p", null, T("ok2")),
+    h("a", { class: "btn", href: "app/", style: "margin-top:12px" }, T("parentApp")))); return; }
+  if (!cfg) { root.replaceChildren(h("div", { class: "closed" }, T("loading"))); return; }
+  if (!cfg.open) { root.replaceChildren(h("div", { class: "closed" }, "🔒 " + T("closed"), cfg.note ? h("div", { style: "margin-top:8px;font-weight:700" }, cfg.note) : null)); return; }
+  const inp = (id, type, extra) => { const el = h(type === "textarea" ? "textarea" : "input", { class: "in", id, type: type === "textarea" ? null : type, rows: type === "textarea" ? 3 : null, ...(extra || {}) });
+    el.value = draft[id] || ""; el.addEventListener("input", () => draft[id] = el.value); return el; };
+  const field = (lbKey, el, full) => h("div", { style: full ? "grid-column:1/-1" : "" }, h("label", { class: "lb", for: el.id }, T(lbKey)), el);
+  const area = h("select", { class: "in", id: "f-area" }, AREAS.map(([k, e]) => h("option", { value: k }, e + " " + T("a_" + k)))); area.value = draft["f-area"] || "muzik"; area.addEventListener("change", () => draft["f-area"] = area.value);
+  const files = [null, null];
+  const fileRow = i => { const lab = h("span", null, T("none")); const fi = h("input", { type: "file", accept: "image/*,application/pdf", hidden: true, onchange: e => { const f = e.target.files[0]; if (!f) return; if (f.size > 8 * 1024 * 1024) { msg.textContent = T("tooBig"); msg.style.color = "var(--bad)"; return; } files[i] = f; lab.textContent = "✅ " + f.name; } });
+    return h("div", { style: "grid-column:1/-1" }, h("label", { class: "lb" }, T(i === 0 ? "doc1" : "doc2")), h("div", { class: "file" }, h("button", { type: "button", class: "btn ghost sm", onclick: () => fi.click() }, T("choose")), lab, fi)); };
+  const chk = (id, key, req) => { const c = h("input", { type: "checkbox", id }); c.checked = !!draft[id]; c.addEventListener("change", () => draft[id] = c.checked);
+    return h("label", { class: "chk" }, c, id === "c-kvkk" ? h("a", { href: "../kvkk.html", target: "_blank", rel: "noopener" }, T(key)) : h("span", null, T(key))); };
+  const msg = h("div", { class: "msg", role: "status" });
+  const btn = h("button", { class: "btn coral", type: "submit", style: "width:100%;margin-top:6px" }, T("send"));
+  const form = h("form", { class: "card", novalidate: true, onsubmit: async e => {
+      e.preventDefault();
+      const v = id => (document.getElementById(id).value || "").trim();
+      if (!v("f-kid") || !v("f-gname") || !v("f-phone")) { msg.style.color = "var(--bad)"; msg.textContent = T("need"); return; }
+      if (!document.getElementById("c-kvkk").checked) { msg.style.color = "var(--bad)"; msg.textContent = T("needKvkk"); return; }
+      btn.disabled = true; msg.style.color = "var(--muted)"; msg.textContent = T("sending");
+      try {
+        const payload = { kidName: v("f-kid").slice(0, 80), kidDob: v("f-dob").slice(0, 20), area: area.value, school: v("f-school").slice(0, 80),
+          guardianName: v("f-gname").slice(0, 80), relation: v("f-rel").slice(0, 30), phone: v("f-phone").slice(0, 30), phone2: v("f-phone2").slice(0, 30),
+          email: v("f-email").slice(0, 80), health: v("f-health").slice(0, 500), note: v("f-note").slice(0, 500),
+          consentKvkk: true, consentPhoto: document.getElementById("c-photo").checked, consentShare: document.getElementById("c-share").checked,
+          status: "new", dateStr: new Date().toISOString().slice(0, 10) };
+        if (DEMO) { await new Promise(r => setTimeout(r, 700)); console.info("[demo] başvuru", payload); }
+        else {
+          const docs = [];
+          for (let i = 0; i < files.length; i++) if (files[i]) { const d = await uploadDoc(files[i], i); if (d) docs.push(d); }
+          const f = await firebase();
+          await f.fs.addDoc(f.fs.collection(f.db, "kidApplications"), { ...payload, docs, createdAt: f.fs.serverTimestamp() });
+        }
+        sent = true; renderForm(); document.getElementById("serledan").scrollIntoView({ behavior: "smooth" });
+      } catch (err) { console.warn(err); btn.disabled = false; msg.style.color = "var(--bad)"; msg.textContent = T("fail"); }
+    } },
+    h("div", { class: "fgrid" },
+      h("div", { class: "ftitle", style: "border:none;padding-top:0;margin-top:0" }, T("fKid")),
+      field("kidName", inp("f-kid", "text", { maxlength: 80, autocomplete: "off" }), true),
+      field("kidDob", inp("f-dob", "date")), h("div", null, h("label", { class: "lb", for: "f-area" }, T("area")), area),
+      field("school", inp("f-school", "text", { maxlength: 80 }), true),
+      h("div", { class: "ftitle" }, T("fParent")),
+      field("guardianName", inp("f-gname", "text", { maxlength: 80, autocomplete: "name" })), field("relation", inp("f-rel", "text", { maxlength: 30 })),
+      field("phone", inp("f-phone", "tel", { maxlength: 30, autocomplete: "tel", placeholder: "05xx xxx xx xx" })), field("email", inp("f-email", "email", { maxlength: 80, autocomplete: "email" })),
+      field("phone2", inp("f-phone2", "text", { maxlength: 30 }), true),
+      h("div", { class: "ftitle" }, T("fHealth")), field("health", inp("f-health", "textarea", { maxlength: 500 }), true), field("note", inp("f-note", "textarea", { maxlength: 500 }), true),
+      h("div", { class: "ftitle" }, T("fDocs")), fileRow(0), fileRow(1),
+      h("div", { class: "ftitle" }, T("fConsent"))),
+    chk("c-kvkk", "cKvkk", true), chk("c-photo", "cPhoto"), chk("c-share", "cShare"), btn, msg);
+  root.replaceChildren(form);
+}
+async function loadCfg() {
+  if (DEMO) { cfg = { open: true }; const d = document.getElementById("demo"); d.hidden = false; d.textContent = "👀 " + T("demo"); renderForm(); return; }
+  try { const f = await firebase(); const s = await f.fs.getDoc(f.fs.doc(f.db, "config", "zarok")); cfg = s.exists() ? s.data() : { open: false }; }
+  catch (e) { cfg = { open: false }; }
+  renderForm();
+}
+applyLang(); renderForm(); loadCfg();
+</script>
+</body>
+</html>

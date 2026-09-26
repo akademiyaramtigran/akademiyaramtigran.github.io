@@ -137,7 +137,7 @@
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.googleapis.com;
   font-src 'self' https://fonts.gstatic.com https://*.gstatic.com data:;
   img-src 'self' blob: data: https:;
-  connect-src 'self' blob:
+  connect-src 'self' blob: http://127.0.0.1:9099 http://127.0.0.1:8080
     https://cdn.jsdelivr.net
     https://cdnjs.cloudflare.com
     https://*.googleapis.com
@@ -151,7 +151,9 @@
     https://*.firebaseio.com
     https://firebasestorage.googleapis.com
     https://*.firebasestorage.app
-    https://api.emailjs.com;
+    https://api.emailjs.com
+    https://*.cloudfunctions.net
+    https://*.run.app;
   frame-src 'self' https://www.google.com https://www.recaptcha.net;
   base-uri 'self';
   form-action 'self';
@@ -206,7 +208,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.22.5/babel.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous" defer></script>
@@ -228,8 +229,8 @@
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, query, orderBy, where, limit } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, createUserWithEmailAndPassword, updatePassword, updateEmail, deleteUser, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getFirestore, connectFirestoreEmulator, collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, query, orderBy, where, limit } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getAuth, connectAuthEmulator, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, createUserWithEmailAndPassword, updatePassword, updateEmail, deleteUser, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
 
   // ── Güvenlik kuralları: depodaki firestore.rules / storage.rules (v4) geçerlidir.
@@ -274,6 +275,20 @@
 
   const db = getFirestore(app);
   const auth = getAuth(app);
+  // Yerel test: yalnızca localhost'ta ve ?emu=1 ile Firebase emülatörlerine bağlanır (canlıda etkisiz)
+  const EMU = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).has("emu");
+  if (EMU) { connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true }); connectFirestoreEmulator(db, "127.0.0.1", 8080); }
+
+  // ── Sunucu tarafı kullanıcı yönetimi (functions/index.js → aatUser) ──
+  // Cloud Functions yayınlanınca true yapın (bkz. FUNCTIONS.md). true iken:
+  //  • kullanıcı oluşturma / şifre belirleme / silme sunucuda yapılır (eski şifre gerekmez)
+  //  • düz metin şifre (_plainPass) Firestore'a YAZILMAZ, mevcutlar ilk kayıtta silinir
+  const USE_CLOUD_FUNCTIONS = false;
+  async function callUserFn(data) {
+    const m = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js");
+    const fn = m.httpsCallable(m.getFunctions(app, "europe-west1"), "aatUser");
+    return (await fn(data)).data;
+  }
 
   // ── İkinci Firebase instance — kullanıcı oluştururken admin oturumu kapanmaz ──
   // Bu yöntem sayesinde öğretmen/öğrenci eklendiğinde admin olarak kalmaya devam edersiniz.
@@ -281,6 +296,7 @@
   function getSecondaryAuth() {
     if (!_secondaryApp) {
       _secondaryApp = initializeApp(firebaseConfig, "secondary");
+      if (EMU) connectAuthEmulator(getAuth(_secondaryApp), "http://127.0.0.1:9099", { disableWarnings: true });
     }
     return getAuth(_secondaryApp);
   }
@@ -290,7 +306,7 @@
   // Öğretmen: 11202601  → 11202601@ogretmen.aat (sinema öğretmen = alanKodu+1)
   // Admin:    1000      → 1000@ogretmen.aat
   function noToEmail(no, role) {
-    const suffix = (role === "student") ? "@ogrenci.aat" : "@ogretmen.aat";
+    const suffix = (role === "student") ? "@ogrenci.aat" : (role === "guardian") ? "@veli.aat" : "@ogretmen.aat";
     return (no || "unknown").replace(/[^A-Za-z0-9_\-\.]/g, "") + suffix;
   }
 
@@ -413,6 +429,7 @@
     db, auth,
     ADMIN_EMAIL,
     idxPut, idxDel, syncMemberIndex,
+    serverUserMgmt: USE_CLOUD_FUNCTIONS,
     uploadNewsMedia,
     collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
     onSnapshot, serverTimestamp, query, orderBy, where, limit,
@@ -431,6 +448,11 @@
     // role:     "teacher" | "student" | "admin"
     async createAuthUser(no, password, role) {
       const email = noToEmail(no, role);
+      if (USE_CLOUD_FUNCTIONS) {
+        const r = await callUserFn({ action: "create", no, role, password });
+        try { await setDoc(doc(db, "roles", r.uid), { email: r.email, no, role, createdAt: serverTimestamp() }); } catch(_) {}
+        return { uid: r.uid, email: r.email };
+      }
       const secondaryAuth = getSecondaryAuth();
       try {
         const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
@@ -451,6 +473,10 @@
     // (Aksi halde aynı numara yeniden eklendiğinde Auth'ta ESKİ şifreli
     //  "hayalet hesap" kalır ve giriş "email-already-in-use" ile patlar.)
     async deleteAuthUser(no, role, plainPass) {
+      if (USE_CLOUD_FUNCTIONS) {
+        try { const r = await callUserFn({ action: "delete", no, role }); return { ok: true, email: r.email }; }
+        catch(e) { return { ok:false, reason:(e.code||e.message||"error"), email: noToEmail(no, role) }; }
+      }
       if(!plainPass) return { ok:false, reason:"no-password" };
       const email = noToEmail(no, role);
       const secAuth = getSecondaryAuth();
@@ -472,6 +498,10 @@
     //            3) Login başarısız → kullanıcı zaten var, Firestore hash güncellendi
     async forceResetPassword(no, role, oldPlainPassIfKnown, newPlainPass) {
       const email = noToEmail(no, role);
+      if (USE_CLOUD_FUNCTIONS) {
+        try { const r = await callUserFn({ action: "setPassword", no, role, password: newPlainPass }); return { uid: r.uid, email: r.email }; }
+        catch(e) { return null; }
+      }
       const secAuth = getSecondaryAuth();
       try {
         // Strateji A: Yeni kullanıcı oluştur (henüz Auth'da yoksa)
@@ -529,7 +559,7 @@
       // _plainPass: personelin ürettiği şifrelerin düz hali — panelde
       // görüntüleme için kaydedilir. Kullanıcının KENDİ seçtiği şifre
       // hiçbir zaman düz yazılmaz (kendi-değiştirme akışları "" gönderir).
-      const SKIP = new Set(["pass","_authEmail","docs","id"]);
+      const SKIP = new Set(["pass","_authEmail","docs","id"].concat(USE_CLOUD_FUNCTIONS ? ["_plainPass"] : []));
       const cleanData = {};
       for(const [k,v] of Object.entries(s)){
         if(SKIP.has(k)) continue;
@@ -554,7 +584,7 @@
     },
     async saveTeacher(tc) {
       const hasPhoto = !!(tc.photo);
-      const SKIP = new Set(["pass","_authEmail","docs","id"]);
+      const SKIP = new Set(["pass","_authEmail","docs","id"].concat(USE_CLOUD_FUNCTIONS ? ["_plainPass"] : []));
       const cleanData = {};
       for(const [k,v] of Object.entries(tc)){
         if(SKIP.has(k)) continue;
@@ -1494,7 +1524,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#ffffff;margin:0;pad
 ══════════════════════════════════════════════ -->
 
 <script src="lang-pack.js"></script>
-<script type="text/babel" data-presets="react">
+<script type="text/x-aat-jsx" id="aat-src">
 const { useState, useEffect, useRef, useCallback } = React;
 
 /* ─── DİL KATMANI (ku · zz · tr · en) ───────────────────────────────────────
@@ -1503,6 +1533,8 @@ const { useState, useEffect, useRef, useCallback } = React;
    gelir (akademisyen dil raporlarıyla doldurulur). Karşılık yoksa Kurmancî
    gösterilir. İngilizce ayrı dal olarak kodda durur. */
 const AAT_LANGS=["ku","zz","tr","en"];
+// Çocuk akademisi veli uygulaması (alan adı alınınca: "https://zarok.aramtigran.org/app/")
+const ZAROK_APP_URL="/zarok/app/";
 function RL(){ return window.__AAT_LANG||"ku"; }
 function K(ku){
   if(typeof ku!=="string") return ku;
@@ -7211,6 +7243,356 @@ function docIsPdf(d, url){
   return typeof url === "string" && (url.indexOf("data:application/pdf") === 0 || /\.pdf(\?|$)/i.test(url.split("?")[0]));
 }
 
+/* ─── AKADEMIYA ZAROKAN — Öğrenci İşleri yönetimi ─────────────────────────
+   Veli başvuruları → çocuk + veli hesabı, giriş/çıkış yoklaması (veliye
+   anında düşer), çocuk programı, veli duyuruları, veli mesajları.
+   Veriler: kidApplications · kids · guardians · idx_guardians · kidAttendance
+            kidSchedule · kidAnnouncements · kidMessages · config/zarok      */
+const ZAROK_DAYS_KU=["Yekşem","Duşem","Sêşem","Çarşem","Pêncşem","În","Şemî"];
+const ZAROK_DAYS_EN=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+function zarokNextNo(nos,prefix){
+  let max=0;
+  (nos||[]).forEach(n=>{ n=String(n||""); if(n.indexOf(prefix)===0){ const v=parseInt(n.slice(prefix.length),10); if(v>max) max=v; } });
+  return prefix+String(max+1).padStart(3,"0");
+}
+function ZarokAdminPanel({lang,toast,user}){
+  const Z=(ku,en)=>lang==="en"?en:K(ku);
+  const F=window.__FB;
+  const live=!!(F&&F.isConfigured());
+  const [tab,setTab]=useState("apps");
+  const [cfg,setCfg]=useState({open:false,note:""});
+  const [apps,setApps]=useState([]);
+  const [kids,setKids]=useState([]);
+  const [guards,setGuards]=useState([]);
+  const [att,setAtt]=useState([]);
+  const [sched,setSched]=useState([]);
+  const [anns,setAnns]=useState([]);
+  const [msgs,setMsgs]=useState([]);
+  const [openApp,setOpenApp]=useState(null);
+  const [creds,setCreds]=useState(null);
+  const [busy,setBusy]=useState(false);
+  const [areaF,setAreaF]=useState("all");
+  const [thread,setThread]=useState(null);
+  const [reply,setReply]=useState("");
+  const [sForm,setSForm]=useState({day:1,start:"15:00",end:"16:00",title:"",area:"",teacher:"",room:""});
+  const [aForm,setAForm]=useState({title:"",body:""});
+  const today=new Date().toISOString().slice(0,10);
+  const DAYS=lang==="en"?ZAROK_DAYS_EN:ZAROK_DAYS_KU;
+
+  useEffect(()=>{
+    if(!live) return;
+    const subs=[];
+    const listen=(q,set)=>{ try{ subs.push(F.onSnapshot(q,snap=>set(snap.docs.map(d=>({...d.data(),fireId:d.id}))),e=>console.warn("[zarok]",e&&e.code))); }catch(e){} };
+    listen(F.query(F.collection(F.db,"kidApplications"),F.orderBy("createdAt","desc")),setApps);
+    listen(F.collection(F.db,"kids"),setKids);
+    listen(F.collection(F.db,"guardians"),setGuards);
+    listen(F.query(F.collection(F.db,"kidAttendance"),F.where("date","==",today)),setAtt);
+    listen(F.collection(F.db,"kidSchedule"),setSched);
+    listen(F.query(F.collection(F.db,"kidAnnouncements"),F.orderBy("createdAt","desc")),setAnns);
+    listen(F.query(F.collection(F.db,"kidMessages"),F.orderBy("createdAt","desc"),F.limit(300)),setMsgs);
+    F.getDoc(F.doc(F.db,"config","zarok")).then(s=>{ if(s.exists()) setCfg({open:false,note:"",...s.data()}); }).catch(()=>{});
+    return ()=>subs.forEach(u=>{ try{u();}catch(_){} });
+  },[live]);
+
+  const box={background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,padding:12,marginBottom:10};
+  const inp={width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:14,boxSizing:"border-box",fontFamily:"inherit"};
+  const btn=(bg,fg)=>({padding:"9px 13px",borderRadius:10,border:"none",background:bg||"#0f2f38",color:fg||"#fff",fontSize:13,fontWeight:700,cursor:"pointer"});
+  const small={fontSize:11.5,color:"var(--text2)"};
+  const guardOf=no=>guards.find(g=>g.no===no);
+  const areaLabel=a=>{ try{ return areaName(a,lang); }catch(_){ return a||""; } };
+
+  async function saveCfg(next){
+    setCfg(next);
+    try{ await F.setDoc(F.doc(F.db,"config","zarok"),{...next,updatedAt:F.serverTimestamp()}); toast(Z("✅ Hate tomarkirin","✅ Saved")); }
+    catch(e){ toast("❌ "+(e.code||e.message)); }
+  }
+
+  async function accept(a){
+    if(busy) return; setBusy(true);
+    try{
+      const yr=String(new Date().getFullYear());
+      const digits=s=>String(s||"").replace(/\D/g,"");
+      let g=digits(a.phone)?guards.find(x=>digits(x.phone)===digits(a.phone)):null;
+      let pass=null;
+      if(!g){
+        const no=zarokNextNo(guards.map(x=>x.no),"9"+yr);
+        pass=genAutoPassword();
+        try{ await F.createAuthUser(no,pass,"guardian"); }
+        catch(e){ if(e.code==="auth/email-already-in-use"){ const r=await F.forceResetPassword(no,"guardian",null,pass); if(!r) throw e; } else throw e; }
+        g={no,name:a.guardianName,phone:a.phone||"",phone2:a.phone2||"",email:a.email||"",relation:a.relation||""};
+        await F.setDoc(F.doc(F.db,"guardians",no),{...g,createdAt:F.serverTimestamp()});
+        await F.setDoc(F.doc(F.db,"idx_guardians",no),{no,updatedAt:F.serverTimestamp()});
+      }
+      const kno=zarokNextNo(kids.map(x=>x.no),"8"+yr);
+      await F.addDoc(F.collection(F.db,"kids"),{no:kno,name:a.kidName,dob:a.kidDob||"",area:a.area||"",school:a.school||"",
+        guardianNos:[g.no],health:a.health||"",consentPhoto:!!a.consentPhoto,consentShare:!!a.consentShare,pickups:[],
+        appId:a.fireId,createdAt:F.serverTimestamp()});
+      await F.updateDoc(F.doc(F.db,"kidApplications",a.fireId),{status:"accepted",kidNo:kno,guardianNo:g.no});
+      let mailed=false;
+      if(pass&&a.email){ try{ await sendCredsEmail(a.guardianName,a.email,g.no,pass); mailed=true; }catch(_){} }
+      setCreds({kid:a.kidName,kno,gno:g.no,gname:g.name,pass,mailed});
+      setOpenApp(null);
+    }catch(e){ toast("❌ "+(e.code||e.message)); }
+    setBusy(false);
+  }
+  async function setAppStatus(a,status){
+    try{ await F.updateDoc(F.doc(F.db,"kidApplications",a.fireId),{status}); }catch(e){ toast("❌ "+(e.code||e.message)); }
+  }
+  async function delApp(a){
+    if(!window.confirm(Z("Ev serlêdan were jêbirin?","Delete this application?"))) return;
+    try{ await F.deleteDoc(F.doc(F.db,"kidApplications",a.fireId)); }catch(e){ toast("❌ "+(e.code||e.message)); }
+  }
+  async function delKid(k){
+    if(!window.confirm(Z("Tomara zarokê were jêbirin?","Delete this child's record?"))) return;
+    try{
+      await F.deleteDoc(F.doc(F.db,"kids",k.fireId));
+      // Başka çocuğu kalmayan velinin erişimi kapatılır (dizin kaydı silinir)
+      for(const gno of (k.guardianNos||[])){
+        if(!kids.some(o=>o.fireId!==k.fireId&&(o.guardianNos||[]).includes(gno))){
+          await F.deleteDoc(F.doc(F.db,"idx_guardians",gno)).catch(()=>{});
+        }
+      }
+      toast(Z("🗑 Hate jêbirin","🗑 Deleted"));
+    }catch(e){ toast("❌ "+(e.code||e.message)); }
+  }
+  async function resetGuardianPass(g){
+    if(!F.serverUserMgmt){ toast(Z("⚠ Ji bo vê yekê Cloud Functions pêwîst e (FUNCTIONS.md)","⚠ Requires Cloud Functions (FUNCTIONS.md)"),6000); return; }
+    const pass=genAutoPassword();
+    const r=await F.forceResetPassword(g.no,"guardian",null,pass);
+    if(!r){ toast("❌"); return; }
+    let mailed=false;
+    if(g.email){ try{ await sendCredsEmail(g.name,g.email,g.no,pass); mailed=true; }catch(_){} }
+    setCreds({gno:g.no,gname:g.name,pass,mailed});
+  }
+  async function mark(k,type){
+    try{
+      await F.addDoc(F.collection(F.db,"kidAttendance"),{kidId:k.fireId,kidNo:k.no,kidName:k.name,guardianNos:k.guardianNos||[],
+        type,date:today,time:new Date().toISOString(),by:(user&&user.name)||"",createdAt:F.serverTimestamp()});
+      hapticSuccess();
+    }catch(e){ toast("❌ "+(e.code||e.message)); }
+  }
+  async function addLesson(){
+    if(!sForm.title.trim()){ toast(Z("⚠ Navê dersê pêwîst e","⚠ Lesson name required")); return; }
+    try{ await F.addDoc(F.collection(F.db,"kidSchedule"),{...sForm,day:+sForm.day,title:sForm.title.trim(),createdAt:F.serverTimestamp()});
+      setSForm(f=>({...f,title:""})); toast(Z("✅ Hate tomarkirin","✅ Saved")); }
+    catch(e){ toast("❌ "+(e.code||e.message)); }
+  }
+  async function sendAnn(){
+    if(!aForm.title.trim()||!aForm.body.trim()){ toast(Z("⚠ Sernav û nivîs pêwîst in","⚠ Title and text required")); return; }
+    try{ await F.addDoc(F.collection(F.db,"kidAnnouncements"),{title:aForm.title.trim(),body:aForm.body.trim(),by:(user&&user.name)||"",createdAt:F.serverTimestamp()});
+      setAForm({title:"",body:""}); toast(Z("✅ Ji dêûbavan re hat şandin","✅ Sent to parents")); }
+    catch(e){ toast("❌ "+(e.code||e.message)); }
+  }
+  async function sendReply(){
+    const text=reply.trim(); if(!text||!thread) return;
+    const g=guardOf(thread);
+    try{ await F.addDoc(F.collection(F.db,"kidMessages"),{guardianNo:thread,guardianName:(g&&g.name)||"",text:text.slice(0,1000),from:"staff",
+        by:(user&&user.name)||"",read:false,createdAt:F.serverTimestamp()}); setReply(""); }
+    catch(e){ toast("❌ "+(e.code||e.message)); }
+  }
+  useEffect(()=>{
+    if(!thread||!live) return;
+    msgs.filter(m=>m.guardianNo===thread&&m.from==="guardian"&&!m.read).forEach(m=>{
+      F.updateDoc(F.doc(F.db,"kidMessages",m.fireId),{read:true}).catch(()=>{});
+    });
+  },[thread,msgs.length]);
+
+  const newApps=apps.filter(a=>(a.status||"new")==="new").length;
+  const unread=msgs.filter(m=>m.from==="guardian"&&!m.read).length;
+  const TABS=[
+    ["apps","📋",Z("Serlêdan","Applications"),newApps],
+    ["kids","👧",Z("Zarok û Dêûbav","Children & Parents"),0],
+    ["att","✅",Z("Amadebûn","Attendance"),0],
+    ["sched","📅",Z("Bername","Schedule"),0],
+    ["ann","📢",Z("Ragihandin","Announcements"),0],
+    ["msg","💬",Z("Peyam","Messages"),unread],
+  ];
+  const stColor={new:"#2c6b74",accepted:"#16a34a",rejected:"#dc2626"};
+  const stLabel={new:Z("Nû","New"),accepted:Z("Qebûl","Accepted"),rejected:Z("Red","Rejected")};
+
+  if(!live) return <div style={box}>{Z("Firebase girêdayî nîne.","Firebase is not connected.")}</div>;
+
+  const kidsF=kids.filter(k=>areaF==="all"||k.area===areaF).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+  const lastOf=k=>{ const r=att.filter(x=>x.kidId===k.fireId).sort((a,b)=>(a.time||"").localeCompare(b.time||"")); return r[r.length-1]; };
+  const threads=[...new Set(msgs.map(m=>m.guardianNo))];
+
+  return(
+    <div>
+      <div style={{display:"flex",alignItems:"center",gap:10,margin:"4px 0 12px"}}>
+        <div style={{fontSize:28}}>👧</div>
+        <div>
+          <div style={{fontSize:17,fontWeight:800,color:"var(--text)"}}>{Z("Akademiya Zarokan","Kids Academy")}</div>
+          <div style={small}>{Z("Tenê dêûbav têketin dikin · sepan:","Parents only · app:")} <a href={ZAROK_APP_URL} target="_blank" rel="noopener" style={{color:"var(--accent)"}}>{ZAROK_APP_URL}</a></div>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:6,marginBottom:10}}>
+        {TABS.map(([k,ic,lb,badge])=>(
+          <button key={k} onClick={()=>setTab(k)} style={{...btn(tab===k?"#0f2f38":"var(--bg2)",tab===k?"#fff":"var(--text)"),whiteSpace:"nowrap",border:"1px solid var(--border2)",position:"relative"}}>
+            {ic} {lb}{badge>0&&<span style={{marginLeft:6,background:"#dc2626",color:"#fff",borderRadius:9,padding:"0 6px",fontSize:11}}>{badge}</span>}
+          </button>
+        ))}
+      </div>
+
+      {creds&&(
+        <div style={{...box,border:"2px solid #16a34a"}}>
+          <div style={{fontWeight:800,color:"#16a34a",marginBottom:6}}>✅ {creds.kid?Z("Zarok hate tomarkirin","Child registered"):Z("Şîfreya nû","New password")}</div>
+          {creds.kid&&<div style={{fontSize:13,color:"var(--text)"}}>{creds.kid} · {Z("Jimara zarokê","Child no")}: <b>{creds.kno}</b></div>}
+          <div style={{fontSize:13,color:"var(--text)",marginTop:4}}>{Z("Dêûbav","Parent")}: {creds.gname} · {Z("Jimara têketinê","Login no")}: <b>{creds.gno}</b></div>
+          {creds.pass?<div style={{fontSize:13,color:"var(--text)",marginTop:4}}>{Z("Şîfre","Password")}: <b style={{fontFamily:"monospace"}}>{creds.pass}</b></div>
+            :<div style={{...small,marginTop:4}}>{Z("Dêûbav berê hesab heye — zarok li hesabê wî/wê hat zêdekirin.","Parent already had an account — child was added to it.")}</div>}
+          <div style={{...small,marginTop:6}}>{creds.mailed?Z("✉ Agahiyên têketinê bi e-peyamê çûn.","✉ Login details were e-mailed."):creds.pass?Z("Van agahiyan bide dêûbav. Têketin: ","Give these to the parent. Sign in at: ")+location.origin+ZAROK_APP_URL:""}</div>
+          <button onClick={()=>setCreds(null)} style={{...btn(),marginTop:8}}>{Z("Baş e","OK")}</button>
+        </div>
+      )}
+
+      {tab==="apps"&&(<div>
+        <div style={box}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+            <div style={{fontWeight:700,color:"var(--text)"}}>{cfg.open?Z("🟢 Serlêdana zarokan VEKIRÎ ye","🟢 Kids applications OPEN"):Z("🔴 Serlêdana zarokan GIRTÎ ye","🔴 Kids applications CLOSED")}</div>
+            <button onClick={()=>saveCfg({...cfg,open:!cfg.open})} style={btn(cfg.open?"#dc2626":"#16a34a")}>{cfg.open?Z("Bigire","Close"):Z("Veke","Open")}</button>
+          </div>
+          <input style={{...inp,marginTop:8}} value={cfg.note||""} onChange={e=>setCfg(c=>({...c,note:e.target.value}))} onBlur={()=>saveCfg(cfg)} placeholder={Z("Nîşeya li ser malperê (vebijarkî)","Note shown on site")}/>
+        </div>
+        {apps.length===0&&<div style={{...box,...small,textAlign:"center"}}>{Z("Hîn serlêdan tune.","No applications yet.")}</div>}
+        {apps.map(a=>{const st=a.status||"new";const isOpen=openApp===a.fireId;return(
+          <div key={a.fireId} style={box}>
+            <div onClick={()=>setOpenApp(isOpen?null:a.fireId)} style={{display:"flex",justifyContent:"space-between",gap:8,cursor:"pointer"}}>
+              <div>
+                <div style={{fontWeight:700,color:"var(--text)"}}>👧 {a.kidName} <span style={small}>{a.kidDob||""} · {areaLabel(a.area)}</span></div>
+                <div style={small}>{Z("Dêûbav","Parent")}: {a.guardianName} ({a.relation||"—"}) · {a.phone}</div>
+              </div>
+              <span style={{fontSize:11,fontWeight:700,color:stColor[st],whiteSpace:"nowrap"}}>{stLabel[st]}</span>
+            </div>
+            {isOpen&&(<div style={{marginTop:10,fontSize:13,color:"var(--text)",lineHeight:1.7}}>
+              {a.school&&<div>🏫 {a.school}</div>}
+              {a.email&&<div>✉ {a.email}</div>}
+              {a.phone2&&<div>☎ {Z("Têkiliya acil","Emergency contact")}: {a.phone2}</div>}
+              {a.health&&<div>🩺 {a.health}</div>}
+              {a.note&&<div>📝 {a.note}</div>}
+              <div style={small}>{a.consentPhoto?"📷 ✔":"📷 ✖"} {Z("wêne","photo")} · {a.consentShare?"🌐 ✔":"🌐 ✖"} {Z("parvekirin","sharing")} · KVKK ✔ · {a.dateStr||""}</div>
+              {(a.docs||[]).length>0&&<div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}}>{a.docs.map((d,i)=>(
+                <a key={i} href={/^(https?:|data:)/.test(d.file||"")?d.file:"#"} target="_blank" rel="noopener" download={d.fileName||("belge"+i)} style={{...btn("var(--bg2)","var(--text)"),textDecoration:"none",border:"1px solid var(--border2)"}}>📎 {d.name||d.fileName||("Belge "+(i+1))}</a>))}</div>}
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
+                {st!=="accepted"&&<button disabled={busy} onClick={()=>accept(a)} style={btn("#16a34a")}>{busy?"⏳":Z("✅ Qebûl û Tescîl","✅ Accept & Register")}</button>}
+                {st==="new"&&<button onClick={()=>setAppStatus(a,"rejected")} style={btn("#dc2626")}>{Z("❌ Red bike","❌ Reject")}</button>}
+                <button onClick={()=>delApp(a)} style={btn("var(--bg2)","var(--text)")}>🗑</button>
+              </div>
+            </div>)}
+          </div>);})}
+      </div>)}
+
+      {tab==="kids"&&(<div>
+        <div style={{...small,marginBottom:8}}>{kids.length} {Z("zarok","children")} · {guards.length} {Z("dêûbav","parents")}</div>
+        {kids.length===0&&<div style={{...box,...small,textAlign:"center"}}>{Z("Hîn zarok nehatiye tomarkirin.","No children registered yet.")}</div>}
+        {kidsF.map(k=>(
+          <div key={k.fireId} style={box}>
+            <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
+              <div style={{fontWeight:700,color:"var(--text)"}}>👧 {k.name} <span style={small}>#{k.no} · {areaLabel(k.area)}</span></div>
+              <button onClick={()=>delKid(k)} style={{...btn("var(--bg2)","var(--text)"),padding:"4px 9px"}}>🗑</button>
+            </div>
+            {(k.guardianNos||[]).map(gno=>{const g=guardOf(gno);return(
+              <div key={gno} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginTop:6,fontSize:13,color:"var(--text)"}}>
+                <span>👤 {g?g.name:"?"} <span style={small}>#{gno} · {g&&g.phone}</span></span>
+                {g&&<button onClick={()=>resetGuardianPass(g)} style={{...btn("var(--bg2)","var(--text)"),padding:"4px 9px",fontSize:12}}>🔑</button>}
+              </div>);})}
+            <div style={{...small,marginTop:6}}>
+              {k.consentPhoto?"📷 ✔":"📷 ✖"} · {k.consentShare?"🌐 ✔":"🌐 ✖"}{k.health?" · 🩺 "+k.health:""}
+              {(k.pickups||[]).length>0&&<div>🚸 {Z("Dikarin zarokê bibin","May pick up")}: {k.pickups.join(", ")}</div>}
+            </div>
+          </div>))}
+      </div>)}
+
+      {tab==="att"&&(<div>
+        <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:10}}>
+          <select style={{...inp,width:"auto"}} value={areaF} onChange={e=>setAreaF(e.target.value)}>
+            <option value="all">{Z("Hemû qad","All fields")}</option>
+            {[...new Set(kids.map(k=>k.area).filter(Boolean))].map(a=><option key={a} value={a}>{areaLabel(a)}</option>)}
+          </select>
+          <span style={small}>📅 {today} · {Z("Dêûbav di cih de agahdar dibin","Parents are notified instantly")}</span>
+        </div>
+        {kidsF.map(k=>{const last=lastOf(k);return(
+          <div key={k.fireId} style={{...box,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+            <div>
+              <div style={{fontWeight:700,color:"var(--text)"}}>{k.name}</div>
+              <div style={small}>{last?(last.type==="in"?"🟢 "+Z("Di dersê de","In class"):"🏠 "+Z("Hate teslîmkirin","Picked up"))+" · "+new Date(last.time).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}):"— "+Z("hîn nehatiye","not arrived yet")}</div>
+            </div>
+            <div style={{display:"flex",gap:6}}>
+              <button onClick={()=>mark(k,"in")} style={btn(last&&last.type==="in"?"var(--bg2)":"#16a34a",last&&last.type==="in"?"var(--text2)":"#fff")}>✅ {Z("Hat","In")}</button>
+              <button onClick={()=>mark(k,"out")} style={btn(!last||last.type==="out"?"var(--bg2)":"#0f2f38",!last||last.type==="out"?"var(--text2)":"#fff")}>🏠 {Z("Çû","Out")}</button>
+            </div>
+          </div>);})}
+      </div>)}
+
+      {tab==="sched"&&(<div>
+        <div style={box}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+            <select style={inp} value={sForm.day} onChange={e=>setSForm(f=>({...f,day:e.target.value}))}>{DAYS.map((d,i)=><option key={i} value={i}>{d}</option>)}</select>
+            <input style={inp} type="time" value={sForm.start} onChange={e=>setSForm(f=>({...f,start:e.target.value}))}/>
+            <input style={inp} type="time" value={sForm.end} onChange={e=>setSForm(f=>({...f,end:e.target.value}))}/>
+          </div>
+          <input style={{...inp,marginTop:8}} value={sForm.title} onChange={e=>setSForm(f=>({...f,title:e.target.value}))} placeholder={Z("Navê dersê (mînak: Muzîka Zarokan)","Lesson name (e.g. Kids Music)")}/>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginTop:8}}>
+            <input style={inp} value={sForm.area} onChange={e=>setSForm(f=>({...f,area:e.target.value}))} placeholder={Z("Qad","Field")}/>
+            <input style={inp} value={sForm.teacher} onChange={e=>setSForm(f=>({...f,teacher:e.target.value}))} placeholder={Z("Mamoste","Teacher")}/>
+            <input style={inp} value={sForm.room} onChange={e=>setSForm(f=>({...f,room:e.target.value}))} placeholder={Z("Ode","Room")}/>
+          </div>
+          <button onClick={addLesson} style={{...btn(),marginTop:10}}>➕ {Z("Dersê Zêde Bike","Add Lesson")}</button>
+        </div>
+        {[1,2,3,4,5,6,0].map(d=>{const ls=sched.filter(s=>+s.day===d).sort((a,b)=>(a.start||"").localeCompare(b.start||""));if(!ls.length)return null;return(
+          <div key={d} style={box}>
+            <div style={{fontWeight:800,color:"var(--text)",marginBottom:4}}>{DAYS[d]}</div>
+            {ls.map(s=>(
+              <div key={s.fireId} style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13,color:"var(--text)",padding:"4px 0"}}>
+                <span>🕒 {s.start}–{s.end} · <b>{s.title}</b> <span style={small}>{[s.teacher,s.room].filter(Boolean).join(" · ")}</span></span>
+                <button onClick={()=>F.deleteDoc(F.doc(F.db,"kidSchedule",s.fireId)).catch(()=>{})} style={{...btn("var(--bg2)","var(--text)"),padding:"3px 8px"}}>🗑</button>
+              </div>))}
+          </div>);})}
+      </div>)}
+
+      {tab==="ann"&&(<div>
+        <div style={box}>
+          <input style={inp} value={aForm.title} onChange={e=>setAForm(f=>({...f,title:e.target.value}))} placeholder={Z("Sernav","Title")}/>
+          <textarea style={{...inp,marginTop:8,minHeight:80}} value={aForm.body} onChange={e=>setAForm(f=>({...f,body:e.target.value}))} placeholder={Z("Ji bo dêûbavan nivîs…","Message to parents…")}/>
+          <button onClick={sendAnn} style={{...btn(),marginTop:8}}>📢 {Z("Ji Dêûbavan re Bişîne","Send to Parents")}</button>
+        </div>
+        {anns.map(a=>(
+          <div key={a.fireId} style={box}>
+            <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
+              <b style={{color:"var(--text)"}}>{a.title}</b>
+              <button onClick={()=>F.deleteDoc(F.doc(F.db,"kidAnnouncements",a.fireId)).catch(()=>{})} style={{...btn("var(--bg2)","var(--text)"),padding:"3px 8px"}}>🗑</button>
+            </div>
+            <div style={{fontSize:13,color:"var(--text)",whiteSpace:"pre-wrap",marginTop:4}}>{a.body}</div>
+          </div>))}
+      </div>)}
+
+      {tab==="msg"&&(<div>
+        {threads.length===0&&<div style={{...box,...small,textAlign:"center"}}>{Z("Hîn peyam tune.","No messages yet.")}</div>}
+        {!thread&&threads.map(gno=>{const g=guardOf(gno);const tm=msgs.filter(m=>m.guardianNo===gno);const un=tm.filter(m=>m.from==="guardian"&&!m.read).length;return(
+          <div key={gno} onClick={()=>setThread(gno)} style={{...box,cursor:"pointer",display:"flex",justifyContent:"space-between",gap:8}}>
+            <div><b style={{color:"var(--text)"}}>👤 {(g&&g.name)||tm[0].guardianName||gno}</b><div style={small}>{(tm[0].text||"").slice(0,70)}</div></div>
+            {un>0&&<span style={{background:"#dc2626",color:"#fff",borderRadius:9,padding:"1px 8px",fontSize:12,alignSelf:"center"}}>{un}</span>}
+          </div>);})}
+        {thread&&(<div>
+          <button onClick={()=>setThread(null)} style={{...btn("var(--bg2)","var(--text)"),marginBottom:8}}>← {Z("Vegere","Back")}</button>
+          <div style={box}>
+            {msgs.filter(m=>m.guardianNo===thread).slice().reverse().map(m=>(
+              <div key={m.fireId} style={{display:"flex",justifyContent:m.from==="staff"?"flex-end":"flex-start",margin:"6px 0"}}>
+                <div style={{maxWidth:"80%",padding:"8px 11px",borderRadius:12,fontSize:13.5,whiteSpace:"pre-wrap",
+                  background:m.from==="staff"?"#0f2f38":"var(--bg2)",color:m.from==="staff"?"#fff":"var(--text)"}}>
+                  {m.kidName&&m.from!=="staff"&&<div style={{fontSize:11,opacity:.7}}>👧 {m.kidName}</div>}{m.text}
+                </div>
+              </div>))}
+            <div style={{display:"flex",gap:8,marginTop:10}}>
+              <input style={inp} value={reply} onChange={e=>setReply(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")sendReply();}} placeholder={Z("Bersiv binivîse…","Write a reply…")}/>
+              <button onClick={sendReply} style={btn()}>📤</button>
+            </div>
+          </div>
+        </div>)}
+      </div>)}
+    </div>
+  );
+}
+
 function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,onDataChange}){
   // ── Bölümler: serledan | tescil | bername | anket ──
   const [section,setSection]=useState("serledan");
@@ -7226,6 +7608,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
     {key:"bername",icon:"📅",label:lang==="en"?"Schedule & Terms":K("Bername û Demsal")},
     {key:"anket",icon:"📊",label:lang==="en"?"Surveys":K("Ankêt")},
     {key:"rapor",icon:"📄",label:lang==="en"?"Reports":K("Rapor")},
+    {key:"zarok",icon:"👧",label:lang==="en"?"Kids Academy":K("Akademiya Zarokan")},
   ];
   const [activeArea,setActiveArea]=useState(null);
   const [cfg,setCfg]=useState({open:false,startDate:"",endDate:"",note:""});
@@ -7481,6 +7864,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
         {section==="anket"&&(
           <AdminSurveyPanel lang={lang} t={t||T.ku} schedule={schedule||[]} teachers={teachers||[]} students={students||[]} toast={toast}/>
         )}
+        {section==="zarok"&&<ZarokAdminPanel lang={lang} toast={toast} user={user}/>}
         {section==="rapor"&&(
           <AdminReportCenter students={students||[]} teachers={teachers||[]} schedule={schedule||[]} lang={lang} t={t||T.ku} toast={toast} byName={user.name}/>
         )}
@@ -15150,6 +15534,10 @@ function LoginScreen({students,teachers,t,lang,rawLang,setLang,onLogin,onForgot,
           <div style={{textAlign:"center",fontSize:13,color:"var(--text)",cursor:"pointer",padding:"8px 0",fontWeight:500,textDecoration:"underline",textDecorationColor:"rgba(15,47,56,0.3)"}} onClick={onForgot}>
             🔑 {lang==="en"?"Forgot password?":K("Şîfre ji bîr kir?")}
           </div>
+          {/* Veliler ayrı uygulamada giriş yapar (Akademiya Zarokan) */}
+          <a href={ZAROK_APP_URL} style={{display:"block",textAlign:"center",fontSize:12.5,color:"var(--text2)",padding:"6px 0 2px",textDecoration:"none"}}>
+            👨‍👩‍👧 {lang==="en"?"Parent? Sign in to the Kids Academy app →":K("Dêûbav? Têketina Akademiya Zarokan →")}
+          </a>
         </div>
       </div>
     </div>
@@ -16836,6 +17224,29 @@ if (window.__FB_READY) {
     if (!document.getElementById("root").hasChildNodes()) __startApp();
   }, 3000);
 }
+</script>
+<script>
+/* ── DERLEME ÖNBELLEĞİ ────────────────────────────────────────────────────
+   Uygulama kodu (JSX) ilk açılışta Babel ile derlenir ve sonuç cihazda
+   (IndexedDB) saklanır. Sonraki açılışlarda Babel HİÇ indirilmez/çalışmaz:
+   açılış 4–8 sn hızlanır. Kod değişince (özet farklı) otomatik yeniden derlenir. */
+(function(){
+  var SRC=document.getElementById('aat-src').textContent;
+  var BABEL='https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.22.5/babel.min.js';
+  function hash(s){var a=2166136261>>>0;for(var i=0;i<s.length;i++){a^=s.charCodeAt(i);a=Math.imul(a,16777619)>>>0;}return a.toString(36)+'-'+s.length;}
+  var KEY='jsx-'+hash(SRC);
+  function run(js){var el=document.createElement('script');el.text=js;document.body.appendChild(el);}
+  function openDb(){return new Promise(function(res){try{var r=indexedDB.open('aat-compiled',1);r.onupgradeneeded=function(){r.result.createObjectStore('c');};r.onsuccess=function(){res(r.result);};r.onerror=function(){res(null);};}catch(e){res(null);}});}
+  function getC(db){return new Promise(function(res){if(!db)return res(null);try{var q=db.transaction('c').objectStore('c').get(KEY);q.onsuccess=function(){res(q.result||null);};q.onerror=function(){res(null);};}catch(e){res(null);}});}
+  function putC(db,v){if(!db)return;try{var st=db.transaction('c','readwrite').objectStore('c');st.clear();st.put(v,KEY);}catch(e){}}
+  function loadBabel(){return new Promise(function(res,rej){if(window.Babel)return res();var el=document.createElement('script');el.src=BABEL;el.crossOrigin='anonymous';el.onload=res;el.onerror=rej;document.head.appendChild(el);});}
+  function compile(){return loadBabel().then(function(){return window.Babel.transform(SRC,{presets:['react']}).code;});}
+  var dbp=openDb();
+  dbp.then(getC).then(function(cached){
+    if(cached){window.__AAT_BUILD='cache';run(cached);return;}
+    return compile().then(function(js){window.__AAT_BUILD='fresh';run(js);dbp.then(function(db){putC(db,js);});});
+  }).catch(function(e){console.error('[AAT] derleme hatası',e);});
+})();
 </script>
 </body>
 </html>

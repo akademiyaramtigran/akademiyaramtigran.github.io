@@ -23,7 +23,7 @@ const PACK = path.join(ROOT, 'app', 'lang-pack.js');
 // ── 1) Uygulama: K("…") / KF("…",[…]) çağrıları ─────────────────────────
 function appStrings() {
   const html = fs.readFileSync(APP, 'utf8');
-  const TAG = '<script type="text/babel" data-presets="react">';
+  const TAG = '<script type="text/x-aat-jsx" id="aat-src">';
   const s0 = html.indexOf(TAG) + TAG.length, s1 = html.indexOf('</script>', s0);
   const code = html.slice(s0, s1);
   const ast = parser.parse(code, { sourceType: 'script', plugins: ['jsx'] });
@@ -34,7 +34,7 @@ function appStrings() {
     const [n, p] = stack.pop();
     if (!n || typeof n.type !== 'string') continue;
     parent.set(n, p);
-    if (n.type === 'CallExpression' && n.callee.type === 'Identifier' && (n.callee.name === 'K' || n.callee.name === 'KF')
+    if (n.type === 'CallExpression' && n.callee.type === 'Identifier' && (n.callee.name === 'K' || n.callee.name === 'KF' || n.callee.name === 'Z')
       && n.arguments[0] && n.arguments[0].type === 'StringLiteral') calls.push(n);
     for (const k of Object.keys(n)) {
       if (k === 'loc' || k === 'extra' || /Comments$/.test(k)) continue;
@@ -68,6 +68,7 @@ function appStrings() {
     const ku = n.arguments[0].value;
     let en = '', tkey = '';
     const p = parent.get(n);
+    if (n.callee.name === 'Z') en = lit(n.arguments[1]);   // Z("kurmancî","english")
     if (p && p.type === 'ConditionalExpression' && p.alternate === n) en = lit(p.consequent);
     const ret = p && p.type === 'ReturnStatement' ? p : null, blk = ret && parent.get(ret), meth = blk && parent.get(blk);
     if (meth && meth.type === 'ObjectMethod') {
@@ -104,10 +105,25 @@ function siteStrings() {
   return rows;
 }
 
+// ── 2b) Akademiya Zarokan: veli uygulaması (#zt) + tanıtım sayfası (#zs) sözlükleri ──
+function zarokStrings() {
+  const rows = [];
+  for (const [file, id, prefix] of [['zarok/app/index.html', 'zt', 'zarok.'], ['zarok/index.html', 'zs', 'zaroksite.']]) {
+    const f = path.join(ROOT, file);
+    if (!fs.existsSync(f)) continue;
+    const m = fs.readFileSync(f, 'utf8').match(new RegExp('<script id="' + id + '" type="application/json">([\\s\\S]*?)</script>'));
+    if (!m) continue;
+    const D = JSON.parse(m[1]);
+    for (const k of Object.keys(D.ku)) rows.push({ key: prefix + k, ku: D.ku[k], tr: (D.tr || {})[k] || '', en: (D.en || {})[k] || '' });
+  }
+  return rows;
+}
+
 function loadPack() {
   const ctx = { window: {} };
   vm.runInNewContext(fs.readFileSync(PACK, 'utf8'), ctx);
-  return { TX: ctx.window.AAT_TX || {}, SITE: ctx.window.AAT_SITE || {}, AREA: ctx.window.AAT_SITE_AREA || {} };
+  return { TX: ctx.window.AAT_TX || {}, SITE: ctx.window.AAT_SITE || {}, AREA: ctx.window.AAT_SITE_AREA || {},
+    ZAROK: ctx.window.AAT_ZAROK || {}, ZSITE: ctx.window.AAT_ZAROK_SITE || {} };
 }
 
 // ── 3) Bölümler ─────────────────────────────────────────────────────────
@@ -124,6 +140,7 @@ const SECTIONS = [
   ['ogrisleri', 'Öğrenci İşleri — Başvuru, Kayıt, Dönem', /^RegistrarPanel$/],
   ['ayar', 'Ayarlar, Uygulama Kurulumu (PWA), Yasal Metinler', /^(SettingsSheet|PWAInstallBanner|LegalModal|GDPRBanner|ThemeToggle)$/],
   ['alan', 'Sanat Alanları', /^AREAS$/],
+  ['zarokadmin', 'Akademiya Zarokan — Öğrenci İşleri yönetimi', /^(ZarokAdminPanel|zarokNextNo)$/],
 ];
 function sectionOf(comps) {
   for (const c of comps) for (const [id, , re] of SECTIONS) if (re.test(c)) return id;
@@ -289,12 +306,15 @@ h2 small{font-weight:600;color:var(--muted);white-space:nowrap}
   count();
   function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2600);}
   function build(){
-    var out={format:'aat-dil-v3',lang:D.lang,by:who.value.trim(),date:new Date().toISOString(),app:{},site:{},area:{}},n=0;
+    var out={format:'aat-dil-v3',lang:D.lang,by:who.value.trim(),date:new Date().toISOString(),app:{},site:{},area:{},zarok:{},zarokSite:{}},n=0;
     rowsEl.forEach(function(R){var v=R._ta.value.trim(),r=R._r;if(!v)return;
       if(D.lang!=='zz'&&v===r.k)return; // Kurmancî: değişmeyen satırı gönderme
-      n++; if(r.key&&r.key.indexOf('site.')===0)out.site[r.key.slice(5)]=v; else if(r.key&&r.key.indexOf('area.')===0)out.area[r.key.slice(5)]=v; else out.app[r.k]=v;});
+      n++; var g=grp(r.key); if(g)out[g[0]][g[1]]=v; else out.app[r.k]=v;});
     out.count=n;return n?out:null;
   }
+  // Satır anahtarı → dışa aktarma grubu (site./area./zarok./zaroksite.; diğerleri Kurmancî metinle "app")
+  function grp(key){ var P=[['site.','site'],['area.','area'],['zarok.','zarok'],['zaroksite.','zarokSite']];
+    for(var i=0;i<P.length;i++){ if(key&&key.indexOf(P[i][0])===0) return [P[i][1],key.slice(P[i][0].length)]; } return null; }
   function fname(){return 'dil-'+(D.lang==='zz'?'zazaki':'kurmanci')+'-'+new Date().toISOString().slice(0,10)+'.json';}
   document.getElementById('b-send').addEventListener('click',function(){
     if(!who.value.trim()){toast('Lütfen önce adınızı yazın');who.focus();return;}
@@ -314,7 +334,7 @@ h2 small{font-weight:600;color:var(--muted);white-space:nowrap}
     var f=e.target.files[0];if(!f)return;var rd=new FileReader();
     rd.onload=function(){try{var o=JSON.parse(rd.result);if(!o||o.format!=='aat-dil-v3'||o.lang!==D.lang)throw 0;var n=0;
       rowsEl.forEach(function(R){var r=R._r,v;
-        if(r.key&&r.key.indexOf('site.')===0)v=(o.site||{})[r.key.slice(5)];else if(r.key&&r.key.indexOf('area.')===0)v=(o.area||{})[r.key.slice(5)];else v=(o.app||{})[r.k];
+        var g=grp(r.key); v=g?(o[g[0]]||{})[g[1]]:(o.app||{})[r.k];
         if(typeof v==='string'&&v.trim()){R._ta.value=v;S[r.id]=v;mark(R,R._ta);n++;}});
       save();count();toast('✅ '+n+' satır yüklendi');}catch(x){toast('⚠ Bu dosya bu rapora ait değil');}};
     rd.readAsText(f);e.target.value='';
@@ -335,7 +355,9 @@ function main() {
   const pack = loadPack();
   const app = appStrings();
   const site = siteStrings();
-  const secNames = SECTIONS.map(([id, name]) => ({ id, name })).concat([{ id: 'diger', name: 'Diğer Ekranlar' }, { id: 'site', name: 'Ana Sayfa (Site) — akademiyaramtigran.github.io' }]);
+  const zarok = zarokStrings();
+  const secNames = SECTIONS.map(([id, name]) => ({ id, name })).concat([{ id: 'diger', name: 'Diğer Ekranlar' }, { id: 'site', name: 'Ana Sayfa (Site) — akademiyaramtigran.github.io' },
+    { id: 'zarok', name: 'Akademiya Zarokan — Veli uygulaması (PWA)' }, { id: 'zaroksite', name: 'Akademiya Zarokan — Tanıtım ve başvuru sayfası' }]);
   const order = Object.fromEntries(secNames.map((s, i) => [s.id, i]));
   const hash = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); };
   function rowsFor(lang) {
@@ -348,6 +370,11 @@ function main() {
       const isArea = r.key.startsWith('area.'), k = r.key.slice(r.key.indexOf('.') + 1);
       const src = isArea ? pack.AREA : pack.SITE;
       rows.push({ id: 's' + hash(r.key), s: isArea ? 'alan' : 'site', k: r.ku, t: r.tr, e: r.en, key: r.key, v: (src[lang] || {})[k] || '' });
+    }
+    for (const r of zarok) {
+      const isSite = r.key.startsWith('zaroksite.'), k = r.key.slice(r.key.indexOf('.') + 1);
+      const src = isSite ? pack.ZSITE : pack.ZAROK;
+      rows.push({ id: 'z' + hash(r.key), s: isSite ? 'zaroksite' : 'zarok', k: r.ku, t: r.tr, e: r.en, key: r.key, v: (src[lang] || {})[k] || '', w: suspectTr(r.ku) ? 1 : 0 });
     }
     rows.sort((a, b) => order[a.s] - order[b.s]);
     rows.forEach((r, i) => { r.i = i + 1; });

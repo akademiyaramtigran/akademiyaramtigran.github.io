@@ -126,7 +126,7 @@ service cloud.firestore {
     match /applications/{id} {
       allow create: if applicationsOpen()
                     && request.resource.data.keys().hasOnly(
-                      ['name','phone','dob','area','note','docs','status','dateStr','createdAt','email'])
+                      ['name','phone','dob','area','note','docs','status','dateStr','createdAt','email','kvkk'])
                     && request.resource.data.name is string
                     && request.resource.data.name.size() > 0
                     && request.resource.data.name.size() <= 80
@@ -175,10 +175,92 @@ service cloud.firestore {
     //   attendance: öğrenci QR check-in + öğretmen yoklama kaydı
     //   messages / survey responses: öğrenci gönderir (istemci filtreli sorgular)
     //   devices: kullanıcı kendi cihaz kaydını yazar
-    match /attendance/{id}             { allow read, write: if member(); }
+    // Yoklama: personel her kaydı yazar; öğrenci yalnızca KENDİ adına QR girişi yazar (silemez)
+    match /attendance/{id} {
+      allow read: if member();
+      allow create, update: if isStaff()
+        || (isStudent()
+            && string(request.resource.data.get('studentNo', '')) == prefix()
+            && (resource == null || string(resource.data.get('studentNo', '')) == prefix()));
+      allow delete: if isStaff();
+    }
     match /messages/{id}               { allow read, write: if member(); }
     match /surveyResponses/{id}        { allow read, write: if member(); }
     match /studentSurveyResponses/{id} { allow read, write: if member(); }
     match /devices/{id}                { allow read, write: if member(); }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  AKADEMIYA ZAROKAN (Çocuk Akademisi) — yalnızca VELİ girişi
+    //    Veli : <no>@veli.aat  VE  idx_guardians/<no> mevcut
+    //    Çocuğun kendi hesabı YOKTUR. Veli yalnızca guardianNos listesinde
+    //    olduğu çocukları, onların yoklamasını ve kendi mesajlarını görür.
+    //    Yetişkin öğrenci verisine (students, messages…) hiçbir erişimi yoktur.
+    // ════════════════════════════════════════════════════════════════════
+    function isGuardian() {
+      return authed() && mail().matches('.*@veli[.]aat$') && exists(dbPath('idx_guardians'));
+    }
+    function myKid(d) { return isGuardian() && prefix() in d.guardianNos; }
+
+    match /idx_guardians/{no} { allow read: if isStaff() || (authed() && prefix() == no); allow write: if isManager(); }
+
+    // Başvuru dönemi (site girişsiz okur)
+    match /config/zarok { allow read: if true; allow write: if isStaff(); }
+    function zarokOpen() {
+      return exists(/databases/$(database)/documents/config/zarok)
+        && get(/databases/$(database)/documents/config/zarok).data.open == true;
+    }
+    function optStr(k, n) { return !(k in request.resource.data) || (request.resource.data[k] is string && request.resource.data[k].size() <= n); }
+
+    // Veli başvurusu — girişsiz oluşturma, sıkı doğrulama
+    match /kidApplications/{id} {
+      allow create: if zarokOpen()
+        && request.resource.data.keys().hasOnly(['kidName','kidDob','area','school','guardianName','relation',
+             'phone','phone2','email','health','consentKvkk','consentPhoto','consentShare','docs','status','dateStr','createdAt','note'])
+        && request.resource.data.kidName is string && request.resource.data.kidName.size() > 0 && request.resource.data.kidName.size() <= 80
+        && request.resource.data.guardianName is string && request.resource.data.guardianName.size() > 0 && request.resource.data.guardianName.size() <= 80
+        && request.resource.data.phone is string && request.resource.data.phone.size() > 0 && request.resource.data.phone.size() <= 30
+        && request.resource.data.consentKvkk == true
+        && request.resource.data.status == 'new'
+        && optStr('kidDob', 20) && optStr('area', 20) && optStr('school', 80) && optStr('relation', 30)
+        && optStr('phone2', 30) && optStr('email', 80) && optStr('health', 500) && optStr('note', 500) && optStr('dateStr', 20)
+        && (!('docs' in request.resource.data) || (request.resource.data.docs is list && request.resource.data.docs.size() <= 6));
+      allow read, update, delete: if isStaff();
+    }
+
+    // Veli kaydı (doc id = veli no)
+    match /guardians/{no} {
+      allow read:  if isStaff() || (isGuardian() && prefix() == no);
+      allow write: if isManager();
+    }
+
+    // Çocuk kaydı — veli yalnızca izin/teslim/sağlık alanlarını güncelleyebilir
+    match /kids/{id} {
+      allow read:   if isStaff() || myKid(resource.data);
+      allow create, delete: if isManager();
+      allow update: if isStaff()
+        || (myKid(resource.data)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pickups','consentPhoto','consentShare','health','updatedAt']));
+    }
+
+    // Giriş/çıkış yoklaması (öğretmen/öğrenci işleri yazar, veli okur)
+    match /kidAttendance/{id} {
+      allow read:  if isStaff() || myKid(resource.data);
+      allow write: if isStaff();
+    }
+
+    match /kidSchedule/{id}      { allow read: if isStaff() || isGuardian(); allow write: if isStaff(); }
+    match /kidAnnouncements/{id} { allow read: if isStaff() || isGuardian(); allow write: if isStaff(); }
+
+    // Veli ↔ akademi mesajları
+    match /kidMessages/{id} {
+      allow read: if isStaff() || (isGuardian() && resource.data.guardianNo == prefix());
+      allow create: if isStaff()
+        || (isGuardian()
+            && request.resource.data.keys().hasOnly(['guardianNo','guardianName','kidId','kidName','text','from','read','createdAt'])
+            && request.resource.data.guardianNo == prefix()
+            && request.resource.data.from == 'guardian'
+            && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000);
+      allow update, delete: if isStaff();
+    }
   }
 }

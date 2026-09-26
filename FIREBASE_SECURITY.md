@@ -32,6 +32,7 @@ okuyabiliyor, silebiliyor, haber yükleyebiliyordu. Emülatörde doğrulandı (e
 3. `firestore.rules` → Console → Firestore → Rules → **Publish**.
 4. `storage.rules` → Console → Storage → Rules → **Publish**
    (Firestore'a erişim izni sorulursa **İzin ver**).
+   *(Alternatif: `firebase deploy --only firestore:rules,storage` — kökteki `firebase.json` hazır.)*
 5. **Yönetici (1000) çıkış yapıp tekrar giriş yapsın**, panel açık ~10 sn beklesin →
    uygulama tüm öğretmen/öğrencileri dizine otomatik yazar.
    Console'da `idx_staff` ve `idx_students` dolmuş olmalı.
@@ -46,8 +47,9 @@ okuyabiliyor, silebiliyor, haber yükleyebiliyordu. Emülatörde doğrulandı (e
 ```bash
 cd tools && npm install && npm run kural-testi     # Java 11+ gerekir
 ```
-34 senaryo: sahte hesaplar, öğretmen yetki yükseltme, öğrenci izolasyonu, site başvurusu,
-Storage yüklemeleri. Kural değiştirdiğinizde yeniden çalıştırın.
+62 senaryo: sahte hesaplar, öğretmen yetki yükseltme, öğrenci izolasyonu, yoklama sahipliği,
+site başvurusu, Storage yüklemeleri ve **Akademiya Zarokan** (veli yalnızca kendi çocuğu,
+sahte veli, başvuru doğrulama). Kural değiştirdiğinizde yeniden çalıştırın.
 
 ## Geri alma (acil durum)
 
@@ -57,17 +59,13 @@ belgenin başındaki açığı geri getirir.
 
 ## Kalan riskler (sunucu tarafı gerektirir)
 
-1. **Düz metin şifreler (`_plainPass`)** öğrenci/öğretmen belgesinde duruyor; tüm personel
-   okuyabilir. Sebep: tarayıcıdan başka kullanıcının Auth hesabını silmek/şifresini
-   değiştirmek için eski şifre gerekiyor. **Çözüm:** Blaze'e geçince Cloud Functions
-   (Admin SDK) ile `createUser / deleteUser / setPassword` fonksiyonları → `_plainPass`
-   ve `passHash` alanları kaldırılır.
+1. **Düz metin şifreler (`_plainPass`)** — çözüm hazır: `functions/` + `FUNCTIONS.md`
+   (yayınlanıp `USE_CLOUD_FUNCTIONS = true` yapılınca artık yazılmaz).
 2. **Herkese açık hesap açma (sign-up)** Firebase'de hâlâ açık (uygulama kullanıcıyı
    istemciden oluşturduğu için). v4 kuralları bunu zararsız kılar; Cloud Functions'a
    geçince Console → Authentication → Settings → User actions → **"Enable create (sign-up)"
    kapatılmalı**.
-3. `messages` / `attendance`: üye olan her öğrenci teknik olarak tüm mesajları okuyabilir,
-   başkası adına yoklama yazabilir (uygulama filtreler ama kural filtrelemez). Mesaj
-   belgesine `to/from` alanları eklenip sorgular buna göre daraltılınca kural da daraltılmalı.
+3. `messages`: üye olan her öğrenci teknik olarak tüm mesajları okuyabilir (uygulama filtreler,
+   kural filtrelemez). `attendance` ✅ daraltıldı (öğrenci yalnızca kendi adına yazar).
 4. **App Check kapalı** (`APPCHECK_SITE_KEY` boş). reCAPTCHA v3 anahtarı alınıp
    `app/index.html` içine yazılmalı → bot/otomasyon istekleri engellenir.

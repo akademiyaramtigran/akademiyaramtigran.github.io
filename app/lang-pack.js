@@ -5,6 +5,8 @@
  *   .tr         : Türkçe karşılıkları
  * AAT_SITE      : ana sayfa (site) metinleri — anahtar = SITE_T anahtarı
  * AAT_SITE_AREA : sanat alanı adları (site)
+ * AAT_ZAROK     : Akademiya Zarokan veli uygulaması (anahtar = zarok/app sözlük anahtarı)
+ * AAT_ZAROK_SITE: Akademiya Zarokan tanıtım/başvuru sayfası
  * Elle düzenlemeyin; rapor JSON'larını tools/dil-entegre.js ile birleştirin. */
 window.AAT_TX={"ku":{},"zz":{},"tr":{"📥 Kart tê amadekirin…":"📥 Kart hazırlanıyor…",
 "⚠ Ji kerema xwe dîsa biceribîne (hîn bar dibe)":"⚠ Lütfen tekrar deneyin (hâlâ yükleniyor)",
@@ -823,6 +825,50 @@ window.AAT_TX={"ku":{},"zz":{},"tr":{"📥 Kart tê amadekirin…":"📥 Kart ha
 "⚠ Tenê lokalî hate jêbirin — Firebase ID tune":"⚠ Öğrenci yalnızca yerelde silindi (Firebase ID yok)",
 "❌ Jêbirin serneket — girêdan kontrol bike":"❌ Silinemedi — bağlantıyı kontrol edin",
 "Şîfreya nû (min 6 tîp)":"Yeni şifre (en az 6 karakter)",
-"⚠ Şîfre divê herî kêm 6 tîp be":"⚠ Şifre en az 6 karakter olmalı"}};
+"⚠ Şîfre divê herî kêm 6 tîp be":"⚠ Şifre en az 6 karakter olmalı",
+"Dêûbav? Têketina Akademiya Zarokan →":"Veli misiniz? Çocuk Akademisi uygulamasına giriş →",
+"Ev serlêdan were jêbirin?":"Bu başvuru silinsin mi?",
+"Tomara zarokê were jêbirin?":"Çocuğun kaydı silinsin mi?",
+"⚠ Ji bo vê yekê Cloud Functions pêwîst e (FUNCTIONS.md)":"⚠ Bunun için Cloud Functions gerekli (FUNCTIONS.md)",
+"⚠ Navê dersê pêwîst e":"⚠ Ders adı gerekli",
+"⚠ Sernav û nivîs pêwîst in":"⚠ Başlık ve metin gerekli",
+"✅ Ji dêûbavan re hat şandin":"✅ Velilere gönderildi",
+"Zarok û Dêûbav":"Çocuklar ve Veliler",
+"Firebase girêdayî nîne.":"Firebase bağlı değil.",
+"Akademiya Zarokan":"Çocuk Akademisi",
+"Tenê dêûbav têketin dikin · sepan:":"Yalnızca veliler giriş yapar · uygulama:",
+"Şîfreya nû":"Yeni şifre",
+"Zarok hate tomarkirin":"Çocuk kaydedildi",
+"Jimara zarokê":"Çocuk no",
+"Dêûbav":"Veli",
+"Jimara têketinê":"Giriş no",
+"Dêûbav berê hesab heye — zarok li hesabê wî/wê hat zêdekirin.":"Velinin zaten hesabı var — çocuk bu hesaba eklendi.",
+"Van agahiyan bide dêûbav. Têketin: ":"Bu bilgileri veliye verin. Giriş adresi: ",
+"✉ Agahiyên têketinê bi e-peyamê çûn.":"✉ Giriş bilgileri e-postayla gönderildi.",
+"🔴 Serlêdana zarokan GIRTÎ ye":"🔴 Çocuk başvuruları KAPALI",
+"🟢 Serlêdana zarokan VEKIRÎ ye":"🟢 Çocuk başvuruları AÇIK",
+"Veke":"Aç",
+"Têkiliya acil":"Acil durum kişisi",
+"wêne":"fotoğraf",
+"parvekirin":"paylaşım",
+"zarok":"çocuk",
+"dêûbav":"veli",
+"Hîn zarok nehatiye tomarkirin.":"Henüz çocuk kaydı yok.",
+"Dikarin zarokê bibin":"Çocuğu alabilir",
+"Dêûbav di cih de agahdar dibin":"Veliler anında bilgilendirilir",
+"hîn nehatiye":"henüz gelmedi",
+"Hate teslîmkirin":"Teslim edildi",
+"Di dersê de":"Derste",
+"Hat":"Geldi",
+"Çû":"Çıktı",
+"Navê dersê (mînak: Muzîka Zarokan)":"Ders adı (örn. Çocuk Müziği)",
+"Ode":"Sınıf",
+"Dersê Zêde Bike":"Ders Ekle",
+"Ji bo dêûbavan nivîs…":"Velilere mesaj…",
+"Ji Dêûbavan re Bişîne":"Velilere Gönder",
+"Hîn peyam tune.":"Henüz mesaj yok.",
+"Bersiv binivîse…":"Yanıt yazın…"}};
 window.AAT_SITE={"ku":{},"zz":{}};
 window.AAT_SITE_AREA={"ku":{},"zz":{}};
+window.AAT_ZAROK={"ku":{},"zz":{}};
+window.AAT_ZAROK_SITE={"ku":{},"zz":{}};

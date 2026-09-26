@@ -31,9 +31,17 @@ service firebase.storage {
     function member() { return isStaff() || isStudent(); }
     function isImage(max) { return request.resource.contentType.matches('image/.*') && request.resource.size < max; }
 
-    match /photos/{allPaths=**} {
-      allow read:  if member();
-      allow write: if member() && (request.resource == null || isImage(5 * 1024 * 1024));
+    // Profil fotoğrafları: photos/students/<fireId>.jpg — öğrenci yalnızca KENDİ fotoğrafını
+    // yükler (belge sahibi Firestore'dan doğrulanır); personel hepsini yönetir.
+    match /photos/students/{file} {
+      allow read:   if member();
+      allow create, update: if isImage(5 * 1024 * 1024) && (isStaff() || (isStudent()
+        && string(firestore.get(/databases/(default)/documents/students/$(file.split('[.]')[0])).data.no) == prefix()));
+      allow delete: if isStaff();
+    }
+    match /photos/teachers/{file} {
+      allow read:   if member();
+      allow write:  if isStaff() && (request.resource == null || isImage(5 * 1024 * 1024));
     }
 
     // Haber medyası (basın paneli): site herkese açık gösterir → okuma serbest;
@@ -47,6 +55,16 @@ service firebase.storage {
                        || (request.resource.contentType.matches('text/.*')
                         && request.resource.size < 2 * 1024 * 1024));
       allow delete: if isStaff();
+    }
+
+    // Çocuk akademisi başvuru belgeleri — yalnızca Zarok başvuru dönemi açıkken
+    match /zarok-applications/{allPaths=**} {
+      allow read:   if isStaff();
+      allow create: if request.resource.size < 8 * 1024 * 1024
+                    && (request.resource.contentType.matches('image/.*')
+                        || request.resource.contentType == 'application/pdf')
+                    && firestore.get(/databases/(default)/documents/config/zarok).data.open == true;
+      allow update, delete: if isStaff();
     }
 
     match /applications/{allPaths=**} {

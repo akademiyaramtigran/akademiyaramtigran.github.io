@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="ku">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://www.gstatic.com http://127.0.0.1:9099 http://127.0.0.1:8080 ws://127.0.0.1:8080; base-uri 'self'; form-action 'self'"/>
+<meta name="referrer" content="strict-origin-when-cross-origin"/>
+<meta name="theme-color" content="#0f2f38"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Zarok"/>
+<meta name="robots" content="noindex"/>
+<title>Akademiya Zarokan — Dêûbav</title>
+<link rel="manifest" href="manifest.webmanifest"/>
+<link rel="icon" type="image/png" href="icons/icon-192.png"/>
+<link rel="apple-touch-icon" href="icons/apple-180.png"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#fffaf2; --card:#ffffff; --ink:#1d2b33; --muted:#6b7a85; --line:#efe6d8;
+  --brand:#0f2f38; --brand2:#12505c; --sun:#ffc93c; --coral:#ff7a59; --grass:#3bb273; --sky:#4aa3df; --plum:#9b6bd3;
+  --soft:#fff3dc; --ok:#1f9d5b; --bad:#d9463b;
+  --r:22px; --shadow:0 6px 18px rgba(15,47,56,.08);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0c1a1f; --card:#13262d; --ink:#eef4f6; --muted:#9db0b8; --line:#1f3942; --soft:#1b3038; --shadow:0 6px 18px rgba(0,0,0,.3);
+}}
+:root[data-theme="dark"]{--bg:#0c1a1f;--card:#13262d;--ink:#eef4f6;--muted:#9db0b8;--line:#1f3942;--soft:#1b3038;--shadow:0 6px 18px rgba(0,0,0,.3)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:Nunito,"Segoe UI",system-ui,sans-serif;font-size:16.5px;line-height:1.45;-webkit-text-size-adjust:100%}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+#app{min-height:100%;display:flex;flex-direction:column;max-width:560px;margin:0 auto}
+.demo{background:var(--coral);color:#fff;text-align:center;font-weight:800;font-size:13px;padding:6px calc(10px + env(safe-area-inset-right)) 6px}
+.top{padding:calc(14px + env(safe-area-inset-top)) 16px 10px;display:flex;align-items:center;gap:10px}
+.top .logo{width:42px;height:42px;border-radius:14px;flex-shrink:0}
+.top .t1{font-weight:900;font-size:18px;line-height:1.1}
+.top .t2{font-size:12.5px;color:var(--muted);font-weight:700}
+.iconbtn{margin-left:auto;width:46px;height:46px;border-radius:16px;border:none;background:var(--card);box-shadow:var(--shadow);font-size:21px}
+.kids{display:flex;gap:8px;overflow-x:auto;padding:4px 16px 10px;scrollbar-width:none}
+.kidchip{display:flex;align-items:center;gap:8px;padding:8px 14px 8px 8px;border-radius:999px;border:2px solid transparent;background:var(--card);box-shadow:var(--shadow);font-weight:800;white-space:nowrap}
+.kidchip.on{border-color:var(--brand);background:var(--soft)}
+.av{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:19px;flex-shrink:0}
+main{flex:1;padding:4px 16px calc(96px + env(safe-area-inset-bottom))}
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
+.h{font-weight:900;font-size:17px;margin:4px 0 10px}
+.muted{color:var(--muted);font-size:14px}
+.status{border-radius:var(--r);padding:18px;color:#fff;display:flex;gap:14px;align-items:center;margin-bottom:14px;box-shadow:var(--shadow)}
+.status .big{font-size:40px;line-height:1}
+.status .s1{font-weight:900;font-size:19px}
+.status .s2{opacity:.92;font-weight:700;font-size:14px}
+.lesson{display:flex;gap:12px;align-items:center;padding:12px;border-radius:18px;background:var(--soft);margin-bottom:8px}
+.lesson .em{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;font-size:26px;flex-shrink:0}
+.lesson b{display:block;font-size:16px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px dashed var(--line)}
+.row:last-child{border-bottom:none}
+.pill{font-size:12.5px;font-weight:800;padding:3px 10px;border-radius:999px;white-space:nowrap}
+.btn{border:none;border-radius:16px;padding:14px 18px;font-weight:900;font-size:16px;background:var(--brand);color:#fff;min-height:52px;width:100%}
+.btn.alt{background:var(--soft);color:var(--ink)}
+.btn.coral{background:var(--coral)}
+.btn.sm{width:auto;min-height:44px;padding:10px 14px;font-size:14.5px}
+input.in,textarea.in,select.in{width:100%;border:2px solid var(--line);background:var(--card);border-radius:16px;padding:13px 14px;font-size:16px;outline:none;min-height:52px}
+input.in:focus,textarea.in:focus{border-color:var(--brand2)}
+label.lb{display:block;font-weight:800;font-size:14px;margin:12px 0 6px}
+.nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);box-shadow:0 -6px 18px rgba(0,0,0,.07);padding:8px 8px calc(8px + env(safe-area-inset-bottom));display:flex;justify-content:center;z-index:20}
+.nav .in2{display:flex;gap:4px;max-width:560px;width:100%}
+.nav button{flex:1;border:none;background:none;border-radius:16px;padding:6px 2px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11.5px;font-weight:800;color:var(--muted);min-height:56px;position:relative}
+.nav button .e{font-size:23px}
+.nav button.on{background:var(--soft);color:var(--ink)}
+.dot{position:absolute;top:4px;right:calc(50% - 20px);background:var(--bad);color:#fff;border-radius:9px;font-size:10.5px;padding:0 5px;min-width:17px}
+.bubble{max-width:82%;padding:10px 13px;border-radius:18px;margin:6px 0;white-space:pre-wrap;font-size:15px}
+.bubble.me{background:var(--brand);color:#fff;margin-left:auto;border-bottom-right-radius:6px}
+.bubble.them{background:var(--soft);border-bottom-left-radius:6px}
+.toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#1d2b33;color:#fff;padding:12px 18px;border-radius:16px;font-weight:800;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:92vw;text-align:center}
+.sheet-bd{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:40}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-height:92vh;overflow:auto;background:var(--bg);border-radius:26px 26px 0 0;z-index:41;padding:10px 16px calc(24px + env(safe-area-inset-bottom));max-width:560px;margin:0 auto}
+.grab{width:44px;height:5px;border-radius:3px;background:var(--line);margin:4px auto 12px}
+.langs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.langs button{border:2px solid var(--line);background:var(--card);border-radius:14px;padding:10px 4px;font-weight:800;font-size:13.5px;min-height:48px}
+.langs button.on{border-color:var(--brand);background:var(--soft)}
+.sw{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0}
+.tg{width:54px;height:32px;border-radius:16px;background:var(--line);position:relative;border:none;flex-shrink:0}
+.tg::after{content:"";position:absolute;top:4px;left:4px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.tg.on{background:var(--grass)}.tg.on::after{left:26px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--soft);border-radius:999px;padding:6px 12px;margin:0 6px 6px 0;font-weight:700;font-size:14px}
+.chip button{border:none;background:none;font-size:15px;padding:0 2px}
+/* Giriş */
+.login{flex:1;display:flex;flex-direction:column;justify-content:center;padding:calc(24px + env(safe-area-inset-top)) 22px 30px}
+.login .hero{text-align:center;margin-bottom:22px}
+.login .hero img{width:96px;height:96px;border-radius:28px;box-shadow:var(--shadow)}
+.login h1{font-size:26px;font-weight:900;margin:14px 0 4px}
+.login .tag{display:inline-block;background:var(--soft);border-radius:999px;padding:4px 12px;font-weight:800;font-size:13px}
+.err{color:var(--bad);font-weight:800;font-size:14px;margin-top:10px;min-height:20px}
+.links{text-align:center;margin-top:14px;display:flex;flex-direction:column;gap:10px}
+.links a,.links button{color:var(--brand2);font-weight:800;background:none;border:none;text-decoration:none;font-size:14.5px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .links a,:root:not([data-theme="light"]) .links button{color:#9fd3dc}}
+/* Zarok modu */
+.kidmode{position:fixed;inset:0;z-index:80;background:linear-gradient(160deg,#fff4d6,#ffe1d6 55%,#d9f3e6);color:#1d2b33;overflow:auto;padding:calc(18px + env(safe-area-inset-top)) 18px calc(30px + env(safe-area-inset-bottom))}
+.kidmode h2{font-size:30px;font-weight:900;margin:6px 0 4px}
+.kgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+.ktile{border:none;border-radius:28px;padding:20px 12px;min-height:130px;color:#fff;font-weight:900;font-size:19px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;box-shadow:0 8px 0 rgba(0,0,0,.12)}
+.ktile .k{font-size:46px}
+.klock{position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));width:52px;height:52px;border-radius:50%;border:none;background:rgba(0,0,0,.08);font-size:22px;z-index:81}
+.stars{font-size:34px;letter-spacing:2px;word-break:break-all}
+canvas.draw{width:100%;height:58vh;background:#fff;border-radius:24px;touch-action:none;box-shadow:inset 0 0 0 3px #f1e3c6}
+.pal{display:flex;gap:10px;justify-content:center;margin:12px 0;flex-wrap:wrap}
+.pal button{width:46px;height:46px;border-radius:50%;border:4px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+.pal button.on{outline:4px solid #1d2b33}
+.pin{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:300px;margin:16px auto}
+.pin button{height:64px;border-radius:20px;border:none;background:#fff;font-size:24px;font-weight:900;box-shadow:0 3px 0 rgba(0,0,0,.1)}
+.pindots{display:flex;gap:12px;justify-content:center;margin:10px}
+.pindots i{width:16px;height:16px;border-radius:50%;background:#e4d3b3}
+.pindots i.on{background:#1d2b33}
+.center{text-align:center}
+.spin{display:grid;place-items:center;flex:1;font-weight:800;color:var(--muted)}
+</style>
+</head>
+<body>
+<div id="app"><div class="spin">…</div></div>
+
+<!-- Metinler: ku (kaynak) · tr · en — zz boş bırakılırsa Kurmancî gösterilir.
+     Akademisyen raporlarından gelen Zazakî/Kurmancî düzeltmeleri lang-pack.js → AAT_ZAROK ile birleşir. -->
+<script id="zt" type="application/json">
+{
+ "ku":{
+  "appTitle":"Akademiya Zarokan","appSub":"Akademîya Aram Tîgran","parentLogin":"Têketina Dêûbavan",
+  "loginNote":"Ev sepan tenê ji bo dêûbavan e. Jimara têketinê û şîfre piştî qebûlkirina serlêdanê ji we re tên şandin.",
+  "no":"Jimara dêûbav","pass":"Şîfre","signIn":"Têkeve","forgot":"Şîfre ji bîr kir?",
+  "forgotTxt":"Ji Karûbarên Xwendekaran re binivîse (info@aramtigran.edu) an jî telefon bike — şîfreyeke nû ji we re tê şandin.",
+  "errCred":"Jimare an şîfre xelet e.","errNotGuardian":"Ev hesab ne hesabê dêûbav e. Xwendekar û mamoste ji sepana sereke têkevin.",
+  "errNet":"Girêdan tune. Dîsa biceribîne.","toMainApp":"Xwendekar an mamoste? Sepana sereke →","toSite":"Derbarê Akademiya Zarokan / Serlêdan →",
+  "demoBanner":"DEMO — daneyên mînak, ne rastîn","demoLogin":"Mînakê bibîne (demo)",
+  "tabToday":"Îro","tabSched":"Bername","tabAtt":"Amadebûn","tabAnn":"Ragihandin","tabMsg":"Peyam",
+  "hello":"Silav, {0}","statusIn":"Di dersê de ye","statusOut":"Hate teslîmkirin","statusNone":"Îro hîn nehatiye",
+  "since":"ji {0} ve","at":"saet {0}","todayLessons":"Dersên îro","noLessonsToday":"Îro ders tune 🌤",
+  "week":"Bernameya hefteyê","noSched":"Hîn bername nehatiye danîn.","att30":"30 rojên dawî","attDays":"{0} roj hat",
+  "arrived":"Hat","left":"Çû","noAtt":"Hîn tomar tune.","noAnn":"Ragihandin tune.",
+  "msgHint":"Peyama we diçe Karûbarên Xwendekaran; bersiv li vir xuya dibe.","msgPh":"Peyamek binivîse…","send":"Bişîne","noMsg":"Hîn peyam tune.","academy":"Akademî",
+  "settings":"Mîheng","language":"Ziman","theme":"Tarî / ronahî",
+  "kidMode":"Moda Zarokan","kidModeDesc":"Telefonê bide zarokê xwe: tenê ekrana wî/wê ya taybet xuya dibe (bê peyam, bê mîheng). Ji bo derketinê PIN-a dêûbav pêwîst e.",
+  "setPin":"PIN-a dêûbav (4 hejmar)","pinSaved":"✅ PIN hate tomarkirin","pinNeed":"⚠ 4 hejmar binivîse","startKidMode":"▶ Moda Zarokan Veke",
+  "exitKid":"Ji bo derketinê PIN-a dêûbav","exitMath":"Ji bo derketinê bersivê bide: {0}","wrong":"Xelet — dîsa biceribîne",
+  "perms":"Destûr û ewlehî","pickups":"Kesên ku dikarin zarokê bibin","pickupPh":"Nav — yekîtî (mînak: Xalê Rênas)","add":"Zêde bike",
+  "consentPhoto":"Di dersê de wêne/vîdyo were kişandin","consentShare":"Wêne li ser malperê were parvekirin",
+  "health":"Nîşeya tenduristiyê (alerjî, derman…)","save":"Tomar bike","saved":"✅ Hate tomarkirin",
+  "changePass":"Şîfreyê biguherîne","curPass":"Şîfreya niha","newPass":"Şîfreya nû (herî kêm 6 tîp)","passChanged":"✅ Şîfre hate guhertin","passShort":"⚠ Herî kêm 6 tîp",
+  "install":"Sepanê saz bike","installIos":"Safari → Parve bike ⬆ → «Li Ekrana Sereke Zêde Bike»","installed":"✅ Sepan sazkirî ye",
+  "notif":"Agahdarî","notifNote":"Dema zarok dikeve dersê an tê teslîmkirin, agahdarî tê (dema sepan vekirî be).","notifOn":"✅ Agahdarî çalak e",
+  "logout":"Derkeve","kvkk":"KVKK / Nepenî","evIn":"🟢 {0} ket dersê","evOut":"🏠 {0} hate teslîmkirin",
+  "kidHello":"Silav {0}! 👋","kidToday":"Îro","kidStars":"Stêrkên min","kidDraw":"Wêne çêke","kidClear":"Paqij bike","kidBack":"← Vegere",
+  "kidNoLesson":"Îro betlane ye! 🎈","kidStarsNote":"Her car ku tu tê dersê, stêrkek! ⭐",
+  "noKids":"Hîn zarok bi hesabê we ve girêdayî nîne. Ji Karûbarên Xwendekaran bipirsin.","loading":"Tê barkirin…","offline":"Girêdan tune — daneyên dawî",
+  "teacher":"Mamoste","room":"Ode",
+  "d0":"Yekşem","d1":"Duşem","d2":"Sêşem","d3":"Çarşem","d4":"Pêncşem","d5":"În","d6":"Şemî",
+  "area_muzik":"Muzîk","area_tiyatro":"Şano","area_sinema":"Sînema","area_dans":"Dans","area_edebiyat":"Çîrok û Wêje","area_wenesazi":"Wênesazî"
+ },
+ "tr":{
+  "appTitle":"Çocuk Akademisi","appSub":"Aram Tîgran Akademisi","parentLogin":"Veli Girişi",
+  "loginNote":"Bu uygulama yalnızca veliler içindir. Giriş numaranız ve şifreniz başvurunuz kabul edildiğinde size gönderilir.",
+  "no":"Veli numarası","pass":"Şifre","signIn":"Giriş Yap","forgot":"Şifremi unuttum",
+  "forgotTxt":"Öğrenci işlerine yazın (info@aramtigran.edu) veya arayın — size yeni bir şifre gönderilir.",
+  "errCred":"Numara veya şifre hatalı.","errNotGuardian":"Bu hesap bir veli hesabı değil. Öğrenci ve öğretmenler ana uygulamadan giriş yapar.",
+  "errNet":"Bağlantı yok. Tekrar deneyin.","toMainApp":"Öğrenci veya öğretmen misiniz? Ana uygulama →","toSite":"Çocuk Akademisi hakkında / Başvuru →",
+  "demoBanner":"DEMO — örnek veriler, gerçek değil","demoLogin":"Örneği gör (demo)",
+  "tabToday":"Bugün","tabSched":"Program","tabAtt":"Devam","tabAnn":"Duyurular","tabMsg":"Mesaj",
+  "hello":"Merhaba, {0}","statusIn":"Derste","statusOut":"Teslim edildi","statusNone":"Bugün henüz gelmedi",
+  "since":"{0}'dan beri","at":"saat {0}","todayLessons":"Bugünkü dersler","noLessonsToday":"Bugün ders yok 🌤",
+  "week":"Haftalık program","noSched":"Henüz program girilmedi.","att30":"Son 30 gün","attDays":"{0} gün geldi",
+  "arrived":"Geldi","left":"Ayrıldı","noAtt":"Henüz kayıt yok.","noAnn":"Duyuru yok.",
+  "msgHint":"Mesajınız öğrenci işlerine gider; yanıt burada görünür.","msgPh":"Mesaj yazın…","send":"Gönder","noMsg":"Henüz mesaj yok.","academy":"Akademi",
+  "settings":"Ayarlar","language":"Dil","theme":"Koyu / açık",
+  "kidMode":"Çocuk Modu","kidModeDesc":"Telefonu çocuğunuza verin: yalnızca ona özel ekran görünür (mesaj ve ayar yok). Çıkmak için veli PIN'i gerekir.",
+  "setPin":"Veli PIN'i (4 rakam)","pinSaved":"✅ PIN kaydedildi","pinNeed":"⚠ 4 rakam girin","startKidMode":"▶ Çocuk Modunu Aç",
+  "exitKid":"Çıkmak için veli PIN'i","exitMath":"Çıkmak için cevaplayın: {0}","wrong":"Yanlış — tekrar deneyin",
+  "perms":"İzinler ve güvenlik","pickups":"Çocuğu alabilecek kişiler","pickupPh":"Ad — yakınlık (ör. Dayısı Rênas)","add":"Ekle",
+  "consentPhoto":"Derste fotoğraf/video çekilebilir","consentShare":"Fotoğraf sitede paylaşılabilir",
+  "health":"Sağlık notu (alerji, ilaç…)","save":"Kaydet","saved":"✅ Kaydedildi",
+  "changePass":"Şifre değiştir","curPass":"Mevcut şifre","newPass":"Yeni şifre (en az 6 karakter)","passChanged":"✅ Şifre değiştirildi","passShort":"⚠ En az 6 karakter",
+  "install":"Uygulamayı yükle","installIos":"Safari → Paylaş ⬆ → «Ana Ekrana Ekle»","installed":"✅ Uygulama yüklü",
+  "notif":"Bildirimler","notifNote":"Çocuğunuz derse girdiğinde veya teslim edildiğinde bildirim gelir (uygulama açıkken).","notifOn":"✅ Bildirimler açık",
+  "logout":"Çıkış yap","kvkk":"KVKK Aydınlatma Metni","evIn":"🟢 {0} derse girdi","evOut":"🏠 {0} teslim edildi",
+  "kidHello":"Merhaba {0}! 👋","kidToday":"Bugün","kidStars":"Yıldızlarım","kidDraw":"Resim yap","kidClear":"Temizle","kidBack":"← Geri",
+  "kidNoLesson":"Bugün tatil! 🎈","kidStarsNote":"Derse her gelişinde bir yıldız! ⭐",
+  "noKids":"Hesabınıza bağlı çocuk yok. Öğrenci işlerine başvurun.","loading":"Yükleniyor…","offline":"Bağlantı yok — son veriler",
+  "teacher":"Öğretmen","room":"Sınıf",
+  "d0":"Pazar","d1":"Pazartesi","d2":"Salı","d3":"Çarşamba","d4":"Perşembe","d5":"Cuma","d6":"Cumartesi",
+  "area_muzik":"Müzik","area_tiyatro":"Tiyatro","area_sinema":"Sinema","area_dans":"Dans","area_edebiyat":"Masal ve Edebiyat","area_wenesazi":"Resim"
+ },
+ "en":{
+  "appTitle":"Kids Academy","appSub":"Aram Tîgran Academy","parentLogin":"Parent Sign-in",
+  "loginNote":"This app is for parents only. Your login number and password are sent to you when the application is accepted.",
+  "no":"Parent number","pass":"Password","signIn":"Sign in","forgot":"Forgot password?",
+  "forgotTxt":"Write to Student Affairs (info@aramtigran.edu) or call — a new password will be sent to you.",
+  "errCred":"Wrong number or password.","errNotGuardian":"This is not a parent account. Students and teachers sign in to the main app.",
+  "errNet":"No connection. Please try again.","toMainApp":"Student or teacher? Main app →","toSite":"About the Kids Academy / Apply →",
+  "demoBanner":"DEMO — sample data, not real","demoLogin":"See a sample (demo)",
+  "tabToday":"Today","tabSched":"Schedule","tabAtt":"Attendance","tabAnn":"News","tabMsg":"Messages",
+  "hello":"Hello, {0}","statusIn":"In class","statusOut":"Picked up","statusNone":"Not arrived today",
+  "since":"since {0}","at":"at {0}","todayLessons":"Today's lessons","noLessonsToday":"No lessons today 🌤",
+  "week":"Weekly schedule","noSched":"No schedule yet.","att30":"Last 30 days","attDays":"Came {0} days",
+  "arrived":"Arrived","left":"Left","noAtt":"No records yet.","noAnn":"No announcements.",
+  "msgHint":"Your message goes to Student Affairs; replies appear here.","msgPh":"Write a message…","send":"Send","noMsg":"No messages yet.","academy":"Academy",
+  "settings":"Settings","language":"Language","theme":"Dark / light",
+  "kidMode":"Kid Mode","kidModeDesc":"Hand the phone to your child: only their own screen is shown (no messages, no settings). The parent PIN is needed to exit.",
+  "setPin":"Parent PIN (4 digits)","pinSaved":"✅ PIN saved","pinNeed":"⚠ Enter 4 digits","startKidMode":"▶ Start Kid Mode",
+  "exitKid":"Parent PIN to exit","exitMath":"Answer to exit: {0}","wrong":"Wrong — try again",
+  "perms":"Permissions & safety","pickups":"People who may pick up","pickupPh":"Name — relation (e.g. Uncle Rênas)","add":"Add",
+  "consentPhoto":"Photos/videos may be taken in class","consentShare":"Photos may be shared on the website",
+  "health":"Health note (allergy, medication…)","save":"Save","saved":"✅ Saved",
+  "changePass":"Change password","curPass":"Current password","newPass":"New password (min 6 chars)","passChanged":"✅ Password changed","passShort":"⚠ At least 6 characters",
+  "install":"Install app","installIos":"Safari → Share ⬆ → «Add to Home Screen»","installed":"✅ App installed",
+  "notif":"Notifications","notifNote":"Get notified when your child checks in or is picked up (while the app is open).","notifOn":"✅ Notifications on",
+  "logout":"Sign out","kvkk":"Privacy notice (KVKK)","evIn":"🟢 {0} checked in","evOut":"🏠 {0} was picked up",
+  "kidHello":"Hi {0}! 👋","kidToday":"Today","kidStars":"My stars","kidDraw":"Draw","kidClear":"Clear","kidBack":"← Back",
+  "kidNoLesson":"No class today! 🎈","kidStarsNote":"A star every time you come to class! ⭐",
+  "noKids":"No child is linked to your account yet. Please contact Student Affairs.","loading":"Loading…","offline":"Offline — last data",
+  "teacher":"Teacher","room":"Room",
+  "d0":"Sunday","d1":"Monday","d2":"Tuesday","d3":"Wednesday","d4":"Thursday","d5":"Friday","d6":"Saturday",
+  "area_muzik":"Music","area_tiyatro":"Theatre","area_sinema":"Cinema","area_dans":"Dance","area_edebiyat":"Stories & Literature","area_wenesazi":"Painting"
+ },
+ "zz":{}
+}
+</script>
+<script src="../../app/lang-pack.js"></script>
+<script type="module">
+// ════════════════════════════════════════════════════════════════════════
+//  Akademiya Zarokan — VELİ uygulaması (yalnızca veli girişi)
+//  • Giriş: <veliNo>@veli.aat (Firebase Auth). Çocuğun kendi hesabı yoktur.
+//  • Veri: guardians · kids · kidAttendance · kidSchedule · kidAnnouncements · kidMessages
+//  • ?demo=1 → Firebase'e bağlanmadan örnek verilerle çalışır.
+// ════════════════════════════════════════════════════════════════════════
+const FB_CONFIG = {
+  apiKey: "AIzaSyDwzScCH_NTnpEfmSlgIRlOkGivMWc9bGw",
+  authDomain: "aram2026-a9fd7.firebaseapp.com",
+  projectId: "aram2026-a9fd7",
+  storageBucket: "aram2026-a9fd7.firebasestorage.app",
+  messagingSenderId: "326496145672",
+  appId: "1:326496145672:web:199c6cdd6db08ac3ea9cbd"
+};
+const SDK = "https://www.gstatic.com/firebasejs/10.12.0/";
+const MAIN_APP = "../../app/";           // alan adı ayrılınca: "https://akademiyaramtigran.github.io/app/"
+const SITE = "../";                       // Zarok tanıtım/başvuru sayfası
+const KVKK = "../../kvkk.html";
+const Q = new URLSearchParams(location.search);
+const DEMO = Q.has("demo");
+const EMU = Q.has("emu");                 // yerel test: Firebase emülatörleri
+
+// ── Dil ──────────────────────────────────────────────────────────────────
+const ZT = JSON.parse(document.getElementById("zt").textContent);
+(function mergePack(){ const P = window.AAT_ZAROK || {}; Object.keys(P).forEach(l => { ZT[l] = Object.assign({}, ZT[l] || {}, P[l]); }); })();
+const LANGS = [["ku","Kurmancî"],["zz","Zazakî"],["tr","Türkçe"],["en","English"]];
+let lang = (() => { try { const v = localStorage.getItem("zarok-lang"); return LANGS.some(l => l[0] === v) ? v : "ku"; } catch (_) { return "ku"; } })();
+const T = (k, ...a) => { const s = (ZT[lang] && ZT[lang][k]) || ZT.ku[k] || k; return s.replace(/\{(\d+)\}/g, (m, i) => a[+i] == null ? "" : a[+i]); };
+const AREA = { muzik:["🎵","#9b6bd3"], tiyatro:["🎭","#ff7a59"], sinema:["🎬","#4aa3df"], dans:["💃","#e0559b"], edebiyat:["📖","#3bb273"], wenesazi:["🎨","#f0a92e"] };
+const areaEm = a => (AREA[a] || ["⭐","#12505c"]);
+const areaTxt = a => a ? T("area_" + a) : "";
+
+// ── Durum ────────────────────────────────────────────────────────────────
+const S = {
+  phase: "boot", err: "", user: null, guardian: null, kids: [], kidIdx: 0, tab: "today",
+  att: [], sched: [], anns: [], msgs: [], sheet: null, kidMode: null, toast: "", online: navigator.onLine,
+  drafts: {}, seenAtt: null, lastAnnSeen: +(localStorage.getItem("zarok-ann-seen") || 0), lastMsgSeen: +(localStorage.getItem("zarok-msg-seen") || 0)
+};
+let FB = null; // { auth, db, fs:{...}, au:{...} }
+const unsubs = [];
+
+// ── Küçük DOM yardımcıları (metin her zaman textContent — XSS'e kapalı) ─
+function h(tag, props, ...kids) {
+  const el = document.createElement(tag);
+  if (props) for (const [k, v] of Object.entries(props)) {
+    if (v == null || v === false) continue;
+    if (k === "class") el.className = v;
+    else if (k === "style") el.setAttribute("style", v);
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (k === "value") el.value = v;
+    else el.setAttribute(k, v === true ? "" : v);
+  }
+  for (const c of kids.flat(9)) { if (c == null || c === false) continue; el.appendChild(typeof c === "object" ? c : document.createTextNode(String(c))); }
+  return el;
+}
+const timeOf = iso => { try { return new Date(iso).toLocaleTimeString(lang === "en" ? "en-GB" : "tr-TR", { hour: "2-digit", minute: "2-digit" }); } catch (_) { return ""; } };
+const todayStr = () => new Date().toISOString().slice(0, 10);
+const tsMs = t => t ? (t.toMillis ? t.toMillis() : t.seconds ? t.seconds * 1000 : +new Date(t)) : 0;
+function toast(msg, ms) { S.toast = msg; render(); clearTimeout(toast._t); toast._t = setTimeout(() => { S.toast = ""; render(); }, ms || 2600); }
+function vib(p) { try { navigator.vibrate && navigator.vibrate(p || 20); } catch (_) {} }
+
+// ── Firebase ─────────────────────────────────────────────────────────────
+async function initFirebase() {
+  const [appM, authM, fsM] = await Promise.all([import(SDK + "firebase-app.js"), import(SDK + "firebase-auth.js"), import(SDK + "firebase-firestore.js")]);
+  // Ayrı uygulama adı → ana akademi uygulamasının oturumuyla KARIŞMAZ (aynı alan adında olsa bile)
+  const app = appM.initializeApp(FB_CONFIG, "zarok");
+  const auth = authM.getAuth(app);
+  const db = fsM.getFirestore(app);
+  if (EMU) { authM.connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true }); fsM.connectFirestoreEmulator(db, "127.0.0.1", 8080); }
+  FB = { app, auth, db, fs: fsM, au: authM };
+  authM.onAuthStateChanged(auth, u => { if (u) onSignedIn(u); else { cleanup(); S.user = null; S.phase = "login"; render(); } });
+}
+function cleanup() { while (unsubs.length) { try { unsubs.pop()(); } catch (_) {} } S.kids = []; S.att = []; S.sched = []; S.anns = []; S.msgs = []; S.seenAtt = null; }
+
+async function signIn(no, pass) {
+  S.err = "";
+  const clean = String(no || "").replace(/[^A-Za-z0-9]/g, "");
+  if (!clean || !pass) { S.err = T("errCred"); render(); return; }
+  if (DEMO) { startDemo(); return; }
+  try { await FB.au.signInWithEmailAndPassword(FB.auth, clean + "@veli.aat", pass); }
+  catch (e) {
+    S.err = /network/.test(e.code || "") ? T("errNet") : T("errCred"); render();
+  }
+}
+async function onSignedIn(u) {
+  const email = u.email || "";
+  if (!/@veli\.aat$/i.test(email)) { await FB.au.signOut(FB.auth); S.phase = "login"; S.err = T("errNotGuardian"); render(); return; }
+  const no = email.split("@")[0];
+  S.phase = "loading"; S.user = { no }; render();
+  const { doc, getDoc, collection, query, where, orderBy, limit, onSnapshot } = FB.fs;
+  try {
+    const g = await getDoc(doc(FB.db, "guardians", no));
+    if (!g.exists()) throw { code: "permission-denied" };
+    S.guardian = { no, ...g.data() };
+  } catch (e) {
+    await FB.au.signOut(FB.auth); S.phase = "login"; S.err = e.code === "unavailable" ? T("errNet") : T("errNotGuardian"); render(); return;
+  }
+  cleanup();
+  const listen = (q, fn) => unsubs.push(onSnapshot(q, snap => { fn(snap.docs.map(d => ({ ...d.data(), id: d.id }))); render(); }, err => console.warn("[zarok]", err.code)));
+  listen(query(collection(FB.db, "kids"), where("guardianNos", "array-contains", no)), v => { S.kids = v.sort((a, b) => (a.name || "").localeCompare(b.name || "")); if (S.kidIdx >= S.kids.length) S.kidIdx = 0; });
+  listen(query(collection(FB.db, "kidAttendance"), where("guardianNos", "array-contains", no)), v => { notifyNewAtt(v); S.att = v.sort((a, b) => (b.time || "").localeCompare(a.time || "")); });
+  listen(collection(FB.db, "kidSchedule"), v => { S.sched = v; });
+  listen(query(collection(FB.db, "kidAnnouncements"), orderBy("createdAt", "desc"), limit(30)), v => { S.anns = v; });
+  listen(query(collection(FB.db, "kidMessages"), where("guardianNo", "==", no)), v => { S.msgs = v.sort((a, b) => tsMs(a.createdAt) - tsMs(b.createdAt)); });
+  S.phase = "home"; render();
+  setTimeout(() => { if (!S.kidMode) { resumeKidMode(); render(); } }, 1500);
+}
+function notifyNewAtt(list) {
+  if (S.seenAtt === null) { S.seenAtt = new Set(list.map(x => x.id)); return; }
+  for (const r of list) if (!S.seenAtt.has(r.id)) {
+    S.seenAtt.add(r.id);
+    const msg = r.type === "in" ? T("evIn", r.kidName || "") : T("evOut", r.kidName || "");
+    toast(msg + " · " + timeOf(r.time), 5000); vib([60, 40, 60]);
+    if (window.Notification && Notification.permission === "granted" && navigator.serviceWorker && navigator.serviceWorker.controller)
+      navigator.serviceWorker.controller.postMessage({ type: "notify", title: T("appTitle"), body: msg, tag: "att-" + r.id });
+  }
+}
+async function write(kind, ...args) {
+  if (DEMO) return demoWrite(kind, ...args);
+  const { doc, updateDoc, addDoc, collection, serverTimestamp } = FB.fs;
+  if (kind === "kid") return updateDoc(doc(FB.db, "kids", args[0]), { ...args[1], updatedAt: serverTimestamp() });
+  if (kind === "msg") return addDoc(collection(FB.db, "kidMessages"), { guardianNo: S.guardian.no, guardianName: S.guardian.name || "", kidId: args[1] ? args[1].id : "", kidName: args[1] ? args[1].name : "", text: args[0], from: "guardian", read: false, createdAt: serverTimestamp() });
+}
+
+// ── Demo ─────────────────────────────────────────────────────────────────
+function startDemo() {
+  const d = todayStr(), now = new Date(), dow = now.getDay();
+  const iso = (hh, mm, back) => { const x = new Date(); x.setDate(x.getDate() - (back || 0)); x.setHours(hh, mm, 0, 0); return x.toISOString(); };
+  S.user = { no: "92026001" }; S.guardian = { no: "92026001", name: "Leyla Aram", phone: "0555 000 00 00" };
+  S.kids = [
+    { id: "k1", no: "82026001", name: "Rojda", area: "muzik", guardianNos: ["92026001"], pickups: ["Xalê Rênas — xal"], consentPhoto: true, consentShare: false, health: "Alerjiya fistiqan" },
+    { id: "k2", no: "82026002", name: "Baran", area: "wenesazi", guardianNos: ["92026001"], pickups: [], consentPhoto: true, consentShare: true, health: "" }
+  ];
+  S.att = [{ id: "a1", kidId: "k1", kidName: "Rojda", type: "in", date: d, time: iso(14, 2) }];
+  for (let b = 1; b < 30; b++) { const x = new Date(); x.setDate(x.getDate() - b); if ([2, 4, 6].includes(x.getDay())) { S.att.push({ id: "r" + b, kidId: "k1", kidName: "Rojda", type: "in", date: x.toISOString().slice(0, 10), time: iso(14, 5, b) }, { id: "o" + b, kidId: "k1", kidName: "Rojda", type: "out", date: x.toISOString().slice(0, 10), time: iso(15, 32, b) }); }
+    if ([3, 6].includes(x.getDay())) S.att.push({ id: "b" + b, kidId: "k2", kidName: "Baran", type: "in", date: x.toISOString().slice(0, 10), time: iso(11, 0, b) }); }
+  S.att.sort((a, b) => b.time.localeCompare(a.time));
+  S.sched = [
+    { id: "s1", day: dow, start: "14:00", end: "15:30", title: "Muzîka Zarokan — Tembûr", area: "muzik", teacher: "Mamoste Hêvî", room: "A2" },
+    { id: "s2", day: dow, start: "16:00", end: "17:00", title: "Koroya Zarokan", area: "muzik", teacher: "Mamoste Azad", room: "Salon" },
+    { id: "s3", day: (dow + 2) % 7, start: "11:00", end: "12:30", title: "Rengên Min — Wênesazî", area: "wenesazi", teacher: "Mamoste Nûdem", room: "B1" },
+    { id: "s4", day: (dow + 4) % 7, start: "14:00", end: "15:30", title: "Muzîka Zarokan — Ritm", area: "muzik", teacher: "Mamoste Hêvî", room: "A2" }
+  ];
+  S.anns = [
+    { id: "n1", title: "Şahiya dawiya demsalê 🎉", body: "Roja Şemiyê saet 15:00 de zarokên me li salona mezin stranan dibêjin û wêneyên xwe pêşkêş dikin. Hûn hemû vexwendî ne!", createdAt: Date.now() - 864e5 },
+    { id: "n2", title: "Pêdiviyên dersa wênesaziyê", body: "Ji kerema xwe ji bo Baran û hevalên wî fîstanek kevn (ji bo boyaxê) bişînin.", createdAt: Date.now() - 4 * 864e5 }
+  ];
+  S.msgs = [
+    { id: "m1", from: "guardian", text: "Silav, Rojda sibê dibe ku 15 deqe dereng bê.", createdAt: Date.now() - 2 * 864e5 },
+    { id: "m2", from: "staff", text: "Silav Leyla xanim, spas ji bo agahdariyê. Em ê ji mamosteyê re bibêjin. 🌸", createdAt: Date.now() - 2 * 864e5 + 36e5 }
+  ];
+  S.phase = "home"; resumeKidMode(); render();
+  // 12 sn sonra canlı bildirim örneği: Baran derse girer
+  setTimeout(() => { const r = { id: "live1", kidId: "k2", kidName: "Baran", type: "in", date: todayStr(), time: new Date().toISOString() }; S.seenAtt = new Set(S.att.map(x => x.id)); S.att.unshift(r); notifyNewAtt(S.att); render(); }, 12000);
+}
+function demoWrite(kind, ...a) {
+  if (kind === "kid") { const k = S.kids.find(x => x.id === a[0]); Object.assign(k, a[1]); }
+  if (kind === "msg") { S.msgs.push({ id: "d" + Date.now(), from: "guardian", text: a[0], createdAt: Date.now() });
+    setTimeout(() => { S.msgs.push({ id: "d" + Date.now() + "r", from: "staff", text: lang === "en" ? "Thank you, we received your message. 🌸" : lang === "tr" ? "Teşekkürler, mesajınızı aldık. 🌸" : "Spas, peyama we gihîşt me. 🌸", createdAt: Date.now() }); render(); }, 2500); }
+  return Promise.resolve();
+}
+
+// ── Görünümler ───────────────────────────────────────────────────────────
+function viewLogin() {
+  const noIn = h("input", { class: "in", id: "l-no", inputmode: "numeric", autocomplete: "username", placeholder: "92026001", value: S.drafts.no || "", oninput: e => S.drafts.no = e.target.value });
+  const pwIn = h("input", { class: "in", id: "l-pw", type: "password", autocomplete: "current-password", value: S.drafts.pw || "", oninput: e => S.drafts.pw = e.target.value, onkeydown: e => { if (e.key === "Enter") go(); } });
+  const go = () => signIn(noIn.value, pwIn.value);
+  return h("div", { class: "login" },
+    h("div", { class: "hero" },
+      h("img", { src: "icons/icon-192.png", alt: "" }),
+      h("h1", null, T("appTitle")),
+      h("span", { class: "tag" }, "👨‍👩‍👧 " + T("parentLogin"))),
+    h("div", { class: "card" },
+      h("div", { class: "muted" }, T("loginNote")),
+      h("label", { class: "lb", for: "l-no" }, T("no")), noIn,
+      h("label", { class: "lb", for: "l-pw" }, T("pass")), pwIn,
+      h("div", { class: "err", role: "alert" }, S.err || ""),
+      h("button", { class: "btn", onclick: go }, T("signIn"))),
+    langRow(),
+    h("div", { class: "links" },
+      h("button", { onclick: () => toast(T("forgotTxt"), 7000) }, "🔑 " + T("forgot")),
+      DEMO ? null : h("a", { href: "?demo=1" }, "👀 " + T("demoLogin")),
+      h("a", { href: SITE }, T("toSite")),
+      h("a", { href: MAIN_APP }, T("toMainApp"))));
+}
+function langRow() {
+  return h("div", { class: "langs", style: "margin-top:4px" }, LANGS.map(([k, lb]) =>
+    h("button", { class: lang === k ? "on" : "", onclick: () => { lang = k; try { localStorage.setItem("zarok-lang", k); } catch (_) {} document.documentElement.lang = k === "zz" ? "zza" : k; render(); } }, lb)));
+}
+const curKid = () => S.kids[S.kidIdx] || null;
+function kidStatus(k) {
+  const r = S.att.filter(x => x.kidId === k.id && x.date === todayStr()).sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+  return r[r.length - 1] || null;
+}
+function header() {
+  return [
+    DEMO ? h("div", { class: "demo" }, "👀 " + T("demoBanner")) : null,
+    h("div", { class: "top" },
+      h("img", { class: "logo", src: "icons/icon-192.png", alt: "" }),
+      h("div", null, h("div", { class: "t1" }, T("appTitle")), h("div", { class: "t2" }, T("hello", (S.guardian && S.guardian.name || "").split(" ")[0]))),
+      h("button", { class: "iconbtn", "aria-label": T("settings"), onclick: () => { S.sheet = "settings"; render(); } }, "⚙️")),
+    S.kids.length > 1 ? h("div", { class: "kids" }, S.kids.map((k, i) => {
+      const [em, col] = areaEm(k.area);
+      return h("button", { class: "kidchip" + (i === S.kidIdx ? " on" : ""), onclick: () => { S.kidIdx = i; render(); } },
+        h("span", { class: "av", style: "background:" + col + "22" }, em), k.name);
+    })) : null,
+    S.online ? null : h("div", { class: "demo", style: "background:#6b7a85" }, "📡 " + T("offline"))
+  ];
+}
+function viewToday() {
+  const k = curKid();
+  if (!k) return h("div", { class: "card center muted" }, T("noKids"));
+  const st = kidStatus(k);
+  const [em, col] = areaEm(k.area);
+  const status = st
+    ? (st.type === "in"
+      ? h("div", { class: "status", style: "background:linear-gradient(135deg,#1f9d5b,#3bb273)" }, h("div", { class: "big" }, "🟢"), h("div", null, h("div", { class: "s1" }, k.name + " · " + T("statusIn")), h("div", { class: "s2" }, T("since", timeOf(st.time)))))
+      : h("div", { class: "status", style: "background:linear-gradient(135deg,#12505c,#0f2f38)" }, h("div", { class: "big" }, "🏠"), h("div", null, h("div", { class: "s1" }, k.name + " · " + T("statusOut")), h("div", { class: "s2" }, T("at", timeOf(st.time))))))
+    : h("div", { class: "status", style: "background:linear-gradient(135deg,#f0a92e,#ffc93c);color:#3a2a00" }, h("div", { class: "big" }, "🌤"), h("div", null, h("div", { class: "s1" }, k.name), h("div", { class: "s2" }, T("statusNone"))));
+  const dow = new Date().getDay();
+  const todays = S.sched.filter(s => +s.day === dow && (!s.area || !k.area || s.area === k.area)).sort((a, b) => (a.start || "").localeCompare(b.start || ""));
+  const latest = S.anns[0];
+  return h("div", null, status,
+    h("div", { class: "card" }, h("div", { class: "h" }, "📅 " + T("todayLessons")),
+      todays.length ? todays.map(lessonRow) : h("div", { class: "muted" }, T("noLessonsToday"))),
+    latest ? h("div", { class: "card", onclick: () => { S.tab = "ann"; render(); }, style: "cursor:pointer" }, h("div", { class: "h" }, "📢 " + latest.title), h("div", { class: "muted", style: "white-space:pre-wrap" }, (latest.body || "").slice(0, 160))) : null,
+    h("div", { class: "card", style: "display:flex;gap:12px;align-items:center" },
+      h("span", { class: "av", style: "width:52px;height:52px;font-size:28px;background:" + col + "22" }, em),
+      h("div", { style: "flex:1" }, h("b", null, k.name), h("div", { class: "muted" }, areaTxt(k.area) + " · #" + (k.no || ""))),
+      h("button", { class: "btn coral sm", onclick: () => { S.sheet = "kidmode"; render(); } }, "🧒 " + T("kidMode"))));
+}
+function lessonRow(s) {
+  const [em, col] = areaEm(s.area);
+  return h("div", { class: "lesson" }, h("div", { class: "em", style: "background:" + col + "26" }, em),
+    h("div", null, h("b", null, s.title || ""), h("span", { class: "muted" }, (s.start || "") + "–" + (s.end || "") + (s.teacher ? " · " + s.teacher : "") + (s.room ? " · " + T("room") + " " + s.room : ""))));
+}
+function viewSched() {
+  const k = curKid();
+  const mine = S.sched.filter(s => !k || !s.area || !k.area || s.area === k.area);
+  if (!mine.length) return h("div", { class: "card center muted" }, T("noSched"));
+  const order = [1, 2, 3, 4, 5, 6, 0], today = new Date().getDay();
+  return h("div", null, h("div", { class: "h" }, "🗓 " + T("week")), order.map(d => {
+    const ls = mine.filter(s => +s.day === d).sort((a, b) => (a.start || "").localeCompare(b.start || ""));
+    if (!ls.length) return null;
+    return h("div", { class: "card", style: d === today ? "outline:3px solid var(--sun)" : "" }, h("div", { class: "h" }, T("d" + d) + (d === today ? " · " + T("tabToday") : "")), ls.map(lessonRow));
+  }));
+}
+function viewAtt() {
+  const k = curKid(); if (!k) return h("div", { class: "card center muted" }, T("noKids"));
+  const from = new Date(); from.setDate(from.getDate() - 30); const f = from.toISOString().slice(0, 10);
+  const rs = S.att.filter(x => x.kidId === k.id && (x.date || "") >= f);
+  const days = [...new Set(rs.filter(x => x.type === "in").map(x => x.date))].sort().reverse();
+  return h("div", null,
+    h("div", { class: "card" }, h("div", { class: "h" }, "✅ " + T("att30")), h("div", { class: "stars", "aria-label": T("attDays", days.length) }, "⭐".repeat(Math.min(days.length, 30)) || "—"), h("div", { class: "muted" }, T("attDays", days.length))),
+    h("div", { class: "card" }, days.length ? days.map(d => {
+      const inR = rs.find(x => x.date === d && x.type === "in"), outR = rs.filter(x => x.date === d && x.type === "out").pop();
+      const dt = new Date(d + "T12:00:00");
+      return h("div", { class: "row" }, h("b", null, T("d" + dt.getDay()) + " " + dt.toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR", { day: "numeric", month: "short" })),
+        h("span", null, h("span", { class: "pill", style: "background:#1f9d5b22;color:#1f9d5b" }, "🟢 " + timeOf(inR && inR.time)), " ",
+          outR ? h("span", { class: "pill", style: "background:#12505c22;color:var(--ink)" }, "🏠 " + timeOf(outR.time)) : null));
+    }) : h("div", { class: "muted" }, T("noAtt"))));
+}
+function viewAnn() {
+  if (!S.anns.length) return h("div", { class: "card center muted" }, T("noAnn"));
+  const newest = Math.max(...S.anns.map(a => tsMs(a.createdAt)));
+  if (newest > S.lastAnnSeen) { S.lastAnnSeen = newest; try { localStorage.setItem("zarok-ann-seen", newest); } catch (_) {} }
+  return h("div", null, S.anns.map(a => h("div", { class: "card" }, h("div", { class: "h" }, "📢 " + (a.title || "")),
+    h("div", { style: "white-space:pre-wrap" }, a.body || ""),
+    h("div", { class: "muted", style: "margin-top:8px" }, new Date(tsMs(a.createdAt)).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR", { day: "numeric", month: "long" })))));
+}
+function viewMsg() {
+  const newest = S.msgs.length ? Math.max(...S.msgs.map(m => tsMs(m.createdAt))) : 0;
+  if (newest > S.lastMsgSeen) { S.lastMsgSeen = newest; try { localStorage.setItem("zarok-msg-seen", newest); } catch (_) {} }
+  const box = h("textarea", { class: "in", id: "m-text", rows: 2, placeholder: T("msgPh"), maxlength: 1000, oninput: e => S.drafts.msg = e.target.value, value: S.drafts.msg || "" });
+  const send = async () => { const t = (box.value || "").trim(); if (!t) return; try { await write("msg", t, curKid()); S.drafts.msg = ""; box.value = ""; vib(); render(); } catch (e) { toast("❌ " + (e.code || e.message)); } };
+  return h("div", null,
+    h("div", { class: "card" }, S.msgs.length ? S.msgs.map(m => h("div", { class: "bubble " + (m.from === "guardian" ? "me" : "them") },
+      m.from === "guardian" ? null : h("div", { style: "font-size:12px;font-weight:800;opacity:.7" }, "🏫 " + T("academy")), m.text)) : h("div", { class: "muted center" }, T("noMsg"))),
+    h("div", { class: "card" }, h("div", { class: "muted", style: "margin-bottom:8px" }, T("msgHint")), box, h("button", { class: "btn", style: "margin-top:10px", onclick: send }, "📤 " + T("send"))));
+}
+function nav() {
+  const unreadAnn = S.anns.some(a => tsMs(a.createdAt) > S.lastAnnSeen) && S.tab !== "ann";
+  const unreadMsg = S.msgs.filter(m => m.from === "staff" && tsMs(m.createdAt) > S.lastMsgSeen).length;
+  const items = [["today", "🏠", T("tabToday")], ["sched", "📅", T("tabSched")], ["att", "✅", T("tabAtt")], ["ann", "📢", T("tabAnn"), unreadAnn ? "•" : 0], ["msg", "💬", T("tabMsg"), S.tab !== "msg" ? unreadMsg : 0]];
+  return h("nav", { class: "nav" }, h("div", { class: "in2" }, items.map(([k, e, lb, badge]) =>
+    h("button", { class: S.tab === k ? "on" : "", "aria-current": S.tab === k ? "page" : null, onclick: () => { S.tab = k; render(); window.scrollTo(0, 0); } },
+      h("span", { class: "e" }, e), lb, badge ? h("span", { class: "dot" }, String(badge)) : null))));
+}
+
+// ── Ayarlar ──────────────────────────────────────────────────────────────
+function sheet(content) {
+  return [h("div", { class: "sheet-bd", onclick: () => { S.sheet = null; render(); } }),
+    h("div", { class: "sheet", role: "dialog" }, h("div", { class: "grab" }), content)];
+}
+function viewSettings() {
+  const k = curKid();
+  const pins = h("input", { class: "in", id: "s-pin", inputmode: "numeric", maxlength: 4, type: "password", placeholder: "••••" });
+  const pickIn = h("input", { class: "in", id: "s-pick", placeholder: T("pickupPh") });
+  const healthIn = h("textarea", { class: "in", id: "s-health", rows: 2, maxlength: 500 }); if (k) healthIn.value = k.health || "";
+  const cur = h("input", { class: "in", type: "password", autocomplete: "current-password", placeholder: T("curPass") });
+  const nw = h("input", { class: "in", type: "password", autocomplete: "new-password", placeholder: T("newPass"), style: "margin-top:8px" });
+  const toggle = (on, fn) => h("button", { class: "tg" + (on ? " on" : ""), role: "switch", "aria-checked": on ? "true" : "false", onclick: fn });
+  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  return h("div", null,
+    h("div", { class: "h" }, "⚙️ " + T("settings")),
+    h("div", { class: "card" }, h("div", { class: "h" }, "🌐 " + T("language")), langRow()),
+    h("div", { class: "card" }, h("div", { class: "h" }, "🧒 " + T("kidMode")), h("div", { class: "muted" }, T("kidModeDesc")),
+      h("label", { class: "lb" }, T("setPin")), pins,
+      h("div", { style: "display:flex;gap:8px;margin-top:10px" },
+        h("button", { class: "btn alt sm", onclick: () => { const v = pins.value.trim(); if (!/^\d{4}$/.test(v)) { toast(T("pinNeed")); return; } setPin(v).then(() => toast(T("pinSaved"))); } }, T("save")),
+        h("button", { class: "btn coral sm", onclick: enterKidMode }, T("startKidMode")))),
+    k ? h("div", { class: "card" }, h("div", { class: "h" }, "🛡 " + T("perms") + " — " + k.name),
+      h("label", { class: "lb" }, "🚸 " + T("pickups")),
+      h("div", null, (k.pickups || []).map((p, i) => h("span", { class: "chip" }, p, h("button", { "aria-label": "×", onclick: () => { const arr = (k.pickups || []).filter((_, j) => j !== i); write("kid", k.id, { pickups: arr }).then(() => { k.pickups = arr; render(); }); } }, "✕")))),
+      h("div", { style: "display:flex;gap:8px" }, pickIn, h("button", { class: "btn sm", onclick: () => { const v = pickIn.value.trim().slice(0, 60); if (!v) return; const arr = [...(k.pickups || []), v].slice(0, 8); write("kid", k.id, { pickups: arr }).then(() => { k.pickups = arr; toast(T("saved")); render(); }).catch(e => toast("❌ " + e.code)); } }, T("add"))),
+      h("div", { class: "sw" }, h("span", null, "📷 " + T("consentPhoto")), toggle(k.consentPhoto, () => write("kid", k.id, { consentPhoto: !k.consentPhoto }).then(() => { k.consentPhoto = !k.consentPhoto; render(); }))),
+      h("div", { class: "sw" }, h("span", null, "🌐 " + T("consentShare")), toggle(k.consentShare, () => write("kid", k.id, { consentShare: !k.consentShare }).then(() => { k.consentShare = !k.consentShare; render(); }))),
+      h("label", { class: "lb" }, "🩺 " + T("health")), healthIn,
+      h("button", { class: "btn alt sm", style: "margin-top:8px", onclick: () => { const v = healthIn.value.trim().slice(0, 500); write("kid", k.id, { health: v }).then(() => { k.health = v; toast(T("saved")); }).catch(e => toast("❌ " + e.code)); } }, T("save"))) : null,
+    h("div", { class: "card" }, h("div", { class: "h" }, "🔔 " + T("notif")), h("div", { class: "muted" }, T("notifNote")),
+      window.Notification ? h("button", { class: "btn alt sm", style: "margin-top:10px", onclick: async () => { const p = await Notification.requestPermission(); if (p === "granted") toast(T("notifOn")); render(); } }, Notification.permission === "granted" ? T("notifOn") : "🔔 " + T("notif")) : null),
+    h("div", { class: "card" }, h("div", { class: "h" }, "📲 " + T("install")),
+      standalone ? h("div", { class: "muted" }, T("installed")) : deferredInstall ? h("button", { class: "btn alt sm", onclick: async () => { deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall = null; render(); } }, "➕ " + T("install")) : h("div", { class: "muted" }, T("installIos"))),
+    DEMO ? null : h("div", { class: "card" }, h("div", { class: "h" }, "🔑 " + T("changePass")), cur, nw,
+      h("button", { class: "btn alt sm", style: "margin-top:10px", onclick: async () => {
+        if ((nw.value || "").length < 6) { toast(T("passShort")); return; }
+        try { const u = FB.auth.currentUser; await FB.au.reauthenticateWithCredential(u, FB.au.EmailAuthProvider.credential(u.email, cur.value)); await FB.au.updatePassword(u, nw.value); cur.value = nw.value = ""; toast(T("passChanged")); }
+        catch (e) { toast("❌ " + (e.code === "auth/invalid-credential" || e.code === "auth/wrong-password" ? T("errCred") : e.code)); } } }, T("save"))),
+    h("div", { class: "card" },
+      h("a", { href: KVKK, style: "display:block;font-weight:800;color:inherit;margin-bottom:12px" }, "📄 " + T("kvkk")),
+      h("button", { class: "btn", style: "background:var(--bad)", onclick: async () => { S.sheet = null; if (DEMO) { location.href = "./"; return; } await FB.au.signOut(FB.auth); } }, "⎋ " + T("logout"))));
+}
+
+// ── Çocuk modu (ebeveyn kilitli) ─────────────────────────────────────────
+async function sha(s) { const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("zarok:" + s)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); }
+async function setPin(v) { try { localStorage.setItem("zarok-pin", await sha(v)); } catch (_) {} }
+const hasPin = () => { try { return !!localStorage.getItem("zarok-pin"); } catch (_) { return false; } };
+// Sayfa yenilense bile çocuk modu açık kalır (PIN'siz çıkılamaz)
+function resumeKidMode() { try { const id = sessionStorage.getItem("zarok-kidmode"); if (id && S.kids.some(k => k.id === id)) { S.kidMode = { screen: "home", kidId: id }; history.pushState({ kid: 1 }, ""); } } catch (_) {} }
+function enterKidMode() { const k = curKid(); if (!k) return; S.sheet = null; S.kidMode = { screen: "home", kidId: k.id }; try { sessionStorage.setItem("zarok-kidmode", k.id); } catch (_) {} history.pushState({ kid: 1 }, ""); render(); }
+function viewKidModeIntro() {
+  return h("div", null, h("div", { class: "h" }, "🧒 " + T("kidMode")), h("div", { class: "muted" }, T("kidModeDesc")),
+    h("button", { class: "btn coral", style: "margin-top:14px", onclick: enterKidMode }, T("startKidMode")));
+}
+function viewKidMode() {
+  const k = S.kids.find(x => x.id === S.kidMode.kidId) || curKid(); if (!k) return null;
+  const km = S.kidMode;
+  const lock = h("button", { class: "klock", "aria-label": "🔒", onclick: () => { km.screen = "unlock"; km.pin = ""; km.q = [2 + Math.floor(Math.random() * 7), 3 + Math.floor(Math.random() * 7)]; render(); } }, "🔒");
+  if (km.screen === "unlock") {
+    const usePin = hasPin();
+    const dots = h("div", { class: "pindots" }, [0, 1, 2, 3].map(i => h("i", { class: i < (km.pin || "").length ? "on" : "" })));
+    const press = async d => {
+      if (d === "⌫") km.pin = (km.pin || "").slice(0, -1); else if (d === "✕") { km.screen = "home"; } else km.pin = (km.pin || "") + d;
+      const need = usePin ? 4 : String(km.q[0] * km.q[1]).length;
+      if (km.screen === "unlock" && km.pin.length >= need) {
+        const ok = usePin ? (await sha(km.pin)) === localStorage.getItem("zarok-pin") : +km.pin === km.q[0] * km.q[1];
+        if (ok) { S.kidMode = null; try { sessionStorage.removeItem("zarok-kidmode"); } catch (_) {} } else { km.pin = ""; km.err = T("wrong"); vib([80, 50, 80]); }
+      }
+      render();
+    };
+    return h("div", { class: "kidmode" }, h("div", { class: "center", style: "margin-top:12vh" },
+      h("div", { style: "font-size:44px" }, "🔒"), h("h2", { style: "font-size:22px" }, usePin ? T("exitKid") : T("exitMath", km.q[0] + " × " + km.q[1] + " = ?")),
+      dots, h("div", { style: "color:#d9463b;font-weight:800;min-height:22px" }, km.err || ""),
+      h("div", { class: "pin" }, ["1", "2", "3", "4", "5", "6", "7", "8", "9", "✕", "0", "⌫"].map(d => h("button", { onclick: () => { km.err = ""; press(d); } }, d)))));
+  }
+  const [em, col] = areaEm(k.area);
+  const dow = new Date().getDay();
+  const todays = S.sched.filter(s => +s.day === dow && (!s.area || !k.area || s.area === k.area)).sort((a, b) => (a.start || "").localeCompare(b.start || ""));
+  const from = new Date(); from.setDate(1); const f = from.toISOString().slice(0, 10);
+  const stars = new Set(S.att.filter(x => x.kidId === k.id && x.type === "in" && (x.date || "") >= f).map(x => x.date)).size;
+  if (km.screen === "draw") {
+    const cv = h("canvas", { class: "draw" });
+    const colors = ["#1d2b33", "#ff7a59", "#ffc93c", "#3bb273", "#4aa3df", "#9b6bd3", "#e0559b"];
+    km.color = km.color || colors[1];
+    setTimeout(() => {
+      const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1; cv.width = r.width * dpr; cv.height = r.height * dpr;
+      const c = cv.getContext("2d"); c.scale(dpr, dpr); c.lineCap = c.lineJoin = "round"; c.lineWidth = 10;
+      try { const saved = sessionStorage.getItem("zarok-draw"); if (saved) { const im = new Image(); im.onload = () => c.drawImage(im, 0, 0, r.width, r.height); im.src = saved; } } catch (_) {}
+      let down = false, last = null;
+      const pt = e => { const b = cv.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; };
+      cv.onpointerdown = e => { down = true; last = pt(e); cv.setPointerCapture(e.pointerId); };
+      cv.onpointermove = e => { if (!down) return; const p = pt(e); c.strokeStyle = km.color; c.beginPath(); c.moveTo(...last); c.lineTo(...p); c.stroke(); last = p; };
+      cv.onpointerup = () => { down = false; try { sessionStorage.setItem("zarok-draw", cv.toDataURL("image/png")); } catch (_) {} };
+    });
+    return h("div", { class: "kidmode" },
+      h("button", { class: "btn alt sm", onclick: () => { km.screen = "home"; render(); } }, T("kidBack")), cv,
+      h("div", { class: "pal" }, colors.map(cl => h("button", { class: km.color === cl ? "on" : "", style: "background:" + cl, "aria-label": cl, onclick: () => { km.color = cl; render(); } }))),
+      h("div", { class: "center" }, h("button", { class: "btn alt sm", onclick: () => { try { sessionStorage.removeItem("zarok-draw"); } catch (_) {} render(); } }, "🧽 " + T("kidClear"))), lock);
+  }
+  if (km.screen === "stars") return h("div", { class: "kidmode" }, h("button", { class: "btn alt sm", onclick: () => { km.screen = "home"; render(); } }, T("kidBack")),
+    h("div", { class: "center" }, h("h2", null, "⭐ " + T("kidStars")), h("div", { style: "font-size:64px;font-weight:900" }, String(stars)), h("div", { class: "stars", style: "font-size:40px" }, "⭐".repeat(stars)), h("p", { style: "font-weight:800" }, T("kidStarsNote"))), lock);
+  if (km.screen === "today") return h("div", { class: "kidmode" }, h("button", { class: "btn alt sm", onclick: () => { km.screen = "home"; render(); } }, T("kidBack")),
+    h("h2", null, "📅 " + T("kidToday")), todays.length ? todays.map(s => { const [e2, c2] = areaEm(s.area); return h("div", { class: "ktile", style: "background:" + c2 + ";margin-bottom:14px;min-height:110px" }, h("span", { class: "k" }, e2), s.title, h("span", { style: "font-size:24px" }, "🕒 " + (s.start || ""))); }) : h("div", { class: "ktile", style: "background:#4aa3df" }, h("span", { class: "k" }, "🎈"), T("kidNoLesson")), lock);
+  return h("div", { class: "kidmode" },
+    h("div", { class: "center" }, h("div", { style: "font-size:64px" }, em), h("h2", null, T("kidHello", k.name))),
+    h("div", { class: "kgrid" },
+      h("button", { class: "ktile", style: "background:#4aa3df", onclick: () => { km.screen = "today"; render(); } }, h("span", { class: "k" }, "📅"), T("kidToday")),
+      h("button", { class: "ktile", style: "background:#f0a92e", onclick: () => { km.screen = "stars"; render(); } }, h("span", { class: "k" }, "⭐"), T("kidStars") + " · " + stars),
+      h("button", { class: "ktile", style: "background:#ff7a59;grid-column:span 2", onclick: () => { km.screen = "draw"; render(); } }, h("span", { class: "k" }, "🎨"), T("kidDraw"))),
+    lock);
+}
+
+// ── Ana render ───────────────────────────────────────────────────────────
+let deferredInstall = null;
+addEventListener("beforeinstallprompt", e => { e.preventDefault(); deferredInstall = e; });
+addEventListener("online", () => { S.online = true; render(); });
+addEventListener("offline", () => { S.online = false; render(); });
+addEventListener("popstate", () => { if (S.kidMode && S.kidMode.screen !== "unlock") { history.pushState({ kid: 1 }, ""); S.kidMode.screen = "unlock"; S.kidMode.pin = ""; S.kidMode.q = [3, 4]; render(); } });
+
+function render() {
+  const app = document.getElementById("app");
+  const act = document.activeElement, actId = act && act.id, sel = act && act.selectionStart;
+  const out = [];
+  if (S.phase === "boot" || S.phase === "loading") out.push(h("div", { class: "spin" }, T("loading")));
+  else if (S.phase === "login") out.push(viewLogin());
+  else {
+    out.push(...header().filter(Boolean));
+    const views = { today: viewToday, sched: viewSched, att: viewAtt, ann: viewAnn, msg: viewMsg };
+    out.push(h("main", null, (views[S.tab] || viewToday)()));
+    out.push(nav());
+    if (S.sheet === "settings") out.push(...sheet(viewSettings()));
+    if (S.sheet === "kidmode") out.push(...sheet(viewKidModeIntro()));
+    if (S.kidMode) out.push(viewKidMode());
+  }
+  if (S.toast) out.push(h("div", { class: "toast", role: "status" }, S.toast));
+  app.replaceChildren(...out.filter(Boolean));
+  if (actId) { const el = document.getElementById(actId); if (el) { el.focus(); try { if (sel != null) el.setSelectionRange(sel, sel); } catch (_) {} } }
+}
+
+// ── Başlat ───────────────────────────────────────────────────────────────
+document.documentElement.lang = lang === "zz" ? "zza" : lang;
+if ("serviceWorker" in navigator && !EMU) navigator.serviceWorker.register("sw.js").catch(() => {});
+if (DEMO) { S.phase = "login"; S.drafts.no = "92026001"; S.drafts.pw = "demo1234"; render(); }
+else { S.phase = "boot"; render(); initFirebase().catch(e => { console.error(e); S.phase = "login"; S.err = T("errNet"); render(); }); }
+</script>
+</body>
+</html>

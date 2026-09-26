@@ -17,10 +17,11 @@ Kurmancî'ye döner.
 - **Kurmancî düzeltme raporu:** https://akademiyaramtigran.github.io/dil-raporu.html
 - **Zazakî çeviri raporu:** https://akademiyaramtigran.github.io/dil-raporu-zazaki.html
 
-Her rapor **897 satır**dır ve koddan otomatik çıkarılmıştır (hiçbir ekran
-atlanmaz): uygulamadaki tüm metinler + ana sayfa + sanat alanı adları.
-Satırlar 13 bölüme ayrılmıştır (Giriş, Temel Sözlük, Yönetici, Raporlar, Anketler,
-Mesajlar, Öğretmen, Öğrenci, Basın, Öğrenci İşleri, Ayarlar, Sanat Alanları, Site).
+Her rapor **1134 satır**dır ve koddan otomatik çıkarılmıştır (hiçbir ekran
+atlanmaz): uygulamadaki tüm metinler + ana sayfa + sanat alanı adları +
+**Akademiya Zarokan** (yönetim paneli, veli uygulaması, tanıtım/başvuru sayfası).
+Satırlar 16 bölüme ayrılmıştır. Kurmancî raporunda Türkçe kalmış olabilecek ifadeler
+"⚠ Türkçe kalmış olabilir" filtresiyle ayrıca görülebilir.
 
 Akademisyen tarafında:
 1. Adını yazar, sarı kutuları doldurur (tarayıcıda otomatik saklanır).
@@ -49,6 +50,7 @@ HTML/JS içeren satırlar atlanır ve listelenir.
 - Kurmancî düzeltmeleri kaynak kodu değiştirmeden `AAT_TX.ku` üzerinden uygulanır.
 - Site: `SITE_T` sözlüğü + `AAT_SITE` / `AAT_SITE_AREA` birleşimi.
 - Basın paneli haber çevirisi sekmeleri: **KU · ZZ · TR · EN**.
+- Akademiya Zarokan: sayfalardaki `zt` / `zs` sözlükleri + `AAT_ZAROK` / `AAT_ZAROK_SITE` birleşimi.
 - Anket soruları: Kurmancî + Zazakî + Türkçe + English alanları.
 - Kod değişince `tools/dil-rapor-uret.js` yeniden çalıştırılır; yeni metinler rapora
   kendiliğinden eklenir.

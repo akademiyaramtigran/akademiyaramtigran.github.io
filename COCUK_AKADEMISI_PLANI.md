@@ -1,5 +1,9 @@
 # Çocuk Akademisi (Akademiya Zarokan) — Uygulama Planı
 
+> **Durum (26.09.2026):** Faz 1–3'ün çekirdeği yapıldı — tanıtım/başvuru sayfası, veli
+> uygulaması (PWA, çocuk modu dahil), Öğrenci İşleri yönetim sekmesi, güvenlik kuralları ve
+> testler. Kurulum ve alan adı taşıma: **[ZAROK.md](ZAROK.md)**.
+
 Mevcut sistemin (başvuru, kayıt, program, QR yoklama, duyuru, mesaj, rapor) aynısı,
 çocuklara ve velilere uygun bir arayüzle.
 

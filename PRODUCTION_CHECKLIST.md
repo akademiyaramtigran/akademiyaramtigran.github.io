@@ -17,7 +17,12 @@ _Depolama/plan satın alma kalemleri isteğiniz üzerine bu rapora dahil edilmed
 | 8 | 🟡 Orta | Hata ekranı bileşen yığınını (component stack) kullanıcıya gösteriyordu; Almanca satır ve yanlış bayrak (🇰🇷 Güney Kore). | ✅ Temizlendi. |
 | 9 | 🟡 Orta | Uygulama kodunda eski, **güvensiz** kural örneği (herkes her şeyi yazar) yorum olarak duruyordu. | ✅ Kaldırıldı. |
 | 10 | ⚪ Düşük | `<meta>` ile verilemeyen başlıklar (X-Frame-Options, frame-ancestors) konsola hata basıyordu. | ✅ Kaldırıldı; `referrer` doğru biçime çevrildi. |
-| 11 | ⚪ Dil | Türkçe ve Zazakî seçilince satır içi metinler Kurmancî kalıyordu; Almanca kalıntıları (ör. "Massenversand"). | ✅ 4 dil, 818 Türkçe metin, dil paketi + raporlar. |
+| 11 | ⚪ Dil | Türkçe ve Zazakî seçilince satır içi metinler Kurmancî kalıyordu; Almanca kalıntıları (ör. "Massenversand"). | ✅ 4 dil, 860 Türkçe metin, dil paketi + raporlar. |
+| 12 | 🟡 Orta | Öğrenci başka öğrenci adına QR yoklaması yazabiliyordu. | ✅ Öğrenci yalnızca kendi `studentNo`'suyla yazar, silemez. |
+| 13 | 🟡 Orta | Bir üye başka birinin profil fotoğrafının üzerine yazabiliyordu. | ✅ Öğrenci yalnızca kendi fotoğrafını yükler (sahiplik Firestore'dan doğrulanır). |
+| 14 | 🟠 Yüksek | Düz metin şifreler (`_plainPass`). | ✅ Cloud Function (`functions/`) hazır + emülatörde test edildi; `firebase deploy --only functions` + tek satır bayrakla açılır (`FUNCTIONS.md`). |
+| 15 | 🟡 KVKK | Tam aydınlatma metni yoktu; başvuru formunda onay yoktu. | ✅ `kvkk.html` (yer tutucular doldurulmalı) + başvuru formunda zorunlu onay kutusu. |
+| 16 | ⚡ Hız | Her açılışta 1 MB JSX telefonda derleniyordu. | ✅ Derleme önbelleği: 2. açılıştan itibaren Babel indirilmez/çalışmaz (4× yavaşlatılmış CPU'da ilk açılış 10,2 sn, ikinci açılış 3,8 sn — bunun ~3 sn'si test ortamında Firebase'e erişilemediği için beklenen süre). |
 
 **Yayın sırası için mutlaka okuyun:** `FIREBASE_SECURITY.md` → "YAYIN SIRASI" (5 adım).
 
@@ -44,32 +49,31 @@ _Depolama/plan satın alma kalemleri isteğiniz üzerine bu rapora dahil edilmed
 
 | Önem | Risk | Önerilen çözüm |
 |---|---|---|
-| 🟠 | **Düz metin şifreler** (`_plainPass`) öğrenci/öğretmen belgesinde; tüm personel görebilir. Tarayıcı, başkasının Auth hesabını ancak eski şifreyle silip değiştirebildiği için tutuluyor. | Cloud Functions (Admin SDK): `kullaniciOlustur / kullaniciSil / sifreBelirle`. Sonra `_plainPass` ve `passHash` alanları silinir; şifre yalnızca e-postayla iletilir. |
-| 🟠 | Herkese açık **hesap açma** hâlâ açık (zararsız hâle getirildi ama kaynak tüketir). | Cloud Functions'a geçince Authentication → Settings → *Enable create (sign-up)* kapatılır. |
-| 🟡 | Üye bir öğrenci teknik olarak tüm mesajları okuyabilir / başkası adına yoklama yazabilir (uygulama filtreliyor, kural filtrelemiyor). | Mesaj ve yoklama belgelerine sahip alanı (`fromNo`, `toNo`, `studentNo`) ve sorgulara `where` eklenip kurallar daraltılır. |
+| 🟠 | Düz metin şifreler — **kod hazır, yayın bekliyor**. | `firebase deploy --only functions` → `USE_CLOUD_FUNCTIONS = true` (`FUNCTIONS.md`). |
+| 🟠 | Herkese açık **hesap açma** hâlâ açık (zararsız hâle getirildi ama kaynak tüketir). | Fonksiyon açıldıktan sonra Authentication → Settings → *Enable create (sign-up)* kapatılır. |
+| 🟡 | Üye bir öğrenci teknik olarak tüm yetişkin mesajlarını okuyabilir (uygulama filtreliyor, kural filtrelemiyor). | Mesaj belgelerine `toNo` alanı + sorgularda `where` → kural daraltılır. (Yoklama ✅ düzeltildi.) |
 | 🟡 | Cihaz kilidi ve 5 deneme kilidi yalnızca **istemci tarafında** (atlatılabilir). Firebase'in kendi kaba kuvvet koruması var. | Önemli değil; App Check ile birlikte yeterli. |
-| 🟡 | Profil fotoğrafı yolu kişiye bağlı değil: bir üye başkasının `photos/...` dosyasının üzerine yazabilir. | Yolu `photos/{no}/...` yapıp kuralda `prefix()==no` kontrolü. |
 
 ## D. Performans / yayın kalitesi
 
-- **Tarayıcıda derleme:** Uygulama her soğuk açılışta ~1 MB JSX'i Babel ile telefonda
-  derliyor (sunucu CPU'sunda 1,6 sn → orta seviye telefonda tahminen 4–8 sn) ve
-  1,5 MB `babel.min.js` indiriyor. **Öneri:** bir derleme adımı (`tools/derle.js`) ile
-  JSX önceden derlenip yayınlanır → açılış 3–5 kat hızlanır, CSP'den `unsafe-eval`
-  kalkar. Kaynak dosya aynen kalır; yayın öncesi tek komut.
+- **Derleme önbelleği (✅ yapıldı):** İlk açılışta derlenen kod cihazda (IndexedDB) saklanır;
+  kod değişmedikçe sonraki açılışlarda Babel hiç indirilmez. Güncelleme gelince bir kez
+  yeniden derlenir. (Tamamen ön-derleme için ileride bir yayın adımı eklenebilir.)
 - **Tek dosya (1,5 MB):** Bakımı zorlaştırıyor; çocuk akademisi gibi ikinci bir arayüz
   eklenmeden önce ekranların modüllere bölünmesi önerilir.
-- Service Worker önbellek sürümü `v14`'e yükseltildi (dil paketi dahil).
+- Service Worker önbellek sürümü `v15`.
 
 ## E. Test edilenler
 
-- Firestore + Storage kuralları: emülatörde 34 senaryo (`tools/kural-testi.js`) — yeni
-  kurallarla 34/34; eski kurallarla 11 senaryo açık verdi.
+- Firestore + Storage kuralları: emülatörde **62 senaryo** (`tools/kural-testi.js`, Zarok dahil) — 62/62;
+  eski kurallarla ilk 34 senaryonun 11'i açık verdi.
+- Cloud Function: 10/10 (`tools/fonksiyon-testi.js`).
+- **Uçtan uca (gerçek kurallar + emülatör):** Öğrenci İşleri girişi → Zarok başvurusu kabul →
+  veli hesabı → veli girişi → yoklama bildirimi → duyuru → mesaj/yanıt: 24/24 (`tools/e2e/`).
 - Dizin eşitleme fonksiyonu: emülatörde yalnızca `idx_staff/1000` varken tüm dizini
   kurduğu, silinmiş kaydı kaldırdığı doğrulandı.
 - Uygulama: Chromium'da KU / ZZ / TR / EN giriş ve ayar ekranları, canlı dil geçişi.
 - Site: ZZ / TR dil geçişi. Dil raporu: doldur → dışa aktar → `dil-entegre.js` →
   uygulamada Zazakî metnin göründüğü uçtan uca doğrulandı.
-- **Test edilemeyen:** gerçek Firebase'e bağlı giriş sonrası paneller (bu ortamdan
-  Firebase'e erişim yok). Kurallar yayınlandıktan sonra `FIREBASE_SECURITY.md` → adım 6
-  duman testi yapılmalı.
+- **Test edilemeyen:** gerçek (canlı) Firebase projesi — bu ortamdan erişim yok; testler
+  emülatörde. Kurallar yayınlandıktan sonra `FIREBASE_SECURITY.md` → adım 6 duman testi yapılmalı.
