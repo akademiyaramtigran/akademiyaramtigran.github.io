@@ -1,0 +1,12 @@
+{
+  "name": "aat-tools",
+  "private": true,
+  "description": "Akademîya Aram Tîgran — dil raporu üretme ve entegrasyon araçları",
+  "scripts": {
+    "rapor": "node dil-rapor-uret.js",
+    "entegre": "node dil-entegre.js"
+  },
+  "devDependencies": {
+    "@babel/parser": "^7.25.0"
+  }
+}

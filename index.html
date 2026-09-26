@@ -397,7 +397,7 @@ try{
       <a class="link" href="/app/" rel="nofollow" data-i18n="nav_login" style="font-weight:800">Têketin</a>
     </nav>
     <div class="lang-sw" role="group" aria-label="Ziman / Language">
-      <button data-lang="ku">KU</button><button data-lang="tr">TR</button><button data-lang="en">EN</button><button data-lang="de">DE</button>
+      <button data-lang="ku">KU</button><button data-lang="zz">ZZ</button><button data-lang="tr">TR</button><button data-lang="en">EN</button>
     </div>
   </div>
 </div>
@@ -407,7 +407,7 @@ try{
 <aside class="drawer" id="drawer" aria-hidden="true">
   <div class="drawer-head">
     <span class="drawer-title" data-i18n="menu">MENÛ</span>
-    <div class="lang-sw lang-sw-drawer"><button data-lang="ku">KU</button><button data-lang="tr">TR</button><button data-lang="en">EN</button><button data-lang="de">DE</button></div>
+    <div class="lang-sw lang-sw-drawer"><button data-lang="ku">KU</button><button data-lang="zz">ZZ</button><button data-lang="tr">TR</button><button data-lang="en">EN</button></div>
     <button class="drawer-close" id="hb-close" aria-label="Bigire">✕</button>
   </div>
   <nav class="drawer-nav">
@@ -558,6 +558,7 @@ try{
   <div class="copy">© <span id="year">2026</span> Akademîya Aram Tîgran</div>
 </footer>
 
+<script src="app/lang-pack.js"></script>
 <script>
 // ── Çok dilli site metinleri (ku varsayılan) ──────────────────────────────
 window.SITE_T={
@@ -567,25 +568,29 @@ window.SITE_T={
   ap_closed:"Başvurular şu an kapalı. Kayıt dönemi burada duyurulacak.",ap_docshead:"Doldurulması gereken belgeler:",ap_name:"Ad ve soyad *",ap_dob:"Doğum tarihi",ap_phone:"Telefon *",ap_email:"E-posta (giriş bilgileriniz buraya gönderilir)",ap_area:"Sanat alanı *",ap_note:"Not (isteğe bağlı)",ap_docs:"İstenen belgeler *",ap_upload:"📎 Yükle",ap_change:"🔄 Değiştir",ap_notyet:"yüklenmedi",ap_done:"✅ yüklendi",ap_send:"📨 Başvuruyu Gönder",ap_need:"⚠ Ad ve telefon zorunludur.",ap_missing:"⚠ Şu belgeler eksik: ",ap_toobig:"⚠ Belgeler toplamda çok büyük — daha küçük görsel/PDF yükleyin.",ap_sending:"⏳ Gönderiliyor…",ap_ok1:"Başvurunuz alındı!",ap_ok2:"Öğrenci işleri sizinle iletişime geçecek.",ap_fail:"❌ Gönderilemedi — tekrar deneyin."},
  en:{nav_news:"News",nav_video:"Video",nav_areas:"Art Fields",nav_apply:"Apply",nav_login:"Sign in",menu:"MENU",home:"Home",about_us:"About Us",arch_eyebrow:"Archive",arch_title:"History of the Academy",arch_note:"The academy's years, from its founding to today. Every published post is automatically filed under its own year — the archive grows by itself.",arch_loading:"Loading archive…",arch_empty:"No archive entries yet.",arch_empty_year:"No entries for this year.",arch_more:"Show more",arch_rec:"entries",arch_news:"News",filter:"Field Filter",all:"All",since:"Since 2010",read_more:"Read more",areas_line:"Music · Theatre · Cinema · Dance · Literature · Painting",news_none:"No news published yet.",news_none_area:"No news in this field yet.",news_title:"News & Events",edu:"Education",who:"Who we are",about_title:"About the Academy",about_p:"a school of arts, since 2010.",founded:"Founded",fields:"Art fields",enroll:"Enrollment",apply_title:"Student Application",area_hint:"Tap a field to see its news.",school:"School of arts",links:"Links",login_sys:"System Login",
   ap_closed:"Applications are currently closed. The enrollment period will be announced here.",ap_docshead:"Documents to fill in:",ap_name:"Full name *",ap_dob:"Date of birth",ap_phone:"Phone *",ap_email:"E-mail (your login details are sent here)",ap_area:"Art field *",ap_note:"Note (optional)",ap_docs:"Required documents *",ap_upload:"📎 Upload",ap_change:"🔄 Change",ap_notyet:"not yet",ap_done:"✅ uploaded",ap_send:"📨 Submit Application",ap_need:"⚠ Name and phone are required.",ap_missing:"⚠ Missing documents: ",ap_toobig:"⚠ Files are too large in total — upload smaller images/PDFs.",ap_sending:"⏳ Sending…",ap_ok1:"Your application has been received!",ap_ok2:"Student affairs will contact you.",ap_fail:"❌ Failed — please try again."},
- de:{nav_news:"Nachrichten",nav_video:"Video",nav_areas:"Kunstbereiche",nav_apply:"Bewerbung",nav_login:"Anmelden",menu:"MENÜ",home:"Startseite",about_us:"Über uns",arch_eyebrow:"Archiv",arch_title:"Geschichte der Akademie",arch_note:"Die Jahre der Akademie, von der Gründung bis heute. Jeder veröffentlichte Beitrag wird automatisch seinem Jahr zugeordnet — das Archiv wächst von selbst.",arch_loading:"Archiv wird geladen…",arch_empty:"Noch keine Archiveinträge.",arch_empty_year:"Keine Einträge in diesem Jahr.",arch_more:"Mehr anzeigen",arch_rec:"Einträge",arch_news:"Nachricht",filter:"Bereichsfilter",all:"Alle",since:"Seit 2010",read_more:"Weiterlesen",areas_line:"Musik · Theater · Kino · Tanz · Literatur · Malerei",news_none:"Noch keine Nachrichten veröffentlicht.",news_none_area:"In diesem Bereich noch keine Nachrichten.",news_title:"Nachrichten & Veranstaltungen",edu:"Bildung",who:"Wer wir sind",about_title:"Über die Akademie",about_p:"eine Kunstschule, seit 2010.",founded:"Gegründet",fields:"Kunstbereiche",enroll:"Anmeldung",apply_title:"Studienbewerbung",area_hint:"Tippe auf einen Bereich, um seine Nachrichten zu sehen.",school:"Kunstschule",links:"Links",login_sys:"System-Login",
-  ap_closed:"Bewerbungen sind derzeit geschlossen. Der Anmeldezeitraum wird hier bekannt gegeben.",ap_docshead:"Auszufüllende Dokumente:",ap_name:"Vor- und Nachname *",ap_dob:"Geburtsdatum",ap_phone:"Telefon *",ap_email:"E-Mail (Zugangsdaten werden hierhin gesendet)",ap_area:"Kunstbereich *",ap_note:"Notiz (optional)",ap_docs:"Erforderliche Dokumente *",ap_upload:"📎 Hochladen",ap_change:"🔄 Ändern",ap_notyet:"offen",ap_done:"✅ hochgeladen",ap_send:"📨 Bewerbung senden",ap_need:"⚠ Name und Telefon sind erforderlich.",ap_missing:"⚠ Fehlende Dokumente: ",ap_toobig:"⚠ Dateien insgesamt zu groß — kleinere Bilder/PDFs hochladen.",ap_sending:"⏳ Wird gesendet…",ap_ok1:"Ihre Bewerbung ist eingegangen!",ap_ok2:"Das Studierendenbüro wird Sie kontaktieren.",ap_fail:"❌ Fehlgeschlagen — bitte erneut versuchen."}
+ zz:{}
 };
-window.SITE_LANG=(function(){try{return localStorage.getItem('aat-site-lang')||'ku';}catch(e){return 'ku';}})();
+// Dil paketi (app/lang-pack.js): Zazakî ve akademisyen düzeltmeleri buradan birleşir
+(function(){var P=window.AAT_SITE||{};Object.keys(P).forEach(function(l){window.SITE_T[l]=Object.assign({},window.SITE_T[l]||{},P[l]);});})();
+window.SITE_LANGS=['ku','zz','tr','en'];
+window.SITE_LANG=(function(){try{var v=localStorage.getItem('aat-site-lang');return window.SITE_LANGS.indexOf(v)>=0?v:'ku';}catch(e){return 'ku';}})();
 window.ST=function(k){var d=window.SITE_T[window.SITE_LANG]||window.SITE_T.ku;return d[k]||window.SITE_T.ku[k]||k;};
 window.AREA_I18N={
  ku:{muzik:"Muzîk",tiyatro:"Şano",sinema:"Sînema",dans:"Dans",edebiyat:"Wêje",wenesazi:"Wênesazî"},
  tr:{muzik:"Müzik",tiyatro:"Tiyatro",sinema:"Sinema",dans:"Dans",edebiyat:"Edebiyat",wenesazi:"Resim"},
  en:{muzik:"Music",tiyatro:"Theatre",sinema:"Cinema",dans:"Dance",edebiyat:"Literature",wenesazi:"Painting"},
- de:{muzik:"Musik",tiyatro:"Theater",sinema:"Kino",dans:"Tanz",edebiyat:"Literatur",wenesazi:"Malerei"}
+ zz:{}
 };
+(function(){var P=window.AAT_SITE_AREA||{};Object.keys(P).forEach(function(l){window.AREA_I18N[l]=Object.assign({},window.AREA_I18N[l]||{},P[l]);});})();
 window.areaName=function(k){var d=window.AREA_I18N[window.SITE_LANG]||window.AREA_I18N.ku;return d[k]||window.AREA_I18N.ku[k]||k;};
 window.applySiteLang=function(){
   document.querySelectorAll('[data-i18n]').forEach(function(el){ el.textContent=window.ST(el.getAttribute('data-i18n')); });
   document.querySelectorAll('[data-areakey]').forEach(function(el){ el.textContent=window.areaName(el.getAttribute('data-areakey')); });
   document.querySelectorAll('.lang-sw button').forEach(function(b){ b.className=b.getAttribute('data-lang')===window.SITE_LANG?'on':''; });
-  document.documentElement.lang=window.SITE_LANG;
+  document.documentElement.lang=({ku:'ku',zz:'zza',tr:'tr',en:'en'})[window.SITE_LANG]||'ku';
 };
 window.setSiteLang=function(l){
+  if(window.SITE_LANGS.indexOf(l)<0) l='ku';
   window.SITE_LANG=l;
   try{localStorage.setItem('aat-site-lang',l);}catch(e){}
   window.applySiteLang();
