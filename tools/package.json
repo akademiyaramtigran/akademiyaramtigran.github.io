@@ -4,9 +4,13 @@
   "description": "Akademîya Aram Tîgran — dil raporu üretme ve entegrasyon araçları",
   "scripts": {
     "rapor": "node dil-rapor-uret.js",
-    "entegre": "node dil-entegre.js"
+    "entegre": "node dil-entegre.js",
+    "kural-testi": "firebase emulators:exec --only firestore,storage --project aram2026-test \"node kural-testi.js\""
   },
   "devDependencies": {
-    "@babel/parser": "^7.25.0"
+    "@babel/parser": "^7.25.0",
+    "firebase-tools": "^13.0.0",
+    "@firebase/rules-unit-testing": "^3.0.0",
+    "firebase": "^10.12.0"
   }
 }

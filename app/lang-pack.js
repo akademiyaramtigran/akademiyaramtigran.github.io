@@ -261,7 +261,6 @@ window.AAT_TX={"ku":{},"zz":{},"tr":{"📥 Kart tê amadekirin…":"📥 Kart ha
 "E-peyam di vê tomarê de tune — pêşî zêde bike":"Bu kayıtta e-posta yok — önce ekleyin",
 "E-peyam neçû":"E-posta gönderilemedi",
 "Hate şandin: ":"Gönderildi:",
-"Şîfreya nû (min 4 tîp)":"Yeni şifre (en az 4 karakter)",
 "Şîfreya nû (vala = nayê guhertin)":"Yeni şifre (boş = değişmez)",
 "Şîfreya nû çêke":"Yeni şifre oluştur",
 "Rêveberî (Admin)":"Yönetici (Admin)",
@@ -822,6 +821,8 @@ window.AAT_TX={"ku":{},"zz":{},"tr":{"📥 Kart tê amadekirin…":"📥 Kart ha
 "❌ Nûvekirina serneket":"❌ Güncellenemedi",
 "Hesabê Auth nehat jêbirin — di Firebase Console de {0} jê bibe":"Auth hesabı silinemedi — Firebase Console'da {0} hesabını silin",
 "⚠ Tenê lokalî hate jêbirin — Firebase ID tune":"⚠ Öğrenci yalnızca yerelde silindi (Firebase ID yok)",
-"❌ Jêbirin serneket — girêdan kontrol bike":"❌ Silinemedi — bağlantıyı kontrol edin"}};
+"❌ Jêbirin serneket — girêdan kontrol bike":"❌ Silinemedi — bağlantıyı kontrol edin",
+"Şîfreya nû (min 6 tîp)":"Yeni şifre (en az 6 karakter)",
+"⚠ Şîfre divê herî kêm 6 tîp be":"⚠ Şifre en az 6 karakter olmalı"}};
 window.AAT_SITE={"ku":{},"zz":{}};
 window.AAT_SITE_AREA={"ku":{},"zz":{}};

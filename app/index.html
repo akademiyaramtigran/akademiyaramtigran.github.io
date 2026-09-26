@@ -153,13 +153,10 @@
     https://*.firebasestorage.app
     https://api.emailjs.com;
   frame-src 'self' https://www.google.com https://www.recaptcha.net;
-  frame-ancestors 'none';
   base-uri 'self';
   form-action 'self';
 "/>
-<meta http-equiv="X-Frame-Options" content="DENY"/>
-<meta http-equiv="X-Content-Type-Options" content="nosniff"/>
-<meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin"/>
+<meta name="referrer" content="strict-origin-when-cross-origin"/>
 
 <!-- ══ iOS STARTUP IMAGES (splash per device) ══ -->
 <!-- iPhone 14 Pro Max -->
@@ -235,71 +232,10 @@
   import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, createUserWithEmailAndPassword, updatePassword, updateEmail, deleteUser, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
 
-  // ══════════════════════════════════════════════════════════════════════
-  // ── Firebase Firestore GÜVENLİK KURALLARI (Firebase Console > Firestore > Rules)
-  // Bu kuralları Firebase konsolunuza yapıştırın:
-  //
-  // rules_version = '2';
-  // service cloud.firestore {
-  //   match /databases/{database}/documents {
-  //
-  //     // Giriş yapmış herhangi bir kullanıcı
-  //     function isLoggedIn() {
-  //       return request.auth != null;
-  //     }
-  //
-  //     // Admin kontrolü: admin@aramtigran.edu veya roles koleksiyonunda role=="admin"
-  //     function isAdmin() {
-  //       return request.auth != null && (
-  //         request.auth.token.email == "admin@aramtigran.edu" ||
-  //         request.auth.token.email.matches(".*@ogretmen\\.aat")
-  //       );
-  //     }
-  //
-  //     // Öğrenciler: okuma herkese açık (auth varsa), yazma auth olan herkese
-  //     match /students/{docId} {
-  //       allow read: if isLoggedIn();
-  //       allow write: if isLoggedIn();
-  //     }
-  //     // Öğretmenler
-  //     match /teachers/{docId} {
-  //       allow read: if isLoggedIn();
-  //       allow write: if isLoggedIn();
-  //     }
-  //     // Ders programı
-  //     match /schedule/{docId} {
-  //       allow read: if isLoggedIn();
-  //       allow write: if isLoggedIn();
-  //     }
-  //     // Yoklama kayıtları
-  //     match /attendance/{docId} {
-  //       allow read: if isLoggedIn();
-  //       allow write: if isLoggedIn();
-  //     }
-  //     // Mesajlar
-  //     match /messages/{docId} {
-  //       allow read: if isLoggedIn();
-  //       allow write: if isLoggedIn();
-  //     }
-  //     // Duyurular
-  //     match /announcements/{docId} {
-  //       allow read: if isLoggedIn();
-  //       allow write: if isLoggedIn();
-  //     }
-  //     // Kullanıcı rolleri — herhangi bir auth kullanıcısı yazabilir (createAuthUser için)
-  //     match /roles/{uid} {
-  //       allow read: if isLoggedIn();
-  //       allow write: if isLoggedIn();
-  //     }
-  //   }
-  // }
-  //
-  // ⚠️ ÖNEMLİ: Firebase Console > Authentication > Sign-in method > Email/Password AÇIK olmalı!
-  // ⚠️ Kullanıcı oluşturma akışı:
-  //    Admin öğrenci/öğretmen ekler → genAutoPassword() ile 8 haneli şifre → 
-  //    Firebase Auth'a no@ogrenci.aat / no@ogretmen.aat olarak kaydedilir →
-  //    Giriş: kullanıcı adı=no, şifre=otomatik şifre
-  // ══════════════════════════════════════════════════════════════════════
+  // ── Güvenlik kuralları: depodaki firestore.rules / storage.rules (v4) geçerlidir.
+  //    Rol = e-posta uzantısı + üyelik dizini (idx_staff / idx_students). Bkz. FIREBASE_SECURITY.md
+  //    Kullanıcı oluşturma: yönetici ekler → genAutoPassword() → Auth'a no@ogrenci.aat /
+  //    no@ogretmen.aat olarak kaydedilir → dizin kaydı (idxPut) otomatik yazılır.
 
   // ── Firebase Config — kendi config'inizi buraya yapıştırın ──
   const firebaseConfig = {
@@ -428,9 +364,55 @@
     } catch (e) { _storageDown = true; return null; }
   }
 
+  // ── Üyelik dizini (güvenlik) ─────────────────────────────────────────
+  // Firestore kuralları personeli/öğrenciyi yalnızca e-posta uzantısına göre
+  // DEĞİL, personelin yazdığı dizin kaydına göre tanır:
+  //   idx_staff/{no}    → öğretmen / yönetici / basın / öğrenci işleri
+  //   idx_students/{no} → öğrenci
+  // Böylece dışarıdan "x@ogretmen.aat" hesabı açan biri yetki kazanamaz.
+  function idxId(no) { return String(no || "").replace(/[^A-Za-z0-9_\-\.]/g, "").toLowerCase(); }
+  function isStaffSession() {
+    const e = (auth.currentUser && auth.currentUser.email) || "";
+    return /@ogretmen\.aat$/i.test(e) || e === ADMIN_EMAIL;
+  }
+  // Personel yetki seviyesi (kurallar yönetici işlemlerini buna göre açar)
+  function staffLvl(tc) { return tc.isAdmin ? "admin" : tc.isRegistrar ? "registrar" : tc.isPress ? "press" : "teacher"; }
+  async function idxPut(kind, rec) {
+    const id = idxId(rec && rec.no);
+    if (!id || !isStaffSession()) return;
+    const data = kind === "student" ? { no: id } : { no: id, lvl: staffLvl(rec) };
+    try { await setDoc(doc(db, kind === "student" ? "idx_students" : "idx_staff", id), { ...data, updatedAt: serverTimestamp() }); } catch (_) {}
+  }
+  async function idxDel(kind, no) {
+    const id = idxId(no);
+    if (!id || !isStaffSession()) return;
+    try { await deleteDoc(doc(db, kind === "student" ? "idx_students" : "idx_staff", id)); } catch (_) {}
+  }
+  // Yönetici girişinde: dizini öğrenci/öğretmen listeleriyle eşitle (eksikleri ekle, silinenleri kaldır)
+  async function syncMemberIndex(students, teachers) {
+    if (!isStaffSession()) return { ok: false };
+    // id → istenen veri
+    const want = { idx_students: new Map(), idx_staff: new Map() };
+    students.forEach(x => { const id = idxId(x.no); if (id) want.idx_students.set(id, { no: id }); });
+    teachers.forEach(x => { const id = idxId(x.no); if (id) want.idx_staff.set(id, { no: id, lvl: staffLvl(x) }); });
+    let added = 0, removed = 0;
+    for (const col of Object.keys(want)) {
+      const snap = await getDocs(collection(db, col));
+      const have = new Map(snap.docs.map(d => [d.id, d.data()]));
+      for (const [id, data] of want[col]) {
+        const h = have.get(id);
+        if (!h || (data.lvl && h.lvl !== data.lvl)) { await setDoc(doc(db, col, id), { ...data, updatedAt: serverTimestamp() }); added++; }
+      }
+      // Liste gerçekten yüklendiyse (boş değilse) artık olmayanları kaldır
+      if (want[col].size > 0) for (const id of have.keys()) if (!want[col].has(id)) { await deleteDoc(doc(db, col, id)); removed++; }
+    }
+    return { ok: true, added, removed };
+  }
+
   window.__FB = {
     db, auth,
     ADMIN_EMAIL,
+    idxPut, idxDel, syncMemberIndex,
     uploadNewsMedia,
     collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
     onSnapshot, serverTimestamp, query, orderBy, where, limit,
@@ -567,6 +549,7 @@
         }
       }
       await setDoc(ref, {...cleanData, passHash: s.pass || "", fireId: ref.id, hasPhoto, photo: photoToSave, updatedAt: serverTimestamp()});
+      await idxPut("student", s);
       return ref.id;
     },
     async saveTeacher(tc) {
@@ -589,6 +572,7 @@
         }
       }
       await setDoc(ref, {...cleanData, passHash: tc.pass || "", fireId: ref.id, hasPhoto, photo: photoToSave, updatedAt: serverTimestamp()});
+      await idxPut("staff", tc);
       return ref.id;
     },
     async saveSchedule(ls) {
@@ -1754,8 +1738,14 @@ async function fbDelete(type, fireId) {
   if (!fireId) { console.warn("fbDelete: fireId is empty, cannot delete from Firebase", type); return; }
   try {
     if (type === "schedule") await window.__FB.deleteSchedule(fireId);
-    if (type === "student") await window.__FB.deleteDoc(window.__FB.doc(window.__FB.db, "students", String(fireId)));
-    if (type === "teacher") await window.__FB.deleteDoc(window.__FB.doc(window.__FB.db, "teachers", String(fireId)));
+    if (type === "student" || type === "teacher") {
+      const col = type === "student" ? "students" : "teachers";
+      const ref = window.__FB.doc(window.__FB.db, col, String(fireId));
+      let no = null;
+      try { const snap = await window.__FB.getDoc(ref); no = snap.exists() ? (snap.data().no || null) : null; } catch(_) {}
+      await window.__FB.deleteDoc(ref);
+      if (no) await window.__FB.idxDel(type === "student" ? "student" : "staff", no);
+    }
     if (type === "announcement") await window.__FB.deleteDoc(window.__FB.doc(window.__FB.db, "announcements", String(fireId)));
     if (type === "message") await window.__FB.deleteDoc(window.__FB.doc(window.__FB.db, "messages", String(fireId)));
   } catch(e) { console.warn("Firebase delete error:", type, fireId, e); throw e; }
@@ -4839,7 +4829,8 @@ function EditStudentSheet({student,onClose,t,lang,toast,onSave}){
     // Kutuya yeni şifre yazıldıysa değiştir; boşsa mevcut hash aynen korunur
     let newHash = student.pass;
     let newPlain = student._plainPass;
-    if(pass && pass.length >= 4){
+    if(pass && pass.length < 6){toast(lang==="en"?"⚠ Password must be at least 6 characters":K("⚠ Şîfre divê herî kêm 6 tîp be"));return;}
+    if(pass && pass.length >= 6){
       newHash = await hashPassword(pass);
       newPlain = pass;
       try{ if(window.__FB&&window.__FB.isConfigured()){ const _fr=await window.__FB.forceResetPassword(student.no,"student",student._plainPass||null,pass); if(_fr===null) toast("⚠ "+(lang==="en"?"Firebase Auth password could NOT be updated. Fix: Firebase Console → Authentication → delete this account; it recreates on next login.":K("Şîfreya Firebase Auth NEHAT nûkirin. Çare: Firebase Console → Authentication → vî hesabî jê bibe; di têketina pêş de bixweber ji nû ve tê çêkirin.")), 12000); } }catch(e){}
@@ -4920,7 +4911,7 @@ function EditStudentSheet({student,onClose,t,lang,toast,onSave}){
         </div>
         {/* Şifre Güncelleme */}
         <div style={{marginTop:12,borderTop:"1px solid rgba(255,255,255,0.1)",paddingTop:10}}>
-          <div style={{fontSize:10,color:"rgba(255,255,255,0.45)",marginBottom:6}}>{lang==="en"?"Change password (min 4 chars)":K("Şîfreya nû (min 4 tîp)")}</div>
+          <div style={{fontSize:10,color:"rgba(255,255,255,0.45)",marginBottom:6}}>{lang==="en"?"Change password (min 6 chars)":K("Şîfreya nû (min 6 tîp)")}</div>
           <div style={{display:"flex",gap:6}}>
             <input
               style={{...inputStyle,flex:1,fontSize:13,padding:"8px 10px",background:"rgba(255,255,255,0.08)",color:"#fff",border:"1px solid rgba(255,255,255,0.15)",marginBottom:0}}
@@ -4975,7 +4966,8 @@ function EditTeacherSheet({teacher,onClose,t,lang,toast,onSave}){
     if(!name.trim()){toast("⚠ "+t.fullName); return;}
     let newHash = teacher.pass;
     let newPlain = teacher._plainPass;
-    if(pass && pass.length >= 4){
+    if(pass && pass.length < 6){toast(lang==="en"?"⚠ Password must be at least 6 characters":K("⚠ Şîfre divê herî kêm 6 tîp be"));return;}
+    if(pass && pass.length >= 6){
       newHash = await hashPassword(pass);
       newPlain = pass;
       try{ if(window.__FB&&window.__FB.isConfigured()){ const _fr=await window.__FB.forceResetPassword(teacher.no,"teacher",teacher._plainPass||null,pass); if(_fr===null) toast("⚠ "+(lang==="en"?"Firebase Auth password could NOT be updated. Fix: Firebase Console → Authentication → delete this account; it recreates on next login.":K("Şîfreya Firebase Auth NEHAT nûkirin. Çare: Firebase Console → Authentication → vî hesabî jê bibe; di têketina pêş de bixweber ji nû ve tê çêkirin.")), 12000); } }catch(e){}
@@ -5067,7 +5059,7 @@ function EditTeacherSheet({teacher,onClose,t,lang,toast,onSave}){
         </div>
         {/* Şifre Güncelleme */}
         <div style={{marginTop:12,borderTop:"1px solid rgba(255,255,255,0.1)",paddingTop:10}}>
-          <div style={{fontSize:10,color:"rgba(255,255,255,0.45)",marginBottom:6}}>{lang==="en"?"Change password (min 4 chars)":K("Şîfreya nû (min 4 tîp)")}</div>
+          <div style={{fontSize:10,color:"rgba(255,255,255,0.45)",marginBottom:6}}>{lang==="en"?"Change password (min 6 chars)":K("Şîfreya nû (min 6 tîp)")}</div>
           <div style={{display:"flex",gap:6}}>
             <input
               style={{...inputStyle,fontSize:13,padding:"8px 10px",background:"rgba(255,255,255,0.08)",color:"#fff",border:"1px solid rgba(255,255,255,0.15)",flex:1,marginBottom:0}}
@@ -6575,7 +6567,8 @@ function EditSpecialCardSheet({card,onClose,t,lang,toast,onSave}){
     let newHash = card.pass;
     let newPlain = card._plainPass;
     const currentPlain = card._plainPass || "";
-    if(pass && pass !== currentPlain && pass.length >= 4){
+    if(pass && pass !== currentPlain && pass.length < 6){toast(lang==="en"?"⚠ Password must be at least 6 characters":K("⚠ Şîfre divê herî kêm 6 tîp be"));return;}
+    if(pass && pass !== currentPlain && pass.length >= 6){
       newHash = await hashPassword(pass);
       newPlain = pass;
       // Firebase Auth şifresini de eşitle (eski şifre biliniyorsa; değilse hash yeter)
@@ -6643,7 +6636,7 @@ function EditSpecialCardSheet({card,onClose,t,lang,toast,onSave}){
         </div>
         {/* Şifre Güncelleme + otomatik üretme */}
         <div style={{marginTop:12,borderTop:"1px solid rgba(255,255,255,0.1)",paddingTop:10}}>
-          <div style={{fontSize:10,color:"rgba(255,255,255,0.45)",marginBottom:6}}>{lang==="en"?"Change password (min 4 chars)":K("Şîfreya nû (min 4 tîp)")}</div>
+          <div style={{fontSize:10,color:"rgba(255,255,255,0.45)",marginBottom:6}}>{lang==="en"?"Change password (min 6 chars)":K("Şîfreya nû (min 6 tîp)")}</div>
           <div style={{display:"flex",gap:6}}>
             <input
               style={{...inputStyle,fontSize:13,padding:"8px 10px",background:"rgba(255,255,255,0.08)",color:"#fff",border:"1px solid rgba(255,255,255,0.15)",flex:1,marginBottom:0}}
@@ -16338,6 +16331,15 @@ function App(){
   const [dark,setDark]=useTheme();
   const {permission:notifPerm,requestPermission,sendLocalNotification}=useNotifications();
   const [showSettings,setShowSettings]=useState(false);
+  // Yönetici girişinde güvenlik dizinini (idx_staff / idx_students) bir kez eşitle
+  const memberSyncPending=useRef(false);
+  useEffect(()=>{
+    if(!memberSyncPending.current||screen!=="admin"||!teachers.length) return;
+    if(!window.__FB||!window.__FB.isConfigured()||!window.__FB.syncMemberIndex) return;
+    memberSyncPending.current=false;
+    const tm=setTimeout(()=>{ window.__FB.syncMemberIndex(students,teachers).then(r=>{ if(r&&r.ok&&(r.added||r.removed)) console.info("[idx] eşitlendi",r); }).catch(e=>console.warn("[idx] eşitleme hatası",e)); },4000);
+    return ()=>clearTimeout(tm);
+  },[screen,teachers.length,students.length]);
 
   // One-time: clear demo data from localStorage if it was set before
   useEffect(()=>{
@@ -16711,6 +16713,7 @@ function App(){
   function handleLogin(type,user){
     setCurrentUser({...user,type});
     setScreen(type);
+    if(type==="admin") memberSyncPending.current=true;
     // Welcome notification (delayed to avoid blocking UI)
     setTimeout(()=>{
       try{

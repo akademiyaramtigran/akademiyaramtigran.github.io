@@ -176,6 +176,7 @@ h2 small{font-weight:600;color:var(--muted);white-space:nowrap}
 .row textarea{width:100%;min-height:36px;resize:vertical;border:1px dashed #d9c877;border-radius:7px;padding:6px 8px;font:inherit;font-size:13px;background:transparent;color:inherit}
 .row textarea:focus{outline:none;border:1.5px solid var(--gold);background:var(--bg)}
 .row.done textarea{border:1.5px solid var(--ok)}
+.warn{display:inline-block;margin-top:4px;font-size:10.5px;font-weight:700;color:#b45309;background:rgba(245,158,11,.14);border-radius:5px;padding:1px 6px}
 .key{display:block;font-size:10px;color:var(--muted);font-family:ui-monospace,monospace;margin-top:2px}
 .ph{background:rgba(201,162,39,.18);border-radius:4px;padding:0 3px;font-family:ui-monospace,monospace}
 .lab{display:none;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
@@ -218,7 +219,7 @@ h2 small{font-weight:600;color:var(--muted);white-space:nowrap}
     <input id="who" placeholder="Hazırlayan (ad soyad)" style="flex:1 1 180px"/>
     <input id="q" type="search" placeholder="🔎 Metin ara…"/>
     <select id="sec"><option value="">Tüm bölümler</option></select>
-    <select id="flt"><option value="">Hepsi</option><option value="empty">Yalnız boşlar</option><option value="done">Yalnız dolular</option></select>
+    <select id="flt"><option value="">Hepsi</option><option value="empty">Yalnız boşlar</option><option value="done">Yalnız dolular</option>${isZZ ? '' : '<option value="warn">⚠ Türkçe kalmış olabilir</option>'}</select>
     <div class="prog"><i id="pb"></i></div>
   </div>
   <div id="list"></div>
@@ -254,7 +255,7 @@ h2 small{font-weight:600;color:var(--muted);white-space:nowrap}
     rows.forEach(function(r){
       var R=el('div','row');R._r=r;
       R.appendChild(el('div','n',String(r.i)));
-      var c1=el('div','ku');c1.appendChild(el('span','lab','Kurmancî'));withPh(c1,r.k);if(r.key){c1.appendChild(el('span','key',r.key));}R.appendChild(c1);
+      var c1=el('div','ku');c1.appendChild(el('span','lab','Kurmancî'));withPh(c1,r.k);if(r.key){c1.appendChild(el('span','key',r.key));}if(r.w&&D.lang==='ku'){c1.appendChild(document.createElement('br'));c1.appendChild(el('span','warn','⚠ Türkçe kalmış olabilir'));}R.appendChild(c1);
       var c2=el('div','tr');c2.appendChild(el('span','lab','Türkçe'));withPh(c2,r.t||'—');R.appendChild(c2);
       var c3=el('div','en');c3.appendChild(el('span','lab','English'));withPh(c3,r.e||'—');R.appendChild(c3);
       var c4=el('div','f');c4.appendChild(el('span','lab','${colHead}'));
@@ -279,7 +280,7 @@ h2 small{font-weight:600;color:var(--muted);white-space:nowrap}
     areas.forEach(function(b){
       var any=false;
       b._rows.forEach(function(R){var r=R._r;var v=R._ta.value.trim();
-        var ok=(!s||r.s===s)&&(!q||(r.k+' '+r.t+' '+r.e+' '+v).toLowerCase().indexOf(q)>=0)&&(!f||(f==='empty'?!v:!!v));
+        var ok=(!s||r.s===s)&&(!q||(r.k+' '+r.t+' '+r.e+' '+v).toLowerCase().indexOf(q)>=0)&&(!f||(f==='empty'?!v:f==='warn'?!!r.w:!!v));
         R.classList.toggle('hide',!ok);if(ok)any=true;});
       b.classList.toggle('hide',!any);
     });
@@ -325,6 +326,11 @@ h2 small{font-weight:600;color:var(--muted);white-space:nowrap}
 `;
 }
 
+// Kurmancî metinde Türkçe kalmış olabilir mi? (Kurmancî alfabesinde ı ğ ö ü yoktur)
+function suspectTr(k) {
+  return /[ıİğĞöÖüÜ]/.test(k) || /(^|[^\wçêîûş])(için|bekleniyor|isteğe|yeni|sonra|sıfırla\w*|yüzdelik|puan|dönem\w*|ör\.|Parmak|Hedef)([^\wçêîûş]|$)/i.test(k);
+}
+
 function main() {
   const pack = loadPack();
   const app = appStrings();
@@ -335,7 +341,7 @@ function main() {
   function rowsFor(lang) {
     const TX = pack.TX, tr = TX.tr || {}, cur = TX[lang] || {};
     const rows = app.map(x => ({
-      id: 'a' + hash(x.ku), s: sectionOf(x.comps), k: x.ku, t: tr[x.ku] || '', e: x.en,
+      id: 'a' + hash(x.ku), s: sectionOf(x.comps), k: x.ku, t: tr[x.ku] || '', e: x.en, w: suspectTr(x.ku) ? 1 : 0,
       key: x.keys.length ? 'T.' + x.keys.join(', T.') : '', v: cur[x.ku] || ''
     }));
     for (const r of site) {
