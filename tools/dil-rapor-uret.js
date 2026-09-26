@@ -149,7 +149,7 @@ function sectionOf(comps) {
 
 // ── 4) HTML ─────────────────────────────────────────────────────────────
 function page(lang, rows, sections) {
-  const isZZ = lang === 'zz';
+  const isZZ = lang === 'zza';
   const title = isZZ ? 'Zazakî (Kirmanckî) Çeviri Raporu' : 'Kurmancî Düzeltme Raporu';
   const colHead = isZZ ? 'Zazakî ✍️' : 'Yeni Kurmancî ✍️';
   const intro = isZZ
@@ -252,7 +252,7 @@ h2 small{font-weight:600;color:var(--muted);white-space:nowrap}
 <script>
 (function(){
   var D=JSON.parse(document.getElementById('data').textContent);
-  var KEY='aat-dil-'+D.lang+'-v3', WHO='aat-dil-who';
+  var KEY='aat-dil-'+(D.lang==='zza'?'zz':D.lang)+'-v3', WHO='aat-dil-who';
   var S={};try{S=JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){}
   var who=document.getElementById('who');try{who.value=localStorage.getItem(WHO)||'';}catch(e){}
   who.addEventListener('input',function(){try{localStorage.setItem(WHO,who.value);}catch(e){}});
@@ -308,14 +308,14 @@ h2 small{font-weight:600;color:var(--muted);white-space:nowrap}
   function build(){
     var out={format:'aat-dil-v3',lang:D.lang,by:who.value.trim(),date:new Date().toISOString(),app:{},site:{},area:{},zarok:{},zarokSite:{}},n=0;
     rowsEl.forEach(function(R){var v=R._ta.value.trim(),r=R._r;if(!v)return;
-      if(D.lang!=='zz'&&v===r.k)return; // Kurmancî: değişmeyen satırı gönderme
+      if(D.lang!=='zza'&&v===r.k)return; // Kurmancî: değişmeyen satırı gönderme
       n++; var g=grp(r.key); if(g)out[g[0]][g[1]]=v; else out.app[r.k]=v;});
     out.count=n;return n?out:null;
   }
   // Satır anahtarı → dışa aktarma grubu (site./area./zarok./zaroksite.; diğerleri Kurmancî metinle "app")
   function grp(key){ var P=[['site.','site'],['area.','area'],['zarok.','zarok'],['zaroksite.','zarokSite']];
     for(var i=0;i<P.length;i++){ if(key&&key.indexOf(P[i][0])===0) return [P[i][1],key.slice(P[i][0].length)]; } return null; }
-  function fname(){return 'dil-'+(D.lang==='zz'?'zazaki':'kurmanci')+'-'+new Date().toISOString().slice(0,10)+'.json';}
+  function fname(){return 'dil-'+(D.lang==='zza'?'zazaki':'kurmanci')+'-'+new Date().toISOString().slice(0,10)+'.json';}
   document.getElementById('b-send').addEventListener('click',function(){
     if(!who.value.trim()){toast('Lütfen önce adınızı yazın');who.focus();return;}
     var o=build();if(!o){toast('Henüz giriş yapılmadı');return;}
@@ -332,7 +332,7 @@ h2 small{font-weight:600;color:var(--muted);white-space:nowrap}
   });
   document.getElementById('impf').addEventListener('change',function(e){
     var f=e.target.files[0];if(!f)return;var rd=new FileReader();
-    rd.onload=function(){try{var o=JSON.parse(rd.result);if(!o||o.format!=='aat-dil-v3'||o.lang!==D.lang)throw 0;var n=0;
+    rd.onload=function(){try{var o=JSON.parse(rd.result);if(!o||o.format!=='aat-dil-v3'||(o.lang==='zz'?'zza':o.lang)!==D.lang)throw 0;var n=0;
       rowsEl.forEach(function(R){var r=R._r,v;
         var g=grp(r.key); v=g?(o[g[0]]||{})[g[1]]:(o.app||{})[r.k];
         if(typeof v==='string'&&v.trim()){R._ta.value=v;S[r.id]=v;mark(R,R._ta);n++;}});
@@ -381,8 +381,8 @@ function main() {
     return rows;
   }
   fs.writeFileSync(path.join(ROOT, 'dil-raporu.html'), page('ku', rowsFor('ku'), secNames));
-  fs.writeFileSync(path.join(ROOT, 'dil-raporu-zazaki.html'), page('zz', rowsFor('zz'), secNames));
-  const r = rowsFor('zz');
+  fs.writeFileSync(path.join(ROOT, 'dil-raporu-zazaki.html'), page('zza', rowsFor('zza'), secNames));
+  const r = rowsFor('zza');
   const per = {}; r.forEach(x => per[x.s] = (per[x.s] || 0) + 1);
   console.log('Rapor satırı:', r.length, per);
 }
