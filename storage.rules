@@ -1,46 +1,80 @@
 rules_version = '2';
 
-// Firebase Storage — Akademîya Aram Tîgran
+// Firebase Storage — Akademîya Aram Tîgran  (v2: üyelik dizini + boyut/tür sınırları)
 //
-// photos/       : profil fotoğrafları — giriş yapmış kullanıcılar okur/yazar.
-// applications/ : kayıt başvurusu belgeleri — site (girişsiz) YÜKLEYEBİLİR
-//                 (yalnızca create; boyut ve tür sınırlı), silme/değiştirme
-//                 yalnızca personel. Görüntüleme personel (indirme URL'leri
-//                 token'lı olduğu için panel her durumda açar).
+// Yetki, Firestore'daki üyelik dizininden okunur (firestore.exists/get):
+//   idx_staff/{no}    → personel (lvl: admin | registrar | press | teacher)
+//   idx_students/{no} → öğrenci
+// Not: Storage kurallarında Firestore'a erişim için Console bir kez izin ister
+// (kuralları yayınlarken çıkan "Firestore erişimine izin ver" onayı).
+//
+// photos/       : profil fotoğrafları — üyeler okur; yazma yalnızca görsel ≤5MB.
+// news/         : haber medyası — herkes okur; yükleme yalnızca personel.
+// applications/ : kayıt başvurusu belgeleri — girişsiz YÜKLENEBİLİR ama
+//                 yalnızca başvuru dönemi AÇIKKEN, görsel/PDF ≤8MB.
 service firebase.storage {
   match /b/{bucket}/o {
 
-    match /photos/{allPaths=**} {
-      allow read:  if request.auth != null;
-      allow write: if request.auth != null;
+    function authed()  { return request.auth != null && request.auth.token.email != null; }
+    function prefix()  { return request.auth.token.email.split('@')[0]; }
+    function isStaff() {
+      return authed() && (
+        request.auth.token.email == 'admin@aramtigran.edu' ||
+        (request.auth.token.email.matches('.*@ogretmen[.]aat$')
+          && firestore.exists(/databases/(default)/documents/idx_staff/$(prefix())))
+      );
+    }
+    function isStudent() {
+      return authed() && request.auth.token.email.matches('.*@ogrenci[.]aat$')
+        && firestore.exists(/databases/(default)/documents/idx_students/$(prefix()));
+    }
+    function member() { return isStaff() || isStudent(); }
+    function isImage(max) { return request.resource.contentType.matches('image/.*') && request.resource.size < max; }
+
+    // Profil fotoğrafları: photos/students/<fireId>.jpg — öğrenci yalnızca KENDİ fotoğrafını
+    // yükler (belge sahibi Firestore'dan doğrulanır); personel hepsini yönetir.
+    match /photos/students/{file} {
+      allow read:   if member();
+      allow create, update: if isImage(5 * 1024 * 1024) && (isStaff() || (isStudent()
+        && string(firestore.get(/databases/(default)/documents/students/$(file.split('[.]')[0])).data.no) == prefix()));
+      allow delete: if isStaff();
+    }
+    match /photos/teachers/{file} {
+      allow read:   if member();
+      allow write:  if isStaff() && (request.resource == null || isImage(5 * 1024 * 1024));
     }
 
     // Haber medyası (basın paneli): site herkese açık gösterir → okuma serbest;
-    // yükleme/silme yalnızca personel (basın kartı da @ogretmen.aat'dir).
-    // Görsel ≤10MB, video ≤200MB.
+    // yükleme/silme yalnızca personel. Görsel ≤10MB, video ≤200MB, altyazı ≤2MB.
     match /news/{allPaths=**} {
       allow read: if true;
-      allow create, update: if request.auth != null
-                   && request.auth.token.email.matches('.*@ogretmen[.]aat$')
-                   && ((request.resource.contentType.matches('image/.*')
-                        && request.resource.size < 10 * 1024 * 1024)
+      allow create, update: if isStaff()
+                   && (isImage(10 * 1024 * 1024)
                        || (request.resource.contentType.matches('video/.*')
                         && request.resource.size < 200 * 1024 * 1024)
-                       // altyazı dosyaları (.vtt)
                        || (request.resource.contentType.matches('text/.*')
                         && request.resource.size < 2 * 1024 * 1024));
-      allow delete: if request.auth != null
-                   && request.auth.token.email.matches('.*@ogretmen[.]aat$');
+      allow delete: if isStaff();
+    }
+
+    // Çocuk akademisi başvuru belgeleri — yalnızca Zarok başvuru dönemi açıkken
+    match /zarok-applications/{allPaths=**} {
+      allow read:   if isStaff();
+      allow create: if request.resource.size < 8 * 1024 * 1024
+                    && (request.resource.contentType.matches('image/.*')
+                        || request.resource.contentType == 'application/pdf')
+                    && firestore.get(/databases/(default)/documents/config/zarok).data.open == true;
+      allow update, delete: if isStaff();
     }
 
     match /applications/{allPaths=**} {
-      allow read:   if request.auth != null;
-      // Girişsiz başvuru yüklemesi: en fazla 8MB, yalnızca görsel veya PDF.
+      allow read:   if isStaff();
+      // Girişsiz başvuru yüklemesi: yalnızca dönem açıkken, en fazla 8MB, görsel veya PDF.
       allow create: if request.resource.size < 8 * 1024 * 1024
                     && (request.resource.contentType.matches('image/.*')
-                        || request.resource.contentType == 'application/pdf');
-      allow update, delete: if request.auth != null
-                    && request.auth.token.email.matches('.*@ogretmen[.]aat$');
+                        || request.resource.contentType == 'application/pdf')
+                    && firestore.get(/databases/(default)/documents/config/applications).data.open == true;
+      allow update, delete: if isStaff();
     }
   }
 }

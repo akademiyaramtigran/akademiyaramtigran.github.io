@@ -1,113 +1,71 @@
-# Firebase Güvenlik — Firestore Kuralları
+# Firebase Güvenlik — Kurallar v4 (üyelik dizini)
 
-Bu repodaki `firestore.rules`, en kritik açığı kapatır: şu anki kurallar
-muhtemelen **"giriş yapan herkes her koleksiyonu okuyup yazabilir"**
-durumunda. Yeni kurallarla **öğrenciler** artık:
+## Kapatılan açık (kritik)
 
-- başka öğrenci/öğretmen kayıtlarını **değiştiremez/silemez**,
-- ders programı, duyuru, anket, istatistik ve uygulama ayarlarını
-  (`config`) **değiştiremez**,
-- kendilerine **`isAdmin: true`** verip **yönetici olamaz**.
+Eski kurallar rolü **yalnızca e-posta uzantısından** anlıyordu (`@ogretmen.aat` = personel).
+Firebase'in istemci API anahtarı herkese açık olduğu için (her web uygulamasında böyledir),
+**herhangi biri** `9999@ogretmen.aat` gibi bir hesap açıp tüm öğrenci/öğretmen kayıtlarını
+okuyabiliyor, silebiliyor, haber yükleyebiliyordu. Emülatörde doğrulandı (eski kurallarla
+34 testin 11'i başarısız).
 
-Öğrenciler hâlâ yapabilir: kendi profilini/şifresini güncelleme, QR ile
-yoklamaya giriş, anket cevabı gönderme, mesaj gönderme.
+**v4 ile** yetki, yalnızca personelin yazabildiği bir dizinden gelir:
 
-> Rol, Firebase Auth e-postasının uzantısından anlaşılır:
-> `@ogrenci.aat` = öğrenci, `@ogretmen.aat` = öğretmen/yönetici.
+| Koleksiyon | İçerik | Kim yazar |
+|---|---|---|
+| `idx_staff/{no}` | `{no, lvl}` — lvl: `admin` · `registrar` · `press` · `teacher` | yönetici seviyesi |
+| `idx_students/{no}` | `{no}` | yönetici seviyesi |
 
----
+- Öğretmen/öğrenci eklenince, silinince uygulama dizini **otomatik** günceller.
+- **Yönetici her girişte** dizini listelerle eşitler (eksikleri ekler, silinenleri kaldırır).
+- Öğretmen artık kendini yönetici yapamaz, başka öğretmeni silemez/düzenleyemez.
+- Öğrenci/öğretmen kendi kaydında alan, sınıf, burs, isim, yetki bayraklarını değiştiremez.
+- Sahte hesaplar mesaj, yoklama, anket, program vb. hiçbir şeye erişemez.
+- Storage: haber medyası yalnızca gerçek personel; başvuru belgesi yalnızca dönem açıkken;
+  profil fotoğrafı yalnızca görsel ≤5MB.
 
-## 1) Önce TEST et (yayınlamadan)
+## ⚠️ YAYIN SIRASI (önemli — sırayı bozmayın, ~5 dakika, sakin bir saatte yapın)
 
-1. [Firebase Console](https://console.firebase.google.com) → projeyi aç
-   (`aram2026-a9fd7`).
-2. **Build → Firestore Database → Rules** sekmesi.
-3. Sağ üstte **Rules Playground**'u aç ve şu senaryoları dene:
+1. **Kodu yayınla** (bu commit GitHub Pages'e çıksın; uygulamada "güncelle" bildirimi gelir).
+2. Firebase Console → Firestore → Data → **Start collection** `idx_staff` →
+   Document ID: `1000` → alanlar: `no` (string) = `1000`, `lvl` (string) = `admin` → Save.
+   (Yöneticinin numarası farklıysa onu yazın. Bu, dizindeki tek elle girilen kayıttır.)
+3. `firestore.rules` → Console → Firestore → Rules → **Publish**.
+4. `storage.rules` → Console → Storage → Rules → **Publish**
+   (Firestore'a erişim izni sorulursa **İzin ver**).
+   *(Alternatif: `firebase deploy --only firestore:rules,storage` — kökteki `firebase.json` hazır.)*
+5. **Yönetici (1000) çıkış yapıp tekrar giriş yapsın**, panel açık ~10 sn beklesin →
+   uygulama tüm öğretmen/öğrencileri dizine otomatik yazar.
+   Console'da `idx_staff` ve `idx_students` dolmuş olmalı.
+6. Duman testi: öğrenci, öğretmen, basın, öğrenci işleri hesaplarıyla birer giriş.
 
-| Senaryo | Auth (email) | İşlem | Yol | Beklenen |
-|---|---|---|---|---|
-| Öğrenci başka öğrenciyi düzenler | `10202601@ogrenci.aat` | update | `/students/{başka}` | **Denied** |
-| Öğrenci kendi şifresini değiştirir | `10202601@ogrenci.aat` | update | `/students/{kendi}` | Allowed |
-| Öğrenci kendini admin yapar | `10202601@ogrenci.aat` | update (isAdmin=true) | `/students/{kendi}` | **Denied** |
-| Öğretmen öğrenci ekler | `11202601@ogretmen.aat` | create | `/students/{yeni}` | Allowed |
-| Öğrenci programı değiştirir | `…@ogrenci.aat` | write | `/schedule/{x}` | **Denied** |
-| Öğrenci QR check-in | `…@ogrenci.aat` | write | `/attendance/{x}` | Allowed |
+> 3 ile 5 arasında (1–2 dakika) öğretmen ve öğrenciler veri göremez; 5. adımdan sonra
+> düzelir. Bu sıra emülatörde test edildi (yalnızca `idx_staff/1000` varken yönetici
+> eşitlemesi tüm dizini kurar).
 
-> "Kendi" testinde, dokümanın `no` alanı e-posta önekiyle (ör. `10202601`)
-> aynı olmalı.
+## Testler
 
-## 2) Yayınla
-
-Playground sonuçları beklenen gibiyse: `firestore.rules` içeriğini
-Rules editörüne **yapıştır → Publish**.
-
-## 3) Yayından hemen sonra duman testi (gerçek uygulamada)
-
-- Bir **öğrenci** hesabıyla gir: profil görünüyor mu, QR ile yoklamaya
-  girebiliyor mu, şifre değiştirebiliyor mu?
-- Bir **öğretmen** hesabıyla gir: öğrenci ekleme/düzenleme, ders programı,
-  yoklama kaydı, QR açma çalışıyor mu?
-- Bir **yönetici** ile gir: kullanıcı oluşturma çalışıyor mu?
-
-Bir şey kırılırsa hemen **geri al** (aşağı).
-
-## 4) Geri alma (acil durum)
-
-Sorun olursa Rules editörüne aşağıdakini yapıştırıp **Publish** et —
-eski (gevşek ama çalışan) duruma döner:
-
+```bash
+cd tools && npm install && npm run kural-testi     # Java 11+ gerekir
 ```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if request.auth != null;
-    }
-  }
-}
-```
+62 senaryo: sahte hesaplar, öğretmen yetki yükseltme, öğrenci izolasyonu, yoklama sahipliği,
+site başvurusu, Storage yüklemeleri ve **Akademiya Zarokan** (veli yalnızca kendi çocuğu,
+sahte veli, başvuru doğrulama). Kural değiştirdiğinizde yeniden çalıştırın.
 
----
+## Geri alma (acil durum)
 
-## Kalan riskler / sonraki adımlar
+Bir şey kırılırsa Console'da **Rules → History** sekmesinden önceki sürüme dönün
+(her yayın saklanır). Tamamen açık "giriş yapan herkes" kuralına dönmeyin — o, bu
+belgenin başındaki açığı geri getirir.
 
-- **Okuma hâlâ geniş:** Giriş yapmış her kullanıcı tüm öğrenci/öğretmen
-  kayıtlarını (PII + şifre hash'leri) okuyabilir; çünkü uygulama tüm
-  listeyi istemciye yüklüyor. Bunu "yalnızca kendi verisi + öğretmen
-  kendi alanı" düzeyine indirmek **istemci tarafında** sorgu bazlı
-  yeniden yapılandırma ister (ayrı bir iş).
-- **Şifre hash'i tuzsuz SHA‑256:** Okuma kısıtlanana kadar, sızdırılan
-  hash'ler (özellikle "1234" gibi varsayılanlar) kırılabilir. Varsayılan
-  şifreleri ilk girişte zorunlu değiştirmek önerilir.
-- `attendance` / `messages` yazımı şimdilik "giriş yapan herkes"; istenirse
-  öğrencinin yalnızca kendi kaydını yazmasına daraltılabilir.
+## Kalan riskler (sunucu tarafı gerektirir)
 
----
-
-## Fotoğraflar → Firebase Storage (ölçek/maliyet)
-
-Artık profil fotoğrafları Firestore dokümanına base64 gömmek yerine **Firebase
-Storage**'a yükleniyor; dokümanda yalnızca **URL** tutuluyor. Bu, tüm
-öğrenci/öğretmen listesi her cihaza inerken oluşan ~MB'larca yükü ortadan
-kaldırır. Kod, Storage kapalı/başarısızsa otomatik olarak **eski base64
-davranışına düşer** (yani uygulama bozulmaz, sadece optimizasyon devre dışı kalır).
-
-Etkinleştirmek için:
-
-1. **Storage'ı aç:** Firebase Console → **Build → Storage → Get started**.
-   (Yeni projelerde Storage genelde **Blaze planı** ister; zaten 200 kullanıcı
-   için Blaze öneriliyor.)
-2. **Storage kurallarını yayınla:** Console → **Storage → Rules** → `storage.rules`
-   içeriğini yapıştır → **Publish**.
-3. (Önerilir) **CORS:** Kart dışa aktarımı (html2canvas) Storage fotoğraflarını
-   tuvale çizebilsin diye bucket'a CORS izni ekle (gerekirse).
-
-> Mevcut base64 fotoğraflar çalışmaya devam eder; yalnızca **yeni kayıt/düzenleme**
-> sırasında fotoğraf Storage'a taşınır.
-
-## Ölçek notu (200 kullanıcı)
-Uygulama `students`/`teachers` koleksiyonlarını **tümüyle** dinliyor. 200 aktif
-kullanıcıda Firestore okuma sayısı **Spark (ücretsiz) günlük limitini aşar** →
-**Blaze planına geçiş** + bütçe alarmı önerilir. Fotoğrafların Storage'a taşınması
-okuma boyutunu (maliyeti) ciddi düşürür ama okuma *sayısını* azaltmak için
-ileride alan/öğrenci bazlı sorgulara geçmek gerekir.
+1. **Düz metin şifreler (`_plainPass`)** — çözüm hazır: `functions/` + `FUNCTIONS.md`
+   (yayınlanıp `USE_CLOUD_FUNCTIONS = true` yapılınca artık yazılmaz).
+2. **Herkese açık hesap açma (sign-up)** Firebase'de hâlâ açık (uygulama kullanıcıyı
+   istemciden oluşturduğu için). v4 kuralları bunu zararsız kılar; Cloud Functions'a
+   geçince Console → Authentication → Settings → User actions → **"Enable create (sign-up)"
+   kapatılmalı**.
+3. `messages`: üye olan her öğrenci teknik olarak tüm mesajları okuyabilir (uygulama filtreler,
+   kural filtrelemez). `attendance` ✅ daraltıldı (öğrenci yalnızca kendi adına yazar).
+4. **App Check kapalı** (`APPCHECK_SITE_KEY` boş). reCAPTCHA v3 anahtarı alınıp
+   `app/index.html` içine yazılmalı → bot/otomasyon istekleri engellenir.
