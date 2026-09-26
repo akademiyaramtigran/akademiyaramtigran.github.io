@@ -455,8 +455,8 @@ function viewToday() {
     latest ? h("div", { class: "card", onclick: () => { S.tab = "ann"; render(); }, style: "cursor:pointer" }, h("div", { class: "h" }, "📢 " + latest.title), h("div", { class: "muted", style: "white-space:pre-wrap" }, (latest.body || "").slice(0, 160))) : null,
     h("div", { class: "card", style: "display:flex;gap:12px;align-items:center" },
       h("span", { class: "av", style: "width:52px;height:52px;font-size:28px;background:" + col + "22" }, em),
-      h("div", { style: "flex:1" }, h("b", null, k.name), h("div", { class: "muted" }, areaTxt(k.area) + " · #" + (k.no || ""))),
-      h("button", { class: "btn coral sm", onclick: () => { S.sheet = "kidmode"; render(); } }, "🧒 " + T("kidMode"))));
+      h("div", { style: "flex:1;min-width:0" }, h("b", null, k.name), h("div", { class: "muted" }, areaTxt(k.area) + " · #" + (k.no || ""))),
+      h("button", { class: "btn coral sm", style: "white-space:nowrap;flex-shrink:0", onclick: () => { S.sheet = "kidmode"; render(); } }, "🧒 " + T("kidMode"))));
 }
 function lessonRow(s) {
   const [em, col] = areaEm(s.area);
