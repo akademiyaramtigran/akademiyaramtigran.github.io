@@ -1425,8 +1425,22 @@ input, textarea, [contenteditable] {
 *,*::before,*::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{width:100%;height:100%;overflow:hidden;background:#ffffff;margin:0;padding:0;}
 #root{position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;overflow:hidden;background:#ffffff;display:flex;flex-direction:column;}
-/* ══ MASAÜSTÜ (WEB) DÜZENİ — sabit yan menü + geniş içerik ══ */
-@media (min-width:1000px) and (pointer:fine){
+/* ══ TABLET (dikey) 600–999px — ortalanmış giriş kartı, okunur genişlikte içerik ══ */
+@media (min-width:600px) and (max-width:999.98px){
+  #root{background:radial-gradient(900px 700px at 70% 10%,#2c6b74 0%,#1c4a55 40%,#0f2f38 72%,#071a1f 100%);}
+  #root>div{background:transparent!important;}
+  .login-shell{margin:auto!important;width:calc(100% - 48px)!important;max-width:500px;height:auto!important;max-height:94vh;
+    border-radius:28px;overflow-y:auto!important;overflow-x:hidden!important;
+    box-shadow:0 30px 80px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.06);}
+  .panel-shell{background:var(--bg3);}
+  .scroll-area{padding-left:24px!important;padding-right:24px!important;}
+  .scroll-area>*{max-width:760px;margin-left:auto!important;margin-right:auto!important;}
+  .sheet-shell{max-width:620px!important;margin-left:auto!important;margin-right:auto!important;}
+}
+/* ══ MASAÜSTÜ (WEB) + YATAY TABLET ≥1000px — sabit yan menü + geniş içerik ══
+   (Eskiden yalnızca fare kullanan ekranlar içindi; dokunmatik tabletler telefon
+    düzeninde tüm ekrana yayılıyordu.) */
+@media (min-width:1000px){
   #splash-screen{display:none!important;}
   #root{background:radial-gradient(1200px 820px at 72% 12%,#2c6b74 0%,#1c4a55 36%,#0f2f38 66%,#071a1f 100%);}
   /* uygulama kabuğu şeffaf → gradient görünür (paneller kendi arka planıyla kapatır) */
