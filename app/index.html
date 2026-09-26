@@ -306,7 +306,7 @@
   // Öğretmen: 11202601  → 11202601@ogretmen.aat (sinema öğretmen = alanKodu+1)
   // Admin:    1000      → 1000@ogretmen.aat
   function noToEmail(no, role) {
-    const suffix = (role === "student") ? "@ogrenci.aat" : (role === "guardian") ? "@veli.aat" : "@ogretmen.aat";
+    const suffix = (role === "student") ? "@ogrenci.aat" : (role === "guardian") ? "@veli.aat" : (role === "kidteacher") ? "@zmamoste.aat" : "@ogretmen.aat";
     return (no || "unknown").replace(/[^A-Za-z0-9_\-\.]/g, "") + suffix;
   }
 
@@ -1425,6 +1425,11 @@ input, textarea, [contenteditable] {
 *,*::before,*::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{width:100%;height:100%;overflow:hidden;background:#ffffff;margin:0;padding:0;}
 #root{position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;overflow:hidden;background:#ffffff;display:flex;flex-direction:column;}
+/* ══ KISA EKRAN (telefon yatay) — giriş kartında logo küçülür ══ */
+@media (max-height:520px) and (orientation:landscape){
+  .aat-logo{width:96px!important;}
+  .login-shell{max-height:96vh!important;}
+}
 /* ══ TABLET (dikey) 600–999px — ortalanmış giriş kartı, okunur genişlikte içerik ══ */
 @media (min-width:600px) and (max-width:999.98px){
   #root{background:radial-gradient(900px 700px at 70% 10%,#2c6b74 0%,#1c4a55 40%,#0f2f38 72%,#071a1f 100%);}
@@ -1546,7 +1551,21 @@ const { useState, useEffect, useRef, useCallback } = React;
    Zazakî / Türkçe karşılıkları ve Kurmancî düzeltmeleri app/lang-pack.js'ten
    gelir (akademisyen dil raporlarıyla doldurulur). Karşılık yoksa Kurmancî
    gösterilir. İngilizce ayrı dal olarak kodda durur. */
-const AAT_LANGS=["ku","zz","tr","en"];
+const AAT_LANGS=["ku","zza","tr","en"];
+// Dil seçimi: açılır menü, tam isimler (tüm ekranlarda aynı bileşen)
+const AAT_LANG_NAMES={ku:"Kurmancî",zza:"Zazakî",tr:"Türkçe",en:"English"};
+function LangSelect({value,onChange}){
+  return(
+    <label style={{display:"flex",alignItems:"center",gap:10,width:"100%",background:"var(--bg1)",border:"1.5px solid var(--border)",borderRadius:12,padding:"4px 12px",minHeight:46,cursor:"pointer"}}>
+      <span aria-hidden="true" style={{fontSize:18}}>🌐</span>
+      <select value={value} onChange={e=>onChange(e.target.value)} aria-label="Ziman · Dil · Language"
+        style={{flex:1,minWidth:0,appearance:"none",WebkitAppearance:"none",border:"none",background:"transparent",color:"var(--text)",fontSize:15,fontWeight:700,padding:"8px 0",cursor:"pointer",fontFamily:"inherit",outline:"none"}}>
+        {AAT_LANGS.map(k=><option key={k} value={k}>{AAT_LANG_NAMES[k]}</option>)}
+      </select>
+      <span aria-hidden="true" style={{fontSize:11,color:"var(--text2)"}}>▼</span>
+    </label>
+  );
+}
 // Çocuk akademisi veli uygulaması (alan adı alınınca: "https://zarok.aramtigran.org/app/")
 const ZAROK_APP_URL="/zarok/app/";
 function RL(){ return window.__AAT_LANG||"ku"; }
@@ -2707,7 +2726,7 @@ function useRTL(lang) {
     const rtlLangs = ["ar", "he", "fa", "ur", "ckb"]; // Central Kurdish (Sorani) is RTL
     const isRTL = rtlLangs.includes(lang);
     document.documentElement.setAttribute("dir", isRTL ? "rtl" : "ltr");
-    document.documentElement.setAttribute("lang", ({ku:"ku-Latn",zz:"zza",tr:"tr",en:"en"})[RL()]||"ku-Latn");
+    document.documentElement.setAttribute("lang", ({ku:"ku-Latn",zza:"zza",tr:"tr",en:"en"})[RL()]||"ku-Latn");
   }, [lang]);
 }
 
@@ -3040,7 +3059,7 @@ const T = {
     extraBadge:"Ek",
     datesLabel:"tarih"
   },
-  zz:{},
+  zza:{},
   ku:{
     get "appName"(){return K("AKADEMÎYA ARAM TÎGRAN")}, get "appSub"(){return K("Pergala Rêveberiya Zanistê")},
     get "selectRole"(){return K("Cureya têketinê hilbijêre")},
@@ -6028,7 +6047,7 @@ function AdminNewsPanel({lang,toast,adminName}){
   const [trTab,setTrTab]=useState("ku");
   const [showPreview,setShowPreview]=useState(false);
   const [pvLang,setPvLang]=useState("ku");
-  const [i18n,setI18n]=useState({zz:{title:"",body:""},tr:{title:"",body:""},en:{title:"",body:""}});
+  const [i18n,setI18n]=useState({zza:{title:"",body:""},tr:{title:"",body:""},en:{title:"",body:""}});
   const [ytUrl,setYtUrl]=useState("");
   const [images,setImages]=useState([]);      // data-url listesi (max 10)
   const [videos,setVideos]=useState([]);      // {file, name, size} (max 3)
@@ -6050,7 +6069,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     list:{get ku(){return K("Nûçeyên weşandî")},en:"Published posts"},
     empty:{get ku(){return K("Hîn nûçe tune. Ya yekem biweşîne!")},en:"No posts yet. Publish the first one!"},
     del:{get ku(){return K("Jê bibe")},en:"Delete"},
-    needTitle:{get ku(){return K("⚠ Sernav pêwîst e — bi kêmanî bi zimanekî (KU/ZZ/TR/EN)")},en:"⚠ Title required — in at least one language (KU/ZZ/TR/EN)"},
+    needTitle:{get ku(){return K("⚠ Sernav pêwîst e — bi kêmanî bi zimanekî (KU/ZZA/TR/EN)")},en:"⚠ Title required — in at least one language (KU/ZZA/TR/EN)"},
     done:{get ku(){return K("✅ Nûçe hate weşandin")},en:"✅ Published"},
     deleted:{get ku(){return K("🗑 Hate jêbirin")},en:"🗑 Deleted"},
     err:{get ku(){return K("❌ Çewtî — dîsa biceribîne")},en:"❌ Error — try again"},
@@ -6125,8 +6144,8 @@ function AdminNewsPanel({lang,toast,adminName}){
 
   async function publish(){
     // Sernav: KU an jî çevirilerden herhangi biri yeterli
-    const _anyTitle = title.trim()||((i18n.tr||{}).title||"").trim()||((i18n.en||{}).title||"").trim()||((i18n.zz||{}).title||"").trim();
-    const _anyBody  = body.trim() ||((i18n.tr||{}).body ||"").trim()||((i18n.en||{}).body ||"").trim()||((i18n.zz||{}).body ||"").trim();
+    const _anyTitle = title.trim()||((i18n.tr||{}).title||"").trim()||((i18n.en||{}).title||"").trim()||((i18n.zza||{}).title||"").trim();
+    const _anyBody  = body.trim() ||((i18n.tr||{}).body ||"").trim()||((i18n.en||{}).body ||"").trim()||((i18n.zza||{}).body ||"").trim();
     if(!_anyTitle){ toast(L("needTitle")); return; }
     if(!window.__FB||!window.__FB.isConfigured()){ toast(L("err")); return; }
     // Ön kontrol: Firebase oturumu yoksa yazma kesin reddedilir — net söyle
@@ -6189,7 +6208,7 @@ function AdminNewsPanel({lang,toast,adminName}){
       setProgress(null);
       // Yalnızca doldurulmuş çeviriler kaydedilir
       const i18nOut={};
-      ["zz","tr","en"].forEach(l2=>{
+      ["zza","tr","en"].forEach(l2=>{
         const e2=i18n[l2]||{};
         if((e2.title||"").trim()||(e2.body||"").trim())
           i18nOut[l2]={title:(e2.title||"").trim(),body:(e2.body||"").trim()};
@@ -6209,7 +6228,7 @@ function AdminNewsPanel({lang,toast,adminName}){
         createdAt: window.__FB.serverTimestamp()
       });
       setTitle("");setBody("");setYtUrl("");setImages([]);setVideos([]);setArea("genel");
-      setI18n({zz:{title:"",body:""},tr:{title:"",body:""},en:{title:"",body:""}});setTrTab("ku");
+      setI18n({zza:{title:"",body:""},tr:{title:"",body:""},en:{title:"",body:""}});setTrTab("ku");
       toast(L("done"));
     }catch(e){
       console.warn("news publish:",e);
@@ -6234,7 +6253,7 @@ function AdminNewsPanel({lang,toast,adminName}){
         <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v13.9</span></div>
         {/* Dil sekmeleri: KU zorunlu ana metin, diğerleri çeviri */}
         <div style={{display:"flex",gap:5,marginBottom:8}}>
-          {[["ku","KU"],["zz","ZZ"],["tr","TR"],["en","EN"]].map(([lk,lb])=>{
+          {[["ku","KU"],["zza","ZZA"],["tr","TR"],["en","EN"]].map(([lk,lb])=>{
             const filled=lk==="ku"?!!title.trim():!!((i18n[lk]&&(i18n[lk].title||i18n[lk].body))||"").trim();
             return(
               <button key={lk} onClick={()=>setTrTab(lk)}
@@ -6368,7 +6387,7 @@ function AdminNewsPanel({lang,toast,adminName}){
             <div style={{display:"flex",alignItems:"center",gap:8,padding:"13px 16px",borderBottom:"1px solid var(--border2)",position:"sticky",top:0,background:"var(--surface)",zIndex:2}}>
               <span style={{fontSize:12.5,fontWeight:800,color:"var(--text)"}}>👁 {lang==="en"?"Preview":K("Pêşdîtin")}</span>
               <div style={{display:"flex",gap:4,marginLeft:8}}>
-                {["ku","zz","tr","en"].map(lk=>(
+                {["ku","zza","tr","en"].map(lk=>(
                   <button key={lk} onClick={()=>setPvLang(lk)}
                     style={{padding:"4px 9px",borderRadius:8,fontSize:10.5,fontWeight:pvLang===lk?800:600,cursor:"pointer",
                       border:"1px solid "+(pvLang===lk?"#0f2f38":"var(--border2)"),
@@ -6880,7 +6899,7 @@ function AdminArchivePanel({lang,toast,adminName}){
   const [area,setArea]=useState("genel");
   const [images,setImages]=useState([]);
   const [trTab,setTrTab]=useState("ku");
-  const [i18n,setI18n]=useState({zz:{title:"",body:"",tag:""},tr:{title:"",body:"",tag:""},en:{title:"",body:"",tag:""}});
+  const [i18n,setI18n]=useState({zza:{title:"",body:"",tag:""},tr:{title:"",body:"",tag:""},en:{title:"",body:"",tag:""}});
   const [saving,setSaving]=useState(false);
   const fileRef=useRef(null);
   const MAX_IMGS=6;
@@ -6925,7 +6944,7 @@ function AdminArchivePanel({lang,toast,adminName}){
   function reset(){
     setEditId(null); setYear(String(new Date().getFullYear())); setDateStr("");
     setTitle(""); setBody(""); setTag(""); setArea("genel"); setImages([]); setTrTab("ku");
-    setI18n({zz:{title:"",body:"",tag:""},tr:{title:"",body:"",tag:""},en:{title:"",body:"",tag:""}});
+    setI18n({zza:{title:"",body:"",tag:""},tr:{title:"",body:"",tag:""},en:{title:"",body:"",tag:""}});
   }
   function startEdit(it){
     setEditId(it.fireId);
@@ -6934,7 +6953,7 @@ function AdminArchivePanel({lang,toast,adminName}){
     setImages(Array.isArray(it.images)?it.images:(it.image?[it.image]:[]));
     const src=it.i18n||{};
     setI18n({
-      zz:{title:(src.zz&&src.zz.title)||"",body:(src.zz&&src.zz.body)||"",tag:(src.zz&&src.zz.tag)||""},
+      zza:{title:(src.zza&&src.zza.title)||"",body:(src.zza&&src.zza.body)||"",tag:(src.zza&&src.zza.tag)||""},
       tr:{title:(src.tr&&src.tr.title)||"",body:(src.tr&&src.tr.body)||"",tag:(src.tr&&src.tr.tag)||""},
       en:{title:(src.en&&src.en.title)||"",body:(src.en&&src.en.body)||"",tag:(src.en&&src.en.tag)||""},
     });
@@ -6957,7 +6976,7 @@ function AdminArchivePanel({lang,toast,adminName}){
   async function save(){
     const y=parseInt(String(year).trim(),10);
     if(!isFinite(y)||y<1900||y>2200){ toast(L("needYear")); return; }
-    const anyTitle=(title.trim()||(i18n.tr.title||"").trim()||(i18n.en.title||"").trim()||((i18n.zz||{}).title||"").trim());
+    const anyTitle=(title.trim()||(i18n.tr.title||"").trim()||(i18n.en.title||"").trim()||((i18n.zza||{}).title||"").trim());
     if(!anyTitle){ toast(L("needTitle")); return; }
     if(!window.__FB||!window.__FB.isConfigured()){ toast(L("err")); return; }
     if(!window.__FB.auth||!window.__FB.auth.currentUser){
@@ -6981,7 +7000,7 @@ function AdminArchivePanel({lang,toast,adminName}){
         if(u) imgUrls.push(u);
       }
       const i18nOut={};
-      ["zz","tr","en"].forEach(l2=>{
+      ["zza","tr","en"].forEach(l2=>{
         const e2=i18n[l2]||{};
         if((e2.title||"").trim()||(e2.body||"").trim()||(e2.tag||"").trim())
           i18nOut[l2]={title:(e2.title||"").trim(),body:(e2.body||"").trim(),tag:(e2.tag||"").trim()};
@@ -7049,7 +7068,7 @@ function AdminArchivePanel({lang,toast,adminName}){
         )}
         {/* Dil sekmeleri */}
         <div style={{display:"flex",gap:5,marginBottom:8}}>
-          {[["ku","KU"],["zz","ZZ"],["tr","TR"],["en","EN"]].map(([lk,lb])=>{
+          {[["ku","KU"],["zza","ZZA"],["tr","TR"],["en","EN"]].map(([lk,lb])=>{
             const filled=lk==="ku"?!!title.trim():!!(((i18n[lk]||{}).title||"")+((i18n[lk]||{}).body||"")).trim();
             return(
               <button key={lk} onClick={()=>setTrTab(lk)}
@@ -7257,13 +7276,16 @@ function docIsPdf(d, url){
   return typeof url === "string" && (url.indexOf("data:application/pdf") === 0 || /\.pdf(\?|$)/i.test(url.split("?")[0]));
 }
 
-/* ─── AKADEMIYA ZAROKAN — Öğrenci İşleri yönetimi ─────────────────────────
-   Veli başvuruları → çocuk + veli hesabı, giriş/çıkış yoklaması (veliye
-   anında düşer), çocuk programı, veli duyuruları, veli mesajları.
-   Veriler: kidApplications · kids · guardians · idx_guardians · kidAttendance
-            kidSchedule · kidAnnouncements · kidMessages · config/zarok      */
+/* ─── AKADEMIYA ZAROKAN — yönetim (Öğrenci İşleri + Yönetici) ──────────────
+   Ana akademideki ekleme mantığıyla aynı: otomatik numara + otomatik şifre,
+   Firebase Auth hesabı, dizin kaydı, e-postayla giriş bilgisi.
+   Numaralar: çocuk öğretmeni 7YYYYnnn · çocuk 8YYYYnnn · veli 9YYYYnnn
+   Veriler: kidApplications · kids · guardians · kidTeachers · kidSecrets
+            idx_guardians · idx_kidstaff · kidAttendance · kidSchedule
+            kidAnnouncements · kidMessages · kidNews · kidArchive · config/zarok */
 const ZAROK_DAYS_KU=["Yekşem","Duşem","Sêşem","Çarşem","Pêncşem","În","Şemî"];
 const ZAROK_DAYS_EN=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const ZAROK_AREAS=["muzik","tiyatro","dans","wenesazi","edebiyat","sinema"];
 function zarokNextNo(nos,prefix){
   let max=0;
   (nos||[]).forEach(n=>{ n=String(n||""); if(n.indexOf(prefix)===0){ const v=parseInt(n.slice(prefix.length),10); if(v>max) max=v; } });
@@ -7278,20 +7300,25 @@ function ZarokAdminPanel({lang,toast,user}){
   const [apps,setApps]=useState([]);
   const [kids,setKids]=useState([]);
   const [guards,setGuards]=useState([]);
+  const [kteach,setKteach]=useState([]);
   const [att,setAtt]=useState([]);
   const [sched,setSched]=useState([]);
   const [anns,setAnns]=useState([]);
   const [msgs,setMsgs]=useState([]);
-  const [openApp,setOpenApp]=useState(null);
+  const [news,setNews]=useState([]);
+  const [arch,setArch]=useState([]);
+  const [openId,setOpenId]=useState(null);
   const [creds,setCreds]=useState(null);
   const [busy,setBusy]=useState(false);
   const [areaF,setAreaF]=useState("all");
   const [thread,setThread]=useState(null);
   const [reply,setReply]=useState("");
-  const [sForm,setSForm]=useState({day:1,start:"15:00",end:"16:00",title:"",area:"",teacher:"",room:""});
+  const [form,setForm]=useState(null);           // açık ekleme/düzenleme formu {type, id?, data}
+  const [sForm,setSForm]=useState({day:1,start:"15:00",end:"16:00",title:"",area:"",teacherNo:"",room:""});
   const [aForm,setAForm]=useState({title:"",body:""});
   const today=new Date().toISOString().slice(0,10);
   const DAYS=lang==="en"?ZAROK_DAYS_EN:ZAROK_DAYS_KU;
+  const yr=String(new Date().getFullYear());
 
   useEffect(()=>{
     if(!live) return;
@@ -7300,126 +7327,293 @@ function ZarokAdminPanel({lang,toast,user}){
     listen(F.query(F.collection(F.db,"kidApplications"),F.orderBy("createdAt","desc")),setApps);
     listen(F.collection(F.db,"kids"),setKids);
     listen(F.collection(F.db,"guardians"),setGuards);
+    listen(F.collection(F.db,"kidTeachers"),setKteach);
     listen(F.query(F.collection(F.db,"kidAttendance"),F.where("date","==",today)),setAtt);
     listen(F.collection(F.db,"kidSchedule"),setSched);
     listen(F.query(F.collection(F.db,"kidAnnouncements"),F.orderBy("createdAt","desc")),setAnns);
     listen(F.query(F.collection(F.db,"kidMessages"),F.orderBy("createdAt","desc"),F.limit(300)),setMsgs);
+    listen(F.query(F.collection(F.db,"kidNews"),F.orderBy("createdAt","desc")),setNews);
+    listen(F.collection(F.db,"kidArchive"),setArch);
     F.getDoc(F.doc(F.db,"config","zarok")).then(s=>{ if(s.exists()) setCfg({open:false,note:"",...s.data()}); }).catch(()=>{});
     return ()=>subs.forEach(u=>{ try{u();}catch(_){} });
   },[live]);
 
+  // ── stiller ──
   const box={background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,padding:12,marginBottom:10};
-  const inp={width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:14,boxSizing:"border-box",fontFamily:"inherit"};
-  const btn=(bg,fg)=>({padding:"9px 13px",borderRadius:10,border:"none",background:bg||"#0f2f38",color:fg||"#fff",fontSize:13,fontWeight:700,cursor:"pointer"});
+  const inp={width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:14,boxSizing:"border-box",fontFamily:"inherit",minHeight:42};
+  const btn=(bg,fg)=>({padding:"9px 13px",borderRadius:10,border:"none",background:bg||"#0f2f38",color:fg||"#fff",fontSize:13,fontWeight:700,cursor:"pointer",minHeight:38});
+  const ghost=btn("var(--bg2)","var(--text)");
   const small={fontSize:11.5,color:"var(--text2)"};
+  const lbl={display:"block",fontSize:12,fontWeight:700,color:"var(--text2)",margin:"8px 0 4px"};
+  const grid2={display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:"0 10px"};
   const guardOf=no=>guards.find(g=>g.no===no);
+  const teacherOf=no=>kteach.find(t=>t.no===no);
   const areaLabel=a=>{ try{ return areaName(a,lang); }catch(_){ return a||""; } };
+  const err=e=>toast("❌ "+((e&&(e.code||e.message))||"?"));
+  const fld=(label,key,extra)=>(
+    <div><label style={lbl}>{label}</label>
+      <input style={inp} value={(form&&form.data[key])||""} onChange={e=>{const v=e.target.value;setForm(f=>({...f,data:{...f.data,[key]:v}}));}} {...(extra||{})}/></div>);
+  const areaSel=(key,withAll)=>(
+    <select style={inp} value={(form&&form.data[key])||""} onChange={e=>{const v=e.target.value;setForm(f=>({...f,data:{...f.data,[key]:v}}));}}>
+      <option value="">{withAll?Z("Hemû qad","All fields"):"—"}</option>
+      {ZAROK_AREAS.map(a=><option key={a} value={a}>{areaLabel(a)}</option>)}
+    </select>);
 
-  async function saveCfg(next){
-    setCfg(next);
-    try{ await F.setDoc(F.doc(F.db,"config","zarok"),{...next,updatedAt:F.serverTimestamp()}); toast(Z("✅ Hate tomarkirin","✅ Saved")); }
-    catch(e){ toast("❌ "+(e.code||e.message)); }
+  // ── hesap yardımcıları (ana akademi mantığı) ──
+  async function makeAccount(no,role){
+    const pass=genAutoPassword();
+    try{ await F.createAuthUser(no,pass,role); }
+    catch(e){ if(e.code==="auth/email-already-in-use"){ const r=await F.forceResetPassword(no,role,null,pass); if(!r) throw e; } else throw e; }
+    if(!F.serverUserMgmt) await F.setDoc(F.doc(F.db,"kidSecrets",no),{no,role,pass,updatedAt:F.serverTimestamp()});
+    return pass;
   }
-
+  async function mailCreds(name,email,no,pass){
+    if(!email||!pass) return false;
+    try{ await sendCredsEmail(name,email,no,pass); return true; }catch(_){ return false; }
+  }
+  async function createGuardian(d){
+    const no=zarokNextNo(guards.map(x=>x.no),"9"+yr);
+    const pass=await makeAccount(no,"guardian");
+    const g={no,name:(d.guardianName||d.name||"").trim(),phone:d.phone||"",phone2:d.phone2||"",email:(d.email||"").trim(),relation:d.relation||""};
+    await F.setDoc(F.doc(F.db,"guardians",no),{...g,createdAt:F.serverTimestamp()});
+    await F.setDoc(F.doc(F.db,"idx_guardians",no),{no,updatedAt:F.serverTimestamp()});
+    const mailed=await mailCreds(g.name,g.email,no,pass);
+    return {...g,pass,mailed};
+  }
+  async function createKid(d,gnos){
+    const kno=zarokNextNo(kids.map(x=>x.no),"8"+yr);
+    await F.addDoc(F.collection(F.db,"kids"),{no:kno,name:(d.kidName||"").trim(),dob:d.kidDob||"",area:d.area||"",school:d.school||"",
+      teacherNo:d.teacherNo||"",guardianNos:gnos,health:d.health||"",consentPhoto:!!d.consentPhoto,consentShare:!!d.consentShare,pickups:[],
+      appId:d.appId||"",createdAt:F.serverTimestamp()});
+    return kno;
+  }
+  const digits=s=>String(s||"").replace(/\D/g,"");
   async function accept(a){
     if(busy) return; setBusy(true);
     try{
-      const yr=String(new Date().getFullYear());
-      const digits=s=>String(s||"").replace(/\D/g,"");
-      let g=digits(a.phone)?guards.find(x=>digits(x.phone)===digits(a.phone)):null;
-      let pass=null;
-      if(!g){
-        const no=zarokNextNo(guards.map(x=>x.no),"9"+yr);
-        pass=genAutoPassword();
-        try{ await F.createAuthUser(no,pass,"guardian"); }
-        catch(e){ if(e.code==="auth/email-already-in-use"){ const r=await F.forceResetPassword(no,"guardian",null,pass); if(!r) throw e; } else throw e; }
-        g={no,name:a.guardianName,phone:a.phone||"",phone2:a.phone2||"",email:a.email||"",relation:a.relation||""};
-        await F.setDoc(F.doc(F.db,"guardians",no),{...g,createdAt:F.serverTimestamp()});
-        await F.setDoc(F.doc(F.db,"idx_guardians",no),{no,updatedAt:F.serverTimestamp()});
-      }
-      const kno=zarokNextNo(kids.map(x=>x.no),"8"+yr);
-      await F.addDoc(F.collection(F.db,"kids"),{no:kno,name:a.kidName,dob:a.kidDob||"",area:a.area||"",school:a.school||"",
-        guardianNos:[g.no],health:a.health||"",consentPhoto:!!a.consentPhoto,consentShare:!!a.consentShare,pickups:[],
-        appId:a.fireId,createdAt:F.serverTimestamp()});
+      let g=digits(a.phone)?guards.find(x=>digits(x.phone)===digits(a.phone)):null, created=null;
+      if(!g){ created=await createGuardian(a); g=created; }
+      const kno=await createKid({...a,appId:a.fireId},[g.no]);
       await F.updateDoc(F.doc(F.db,"kidApplications",a.fireId),{status:"accepted",kidNo:kno,guardianNo:g.no});
-      let mailed=false;
-      if(pass&&a.email){ try{ await sendCredsEmail(a.guardianName,a.email,g.no,pass); mailed=true; }catch(_){} }
-      setCreds({kid:a.kidName,kno,gno:g.no,gname:g.name,pass,mailed});
-      setOpenApp(null);
-    }catch(e){ toast("❌ "+(e.code||e.message)); }
+      setCreds({title:Z("Zarok hate tomarkirin","Child registered"),kid:a.kidName,kno,no:g.no,name:g.name,pass:created&&created.pass,mailed:created&&created.mailed});
+      setOpenId(null);
+    }catch(e){ err(e); }
     setBusy(false);
   }
-  async function setAppStatus(a,status){
-    try{ await F.updateDoc(F.doc(F.db,"kidApplications",a.fireId),{status}); }catch(e){ toast("❌ "+(e.code||e.message)); }
+  async function saveKidForm(){
+    const d=form.data; if(!(d.kidName||"").trim()){ toast(Z("⚠ Navê zarokê pêwîst e","⚠ Child's name required")); return; }
+    if(busy) return; setBusy(true);
+    try{
+      if(form.id){ // düzenleme
+        const patch={name:d.kidName.trim(),dob:d.kidDob||"",area:d.area||"",school:d.school||"",teacherNo:d.teacherNo||"",health:d.health||"",
+          consentPhoto:!!d.consentPhoto,consentShare:!!d.consentShare,pickups:(d.pickupsText||"").split("\n").map(s=>s.trim()).filter(Boolean).slice(0,8)};
+        let gnos=[...(form.orig.guardianNos||[])];
+        if(d.addGuardian&&!gnos.includes(d.addGuardian)) gnos.push(d.addGuardian);
+        patch.guardianNos=gnos;
+        await F.updateDoc(F.doc(F.db,"kids",form.id),{...patch,updatedAt:F.serverTimestamp()});
+        toast(Z("✅ Hate tomarkirin","✅ Saved")); setForm(null);
+      }else{      // yeni çocuk
+        let gno=d.guardianMode==="existing"?d.existingGuardian:"", created=null;
+        if(!gno){
+          if(!(d.guardianName||"").trim()||!(d.phone||"").trim()){ toast(Z("⚠ Navê dêûbav û têlefon pêwîst in","⚠ Parent name and phone required")); setBusy(false); return; }
+          created=await createGuardian(d); gno=created.no;
+        }
+        const kno=await createKid(d,[gno]);
+        const g=created||guardOf(gno)||{};
+        setCreds({title:Z("Zarok hate tomarkirin","Child registered"),kid:d.kidName,kno,no:gno,name:g.name,pass:created&&created.pass,mailed:created&&created.mailed});
+        setForm(null);
+      }
+    }catch(e){ err(e); }
+    setBusy(false);
   }
-  async function delApp(a){
-    if(!window.confirm(Z("Ev serlêdan were jêbirin?","Delete this application?"))) return;
-    try{ await F.deleteDoc(F.doc(F.db,"kidApplications",a.fireId)); }catch(e){ toast("❌ "+(e.code||e.message)); }
+  async function saveTeacherForm(){
+    const d=form.data; if(!(d.name||"").trim()){ toast(Z("⚠ Nav pêwîst e","⚠ Name required")); return; }
+    if(busy) return; setBusy(true);
+    try{
+      const rec={name:d.name.trim(),email:(d.email||"").trim(),phone:d.phone||"",area:d.area||""};
+      if(form.id){ await F.updateDoc(F.doc(F.db,"kidTeachers",form.id),{...rec,updatedAt:F.serverTimestamp()}); toast(Z("✅ Hate tomarkirin","✅ Saved")); setForm(null); }
+      else{
+        const no=zarokNextNo(kteach.map(x=>x.no),"7"+yr);
+        const pass=await makeAccount(no,"kidteacher");
+        await F.setDoc(F.doc(F.db,"kidTeachers",no),{no,...rec,createdAt:F.serverTimestamp()});
+        await F.setDoc(F.doc(F.db,"idx_kidstaff",no),{no,updatedAt:F.serverTimestamp()});
+        const mailed=await mailCreds(rec.name,rec.email,no,pass);
+        setCreds({title:Z("Mamoste hate tescîlkirin","Teacher registered"),no,name:rec.name,pass,mailed,teacher:true});
+        setForm(null);
+      }
+    }catch(e){ err(e); }
+    setBusy(false);
+  }
+  async function saveGuardianForm(){
+    const d=form.data;
+    try{ await F.updateDoc(F.doc(F.db,"guardians",form.id),{name:(d.name||"").trim(),phone:d.phone||"",phone2:d.phone2||"",email:(d.email||"").trim(),relation:d.relation||"",updatedAt:F.serverTimestamp()});
+      toast(Z("✅ Hate tomarkirin","✅ Saved")); setForm(null); }catch(e){ err(e); }
+  }
+  // Şifre yenile: Cloud Functions açıksa eski şifre gerekmez; değilse kidSecrets'taki son şifre kullanılır
+  async function resetPass(no,role,name,email){
+    if(!window.confirm(Z("Şîfreyeke nû were çêkirin?","Generate a new password?"))) return;
+    setBusy(true);
+    try{
+      const pass=genAutoPassword();
+      let old=null;
+      if(!F.serverUserMgmt){ try{ const s=await F.getDoc(F.doc(F.db,"kidSecrets",no)); old=s.exists()?s.data().pass:null; }catch(_){} }
+      const r=await F.forceResetPassword(no,role,old,pass);
+      if(!r){ toast(Z("⚠ Şîfre nehat guhertin — Cloud Functions veke (FUNCTIONS.md)","⚠ Could not change password — enable Cloud Functions (FUNCTIONS.md)"),7000); setBusy(false); return; }
+      if(!F.serverUserMgmt) await F.setDoc(F.doc(F.db,"kidSecrets",no),{no,role,pass,updatedAt:F.serverTimestamp()});
+      const mailed=await mailCreds(name,email,no,pass);
+      setCreds({title:Z("Şîfreya nû","New password"),no,name,pass,mailed,teacher:role==="kidteacher"});
+    }catch(e){ err(e); }
+    setBusy(false);
+  }
+  async function removeAccount(no,role){
+    let old=null;
+    if(!F.serverUserMgmt){ try{ const s=await F.getDoc(F.doc(F.db,"kidSecrets",no)); old=s.exists()?s.data().pass:null; }catch(_){} }
+    try{ await F.deleteAuthUser(no,role,old); }catch(_){}
+    await F.deleteDoc(F.doc(F.db,"kidSecrets",no)).catch(()=>{});
   }
   async function delKid(k){
     if(!window.confirm(Z("Tomara zarokê were jêbirin?","Delete this child's record?"))) return;
     try{
       await F.deleteDoc(F.doc(F.db,"kids",k.fireId));
-      // Başka çocuğu kalmayan velinin erişimi kapatılır (dizin kaydı silinir)
-      for(const gno of (k.guardianNos||[])){
-        if(!kids.some(o=>o.fireId!==k.fireId&&(o.guardianNos||[]).includes(gno))){
-          await F.deleteDoc(F.doc(F.db,"idx_guardians",gno)).catch(()=>{});
-        }
+      for(const gno of (k.guardianNos||[])){ // başka çocuğu kalmayan velinin erişimi kapanır
+        if(!kids.some(o=>o.fireId!==k.fireId&&(o.guardianNos||[]).includes(gno))) await F.deleteDoc(F.doc(F.db,"idx_guardians",gno)).catch(()=>{});
       }
       toast(Z("🗑 Hate jêbirin","🗑 Deleted"));
-    }catch(e){ toast("❌ "+(e.code||e.message)); }
+    }catch(e){ err(e); }
   }
-  async function resetGuardianPass(g){
-    if(!F.serverUserMgmt){ toast(Z("⚠ Ji bo vê yekê Cloud Functions pêwîst e (FUNCTIONS.md)","⚠ Requires Cloud Functions (FUNCTIONS.md)"),6000); return; }
-    const pass=genAutoPassword();
-    const r=await F.forceResetPassword(g.no,"guardian",null,pass);
-    if(!r){ toast("❌"); return; }
-    let mailed=false;
-    if(g.email){ try{ await sendCredsEmail(g.name,g.email,g.no,pass); mailed=true; }catch(_){} }
-    setCreds({gno:g.no,gname:g.name,pass,mailed});
+  async function delGuardian(g){
+    if(kids.some(k=>(k.guardianNos||[]).includes(g.no))){ toast(Z("⚠ Pêşî zarokên girêdayî jê bibe","⚠ Remove the linked children first")); return; }
+    if(!window.confirm(Z("Hesabê dêûbav were jêbirin?","Delete this parent account?"))) return;
+    try{ await F.deleteDoc(F.doc(F.db,"guardians",g.no)); await F.deleteDoc(F.doc(F.db,"idx_guardians",g.no)).catch(()=>{}); await removeAccount(g.no,"guardian"); toast(Z("🗑 Hate jêbirin","🗑 Deleted")); }
+    catch(e){ err(e); }
+  }
+  async function delTeacher(t){
+    if(!window.confirm(Z("Mamoste were jêbirin?","Delete this teacher?"))) return;
+    try{ await F.deleteDoc(F.doc(F.db,"kidTeachers",t.no)); await F.deleteDoc(F.doc(F.db,"idx_kidstaff",t.no)).catch(()=>{}); await removeAccount(t.no,"kidteacher"); toast(Z("🗑 Hate jêbirin","🗑 Deleted")); }
+    catch(e){ err(e); }
+  }
+  async function saveCfg(next){
+    setCfg(next);
+    try{ await F.setDoc(F.doc(F.db,"config","zarok"),{...next,updatedAt:F.serverTimestamp()}); toast(Z("✅ Hate tomarkirin","✅ Saved")); }catch(e){ err(e); }
   }
   async function mark(k,type){
-    try{
-      await F.addDoc(F.collection(F.db,"kidAttendance"),{kidId:k.fireId,kidNo:k.no,kidName:k.name,guardianNos:k.guardianNos||[],
-        type,date:today,time:new Date().toISOString(),by:(user&&user.name)||"",createdAt:F.serverTimestamp()});
-      hapticSuccess();
-    }catch(e){ toast("❌ "+(e.code||e.message)); }
+    try{ await F.addDoc(F.collection(F.db,"kidAttendance"),{kidId:k.fireId,kidNo:k.no,kidName:k.name,guardianNos:k.guardianNos||[],
+        type,date:today,time:new Date().toISOString(),by:(user&&user.name)||"",createdAt:F.serverTimestamp()}); hapticSuccess(); }catch(e){ err(e); }
   }
   async function addLesson(){
     if(!sForm.title.trim()){ toast(Z("⚠ Navê dersê pêwîst e","⚠ Lesson name required")); return; }
-    try{ await F.addDoc(F.collection(F.db,"kidSchedule"),{...sForm,day:+sForm.day,title:sForm.title.trim(),createdAt:F.serverTimestamp()});
-      setSForm(f=>({...f,title:""})); toast(Z("✅ Hate tomarkirin","✅ Saved")); }
-    catch(e){ toast("❌ "+(e.code||e.message)); }
+    const t=teacherOf(sForm.teacherNo);
+    try{ await F.addDoc(F.collection(F.db,"kidSchedule"),{...sForm,day:+sForm.day,title:sForm.title.trim(),teacher:t?t.name:"",createdAt:F.serverTimestamp()});
+      setSForm(f=>({...f,title:""})); toast(Z("✅ Hate tomarkirin","✅ Saved")); }catch(e){ err(e); }
   }
   async function sendAnn(){
     if(!aForm.title.trim()||!aForm.body.trim()){ toast(Z("⚠ Sernav û nivîs pêwîst in","⚠ Title and text required")); return; }
     try{ await F.addDoc(F.collection(F.db,"kidAnnouncements"),{title:aForm.title.trim(),body:aForm.body.trim(),by:(user&&user.name)||"",createdAt:F.serverTimestamp()});
-      setAForm({title:"",body:""}); toast(Z("✅ Ji dêûbavan re hat şandin","✅ Sent to parents")); }
-    catch(e){ toast("❌ "+(e.code||e.message)); }
+      setAForm({title:"",body:""}); toast(Z("✅ Ji dêûbavan re hat şandin","✅ Sent to parents")); }catch(e){ err(e); }
   }
   async function sendReply(){
     const text=reply.trim(); if(!text||!thread) return;
     const g=guardOf(thread);
     try{ await F.addDoc(F.collection(F.db,"kidMessages"),{guardianNo:thread,guardianName:(g&&g.name)||"",text:text.slice(0,1000),from:"staff",
-        by:(user&&user.name)||"",read:false,createdAt:F.serverTimestamp()}); setReply(""); }
-    catch(e){ toast("❌ "+(e.code||e.message)); }
+        by:(user&&user.name)||"",read:false,createdAt:F.serverTimestamp()}); setReply(""); }catch(e){ err(e); }
   }
   useEffect(()=>{
     if(!thread||!live) return;
-    msgs.filter(m=>m.guardianNo===thread&&m.from==="guardian"&&!m.read).forEach(m=>{
-      F.updateDoc(F.doc(F.db,"kidMessages",m.fireId),{read:true}).catch(()=>{});
-    });
+    msgs.filter(m=>m.guardianNo===thread&&m.from==="guardian"&&!m.read).forEach(m=>F.updateDoc(F.doc(F.db,"kidMessages",m.fireId),{read:true}).catch(()=>{}));
   },[thread,msgs.length]);
+
+  // ── Site haberleri / arşiv (çok dilli) ──
+  const PLANGS=[["ku","Kurmancî"],["zza","Zazakî"],["tr","Türkçe"],["en","English"]];
+  const [pLang,setPLang]=useState("ku");
+  function pGet(k){ const d=(form&&form.data)||{}; return pLang==="ku"?(d[k]||""):(((d.i18n||{})[pLang]||{})[k]||""); }
+  function pSet(k,v){ setForm(f=>{ const d={...f.data}; if(pLang==="ku") d[k]=v; else { const i=d.i18n||{}; d.i18n={...i,[pLang]:{...(i[pLang]||{}),[k]:v}}; } return {...f,data:d}; }); }
+  async function pickImages(e){
+    const files=[...e.target.files].slice(0,4); e.target.value="";
+    const out=[];
+    for(const f of files){ const r=await new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.readAsDataURL(f);}); out.push(await compressImage(r,1400,1400,0.8)); }
+    setForm(fm=>({...fm,data:{...fm.data,images:[...(fm.data.images||[]),...out].slice(0,4)}}));
+  }
+  async function saveSitePost(kind){ // kind: "kidNews" | "kidArchive"
+    const d=form.data;
+    const anyTitle=(d.title||"").trim()||Object.values(d.i18n||{}).some(x=>(x.title||"").trim());
+    if(!anyTitle){ toast(Z("⚠ Sernav pêwîst e","⚠ Title required")); return; }
+    if(kind==="kidArchive"&&!/^\d{4}$/.test(String(d.year||""))){ toast(Z("⚠ Sal pêwîst e (mînak 2019)","⚠ Year required (e.g. 2019)")); return; }
+    setBusy(true);
+    try{
+      const ref=form.id?F.doc(F.db,kind,form.id):F.doc(F.db,kind,"p"+Date.now().toString(36));
+      const imgs=[]; let b64=0;
+      for(let i=0;i<(d.images||[]).length;i++){
+        let u=d.images[i];
+        if(typeof u==="string"&&u.startsWith("data:")){
+          const up=await F.uploadNewsMedia(u,"kid-news/"+ref.id+"/img_"+i+"_"+Date.now()+".jpg",null);
+          if(up) u=up; else { const c=await compressImage(u,900,900,0.7); if(b64+c.length<=650000){ u=c; b64+=c.length; } else u=null; }
+        }
+        if(u) imgs.push(u);
+      }
+      const i18n={}; Object.entries(d.i18n||{}).forEach(([l,v])=>{ if((v.title||"").trim()||(v.body||"").trim()) i18n[l]={title:(v.title||"").trim(),body:(v.body||"").trim()}; });
+      const payload={title:(d.title||"").trim(),body:(d.body||"").trim(),i18n,images:imgs,youtube:(d.youtube||"").trim(),
+        date:d.date||today,tag:(d.tag||"").trim(),updatedAt:F.serverTimestamp()};
+      if(kind==="kidArchive") payload.year=+d.year;
+      if(!form.id) payload.createdAt=F.serverTimestamp();
+      await F.setDoc(ref,payload,{merge:true});
+      toast(Z("✅ Hate weşandin","✅ Published")); setForm(null);
+    }catch(e){ err(e); }
+    setBusy(false);
+  }
+  function sitePostForm(kind){
+    const isArch=kind==="kidArchive";
+    return(
+      <div style={{...box,border:"2px solid var(--accent)"}}>
+        <div style={{fontWeight:800,color:"var(--text)",marginBottom:6}}>{form.id?Z("✏️ Biguherîne","✏️ Edit"):isArch?Z("➕ Tomara arşîvê","➕ Archive entry"):Z("➕ Nûçeya nû","➕ New post")}</div>
+        {isArch&&<div style={grid2}>{fld(Z("Sal *","Year *"),"year",{inputMode:"numeric",placeholder:"2019"})}{fld(Z("Etîket","Tag"),"tag",{placeholder:Z("mînak: Damezrandin","e.g. Founding")})}</div>}
+        {!isArch&&<div style={grid2}>{fld(Z("Dîrok","Date"),"date",{type:"date"})}{fld(Z("Girêdana YouTube (vebijarkî)","YouTube link (optional)"),"youtube",{placeholder:"https://youtu.be/…"})}</div>}
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",margin:"10px 0 4px"}}>
+          {PLANGS.map(([k,n])=><button key={k} onClick={()=>setPLang(k)} style={pLang===k?btn():ghost}>{n}{k==="ku"?" *":""}</button>)}
+        </div>
+        <label style={lbl}>{Z("Sernav","Title")} ({PLANGS.find(p=>p[0]===pLang)[1]})</label>
+        <input style={inp} value={pGet("title")} onChange={e=>pSet("title",e.target.value)}/>
+        <label style={lbl}>{Z("Nivîs","Text")}</label>
+        <textarea style={{...inp,minHeight:110}} value={pGet("body")} onChange={e=>pSet("body",e.target.value)}/>
+        <label style={lbl}>{Z("📷 Wêne (herî zêde 4)","📷 Photos (max 4)")}</label>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+          {(form.data.images||[]).map((u,i)=>(
+            <div key={i} style={{position:"relative"}}><img src={u} alt="" style={{width:74,height:74,objectFit:"cover",borderRadius:10,display:"block"}}/>
+              <button onClick={()=>setForm(f=>({...f,data:{...f.data,images:f.data.images.filter((_,j)=>j!==i)}}))} style={{position:"absolute",top:-6,right:-6,width:24,height:24,borderRadius:12,border:"none",background:"#dc2626",color:"#fff",cursor:"pointer"}}>✕</button></div>))}
+          {(form.data.images||[]).length<4&&<label style={{...ghost,display:"inline-flex",alignItems:"center",border:"1px dashed var(--border2)"}}>➕ {Z("Wêne","Photo")}<input type="file" accept="image/*" multiple onChange={pickImages} style={{display:"none"}}/></label>}
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:12,flexWrap:"wrap"}}>
+          <button disabled={busy} onClick={()=>saveSitePost(kind)} style={btn()}>{busy?"⏳":"📤 "+Z("Biweşîne","Publish")}</button>
+          <button onClick={()=>setForm(null)} style={ghost}>{Z("Betal","Cancel")}</button>
+        </div>
+      </div>);
+  }
+  function sitePostRow(kind,p){
+    const t=p.title||((p.i18n||{}).tr||{}).title||((p.i18n||{}).en||{}).title||"—";
+    return(
+      <div key={p.fireId} style={{...box,display:"flex",gap:10,alignItems:"center"}}>
+        {(p.images||[])[0]?<img src={p.images[0]} alt="" style={{width:56,height:56,objectFit:"cover",borderRadius:10,flexShrink:0}}/>:<div style={{width:56,height:56,borderRadius:10,background:"var(--bg2)",display:"grid",placeItems:"center",fontSize:24,flexShrink:0}}>{kind==="kidArchive"?"🏛":"📰"}</div>}
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontWeight:700,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{kind==="kidArchive"?p.year+" · ":""}{t}</div>
+          <div style={small}>{p.date||""} {Object.keys(p.i18n||{}).map(l=>l.toUpperCase()).join(" · ")}</div>
+        </div>
+        <button onClick={()=>{setPLang("ku");setForm({type:kind,id:p.fireId,data:{...p,year:p.year?String(p.year):""}});}} style={{...ghost,padding:"6px 10px"}}>✏️</button>
+        <button onClick={()=>{ if(window.confirm(Z("Were jêbirin?","Delete?"))) F.deleteDoc(F.doc(F.db,kind,p.fireId)).catch(err); }} style={{...ghost,padding:"6px 10px"}}>🗑</button>
+      </div>);
+  }
 
   const newApps=apps.filter(a=>(a.status||"new")==="new").length;
   const unread=msgs.filter(m=>m.from==="guardian"&&!m.read).length;
   const TABS=[
     ["apps","📋",Z("Serlêdan","Applications"),newApps],
-    ["kids","👧",Z("Zarok û Dêûbav","Children & Parents"),0],
+    ["kids","👧",Z("Zarok","Children"),0],
+    ["guards","👨‍👩‍👧",Z("Dêûbav","Parents"),0],
+    ["teachers","👩‍🏫",Z("Mamoste","Teachers"),0],
     ["att","✅",Z("Amadebûn","Attendance"),0],
     ["sched","📅",Z("Bername","Schedule"),0],
     ["ann","📢",Z("Ragihandin","Announcements"),0],
     ["msg","💬",Z("Peyam","Messages"),unread],
+    ["news","📰",Z("Nûçeyên Malperê","Site News"),0],
+    ["arch","🏛",Z("Arşîv","Archive"),0],
   ];
   const stColor={new:"#2c6b74",accepted:"#16a34a",rejected:"#dc2626"};
   const stLabel={new:Z("Nû","New"),accepted:Z("Qebûl","Accepted"),rejected:Z("Red","Rejected")};
@@ -7429,49 +7623,51 @@ function ZarokAdminPanel({lang,toast,user}){
   const kidsF=kids.filter(k=>areaF==="all"||k.area===areaF).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
   const lastOf=k=>{ const r=att.filter(x=>x.kidId===k.fireId).sort((a,b)=>(a.time||"").localeCompare(b.time||"")); return r[r.length-1]; };
   const threads=[...new Set(msgs.map(m=>m.guardianNo))];
+  const credText=c=>[c.kid?Z("Zarok","Child")+": "+c.kid+" (#"+c.kno+")":null,(c.teacher?Z("Mamoste","Teacher"):Z("Dêûbav","Parent"))+": "+(c.name||""),
+    Z("Jimara têketinê","Login no")+": "+c.no,c.pass?Z("Şîfre","Password")+": "+c.pass:null,Z("Têketin","Sign in")+": "+location.origin+ZAROK_APP_URL].filter(Boolean).join("\n");
 
   return(
     <div>
-      <div style={{display:"flex",alignItems:"center",gap:10,margin:"4px 0 12px"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,margin:"4px 0 12px",flexWrap:"wrap"}}>
         <div style={{fontSize:28}}>👧</div>
-        <div>
+        <div style={{flex:1,minWidth:180}}>
           <div style={{fontSize:17,fontWeight:800,color:"var(--text)"}}>{Z("Akademiya Zarokan","Kids Academy")}</div>
-          <div style={small}>{Z("Tenê dêûbav têketin dikin · sepan:","Parents only · app:")} <a href={ZAROK_APP_URL} target="_blank" rel="noopener" style={{color:"var(--accent)"}}>{ZAROK_APP_URL}</a></div>
+          <div style={small}>{Z("Têketin: dêûbav û mamoste · sepan:","Sign-in: parents & teachers · app:")} <a href={ZAROK_APP_URL} target="_blank" rel="noopener" style={{color:"var(--accent)"}}>{ZAROK_APP_URL}</a> · <a href={ZAROK_APP_URL.replace(/app\/?$/,"")} target="_blank" rel="noopener" style={{color:"var(--accent)"}}>{Z("malper","site")}</a></div>
         </div>
       </div>
-      <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:6,marginBottom:10}}>
+      <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:6,marginBottom:10,WebkitOverflowScrolling:"touch"}}>
         {TABS.map(([k,ic,lb,badge])=>(
-          <button key={k} onClick={()=>setTab(k)} style={{...btn(tab===k?"#0f2f38":"var(--bg2)",tab===k?"#fff":"var(--text)"),whiteSpace:"nowrap",border:"1px solid var(--border2)",position:"relative"}}>
+          <button key={k} onClick={()=>{setTab(k);setForm(null);setOpenId(null);}} style={{...btn(tab===k?"#0f2f38":"var(--bg2)",tab===k?"#fff":"var(--text)"),whiteSpace:"nowrap",border:"1px solid var(--border2)",flexShrink:0}}>
             {ic} {lb}{badge>0&&<span style={{marginLeft:6,background:"#dc2626",color:"#fff",borderRadius:9,padding:"0 6px",fontSize:11}}>{badge}</span>}
-          </button>
-        ))}
+          </button>))}
       </div>
 
       {creds&&(
         <div style={{...box,border:"2px solid #16a34a"}}>
-          <div style={{fontWeight:800,color:"#16a34a",marginBottom:6}}>✅ {creds.kid?Z("Zarok hate tomarkirin","Child registered"):Z("Şîfreya nû","New password")}</div>
-          {creds.kid&&<div style={{fontSize:13,color:"var(--text)"}}>{creds.kid} · {Z("Jimara zarokê","Child no")}: <b>{creds.kno}</b></div>}
-          <div style={{fontSize:13,color:"var(--text)",marginTop:4}}>{Z("Dêûbav","Parent")}: {creds.gname} · {Z("Jimara têketinê","Login no")}: <b>{creds.gno}</b></div>
-          {creds.pass?<div style={{fontSize:13,color:"var(--text)",marginTop:4}}>{Z("Şîfre","Password")}: <b style={{fontFamily:"monospace"}}>{creds.pass}</b></div>
-            :<div style={{...small,marginTop:4}}>{Z("Dêûbav berê hesab heye — zarok li hesabê wî/wê hat zêdekirin.","Parent already had an account — child was added to it.")}</div>}
-          <div style={{...small,marginTop:6}}>{creds.mailed?Z("✉ Agahiyên têketinê bi e-peyamê çûn.","✉ Login details were e-mailed."):creds.pass?Z("Van agahiyan bide dêûbav. Têketin: ","Give these to the parent. Sign in at: ")+location.origin+ZAROK_APP_URL:""}</div>
-          <button onClick={()=>setCreds(null)} style={{...btn(),marginTop:8}}>{Z("Baş e","OK")}</button>
-        </div>
-      )}
+          <div style={{fontWeight:800,color:"#16a34a",marginBottom:6}}>✅ {creds.title}</div>
+          <div style={{fontSize:13,color:"var(--text)",whiteSpace:"pre-wrap",lineHeight:1.7,fontFamily:"inherit"}}>{credText(creds)}</div>
+          {!creds.pass&&creds.kid&&<div style={{...small,marginTop:4}}>{Z("Dêûbav berê hesab heye — zarok li hesabê wî/wê hat zêdekirin.","Parent already had an account — child was added to it.")}</div>}
+          <div style={{...small,marginTop:6}}>{creds.mailed?Z("✉ Agahiyên têketinê bi e-peyamê çûn.","✉ Login details were e-mailed."):creds.pass?Z("Van agahiyan bide xwedîyê hesabê.","Give these details to the account holder."):""}</div>
+          <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
+            <button onClick={async()=>{await copyToClipboard(credText(creds));toast("✅ "+Z("Kopye bû!","Copied!"));}} style={ghost}>📋 {Z("Hemûyan Kopye Bike","Copy All")}</button>
+            {navigator.share&&<button onClick={()=>navigator.share({text:credText(creds)}).catch(()=>{})} style={ghost}>📤 {Z("Parve bike","Share")}</button>}
+            <button onClick={()=>setCreds(null)} style={btn()}>{Z("Baş e","OK")}</button>
+          </div>
+        </div>)}
 
       {tab==="apps"&&(<div>
         <div style={box}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}>
             <div style={{fontWeight:700,color:"var(--text)"}}>{cfg.open?Z("🟢 Serlêdana zarokan VEKIRÎ ye","🟢 Kids applications OPEN"):Z("🔴 Serlêdana zarokan GIRTÎ ye","🔴 Kids applications CLOSED")}</div>
             <button onClick={()=>saveCfg({...cfg,open:!cfg.open})} style={btn(cfg.open?"#dc2626":"#16a34a")}>{cfg.open?Z("Bigire","Close"):Z("Veke","Open")}</button>
           </div>
           <input style={{...inp,marginTop:8}} value={cfg.note||""} onChange={e=>setCfg(c=>({...c,note:e.target.value}))} onBlur={()=>saveCfg(cfg)} placeholder={Z("Nîşeya li ser malperê (vebijarkî)","Note shown on site")}/>
         </div>
         {apps.length===0&&<div style={{...box,...small,textAlign:"center"}}>{Z("Hîn serlêdan tune.","No applications yet.")}</div>}
-        {apps.map(a=>{const st=a.status||"new";const isOpen=openApp===a.fireId;return(
+        {apps.map(a=>{const st=a.status||"new";const isOpen=openId===a.fireId;return(
           <div key={a.fireId} style={box}>
-            <div onClick={()=>setOpenApp(isOpen?null:a.fireId)} style={{display:"flex",justifyContent:"space-between",gap:8,cursor:"pointer"}}>
-              <div>
+            <div onClick={()=>setOpenId(isOpen?null:a.fireId)} style={{display:"flex",justifyContent:"space-between",gap:8,cursor:"pointer"}}>
+              <div style={{minWidth:0}}>
                 <div style={{fontWeight:700,color:"var(--text)"}}>👧 {a.kidName} <span style={small}>{a.kidDob||""} · {areaLabel(a.area)}</span></div>
                 <div style={small}>{Z("Dêûbav","Parent")}: {a.guardianName} ({a.relation||"—"}) · {a.phone}</div>
               </div>
@@ -7485,48 +7681,151 @@ function ZarokAdminPanel({lang,toast,user}){
               {a.note&&<div>📝 {a.note}</div>}
               <div style={small}>{a.consentPhoto?"📷 ✔":"📷 ✖"} {Z("wêne","photo")} · {a.consentShare?"🌐 ✔":"🌐 ✖"} {Z("parvekirin","sharing")} · KVKK ✔ · {a.dateStr||""}</div>
               {(a.docs||[]).length>0&&<div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}}>{a.docs.map((d,i)=>(
-                <a key={i} href={/^(https?:|data:)/.test(d.file||"")?d.file:"#"} target="_blank" rel="noopener" download={d.fileName||("belge"+i)} style={{...btn("var(--bg2)","var(--text)"),textDecoration:"none",border:"1px solid var(--border2)"}}>📎 {d.name||d.fileName||("Belge "+(i+1))}</a>))}</div>}
+                <a key={i} href={/^(https?:|data:)/.test(d.file||"")?d.file:"#"} target="_blank" rel="noopener" download={d.fileName||("belge"+i)} style={{...ghost,textDecoration:"none",border:"1px solid var(--border2)"}}>📎 {d.name||d.fileName||("Belge "+(i+1))}</a>))}</div>}
               <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
                 {st!=="accepted"&&<button disabled={busy} onClick={()=>accept(a)} style={btn("#16a34a")}>{busy?"⏳":Z("✅ Qebûl û Tescîl","✅ Accept & Register")}</button>}
-                {st==="new"&&<button onClick={()=>setAppStatus(a,"rejected")} style={btn("#dc2626")}>{Z("❌ Red bike","❌ Reject")}</button>}
-                <button onClick={()=>delApp(a)} style={btn("var(--bg2)","var(--text)")}>🗑</button>
+                {st==="new"&&<button onClick={()=>F.updateDoc(F.doc(F.db,"kidApplications",a.fireId),{status:"rejected"}).catch(err)} style={btn("#dc2626")}>{Z("❌ Red bike","❌ Reject")}</button>}
+                <button onClick={()=>{ if(window.confirm(Z("Ev serlêdan were jêbirin?","Delete this application?"))) F.deleteDoc(F.doc(F.db,"kidApplications",a.fireId)).catch(err); }} style={ghost}>🗑</button>
               </div>
             </div>)}
           </div>);})}
       </div>)}
 
       {tab==="kids"&&(<div>
-        <div style={{...small,marginBottom:8}}>{kids.length} {Z("zarok","children")} · {guards.length} {Z("dêûbav","parents")}</div>
-        {kids.length===0&&<div style={{...box,...small,textAlign:"center"}}>{Z("Hîn zarok nehatiye tomarkirin.","No children registered yet.")}</div>}
+        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
+          <button onClick={()=>setForm({type:"kid",data:{guardianMode:"new",consentPhoto:false,consentShare:false}})} style={btn("#16a34a")}>➕ {Z("Zarokê Tescîl Bike","Register Child")}</button>
+          <select style={{...inp,width:"auto",minHeight:38}} value={areaF} onChange={e=>setAreaF(e.target.value)}>
+            <option value="all">{Z("Hemû qad","All fields")}</option>
+            {ZAROK_AREAS.map(a=><option key={a} value={a}>{areaLabel(a)}</option>)}
+          </select>
+          <span style={small}>{kids.length} {Z("zarok","children")}</span>
+        </div>
+        {form&&form.type==="kid"&&(
+          <div style={{...box,border:"2px solid var(--accent)"}}>
+            <div style={{fontWeight:800,color:"var(--text)"}}>{form.id?Z("✏️ Zarok biguherîne","✏️ Edit child"):Z("➕ Zarokê nû","➕ New child")}</div>
+            <div style={grid2}>
+              {fld(Z("Nav û paşnavê zarokê *","Child's full name *"),"kidName")}
+              {fld(Z("Roja jidayikbûnê","Date of birth"),"kidDob",{type:"date"})}
+              <div><label style={lbl}>{Z("Qad","Field")}</label>{areaSel("area")}</div>
+              <div><label style={lbl}>{Z("Mamoste","Teacher")}</label>
+                <select style={inp} value={form.data.teacherNo||""} onChange={e=>{const v=e.target.value;setForm(f=>({...f,data:{...f.data,teacherNo:v}}));}}>
+                  <option value="">—</option>{kteach.map(t=><option key={t.no} value={t.no}>{t.name}</option>)}
+                </select></div>
+              {fld(Z("Dibistan / sinif","School / grade"),"school")}
+              {fld(Z("Nîşeya tenduristiyê","Health note"),"health")}
+            </div>
+            <label style={{...small,display:"flex",gap:8,alignItems:"center",marginTop:8}}><input type="checkbox" checked={!!form.data.consentPhoto} onChange={e=>{const v=e.target.checked;setForm(f=>({...f,data:{...f.data,consentPhoto:v}}));}}/>📷 {Z("Destûra wêneyan","Photo consent")}</label>
+            <label style={{...small,display:"flex",gap:8,alignItems:"center",marginTop:4}}><input type="checkbox" checked={!!form.data.consentShare} onChange={e=>{const v=e.target.checked;setForm(f=>({...f,data:{...f.data,consentShare:v}}));}}/>🌐 {Z("Destûra parvekirinê li malperê","Consent to share on website")}</label>
+            {form.id?(<div>
+              <label style={lbl}>🚸 {Z("Kesên ku dikarin zarokê bibin (her rêzek yek)","People who may pick up (one per line)")}</label>
+              <textarea style={{...inp,minHeight:70}} value={form.data.pickupsText||""} onChange={e=>{const v=e.target.value;setForm(f=>({...f,data:{...f.data,pickupsText:v}}));}}/>
+              <label style={lbl}>👨‍👩‍👧 {Z("Dêûbavekî din girê bide","Link another parent")}</label>
+              <select style={inp} value={form.data.addGuardian||""} onChange={e=>{const v=e.target.value;setForm(f=>({...f,data:{...f.data,addGuardian:v}}));}}>
+                <option value="">—</option>{guards.filter(g=>!(form.orig.guardianNos||[]).includes(g.no)).map(g=><option key={g.no} value={g.no}>{g.name} · {g.phone}</option>)}
+              </select>
+            </div>):(<div>
+              <div style={{fontWeight:800,color:"var(--text)",margin:"14px 0 4px"}}>👨‍👩‍👧 {Z("Dêûbav","Parent")}</div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                <button onClick={()=>setForm(f=>({...f,data:{...f.data,guardianMode:"new"}}))} style={form.data.guardianMode!=="existing"?btn():ghost}>{Z("Hesabê nû","New account")}</button>
+                <button onClick={()=>setForm(f=>({...f,data:{...f.data,guardianMode:"existing"}}))} style={form.data.guardianMode==="existing"?btn():ghost}>{Z("Dêûbavê heyî","Existing parent")}</button>
+              </div>
+              {form.data.guardianMode==="existing"?(
+                <select style={{...inp,marginTop:8}} value={form.data.existingGuardian||""} onChange={e=>{const v=e.target.value;setForm(f=>({...f,data:{...f.data,existingGuardian:v}}));}}>
+                  <option value="">—</option>{guards.map(g=><option key={g.no} value={g.no}>{g.name} · {g.phone} · #{g.no}</option>)}
+                </select>
+              ):(<div style={grid2}>
+                {fld(Z("Navê dêûbav *","Parent name *"),"guardianName")}
+                {fld(Z("Yekîtî (dayik, bav…)","Relation"),"relation")}
+                {fld(Z("Têlefon *","Phone *"),"phone",{type:"tel"})}
+                {fld(Z("E-peyam (agahiyên têketinê)","E-mail (login details)"),"email",{type:"email"})}
+                {fld(Z("Têkiliya acil","Emergency contact"),"phone2")}
+              </div>)}
+              <div style={{...small,marginTop:6}}>{Z("Şîfre otomatîk tê çêkirin û bi e-peyamê tê şandin.","Password is generated automatically and e-mailed.")}</div>
+            </div>)}
+            <div style={{display:"flex",gap:8,marginTop:12,flexWrap:"wrap"}}>
+              <button disabled={busy} onClick={saveKidForm} style={btn("#16a34a")}>{busy?"⏳":"💾 "+Z("Tomar bike","Save")}</button>
+              <button onClick={()=>setForm(null)} style={ghost}>{Z("Betal","Cancel")}</button>
+            </div>
+          </div>)}
+        {kids.length===0&&!form&&<div style={{...box,...small,textAlign:"center"}}>{Z("Hîn zarok nehatiye tomarkirin.","No children registered yet.")}</div>}
         {kidsF.map(k=>(
           <div key={k.fireId} style={box}>
-            <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
-              <div style={{fontWeight:700,color:"var(--text)"}}>👧 {k.name} <span style={small}>#{k.no} · {areaLabel(k.area)}</span></div>
-              <button onClick={()=>delKid(k)} style={{...btn("var(--bg2)","var(--text)"),padding:"4px 9px"}}>🗑</button>
+            <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"flex-start"}}>
+              <div style={{minWidth:0}}>
+                <div style={{fontWeight:700,color:"var(--text)"}}>👧 {k.name} <span style={small}>#{k.no} · {areaLabel(k.area)}{k.teacherNo&&teacherOf(k.teacherNo)?" · 👩‍🏫 "+teacherOf(k.teacherNo).name:""}</span></div>
+                {(k.guardianNos||[]).map(gno=>{const g=guardOf(gno);return <div key={gno} style={{fontSize:13,color:"var(--text)",marginTop:3}}>👤 {g?g.name:"?"} <span style={small}>#{gno} · {g&&g.phone}</span></div>;})}
+                <div style={{...small,marginTop:4}}>{k.consentPhoto?"📷 ✔":"📷 ✖"} · {k.consentShare?"🌐 ✔":"🌐 ✖"}{k.health?" · 🩺 "+k.health:""}{(k.pickups||[]).length?" · 🚸 "+k.pickups.join(", "):""}</div>
+              </div>
+              <div style={{display:"flex",gap:6,flexShrink:0}}>
+                <button onClick={()=>setForm({type:"kid",id:k.fireId,orig:k,data:{kidName:k.name,kidDob:k.dob,area:k.area,school:k.school,teacherNo:k.teacherNo,health:k.health,consentPhoto:k.consentPhoto,consentShare:k.consentShare,pickupsText:(k.pickups||[]).join("\n")}})} style={{...ghost,padding:"6px 10px"}}>✏️</button>
+                <button onClick={()=>delKid(k)} style={{...ghost,padding:"6px 10px"}}>🗑</button>
+              </div>
             </div>
-            {(k.guardianNos||[]).map(gno=>{const g=guardOf(gno);return(
-              <div key={gno} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginTop:6,fontSize:13,color:"var(--text)"}}>
-                <span>👤 {g?g.name:"?"} <span style={small}>#{gno} · {g&&g.phone}</span></span>
-                {g&&<button onClick={()=>resetGuardianPass(g)} style={{...btn("var(--bg2)","var(--text)"),padding:"4px 9px",fontSize:12}}>🔑</button>}
-              </div>);})}
-            <div style={{...small,marginTop:6}}>
-              {k.consentPhoto?"📷 ✔":"📷 ✖"} · {k.consentShare?"🌐 ✔":"🌐 ✖"}{k.health?" · 🩺 "+k.health:""}
-              {(k.pickups||[]).length>0&&<div>🚸 {Z("Dikarin zarokê bibin","May pick up")}: {k.pickups.join(", ")}</div>}
+          </div>))}
+      </div>)}
+
+      {tab==="guards"&&(<div>
+        {form&&form.type==="guard"&&(
+          <div style={{...box,border:"2px solid var(--accent)"}}>
+            <div style={{fontWeight:800,color:"var(--text)"}}>✏️ {Z("Dêûbav biguherîne","Edit parent")} · #{form.id}</div>
+            <div style={grid2}>{fld(Z("Nav","Name"),"name")}{fld(Z("Yekîtî","Relation"),"relation")}{fld(Z("Têlefon","Phone"),"phone",{type:"tel"})}{fld(Z("E-peyam","E-mail"),"email",{type:"email"})}{fld(Z("Têkiliya acil","Emergency contact"),"phone2")}</div>
+            <div style={{display:"flex",gap:8,marginTop:12}}><button onClick={saveGuardianForm} style={btn("#16a34a")}>💾 {Z("Tomar bike","Save")}</button><button onClick={()=>setForm(null)} style={ghost}>{Z("Betal","Cancel")}</button></div>
+          </div>)}
+        <div style={{...small,marginBottom:8}}>{guards.length} {Z("dêûbav","parents")} · {Z("Dêûbav bi tomarkirina zarokê re tê çêkirin.","Parents are created when a child is registered.")}</div>
+        {guards.slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"")).map(g=>{const ks=kids.filter(k=>(k.guardianNos||[]).includes(g.no));return(
+          <div key={g.no} style={{...box,display:"flex",justifyContent:"space-between",gap:8,alignItems:"flex-start"}}>
+            <div style={{minWidth:0}}>
+              <div style={{fontWeight:700,color:"var(--text)"}}>👤 {g.name} <span style={small}>#{g.no}{g.relation?" · "+g.relation:""}</span></div>
+              <div style={small}>☎ {g.phone||"—"}{g.email?" · ✉ "+g.email:""}{g.phone2?" · 🆘 "+g.phone2:""}</div>
+              <div style={{...small,marginTop:3}}>👧 {ks.map(k=>k.name).join(", ")||"—"}</div>
+            </div>
+            <div style={{display:"flex",gap:6,flexShrink:0,flexWrap:"wrap",justifyContent:"flex-end"}}>
+              <button title={Z("Şîfreya nû","New password")} disabled={busy} onClick={()=>resetPass(g.no,"guardian",g.name,g.email)} style={{...ghost,padding:"6px 10px"}}>🔑</button>
+              <button onClick={()=>setForm({type:"guard",id:g.no,data:{...g}})} style={{...ghost,padding:"6px 10px"}}>✏️</button>
+              <button onClick={()=>delGuardian(g)} style={{...ghost,padding:"6px 10px"}}>🗑</button>
+            </div>
+          </div>);})}
+      </div>)}
+
+      {tab==="teachers"&&(<div>
+        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
+          <button onClick={()=>setForm({type:"teacher",data:{}})} style={btn("#16a34a")}>➕ {Z("Mamoste Tescîl Bike","Register Teacher")}</button>
+          <span style={small}>{Z("Mamosteyên zarokan tenê sepana zarokan dibînin.","Kids' teachers only see the kids' app.")}</span>
+        </div>
+        {form&&form.type==="teacher"&&(
+          <div style={{...box,border:"2px solid var(--accent)"}}>
+            <div style={{fontWeight:800,color:"var(--text)"}}>{form.id?"✏️ "+Z("Mamoste biguherîne","Edit teacher"):"➕ "+Z("Mamosteyekî Nû","New Teacher")}</div>
+            <div style={grid2}>{fld(Z("Nav û paşnav *","Full name *"),"name")}{fld(Z("E-peyam (agahiyên têketinê)","E-mail (login details)"),"email",{type:"email"})}{fld(Z("Têlefon","Phone"),"phone",{type:"tel"})}<div><label style={lbl}>{Z("Qad","Field")}</label>{areaSel("area",true)}</div></div>
+            {!form.id&&<div style={{...small,marginTop:6}}>{Z("Jimare û şîfre otomatîk tên çêkirin û bi e-peyamê tên şandin.","Number and password are generated automatically and e-mailed.")}</div>}
+            <div style={{display:"flex",gap:8,marginTop:12}}><button disabled={busy} onClick={saveTeacherForm} style={btn("#16a34a")}>{busy?"⏳":"💾 "+Z("Tomar bike","Save")}</button><button onClick={()=>setForm(null)} style={ghost}>{Z("Betal","Cancel")}</button></div>
+          </div>)}
+        {kteach.length===0&&<div style={{...box,...small,textAlign:"center"}}>{Z("Hîn mamoste tune.","No teachers yet.")}</div>}
+        {kteach.slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"")).map(t=>(
+          <div key={t.no} style={{...box,display:"flex",justifyContent:"space-between",gap:8,alignItems:"flex-start"}}>
+            <div style={{minWidth:0}}>
+              <div style={{fontWeight:700,color:"var(--text)"}}>👩‍🏫 {t.name} <span style={small}>#{t.no}{t.area?" · "+areaLabel(t.area):""}</span></div>
+              <div style={small}>{t.phone?"☎ "+t.phone:""}{t.email?" · ✉ "+t.email:""}</div>
+              <div style={{...small,marginTop:3}}>👧 {kids.filter(k=>k.teacherNo===t.no).length} {Z("zarok","children")} · 📅 {sched.filter(s=>s.teacherNo===t.no).length} {Z("ders","lessons")}</div>
+            </div>
+            <div style={{display:"flex",gap:6,flexShrink:0,flexWrap:"wrap",justifyContent:"flex-end"}}>
+              <button title={Z("Şîfreya nû","New password")} disabled={busy} onClick={()=>resetPass(t.no,"kidteacher",t.name,t.email)} style={{...ghost,padding:"6px 10px"}}>🔑</button>
+              <button onClick={()=>setForm({type:"teacher",id:t.no,data:{...t}})} style={{...ghost,padding:"6px 10px"}}>✏️</button>
+              <button onClick={()=>delTeacher(t)} style={{...ghost,padding:"6px 10px"}}>🗑</button>
             </div>
           </div>))}
       </div>)}
 
       {tab==="att"&&(<div>
-        <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:10}}>
+        <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:10,flexWrap:"wrap"}}>
           <select style={{...inp,width:"auto"}} value={areaF} onChange={e=>setAreaF(e.target.value)}>
             <option value="all">{Z("Hemû qad","All fields")}</option>
-            {[...new Set(kids.map(k=>k.area).filter(Boolean))].map(a=><option key={a} value={a}>{areaLabel(a)}</option>)}
+            {ZAROK_AREAS.map(a=><option key={a} value={a}>{areaLabel(a)}</option>)}
           </select>
           <span style={small}>📅 {today} · {Z("Dêûbav di cih de agahdar dibin","Parents are notified instantly")}</span>
         </div>
         {kidsF.map(k=>{const last=lastOf(k);return(
-          <div key={k.fireId} style={{...box,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
-            <div>
+          <div key={k.fireId} style={{...box,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}>
+            <div style={{minWidth:0}}>
               <div style={{fontWeight:700,color:"var(--text)"}}>{k.name}</div>
               <div style={small}>{last?(last.type==="in"?"🟢 "+Z("Di dersê de","In class"):"🏠 "+Z("Hate teslîmkirin","Picked up"))+" · "+new Date(last.time).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}):"— "+Z("hîn nehatiye","not arrived yet")}</div>
             </div>
@@ -7539,15 +7838,15 @@ function ZarokAdminPanel({lang,toast,user}){
 
       {tab==="sched"&&(<div>
         <div style={box}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:8}}>
             <select style={inp} value={sForm.day} onChange={e=>setSForm(f=>({...f,day:e.target.value}))}>{DAYS.map((d,i)=><option key={i} value={i}>{d}</option>)}</select>
             <input style={inp} type="time" value={sForm.start} onChange={e=>setSForm(f=>({...f,start:e.target.value}))}/>
             <input style={inp} type="time" value={sForm.end} onChange={e=>setSForm(f=>({...f,end:e.target.value}))}/>
           </div>
           <input style={{...inp,marginTop:8}} value={sForm.title} onChange={e=>setSForm(f=>({...f,title:e.target.value}))} placeholder={Z("Navê dersê (mînak: Muzîka Zarokan)","Lesson name (e.g. Kids Music)")}/>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginTop:8}}>
-            <input style={inp} value={sForm.area} onChange={e=>setSForm(f=>({...f,area:e.target.value}))} placeholder={Z("Qad","Field")}/>
-            <input style={inp} value={sForm.teacher} onChange={e=>setSForm(f=>({...f,teacher:e.target.value}))} placeholder={Z("Mamoste","Teacher")}/>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:8,marginTop:8}}>
+            <select style={inp} value={sForm.area} onChange={e=>setSForm(f=>({...f,area:e.target.value}))}><option value="">{Z("Qad","Field")}</option>{ZAROK_AREAS.map(a=><option key={a} value={a}>{areaLabel(a)}</option>)}</select>
+            <select style={inp} value={sForm.teacherNo} onChange={e=>setSForm(f=>({...f,teacherNo:e.target.value}))}><option value="">{Z("Mamoste","Teacher")}</option>{kteach.map(t=><option key={t.no} value={t.no}>{t.name}</option>)}</select>
             <input style={inp} value={sForm.room} onChange={e=>setSForm(f=>({...f,room:e.target.value}))} placeholder={Z("Ode","Room")}/>
           </div>
           <button onClick={addLesson} style={{...btn(),marginTop:10}}>➕ {Z("Dersê Zêde Bike","Add Lesson")}</button>
@@ -7556,9 +7855,9 @@ function ZarokAdminPanel({lang,toast,user}){
           <div key={d} style={box}>
             <div style={{fontWeight:800,color:"var(--text)",marginBottom:4}}>{DAYS[d]}</div>
             {ls.map(s=>(
-              <div key={s.fireId} style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13,color:"var(--text)",padding:"4px 0"}}>
-                <span>🕒 {s.start}–{s.end} · <b>{s.title}</b> <span style={small}>{[s.teacher,s.room].filter(Boolean).join(" · ")}</span></span>
-                <button onClick={()=>F.deleteDoc(F.doc(F.db,"kidSchedule",s.fireId)).catch(()=>{})} style={{...btn("var(--bg2)","var(--text)"),padding:"3px 8px"}}>🗑</button>
+              <div key={s.fireId} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,fontSize:13,color:"var(--text)",padding:"4px 0"}}>
+                <span style={{minWidth:0}}>🕒 {s.start}–{s.end} · <b>{s.title}</b> <span style={small}>{[areaLabel(s.area),s.teacher,s.room].filter(Boolean).join(" · ")}</span></span>
+                <button onClick={()=>F.deleteDoc(F.doc(F.db,"kidSchedule",s.fireId)).catch(err)} style={{...ghost,padding:"3px 8px",flexShrink:0}}>🗑</button>
               </div>))}
           </div>);})}
       </div>)}
@@ -7573,9 +7872,10 @@ function ZarokAdminPanel({lang,toast,user}){
           <div key={a.fireId} style={box}>
             <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
               <b style={{color:"var(--text)"}}>{a.title}</b>
-              <button onClick={()=>F.deleteDoc(F.doc(F.db,"kidAnnouncements",a.fireId)).catch(()=>{})} style={{...btn("var(--bg2)","var(--text)"),padding:"3px 8px"}}>🗑</button>
+              <button onClick={()=>F.deleteDoc(F.doc(F.db,"kidAnnouncements",a.fireId)).catch(err)} style={{...ghost,padding:"3px 8px"}}>🗑</button>
             </div>
             <div style={{fontSize:13,color:"var(--text)",whiteSpace:"pre-wrap",marginTop:4}}>{a.body}</div>
+            {a.by&&<div style={{...small,marginTop:4}}>— {a.by}</div>}
           </div>))}
       </div>)}
 
@@ -7583,17 +7883,17 @@ function ZarokAdminPanel({lang,toast,user}){
         {threads.length===0&&<div style={{...box,...small,textAlign:"center"}}>{Z("Hîn peyam tune.","No messages yet.")}</div>}
         {!thread&&threads.map(gno=>{const g=guardOf(gno);const tm=msgs.filter(m=>m.guardianNo===gno);const un=tm.filter(m=>m.from==="guardian"&&!m.read).length;return(
           <div key={gno} onClick={()=>setThread(gno)} style={{...box,cursor:"pointer",display:"flex",justifyContent:"space-between",gap:8}}>
-            <div><b style={{color:"var(--text)"}}>👤 {(g&&g.name)||tm[0].guardianName||gno}</b><div style={small}>{(tm[0].text||"").slice(0,70)}</div></div>
+            <div style={{minWidth:0}}><b style={{color:"var(--text)"}}>👤 {(g&&g.name)||tm[0].guardianName||gno}</b><div style={small}>{(tm[0].text||"").slice(0,70)}</div></div>
             {un>0&&<span style={{background:"#dc2626",color:"#fff",borderRadius:9,padding:"1px 8px",fontSize:12,alignSelf:"center"}}>{un}</span>}
           </div>);})}
         {thread&&(<div>
-          <button onClick={()=>setThread(null)} style={{...btn("var(--bg2)","var(--text)"),marginBottom:8}}>← {Z("Vegere","Back")}</button>
+          <button onClick={()=>setThread(null)} style={{...ghost,marginBottom:8}}>← {Z("Vegere","Back")}</button>
           <div style={box}>
             {msgs.filter(m=>m.guardianNo===thread).slice().reverse().map(m=>(
               <div key={m.fireId} style={{display:"flex",justifyContent:m.from==="staff"?"flex-end":"flex-start",margin:"6px 0"}}>
-                <div style={{maxWidth:"80%",padding:"8px 11px",borderRadius:12,fontSize:13.5,whiteSpace:"pre-wrap",
-                  background:m.from==="staff"?"#0f2f38":"var(--bg2)",color:m.from==="staff"?"#fff":"var(--text)"}}>
+                <div style={{maxWidth:"80%",padding:"8px 11px",borderRadius:12,fontSize:13.5,whiteSpace:"pre-wrap",background:m.from==="staff"?"#0f2f38":"var(--bg2)",color:m.from==="staff"?"#fff":"var(--text)"}}>
                   {m.kidName&&m.from!=="staff"&&<div style={{fontSize:11,opacity:.7}}>👧 {m.kidName}</div>}{m.text}
+                  {m.from==="staff"&&m.by&&<div style={{fontSize:10.5,opacity:.65,marginTop:2}}>— {m.by}</div>}
                 </div>
               </div>))}
             <div style={{display:"flex",gap:8,marginTop:10}}>
@@ -7602,6 +7902,22 @@ function ZarokAdminPanel({lang,toast,user}){
             </div>
           </div>
         </div>)}
+      </div>)}
+
+      {tab==="news"&&(<div>
+        <div style={{...small,marginBottom:8}}>{Z("Ev nûçe li ser malpera Akademiya Zarokan ji her kesî re xuya dibin.","These posts appear publicly on the Kids Academy site.")}</div>
+        {!form&&<button onClick={()=>{setPLang("ku");setForm({type:"kidNews",data:{date:today,images:[]}});}} style={{...btn("#16a34a"),marginBottom:10}}>➕ {Z("Nûçeya nû","New post")}</button>}
+        {form&&form.type==="kidNews"&&sitePostForm("kidNews")}
+        {news.length===0&&!form&&<div style={{...box,...small,textAlign:"center"}}>{Z("Hîn nûçe tune.","No posts yet.")}</div>}
+        {news.map(p=>sitePostRow("kidNews",p))}
+      </div>)}
+
+      {tab==="arch"&&(<div>
+        <div style={{...small,marginBottom:8}}>{Z("Tomarên «Dîroka Akademiyê» ya malpera zarokan (bi salan). Nûçeyên weşandî jî bixweber tên zêdekirin.","Entries for the kids site's “History of the Academy”, by year. Published news is added automatically.")}</div>
+        {!form&&<button onClick={()=>{setPLang("ku");setForm({type:"kidArchive",data:{images:[]}});}} style={{...btn("#16a34a"),marginBottom:10}}>➕ {Z("Tomara arşîvê","Archive entry")}</button>}
+        {form&&form.type==="kidArchive"&&sitePostForm("kidArchive")}
+        {arch.length===0&&!form&&<div style={{...box,...small,textAlign:"center"}}>{Z("Hîn tomar tune.","No entries yet.")}</div>}
+        {arch.slice().sort((a,b)=>(b.year||0)-(a.year||0)).map(p=>sitePostRow("kidArchive",p))}
       </div>)}
     </div>
   );
@@ -9072,6 +9388,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
     {key:"messages",icon:"💬",label:t.message+"s"||"Peyam"},
     {key:"reports",icon:"📊",label:lang==="en"?"Reports":K("Rapor")},
     {key:"alerts",icon:"🔔",label:lang==="en"?"Alerts":K("Hişyarî")},
+    {key:"zarok",icon:"👧",label:lang==="en"?"Kids Academy":K("Akademiya Zarokan")},
   ];
 
   // Öğrenci istatistiklerini Firebase'den yükle
@@ -9145,6 +9462,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
         {tab==="messages"&&<AdminMessagesPanel students={students} teachers={teachers} lang={lang} t={t} toast={toast} adminName={adminData.name}/>}
         {tab==="reports"&&<AdminReportCenter students={students} teachers={teachers} schedule={schedule} lang={lang} t={t} toast={toast} byName={adminData.name}/>}
         {tab==="alerts"&&<AdminAlertsPanel students={students} schedule={schedule} lang={lang} toast={toast}/>}
+        {tab==="zarok"&&<ZarokAdminPanel lang={lang} toast={toast} user={adminData}/>}
       </div>
       {statsModal&&(
         <StatsDetailModal type={statsModal} students={students} teachers={teachers} schedule={schedule} onClose={()=>setStatsModal(null)} t={t} lang={lang} toast={toast} onDataChange={onDataChange}/>
@@ -10950,13 +11268,13 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
   /* ── TEACHER Q CRUD ── */
   function saveQ(){
     if(!form.ku.trim()&&!form.en.trim()){toast("⚠");return;}
-    const updated=editQ==="new"?[...questions,{id:"q"+Date.now(),ku:form.ku,tr:form.tr,zz:form.zz,en:form.en}]:questions.map(q=>q.id===editQ.id?{...q,...form}:q);
+    const updated=editQ==="new"?[...questions,{id:"q"+Date.now(),ku:form.ku,tr:form.tr,zza:form.zza,en:form.en}]:questions.map(q=>q.id===editQ.id?{...q,...form}:q);
     setQuestions(updated); saveSurveyQuestions(updated);
     setEditQ(null); setForm({ku:"",en:""});
     toast("✓ "+L("save"));
   }
   function deleteQ(id){ const u=questions.filter(q=>q.id!==id); setQuestions(u); saveSurveyQuestions(u); }
-  function startEdit(q){ setEditQ(q); setForm({ku:q.ku||"",tr:q.tr||"",zz:q.zz||"",en:q.en||""}); }
+  function startEdit(q){ setEditQ(q); setForm({ku:q.ku||"",tr:q.tr||"",zza:q.zza||"",en:q.en||""}); }
 
   /* ── STUDENT SURVEY CRUD ── */
   function startCreateSurvey(){
@@ -11161,7 +11479,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
                 <>
                 <input style={inputStyle} value={form.ku} onChange={e=>setForm(f=>({...f,ku:e.target.value}))} placeholder="Kurdî"/>
                 <input style={{...inputStyle,marginTop:6}} value={form.en} onChange={e=>setForm(f=>({...f,en:e.target.value}))} placeholder="English"/>
-                <input style={{...inputStyle,marginTop:6}} value={form.zz||""} onChange={e=>setForm(f=>({...f,zz:e.target.value}))} placeholder="Zazakî"/>
+                <input style={{...inputStyle,marginTop:6}} value={form.zza||""} onChange={e=>setForm(f=>({...f,zza:e.target.value}))} placeholder="Zazakî"/>
                 <input style={{...inputStyle,marginTop:6}} value={form.tr||""} onChange={e=>setForm(f=>({...f,tr:e.target.value}))} placeholder="Türkçe"/>
                 <div style={{display:"flex",gap:6,marginTop:8}}>
                   <button onClick={saveQ} style={{flex:1,padding:"8px",background:"#0f2f38",color:"#fff",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer"}}>✓ {L("save")}</button>
@@ -11189,7 +11507,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
             <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:10}}>➕ Pirsa Nû</div>
             <input style={inputStyle} value={form.ku} onChange={e=>setForm(f=>({...f,ku:e.target.value}))} placeholder="Kurdî — Pirsa Kurdî binivîse..."/>
             <input style={{...inputStyle,marginTop:8}} value={form.en} onChange={e=>setForm(f=>({...f,en:e.target.value}))} placeholder="English question..."/>
-            <input style={{...inputStyle,marginTop:8}} value={form.zz||""} onChange={e=>setForm(f=>({...f,zz:e.target.value}))} placeholder="Zazakî — Persa Zazakî binuse..."/>
+            <input style={{...inputStyle,marginTop:8}} value={form.zza||""} onChange={e=>setForm(f=>({...f,zza:e.target.value}))} placeholder="Zazakî — Persa Zazakî binuse..."/>
             <input style={{...inputStyle,marginTop:8}} value={form.tr||""} onChange={e=>setForm(f=>({...f,tr:e.target.value}))} placeholder="Türkçe soru..."/>
             <div style={{display:"flex",gap:8,marginTop:12}}>
               <button onClick={saveQ} style={{flex:1,padding:"11px",background:"#0f2f38",color:"#fff",border:"none",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer",boxShadow:"0 4px 14px rgba(15,47,56,.25)"}}>💾 {L("save")}</button>
@@ -15282,12 +15600,6 @@ function LoginScreen({students,teachers,t,lang,rawLang,setLang,onLogin,onForgot,
   const [pass,setPass]=useState("");
   const [err,setErr]=useState("");
 
-  const LANGS=[
-    {key:"ku",label:"Kurmancî",flag:<KRGFlag size={26}/>},
-    {key:"zz",label:"Zazakî",flag:<KRGFlag size={26}/>},
-    {key:"tr",label:"Türkçe",flag:<span style={{fontSize:20}}>🇹🇷</span>},
-    {key:"en",label:"English",flag:<span style={{fontSize:20}}>🇬🇧</span>},
-  ];
 
   // Credential Autofill support
   const {saveCredential}=useBiometric();
@@ -15482,20 +15794,8 @@ function LoginScreen({students,teachers,t,lang,rawLang,setLang,onLogin,onForgot,
       <div style={{background:"var(--bg1)",flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}>
         <div role="main" style={{flex:1,overflowY:"auto",padding:"22px 20px 40px"}}>
 
-          {/* Lang picker */}
-          <div style={{display:"flex",gap:6,marginBottom:22}}>
-            {LANGS.map(l=>(
-              <button key={l.key} onClick={()=>setLang(l.key)}
-                style={{flex:1,minWidth:0,padding:"8px 2px 7px",border:`1.5px solid ${(rawLang||lang)===l.key?"var(--navy)":"var(--border)"}`,
-                  borderRadius:6,fontSize:9.5,fontWeight:(rawLang||lang)===l.key?700:500,
-                  color:(rawLang||lang)===l.key?"var(--accent)":"var(--text2)",
-                  background:"var(--bg1)",
-                  cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,
-                  transition:"all .15s var(--ease)"}}>
-                {l.flag}<span style={{whiteSpace:"nowrap"}}>{l.label}</span>
-              </button>
-            ))}
-          </div>
+          {/* Dil seçimi */}
+          <div style={{marginBottom:22}}><LangSelect value={rawLang||lang} onChange={setLang}/></div>
 
           {/* Role selector — sadece Xwendekar + Mamoste (Admin öğretmen panelinden giriş yapar) */}
           <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>{t.selectRole}</div>
@@ -16594,12 +16894,6 @@ function SettingsSheet({open, onClose, dark, onThemeToggle, lang, rawLang, setLa
     }
   }
   
-  const LANGS=[
-    {key:"ku",flag:"🏴",label:"Kurmancî"},
-    {key:"zz",flag:"🏴",label:"Zazakî"},
-    {key:"tr",flag:"🇹🇷",label:"Türkçe"},
-    {key:"en",flag:"🇬🇧",label:"English"},
-  ];
   
   const settingRow=(icon,title,sub,right,onClick)=>(
     <div onClick={onClick} style={{display:"flex",alignItems:"center",gap:12,padding:"14px 0",
@@ -16634,17 +16928,7 @@ function SettingsSheet({open, onClose, dark, onThemeToggle, lang, rawLang, setLa
         <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>
           🌐 {lang==="en"?"Language":K("Ziman")}
         </div>
-        <div style={{display:"flex",gap:8}}>
-          {LANGS.map(l=>(
-            <button key={l.key} onClick={()=>setLang(l.key)}
-              style={{flex:1,minWidth:0,padding:"9px 3px",border:`1.5px solid ${(rawLang||lang)===l.key?"var(--navy)":"var(--border)"}`,
-                borderRadius:6,background:"var(--surface)",cursor:"pointer",
-                display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
-              <span style={{fontSize:16}}>{l.flag}</span>
-              <span style={{fontSize:9.5,whiteSpace:"nowrap",fontWeight:(rawLang||lang)===l.key?700:500,color:(rawLang||lang)===l.key?"var(--accent)":"#64748b"}}>{l.label}</span>
-            </button>
-          ))}
-        </div>
+        <LangSelect value={rawLang||lang} onChange={setLang}/>
       </div>
       
       {settingRow("🌓",
@@ -16715,7 +16999,7 @@ function App(){
   // langRaw: kullanıcının seçtiği dil (ku/zz/tr/en) — T sözlüğü ve K() bundan okunur
   // lang: satır içi dallar için "en" ya da "ku"; ku/zz/tr metinleri K() ile lang-pack'ten gelir
   // Desteklenen diller: ku · zz · tr · en (eski "de" seçimi Kurmancî'ye döner)
-  const [langRaw,setLang]=useState(()=>{try{const v=localStorage.getItem("aat-lang");return AAT_LANGS.includes(v)?v:"ku";}catch{return "ku";}});
+  const [langRaw,setLang]=useState(()=>{try{let v=localStorage.getItem("aat-lang");if(v==="zz")v="zza"; return AAT_LANGS.includes(v)?v:"ku";}catch{return "ku";}});
   window.__AAT_LANG=langRaw; // K() çeviri katmanı için (render öncesi senkron)
   const lang=langRaw==="en"?"en":"ku";
   const [screen,setScreen]=useState("login");

@@ -1,14 +1,14 @@
 /* Akademîya Aram Tîgran — DİL PAKETİ (otomatik üretilir: tools/dil-entegre.js)
  * AAT_TX        : uygulama metinleri — anahtar = kaynaktaki Kurmancî metin
  *   .ku         : Kurmancî düzeltmeleri (akademisyen raporu)
- *   .zz         : Zazakî karşılıkları (akademisyen raporu)
+ *   .zza         : Zazakî karşılıkları (akademisyen raporu)
  *   .tr         : Türkçe karşılıkları
  * AAT_SITE      : ana sayfa (site) metinleri — anahtar = SITE_T anahtarı
  * AAT_SITE_AREA : sanat alanı adları (site)
  * AAT_ZAROK     : Akademiya Zarokan veli uygulaması (anahtar = zarok/app sözlük anahtarı)
  * AAT_ZAROK_SITE: Akademiya Zarokan tanıtım/başvuru sayfası
  * Elle düzenlemeyin; rapor JSON'larını tools/dil-entegre.js ile birleştirin. */
-window.AAT_TX={"ku":{},"zz":{},"tr":{"📥 Kart tê amadekirin…":"📥 Kart hazırlanıyor…",
+window.AAT_TX={"ku":{},"zza":{},"tr":{"📥 Kart tê amadekirin…":"📥 Kart hazırlanıyor…",
 "⚠ Ji kerema xwe dîsa biceribîne (hîn bar dibe)":"⚠ Lütfen tekrar deneyin (hâlâ yükleniyor)",
 "⚠ Dakêşan bi ser neket":"⚠ İndirme başarısız",
 "✅ Kart hat tomarkirin (HD)":"✅ Kart kaydedildi (HD)",
@@ -244,7 +244,7 @@ window.AAT_TX={"ku":{},"zz":{},"tr":{"📥 Kart tê amadekirin…":"📥 Kart ha
 "Sînif":"Sınıf",
 "Nav û e-peyam bes in. Wêne, têlefon, roja jidayikbûnê û navnîşan piştî ku şîfre gihîşt, ji aliyê xwendekar ve ji panela wî/wê tên dagirtin.":"Ad ve e-posta yeterlidir. Fotoğraf, telefon, doğum tarihi ve adres, öğrenci şifresini aldıktan sonra kendi panelinden doldurur.",
 "belge hatine barkirin":"belge yüklendi",
-"Mamoste hate tescîlkirin":"Öğretmen başarıyla kaydedildi",
+"Mamoste hate tescîlkirin":"Öğretmen kaydedildi",
 "Navê Bikarhêner (Jimara Mamoste)":"Kullanıcı Adı (Öğretmen No)",
 "Kilkkirî":"Kilitli",
 "Nav û e-peyam bes in. Wêne, têlefon, roja jidayikbûnê, navnîşan û danasîn ji aliyê mamoste ve ji panela wî/wê tên dagirtin.":"Ad ve e-posta yeterlidir. Fotoğraf, telefon, doğum tarihi, adres ve biyografi öğretmen tarafından kendi panelinden doldurulur.",
@@ -315,7 +315,7 @@ window.AAT_TX={"ku":{},"zz":{},"tr":{"📥 Kart tê amadekirin…":"📥 Kart ha
 "Nûçeyên weşandî":"Yayınlanan haberler",
 "Hîn nûçe tune. Ya yekem biweşîne!":"Henüz haber yok. İlkini yayınlayın!",
 "Jê bibe":"Sil",
-"⚠ Sernav pêwîst e — bi kêmanî bi zimanekî (KU/ZZ/TR/EN)":"⚠ Başlık gerekli — en az bir dilde (KU/ZZ/TR/EN)",
+"⚠ Sernav pêwîst e — bi kêmanî bi zimanekî (KU/ZZA/TR/EN)":"⚠ Başlık gerekli — en az bir dilde (KU/ZZA/TR/EN)",
 "✅ Nûçe hate weşandin":"✅ Haber yayınlandı",
 "❌ Çewtî — dîsa biceribîne":"❌ Hata — tekrar deneyin",
 "⚠ Ji bo vîdyoyê Firebase Storage pêwîst e (Blaze)":"⚠ Video için Firebase Storage gerekli (Blaze)",
@@ -867,8 +867,68 @@ window.AAT_TX={"ku":{},"zz":{},"tr":{"📥 Kart tê amadekirin…":"📥 Kart ha
 "Ji bo dêûbavan nivîs…":"Velilere mesaj…",
 "Ji Dêûbavan re Bişîne":"Velilere Gönder",
 "Hîn peyam tune.":"Henüz mesaj yok.",
-"Bersiv binivîse…":"Yanıt yazın…"}};
-window.AAT_SITE={"ku":{},"zz":{}};
-window.AAT_SITE_AREA={"ku":{},"zz":{}};
-window.AAT_ZAROK={"ku":{},"zz":{}};
-window.AAT_ZAROK_SITE={"ku":{},"zz":{}};
+"Bersiv binivîse…":"Yanıt yazın…",
+"⚠ Navê zarokê pêwîst e":"⚠ Çocuğun adı gerekli",
+"⚠ Navê dêûbav û têlefon pêwîst in":"⚠ Veli adı ve telefon gerekli",
+"Şîfreyeke nû were çêkirin?":"Yeni şifre oluşturulsun mu?",
+"⚠ Şîfre nehat guhertin — Cloud Functions veke (FUNCTIONS.md)":"⚠ Şifre değiştirilemedi — Cloud Functions açın (FUNCTIONS.md)",
+"⚠ Pêşî zarokên girêdayî jê bibe":"⚠ Önce bağlı çocukları kaldırın",
+"Hesabê dêûbav were jêbirin?":"Veli hesabı silinsin mi?",
+"Mamoste were jêbirin?":"Öğretmen silinsin mi?",
+"⚠ Sal pêwîst e (mînak 2019)":"⚠ Yıl gerekli (örn. 2019)",
+"✅ Hate weşandin":"✅ Yayınlandı",
+"➕ Nûçeya nû":"➕ Yeni haber",
+"➕ Tomara arşîvê":"➕ Arşiv kaydı",
+"✏️ Biguherîne":"✏️ Düzenle",
+"Etîket":"Etiket",
+"mînak: Damezrandin":"örn. Kuruluş",
+"Dîrok":"Tarih",
+"📷 Wêne (herî zêde 4)":"📷 Fotoğraflar (en fazla 4)",
+"Wêne":"Fotoğraf",
+"Biweşîne":"Yayınla",
+"Betal":"İptal",
+"Were jêbirin?":"Silinsin mi?",
+"Zarok":"Çocuklar",
+"Têketin":"Giriş",
+"Têketin: dêûbav û mamoste · sepan:":"Giriş: veliler ve öğretmenler · uygulama:",
+"malper":"site",
+"Van agahiyan bide xwedîyê hesabê.":"Bu bilgileri hesap sahibine verin.",
+"Parve bike":"Paylaş",
+"Zarokê Tescîl Bike":"Çocuk Kaydet",
+"➕ Zarokê nû":"➕ Yeni çocuk",
+"✏️ Zarok biguherîne":"✏️ Çocuğu düzenle",
+"Nav û paşnavê zarokê *":"Çocuğun adı soyadı *",
+"Dibistan / sinif":"Okul / sınıf",
+"Nîşeya tenduristiyê":"Sağlık notu",
+"Destûra wêneyan":"Fotoğraf izni",
+"Destûra parvekirinê li malperê":"Sitede paylaşım izni",
+"Hesabê nû":"Yeni hesap",
+"Dêûbavê heyî":"Mevcut veli",
+"Navê dêûbav *":"Veli adı *",
+"Yekîtî (dayik, bav…)":"Yakınlık (anne, baba…)",
+"Têlefon *":"Telefon *",
+"E-peyam (agahiyên têketinê)":"E-posta (giriş bilgileri)",
+"Şîfre otomatîk tê çêkirin û bi e-peyamê tê şandin.":"Şifre otomatik oluşturulur ve e-postayla gönderilir.",
+"Kesên ku dikarin zarokê bibin (her rêzek yek)":"Çocuğu alabilecek kişiler (her satıra bir kişi)",
+"Dêûbavekî din girê bide":"Başka bir veli bağla",
+"Dêûbav biguherîne":"Veliyi düzenle",
+"Nav":"Ad",
+"Yekîtî":"Yakınlık",
+"E-peyam":"E-posta",
+"Dêûbav bi tomarkirina zarokê re tê çêkirin.":"Veli hesapları çocuk kaydı sırasında oluşturulur.",
+"Mamosteyên zarokan tenê sepana zarokan dibînin.":"Çocuk öğretmenleri yalnızca çocuk uygulamasını görür.",
+"Mamoste biguherîne":"Öğretmeni düzenle",
+"Nav û paşnav *":"Ad soyad *",
+"Jimare û şîfre otomatîk tên çêkirin û bi e-peyamê tên şandin.":"Numara ve şifre otomatik oluşturulur ve e-postayla gönderilir.",
+"Hîn mamoste tune.":"Henüz öğretmen yok.",
+"ders":"ders",
+"Ev nûçe li ser malpera Akademiya Zarokan ji her kesî re xuya dibin.":"Bu haberler Çocuk Akademisi sitesinde herkese açık görünür.",
+"Nûçeya nû":"Yeni haber",
+"Hîn nûçe tune.":"Henüz haber yok.",
+"Tomarên «Dîroka Akademiyê» ya malpera zarokan (bi salan). Nûçeyên weşandî jî bixweber tên zêdekirin.":"Çocuk sitesindeki «Akademinin Tarihi» kayıtları (yıllara göre). Yayınlanan haberler de otomatik eklenir.",
+"Tomara arşîvê":"Arşiv kaydı",
+"Hîn tomar tune.":"Henüz kayıt yok."}};
+window.AAT_SITE={"ku":{},"zza":{}};
+window.AAT_SITE_AREA={"ku":{},"zza":{}};
+window.AAT_ZAROK={"ku":{},"zza":{}};
+window.AAT_ZAROK_SITE={"ku":{},"zza":{}};

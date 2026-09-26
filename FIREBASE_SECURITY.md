@@ -47,9 +47,9 @@ okuyabiliyor, silebiliyor, haber yükleyebiliyordu. Emülatörde doğrulandı (e
 ```bash
 cd tools && npm install && npm run kural-testi     # Java 11+ gerekir
 ```
-62 senaryo: sahte hesaplar, öğretmen yetki yükseltme, öğrenci izolasyonu, yoklama sahipliği,
+80 senaryo: sahte hesaplar, öğretmen yetki yükseltme, öğrenci izolasyonu, yoklama sahipliği,
 site başvurusu, Storage yüklemeleri ve **Akademiya Zarokan** (veli yalnızca kendi çocuğu,
-sahte veli, başvuru doğrulama). Kural değiştirdiğinizde yeniden çalıştırın.
+sahte veli, başvuru doğrulama, çocuk akademisi öğretmeni, site haberleri/arşiv). Kural değiştirdiğinizde yeniden çalıştırın.
 
 ## Geri alma (acil durum)
 

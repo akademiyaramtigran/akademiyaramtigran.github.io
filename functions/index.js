@@ -17,7 +17,7 @@ const admin = require("firebase-admin");
 admin.initializeApp();
 setGlobalOptions({ region: "europe-west1", maxInstances: 5 });
 
-const SUFFIX = { student: "@ogrenci.aat", teacher: "@ogretmen.aat", admin: "@ogretmen.aat", guardian: "@veli.aat" };
+const SUFFIX = { student: "@ogrenci.aat", teacher: "@ogretmen.aat", admin: "@ogretmen.aat", guardian: "@veli.aat", kidteacher: "@zmamoste.aat" };
 const MANAGERS = ["admin", "registrar", "press"];
 const idxId = no => String(no || "").replace(/[^A-Za-z0-9_\-.]/g, "").toLowerCase();
 

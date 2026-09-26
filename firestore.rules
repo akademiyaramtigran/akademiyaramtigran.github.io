@@ -200,8 +200,28 @@ service cloud.firestore {
       return authed() && mail().matches('.*@veli[.]aat$') && exists(dbPath('idx_guardians'));
     }
     function myKid(d) { return isGuardian() && prefix() in d.guardianNos; }
+    // Çocuk akademisi öğretmeni: <no>@zmamoste.aat VE idx_kidstaff/<no>
+    // (yetişkin akademinin öğrenci/öğretmen verisine ERİŞEMEZ)
+    function isKidTeacher() {
+      return authed() && mail().matches('.*@zmamoste[.]aat$') && exists(dbPath('idx_kidstaff'));
+    }
+    // Çocuk tarafında personel: akademi personeli VEYA çocuk öğretmeni
+    function kidStaff() { return isStaff() || isKidTeacher(); }
 
     match /idx_guardians/{no} { allow read: if isStaff() || (authed() && prefix() == no); allow write: if isManager(); }
+    match /idx_kidstaff/{no}  { allow read: if isStaff() || (authed() && prefix() == no); allow write: if isManager(); }
+
+    // Geçici şifre kasası (Cloud Functions açılana kadar şifre yenileme/silme için) — yalnızca yönetici seviyesi
+    match /kidSecrets/{no} { allow read, write: if isManager(); }
+
+    // Çocuk akademisi öğretmen kayıtları (doc id = öğretmen no)
+    match /kidTeachers/{no} {
+      allow read:  if kidStaff();
+      allow write: if isManager();
+    }
+    // Çocuk akademisi sitesi: haberler ve arşiv (tarih) — herkese açık okuma
+    match /kidNews/{id}    { allow read: if true; allow write: if isStaff(); }
+    match /kidArchive/{id} { allow read: if true; allow write: if isStaff(); }
 
     // Başvuru dönemi (site girişsiz okur)
     match /config/zarok { allow read: if true; allow write: if isStaff(); }
@@ -229,13 +249,13 @@ service cloud.firestore {
 
     // Veli kaydı (doc id = veli no)
     match /guardians/{no} {
-      allow read:  if isStaff() || (isGuardian() && prefix() == no);
+      allow read:  if kidStaff() || (isGuardian() && prefix() == no);
       allow write: if isManager();
     }
 
     // Çocuk kaydı — veli yalnızca izin/teslim/sağlık alanlarını güncelleyebilir
     match /kids/{id} {
-      allow read:   if isStaff() || myKid(resource.data);
+      allow read:   if kidStaff() || myKid(resource.data);
       allow create, delete: if isManager();
       allow update: if isStaff()
         || (myKid(resource.data)
@@ -244,23 +264,24 @@ service cloud.firestore {
 
     // Giriş/çıkış yoklaması (öğretmen/öğrenci işleri yazar, veli okur)
     match /kidAttendance/{id} {
-      allow read:  if isStaff() || myKid(resource.data);
-      allow write: if isStaff();
+      allow read:  if kidStaff() || myKid(resource.data);
+      allow write: if kidStaff();
     }
 
-    match /kidSchedule/{id}      { allow read: if isStaff() || isGuardian(); allow write: if isStaff(); }
-    match /kidAnnouncements/{id} { allow read: if isStaff() || isGuardian(); allow write: if isStaff(); }
+    match /kidSchedule/{id}      { allow read: if kidStaff() || isGuardian(); allow write: if isStaff(); }
+    match /kidAnnouncements/{id} { allow read: if kidStaff() || isGuardian(); allow write: if kidStaff(); }
 
     // Veli ↔ akademi mesajları
     match /kidMessages/{id} {
-      allow read: if isStaff() || (isGuardian() && resource.data.guardianNo == prefix());
-      allow create: if isStaff()
+      allow read: if kidStaff() || (isGuardian() && resource.data.guardianNo == prefix());
+      allow create: if kidStaff()
         || (isGuardian()
             && request.resource.data.keys().hasOnly(['guardianNo','guardianName','kidId','kidName','text','from','read','createdAt'])
             && request.resource.data.guardianNo == prefix()
             && request.resource.data.from == 'guardian'
             && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000);
-      allow update, delete: if isStaff();
+      allow update: if kidStaff();
+      allow delete: if isStaff();
     }
   }
 }

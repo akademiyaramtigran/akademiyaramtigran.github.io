@@ -61,7 +61,7 @@ try{
   .nav{margin-left:auto;display:flex;align-items:center;gap:22px;font-size:13.5px;font-weight:600}
   .nav a.link{text-decoration:none;color:var(--muted)}
   .nav a.link:hover,.nav a.link:focus-visible{color:var(--ink)}
-  @media(max-width:720px){.nav a.link{display:none}}
+  @media(max-width:1179px){.nav a.link{display:none}}
 
   .hero .wrap{
     display:grid;grid-template-columns:1.2fr .8fr;gap:32px;align-items:center;
@@ -326,14 +326,25 @@ try{
   .apply-req.ok .apply-req-state{color:#16a34a;font-weight:700}
   .apply-req-btn{flex-shrink:0;background:var(--navy);color:#fff;border:none;border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:700;cursor:pointer}
   /* ── Hamburger + Drawer ── */
-  .lang-sw{display:flex;gap:3px;margin-left:auto;background:var(--paper-2,#f2f5f8);border:1px solid var(--line);border-radius:99px;padding:3px}
-  .lang-sw button{border:none;background:none;font-size:10.5px;font-weight:800;letter-spacing:.04em;color:var(--muted);padding:5px 9px;border-radius:99px;cursor:pointer}
-  .lang-sw button.on{background:var(--navy,#0f2f38);color:#fff}
-  .lang-sw-drawer{margin-left:auto;margin-right:8px}
-  @media(max-width:720px){ .lang-sw:not(.lang-sw-drawer){display:none} }
+  /* Dil seçimi: açılır menü (tam isimler) */
+  .lang-wrap{position:relative;flex-shrink:0}
+  .lang-sel{appearance:none;-webkit-appearance:none;font:inherit;font-size:13px;font-weight:700;color:var(--ink);background:var(--paper-2,#f2f5f8) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23667'/%3E%3C/svg%3E") no-repeat right 10px center;border:1px solid var(--line);border-radius:99px;padding:8px 28px 8px 12px;cursor:pointer;min-height:36px}
+  .lang-sel:focus-visible{outline:2px solid var(--navy,#0f2f38);outline-offset:2px}
+  .lang-wrap-drawer{margin-left:auto;margin-right:8px}
+  @media(max-width:560px){ .lang-wrap:not(.lang-wrap-drawer){display:none} }
+  /* Çocuk akademisine geçiş (her ekranda görünür) */
+  .zarok-btn{display:inline-flex;align-items:center;gap:6px;flex-shrink:0;margin-left:auto;text-decoration:none;font-weight:800;font-size:13px;color:#3a2a00;background:#ffc93c;border-radius:99px;padding:8px 14px;min-height:36px;white-space:nowrap;box-shadow:0 2px 0 rgba(0,0,0,.08)}
+  .zarok-btn:hover{filter:brightness(1.05)}
+  .nav + .zarok-btn{margin-left:0}
+  .zarok-btn .zt-s{display:none}
+  @media(max-width:560px){ .zarok-btn .zt{display:none} .zarok-btn .zt-s{display:inline} .zarok-btn{padding:8px 12px} }
+  @media(max-width:420px){ .topbar .wrap{padding:10px 12px;gap:8px} .wordmark{font-size:11.5px;letter-spacing:.03em} .wordmark small{letter-spacing:.12em} .mark{height:30px} }
+  @media(max-width:370px){ .wordmark small{display:none} .wordmark{font-size:11px} }
+  @media(max-width:340px){ .wordmark{font-size:10px;letter-spacing:0} .zarok-btn{padding:8px 9px} }
+  @media(max-width:1179px){ .nav + .zarok-btn{margin-left:auto} }
   .hamburger{display:flex;margin:0;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:9px 10px 9px 0}
   .hamburger span{display:block;width:23px;height:2.5px;background:var(--ink);border-radius:2px}
-  @media(max-width:720px){ .nav{display:none} }
+  @media(max-width:1179px){ .nav{display:none} }
   .drawer-bd{position:fixed;inset:0;background:rgba(10,15,25,.5);opacity:0;visibility:hidden;transition:.25s;z-index:60}
   .drawer-bd.show{opacity:1;visibility:visible}
   .drawer{position:fixed;top:0;right:0;bottom:0;width:82%;max-width:320px;background:var(--paper);z-index:61;transform:translateX(100%);transition:transform .28s ease;box-shadow:-8px 0 34px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow-y:auto}
@@ -394,12 +405,10 @@ try{
       <a class="link" href="#qad" data-i18n="nav_areas">Qadên Hunerê</a>
       <a class="link" href="#derbare" data-i18n="about_us">Derbarê Me</a>
       <a class="link" href="#serledan" data-i18n="nav_apply">Serlêdan</a>
-      <a class="link" href="/zarok/" data-i18n="nav_zarok">Zarok</a>
       <a class="link" href="/app/" rel="nofollow" data-i18n="nav_login" style="font-weight:800">Têketin</a>
     </nav>
-    <div class="lang-sw" role="group" aria-label="Ziman / Language">
-      <button data-lang="ku">KU</button><button data-lang="zz">ZZ</button><button data-lang="tr">TR</button><button data-lang="en">EN</button>
-    </div>
+    <a class="zarok-btn" href="/zarok/" title="Akademiya Zarokan"><span aria-hidden="true">👧</span><span class="zt" data-i18n="nav_zarok_btn">Akademiya Zarokan</span><span class="zt-s" data-i18n="nav_zarok">Zarok</span></a>
+    <div class="lang-wrap"><select class="lang-sel" aria-label="Ziman / Language"><option value="ku">Kurmancî</option><option value="zza">Zazakî</option><option value="tr">Türkçe</option><option value="en">English</option></select></div>
   </div>
 </div>
 
@@ -408,7 +417,7 @@ try{
 <aside class="drawer" id="drawer" aria-hidden="true">
   <div class="drawer-head">
     <span class="drawer-title" data-i18n="menu">MENÛ</span>
-    <div class="lang-sw lang-sw-drawer"><button data-lang="ku">KU</button><button data-lang="zz">ZZ</button><button data-lang="tr">TR</button><button data-lang="en">EN</button></div>
+    <div class="lang-wrap lang-wrap-drawer"><select class="lang-sel" aria-label="Ziman / Language"><option value="ku">Kurmancî</option><option value="zza">Zazakî</option><option value="tr">Türkçe</option><option value="en">English</option></select></div>
     <button class="drawer-close" id="hb-close" aria-label="Bigire">✕</button>
   </div>
   <nav class="drawer-nav">
@@ -567,31 +576,31 @@ try{
 // ── Çok dilli site metinleri (ku varsayılan) ──────────────────────────────
 window.SITE_T={
  ku:{nav_news:"Nûçe",nav_video:"Vîdyo",nav_areas:"Qadên Hunerê",nav_apply:"Serlêdan",nav_login:"Têketin",menu:"MENÛ",home:"Serûpel",about_us:"Derbarê Me",arch_eyebrow:"Arşîv",arch_title:"Dîroka Akademiyê",arch_note:"Ji damezrandinê heta îro, salên akademiyê li vir têne komkirin. Her nûçeya ku tê weşandin bixweber li sala xwe zêde dibe — arşîv bi xwe mezin dibe.",arch_loading:"Arşîv tê barkirin…",arch_empty:"Hîn di arşîvê de tomar tune.",arch_empty_year:"Di vê salê de tomar tune.",arch_more:"Bêtir nîşan bide",arch_rec:"tomar",arch_news:"Nûçe",filter:"Parzûna Qadê",all:"Hemû",since:"Ji sala 2010'an ve",read_more:"Bêtir bixwîne",areas_line:"Muzîk · Şano · Sînema · Dans · Wêje · Wênesazî",news_none:"Hîn nûçe nehatine weşandin.",news_none_area:"Di vê qadê de hîn nûçe tune.",news_title:"Nûçe û Çalakî",edu:"Perwerde",who:"Em kî ne",about_title:"Derbarê Akademiyê",about_p:"dibistana hunerê, ji sala 2010'an ve.",founded:"Damezrandin",fields:"Qadên hunerê",enroll:"Tomarkirin",apply_title:"Serlêdana Xwendekariyê",area_hint:"Li qadekê bikirtîne da ku nûçeyên wê qadê bibînî.",school:"Dibistana hunerê",links:"Girêdan",login_sys:"Têketina Sîstemê",
-  ap_closed:"Serlêdan niha girtî ye. Dema tomarkirinê li vir tê ragihandin.",ap_docshead:"Belgeyên ku divê werin dagirtin:",ap_name:"Nav û paşnav *",ap_dob:"Roja jidayikbûnê",ap_phone:"Têlefon *",ap_email:"E-peyam (ji bo agahiyên têketinê)",ap_area:"Qada hunerê *",ap_note:"Nîşe (vebijarkî)",ap_docs:"Belgeyên pêwîst *",ap_upload:"📎 Bar bike",ap_change:"🔄 Biguherîne",ap_notyet:"necar",ap_done:"✅ barkir",ap_send:"📨 Serlêdanê Bişîne",ap_need:"⚠ Nav û têlefon pêwîst in.",ap_missing:"⚠ Ev belge kêm in: ",ap_toobig:"⚠ Belge bi tevahî pir mezin in — wêne/PDF-yên biçûktir bar bike.",ap_sending:"⏳ Tê şandin…",ap_ok1:"Serlêdana te hate wergirtin!",ap_ok2:"Karûbarên xwendekaran dê bi te re têkilî deyne.",ap_fail:"❌ Neçû — dîsa biceribîne.",nav_zarok:"Zarok",zarok_link:"👧 Akademiya Zarokan",kvkk_link:"KVKK / Nepenî",ap_kvkk:"Min nivîsa agahdariyê ya KVKK xwend û qebûl dikim *",ap_kvkk_need:"⚠ Ji kerema xwe nivîsa KVKK bixwîne û qebûl bike."},
+  ap_closed:"Serlêdan niha girtî ye. Dema tomarkirinê li vir tê ragihandin.",ap_docshead:"Belgeyên ku divê werin dagirtin:",ap_name:"Nav û paşnav *",ap_dob:"Roja jidayikbûnê",ap_phone:"Têlefon *",ap_email:"E-peyam (ji bo agahiyên têketinê)",ap_area:"Qada hunerê *",ap_note:"Nîşe (vebijarkî)",ap_docs:"Belgeyên pêwîst *",ap_upload:"📎 Bar bike",ap_change:"🔄 Biguherîne",ap_notyet:"necar",ap_done:"✅ barkir",ap_send:"📨 Serlêdanê Bişîne",ap_need:"⚠ Nav û têlefon pêwîst in.",ap_missing:"⚠ Ev belge kêm in: ",ap_toobig:"⚠ Belge bi tevahî pir mezin in — wêne/PDF-yên biçûktir bar bike.",ap_sending:"⏳ Tê şandin…",ap_ok1:"Serlêdana te hate wergirtin!",ap_ok2:"Karûbarên xwendekaran dê bi te re têkilî deyne.",ap_fail:"❌ Neçû — dîsa biceribîne.",nav_zarok:"Zarok",zarok_link:"👧 Akademiya Zarokan",kvkk_link:"KVKK / Nepenî",ap_kvkk:"Min nivîsa agahdariyê ya KVKK xwend û qebûl dikim *",ap_kvkk_need:"⚠ Ji kerema xwe nivîsa KVKK bixwîne û qebûl bike.",nav_zarok_btn:"Akademiya Zarokan"},
  tr:{nav_news:"Haberler",nav_video:"Video",nav_areas:"Sanat Alanları",nav_apply:"Başvuru",nav_login:"Giriş",menu:"MENÜ",home:"Ana Sayfa",about_us:"Hakkımızda",arch_eyebrow:"Arşiv",arch_title:"Akademinin Tarihi",arch_note:"Kuruluşundan bugüne akademinin yılları burada toplanıyor. Yayınlanan her haber otomatik olarak kendi yılına eklenir — arşiv kendiliğinden büyür.",arch_loading:"Arşiv yükleniyor…",arch_empty:"Arşivde henüz kayıt yok.",arch_empty_year:"Bu yılda kayıt yok.",arch_more:"Daha fazla göster",arch_rec:"kayıt",arch_news:"Haber",filter:"Alan Filtresi",all:"Tümü",since:"2010'dan beri",read_more:"Devamını oku",areas_line:"Müzik · Tiyatro · Sinema · Dans · Edebiyat · Resim",news_none:"Henüz haber yayınlanmadı.",news_none_area:"Bu alanda henüz haber yok.",news_title:"Haberler ve Etkinlikler",edu:"Eğitim",who:"Biz kimiz",about_title:"Akademi Hakkında",about_p:"sanat okulu, 2010'dan beri.",founded:"Kuruluş",fields:"Sanat alanı",enroll:"Kayıt",apply_title:"Öğrencilik Başvurusu",area_hint:"Bir alana dokun, o alanın haberlerini gör.",school:"Sanat okulu",links:"Bağlantılar",login_sys:"Sisteme Giriş",
-  ap_closed:"Başvurular şu an kapalı. Kayıt dönemi burada duyurulacak.",ap_docshead:"Doldurulması gereken belgeler:",ap_name:"Ad ve soyad *",ap_dob:"Doğum tarihi",ap_phone:"Telefon *",ap_email:"E-posta (giriş bilgileriniz buraya gönderilir)",ap_area:"Sanat alanı *",ap_note:"Not (isteğe bağlı)",ap_docs:"İstenen belgeler *",ap_upload:"📎 Yükle",ap_change:"🔄 Değiştir",ap_notyet:"yüklenmedi",ap_done:"✅ yüklendi",ap_send:"📨 Başvuruyu Gönder",ap_need:"⚠ Ad ve telefon zorunludur.",ap_missing:"⚠ Şu belgeler eksik: ",ap_toobig:"⚠ Belgeler toplamda çok büyük — daha küçük görsel/PDF yükleyin.",ap_sending:"⏳ Gönderiliyor…",ap_ok1:"Başvurunuz alındı!",ap_ok2:"Öğrenci işleri sizinle iletişime geçecek.",ap_fail:"❌ Gönderilemedi — tekrar deneyin.",nav_zarok:"Çocuk",zarok_link:"👧 Çocuk Akademisi",kvkk_link:"KVKK Aydınlatma Metni",ap_kvkk:"KVKK aydınlatma metnini okudum, kabul ediyorum *",ap_kvkk_need:"⚠ Lütfen KVKK aydınlatma metnini okuyup onaylayın."},
+  ap_closed:"Başvurular şu an kapalı. Kayıt dönemi burada duyurulacak.",ap_docshead:"Doldurulması gereken belgeler:",ap_name:"Ad ve soyad *",ap_dob:"Doğum tarihi",ap_phone:"Telefon *",ap_email:"E-posta (giriş bilgileriniz buraya gönderilir)",ap_area:"Sanat alanı *",ap_note:"Not (isteğe bağlı)",ap_docs:"İstenen belgeler *",ap_upload:"📎 Yükle",ap_change:"🔄 Değiştir",ap_notyet:"yüklenmedi",ap_done:"✅ yüklendi",ap_send:"📨 Başvuruyu Gönder",ap_need:"⚠ Ad ve telefon zorunludur.",ap_missing:"⚠ Şu belgeler eksik: ",ap_toobig:"⚠ Belgeler toplamda çok büyük — daha küçük görsel/PDF yükleyin.",ap_sending:"⏳ Gönderiliyor…",ap_ok1:"Başvurunuz alındı!",ap_ok2:"Öğrenci işleri sizinle iletişime geçecek.",ap_fail:"❌ Gönderilemedi — tekrar deneyin.",nav_zarok:"Çocuk",zarok_link:"👧 Çocuk Akademisi",kvkk_link:"KVKK Aydınlatma Metni",ap_kvkk:"KVKK aydınlatma metnini okudum, kabul ediyorum *",ap_kvkk_need:"⚠ Lütfen KVKK aydınlatma metnini okuyup onaylayın.",nav_zarok_btn:"Çocuk Akademisi"},
  en:{nav_news:"News",nav_video:"Video",nav_areas:"Art Fields",nav_apply:"Apply",nav_login:"Sign in",menu:"MENU",home:"Home",about_us:"About Us",arch_eyebrow:"Archive",arch_title:"History of the Academy",arch_note:"The academy's years, from its founding to today. Every published post is automatically filed under its own year — the archive grows by itself.",arch_loading:"Loading archive…",arch_empty:"No archive entries yet.",arch_empty_year:"No entries for this year.",arch_more:"Show more",arch_rec:"entries",arch_news:"News",filter:"Field Filter",all:"All",since:"Since 2010",read_more:"Read more",areas_line:"Music · Theatre · Cinema · Dance · Literature · Painting",news_none:"No news published yet.",news_none_area:"No news in this field yet.",news_title:"News & Events",edu:"Education",who:"Who we are",about_title:"About the Academy",about_p:"a school of arts, since 2010.",founded:"Founded",fields:"Art fields",enroll:"Enrollment",apply_title:"Student Application",area_hint:"Tap a field to see its news.",school:"School of arts",links:"Links",login_sys:"System Login",
-  ap_closed:"Applications are currently closed. The enrollment period will be announced here.",ap_docshead:"Documents to fill in:",ap_name:"Full name *",ap_dob:"Date of birth",ap_phone:"Phone *",ap_email:"E-mail (your login details are sent here)",ap_area:"Art field *",ap_note:"Note (optional)",ap_docs:"Required documents *",ap_upload:"📎 Upload",ap_change:"🔄 Change",ap_notyet:"not yet",ap_done:"✅ uploaded",ap_send:"📨 Submit Application",ap_need:"⚠ Name and phone are required.",ap_missing:"⚠ Missing documents: ",ap_toobig:"⚠ Files are too large in total — upload smaller images/PDFs.",ap_sending:"⏳ Sending…",ap_ok1:"Your application has been received!",ap_ok2:"Student affairs will contact you.",ap_fail:"❌ Failed — please try again.",nav_zarok:"Kids",zarok_link:"👧 Kids Academy",kvkk_link:"Privacy Notice (KVKK)",ap_kvkk:"I have read and accept the privacy notice (KVKK) *",ap_kvkk_need:"⚠ Please read and accept the privacy notice."},
- zz:{}
+  ap_closed:"Applications are currently closed. The enrollment period will be announced here.",ap_docshead:"Documents to fill in:",ap_name:"Full name *",ap_dob:"Date of birth",ap_phone:"Phone *",ap_email:"E-mail (your login details are sent here)",ap_area:"Art field *",ap_note:"Note (optional)",ap_docs:"Required documents *",ap_upload:"📎 Upload",ap_change:"🔄 Change",ap_notyet:"not yet",ap_done:"✅ uploaded",ap_send:"📨 Submit Application",ap_need:"⚠ Name and phone are required.",ap_missing:"⚠ Missing documents: ",ap_toobig:"⚠ Files are too large in total — upload smaller images/PDFs.",ap_sending:"⏳ Sending…",ap_ok1:"Your application has been received!",ap_ok2:"Student affairs will contact you.",ap_fail:"❌ Failed — please try again.",nav_zarok:"Kids",zarok_link:"👧 Kids Academy",kvkk_link:"Privacy Notice (KVKK)",ap_kvkk:"I have read and accept the privacy notice (KVKK) *",ap_kvkk_need:"⚠ Please read and accept the privacy notice.",nav_zarok_btn:"Kids Academy"},
+ zza:{}
 };
 // Dil paketi (app/lang-pack.js): Zazakî ve akademisyen düzeltmeleri buradan birleşir
 (function(){var P=window.AAT_SITE||{};Object.keys(P).forEach(function(l){window.SITE_T[l]=Object.assign({},window.SITE_T[l]||{},P[l]);});})();
-window.SITE_LANGS=['ku','zz','tr','en'];
-window.SITE_LANG=(function(){try{var v=localStorage.getItem('aat-site-lang');return window.SITE_LANGS.indexOf(v)>=0?v:'ku';}catch(e){return 'ku';}})();
+window.SITE_LANGS=['ku','zza','tr','en'];
+window.SITE_LANG=(function(){try{var v=localStorage.getItem('aat-site-lang');if(v==='zz')v='zza';return window.SITE_LANGS.indexOf(v)>=0?v:'ku';}catch(e){return 'ku';}})();
 window.ST=function(k){var d=window.SITE_T[window.SITE_LANG]||window.SITE_T.ku;return d[k]||window.SITE_T.ku[k]||k;};
 window.AREA_I18N={
  ku:{muzik:"Muzîk",tiyatro:"Şano",sinema:"Sînema",dans:"Dans",edebiyat:"Wêje",wenesazi:"Wênesazî"},
  tr:{muzik:"Müzik",tiyatro:"Tiyatro",sinema:"Sinema",dans:"Dans",edebiyat:"Edebiyat",wenesazi:"Resim"},
  en:{muzik:"Music",tiyatro:"Theatre",sinema:"Cinema",dans:"Dance",edebiyat:"Literature",wenesazi:"Painting"},
- zz:{}
+ zza:{}
 };
 (function(){var P=window.AAT_SITE_AREA||{};Object.keys(P).forEach(function(l){window.AREA_I18N[l]=Object.assign({},window.AREA_I18N[l]||{},P[l]);});})();
 window.areaName=function(k){var d=window.AREA_I18N[window.SITE_LANG]||window.AREA_I18N.ku;return d[k]||window.AREA_I18N.ku[k]||k;};
 window.applySiteLang=function(){
   document.querySelectorAll('[data-i18n]').forEach(function(el){ el.textContent=window.ST(el.getAttribute('data-i18n')); });
   document.querySelectorAll('[data-areakey]').forEach(function(el){ el.textContent=window.areaName(el.getAttribute('data-areakey')); });
-  document.querySelectorAll('.lang-sw button').forEach(function(b){ b.className=b.getAttribute('data-lang')===window.SITE_LANG?'on':''; });
-  document.documentElement.lang=({ku:'ku',zz:'zza',tr:'tr',en:'en'})[window.SITE_LANG]||'ku';
+  document.querySelectorAll('.lang-sel').forEach(function(s){ s.value=window.SITE_LANG; });
+  document.documentElement.lang=({ku:'ku',zza:'zza',tr:'tr',en:'en'})[window.SITE_LANG]||'ku';
 };
 window.setSiteLang=function(l){
   if(window.SITE_LANGS.indexOf(l)<0) l='ku';
@@ -601,7 +610,7 @@ window.setSiteLang=function(l){
   document.dispatchEvent(new CustomEvent('sitelang'));
 };
 document.addEventListener('DOMContentLoaded',function(){
-  document.querySelectorAll('.lang-sw button').forEach(function(b){ b.addEventListener('click',function(){window.setSiteLang(b.getAttribute('data-lang'));}); });
+  document.querySelectorAll('.lang-sel').forEach(function(s){ s.addEventListener('change',function(){window.setSiteLang(s.value);}); });
   window.applySiteLang();
 });
 // Modül (Firebase) hiç yüklenemezse "barkirin" yazısı takılı kalmasın

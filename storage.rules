@@ -57,6 +57,13 @@ service firebase.storage {
       allow delete: if isStaff();
     }
 
+    // Çocuk akademisi sitesi haber/arşiv görselleri — herkes görür, personel yükler
+    match /kid-news/{allPaths=**} {
+      allow read: if true;
+      allow create, update: if isStaff() && isImage(10 * 1024 * 1024);
+      allow delete: if isStaff();
+    }
+
     // Çocuk akademisi başvuru belgeleri — yalnızca Zarok başvuru dönemi açıkken
     match /zarok-applications/{allPaths=**} {
       allow read:   if isStaff();

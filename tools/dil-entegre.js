@@ -3,7 +3,7 @@
 //  Dil entegrasyonu — akademisyen raporlarını sisteme işler
 //  Kullanım:  node tools/dil-entegre.js dil-zazaki-2026-10-01.json [başka.json …]
 //
-//  • Zazakî raporu   → app/lang-pack.js içinde AAT_TX.zz / AAT_SITE.zz / AAT_SITE_AREA.zz
+//  • Zazakî raporu   → app/lang-pack.js içinde AAT_TX.zza / AAT_SITE.zza / AAT_SITE_AREA.zza
 //  • Kurmancî raporu → AAT_TX.ku / AAT_SITE.ku / AAT_SITE_AREA.ku (düzeltmeler)
 //  • Akademiya Zarokan → AAT_ZAROK (veli uygulaması) / AAT_ZAROK_SITE (tanıtım sayfası)
 //  Kaynak kod değişmez; uygulama ve site dil paketini açılışta okur.
@@ -14,13 +14,14 @@ const path = require('path');
 const vm = require('vm');
 
 const PACK = path.join(__dirname, '..', 'app', 'lang-pack.js');
-const LANGS = ['ku', 'zz', 'tr'];
+const LANGS = ['ku', 'zza', 'tr'];
 
 function load() {
   const ctx = { window: {} };
   vm.runInNewContext(fs.readFileSync(PACK, 'utf8'), ctx);
   const w = ctx.window;
-  const norm = o => { const r = {}; for (const l of LANGS) r[l] = Object.assign({}, (o || {})[l] || {}); return r; };
+  // eski 'zz' anahtarı varsa 'zza'ya taşınır
+  const norm = o => { const r = {}; for (const l of LANGS) r[l] = Object.assign({}, l === 'zza' ? (o || {}).zz || {} : {}, (o || {})[l] || {}); return r; };
   return { TX: norm(w.AAT_TX), SITE: norm(w.AAT_SITE), AREA: norm(w.AAT_SITE_AREA), ZAROK: norm(w.AAT_ZAROK), ZSITE: norm(w.AAT_ZAROK_SITE) };
 }
 
@@ -45,6 +46,7 @@ const pack = load();
 let total = 0;
 for (const f of files) {
   const o = JSON.parse(fs.readFileSync(f, 'utf8'));
+  if (o.lang === 'zz') o.lang = 'zza'; // eski rapor dosyaları
   if (o.format !== 'aat-dil-v3' || !LANGS.includes(o.lang)) { console.error('✗ Tanınmayan rapor:', f); process.exitCode = 1; continue; }
   const L = o.lang;
   let n = 0, skipped = [];

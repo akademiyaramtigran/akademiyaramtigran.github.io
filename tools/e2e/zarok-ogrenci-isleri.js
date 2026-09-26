@@ -58,7 +58,7 @@ async function routes(ctx) {
   await p.waitForSelector('text=Zarok hate tomarkirin', { timeout: 20000 });
   const credTxt = await p.evaluate(() => document.body.innerText);
   const gno = (credTxt.match(/Jimara têketinê:\s*(\d+)/) || [])[1];
-  const pass = await p.locator('b[style*="monospace"]').first().textContent();
+  const pass = (credTxt.match(/Şîfre:\s*(\S+)/) || [])[1];
   ok('Kabul → veli hesabı + çocuk kaydı oluşur', !!gno && !!pass, 'veli ' + gno);
   const kids = await list('kids'), guards = await list('guardians'), idx = await list('idx_guardians');
   const kid = kids.find(d => d.fields.name.stringValue === 'Hêvîn Demir');
