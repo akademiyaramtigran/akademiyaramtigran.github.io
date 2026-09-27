@@ -9768,7 +9768,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
     {key:"announcements",icon:"📢",label:t.announcements},
     {key:"press",icon:"📰",label:lang==="en"?"Press":K("Çapemenî")},
     {key:"arsiv",icon:"🏛",label:lang==="en"?"Archive":K("Arşîv")},
-    {key:"messages",icon:"💬",label:t.message+"s"||"Peyam"},
+    {key:"messages",icon:"💬",label:lang==="en"?"Messages":K("Peyam")},
     {key:"reports",icon:"📊",label:lang==="en"?"Reports":K("Rapor")},
     {key:"alerts",icon:"🔔",label:lang==="en"?"Alerts":K("Hişyarî")},
   ];
@@ -13712,7 +13712,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     {key:"home",icon:"🏠",label:t.home},
     {key:"attendance",icon:"📋",label:t.attendance},
     {key:"announce",icon:"📢",label:t.announcement||"Ragihandin",badge:teacherAnnUnread},
-    {key:"messages",icon:"💬",label:t.message+"s"||"Peyam",badge:msgUnreadCount},
+    {key:"messages",icon:"💬",label:lang==="en"?"Messages":K("Peyam"),badge:msgUnreadCount},
     {key:"students",icon:"🎓",label:lang==="en"?"Students":K("Xwendekar")},
     {key:"scanner",icon:"📷",label:t.qrScan},
     {key:"evaluation",icon:"📝",label:lang==="en"?"Evaluation":K("Nirxandin"),badge:surveyActive?1:0},
