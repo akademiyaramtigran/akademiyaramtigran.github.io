@@ -291,6 +291,8 @@ service cloud.firestore {
 
     // Başvuru dönemi (site girişsiz okur)
     match /config/zarok { allow read: if true; allow write: if isRegistrar(); }
+    // İstenen belgeler (şablonlar) — site girişsiz görür/indirir, yazma öğrenci işleri
+    match /kidApplicationTemplates/{id} { allow read: if true; allow write: if isRegistrar(); }
     function zarokOpen() {
       return exists(/databases/$(database)/documents/config/zarok)
         && get(/databases/$(database)/documents/config/zarok).data.open == true;
@@ -309,7 +311,7 @@ service cloud.firestore {
         && request.resource.data.status == 'new'
         && optStr('kidDob', 20) && optStr('area', 20) && optStr('school', 80) && optStr('relation', 30)
         && optStr('phone2', 30) && optStr('email', 80) && optStr('health', 500) && optStr('note', 500) && optStr('dateStr', 20)
-        && (!('docs' in request.resource.data) || (request.resource.data.docs is list && request.resource.data.docs.size() <= 6));
+        && (!('docs' in request.resource.data) || (request.resource.data.docs is list && request.resource.data.docs.size() <= 12));
       allow read, update, delete: if isRegistrar();
     }
 

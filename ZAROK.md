@@ -7,11 +7,16 @@ Giriş: **Veli** ve **Öğretmen**. Çocukların kendi hesabı yoktur.
 |---|---|---|
 | Tanıtım + veli başvuru formu | `/zarok/` | `https://zarok.aramtigran.org/` |
 | Veli uygulaması (PWA) | `/zarok/app/` | `https://zarok.aramtigran.org/app/` |
-| Yönetim | Ana uygulama → **Öğrenci İşleri** (veya Yönetici) → **Akademiya Zarokan** sekmesi | aynı |
+| Yönetim | Ana uygulama → **Öğrenci İşleri** → **Akademiya Zarokan** bölümü (yönetici panelinde yok) | aynı |
 | Site haberleri + arşiv | Ana uygulama → **Basın** → **Akademiya Zarokan** sekmesi | aynı |
 
 > **Alan adı notu:** `.gov` / `.gov.tr` uzantıları yalnızca kamu kurumlarına verilir; özel bir
 > akademi alamaz. `zarok.aramtigran.org` (veya `.com`) önerilir.
+
+## Başvuru (akademi başvurusuyla aynı mantık)
+- Öğrenci İşleri: başvuruyu aç/kapat, başlangıç–bitiş tarihi, siteye not, **istenen belgeler** (her biri ayrı yükleme; isteğe bağlı indirilebilir form şablonu)
+- Veli her istenen belgeyi yüklemeden başvuru gönderilemez; Öğrenci İşleri inceler → **Qebûl û Tescîl** (numara + şifre otomatik)
+- Storage paketi alınmadan da çalışır: görseller sıkıştırılıp başvuruya gömülür (PDF ≤700KB)
 
 ## Akış
 
@@ -25,7 +30,7 @@ Veli /zarok/app/ → giriş ──► Bugün · Program · Devam · Duyurular ·
 ```
 
 ## Yönetim (ana akademideki görev ayrımıyla aynı)
-**Öğrenci İşleri / Yönetici** sekmeleri: Serlêdan · Zarok · Dêûbav · Mamoste · Amadebûn · Bername · Ragihandin · Peyam
+**Öğrenci İşleri** sekmeleri: Serlêdan · Zarok · Dêûbav · Mamoste · Amadebûn · Bername · Ragihandin · Peyam
 **Basın** sekmeleri: Nûçeyên Malperê · Arşîv (çocuk sitesi)
 - **Çocuk kaydı:** başvurudan tek tıkla veya elle; yeni veli hesabı ya da mevcut veliye bağlama; öğretmen atama
 - **Öğretmen kaydı:** otomatik numara (7YYYYnnn) + otomatik şifre + e-posta; düzenle / 🔑 şifre yenile / sil
@@ -57,8 +62,8 @@ Veli /zarok/app/ → giriş ──► Bugün · Program · Devam · Duyurular ·
   mesajlarını görür; yetişkin öğrenci verisine hiç erişemez
 - Veli çocuk kaydında yalnızca `pickups`, `consentPhoto`, `consentShare`, `health` alanlarını değiştirebilir
 - Başvuru formu yalnızca dönem açıkken, KVKK onayıyla ve sınırlı alanlarla yazılabilir
-- Emülatörde test edildi: `tools/kural-testi.js` (132 senaryo) ve `tools/e2e/` (veli, öğrenci işleri,
-  yönetim + basın + öğretmen; 43 adım)
+- Emülatörde test edildi: `tools/kural-testi.js` (136 senaryo) ve `tools/e2e/` (veli, öğrenci işleri,
+  yönetim + basın + öğretmen; 48 adım)
 
 ## Kendi alan adına taşıma (zarok.aramtigran.org)
 ```bash

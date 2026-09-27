@@ -7326,6 +7326,10 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   const [msgs,setMsgs]=useState([]);
   const [news,setNews]=useState([]);
   const [arch,setArch]=useState([]);
+  const [reqs,setReqs]=useState([]);               // istenen belgeler (kidApplicationTemplates)
+  const [reqName,setReqName]=useState("");
+  const [reqFile,setReqFile]=useState(null);
+  const reqFileRef=useRef(null);
   const [openId,setOpenId]=useState(null);
   const [creds,setCreds]=useState(null);
   const [busy,setBusy]=useState(false);
@@ -7349,6 +7353,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
       return ()=>subs.forEach(u=>{ try{u();}catch(_){} });
     }
     listen(F.query(F.collection(F.db,"kidApplications"),F.orderBy("createdAt","desc")),setApps);
+    listen(F.collection(F.db,"kidApplicationTemplates"),v=>setReqs(v.sort((a,b)=>(a.order||0)-(b.order||0))));
     listen(F.collection(F.db,"kids"),setKids);
     listen(F.collection(F.db,"guardians"),setGuards);
     listen(F.collection(F.db,"kidTeachers"),setKteach);
@@ -7356,7 +7361,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
     listen(F.collection(F.db,"kidSchedule"),setSched);
     listen(F.query(F.collection(F.db,"kidAnnouncements"),F.orderBy("createdAt","desc")),setAnns);
     listen(F.query(F.collection(F.db,"kidMessages"),F.orderBy("createdAt","desc"),F.limit(300)),setMsgs);
-    F.getDoc(F.doc(F.db,"config","zarok")).then(s=>{ if(s.exists()) setCfg({open:false,note:"",...s.data()}); }).catch(()=>{});
+    F.getDoc(F.doc(F.db,"config","zarok")).then(s=>{ if(s.exists()) setCfg({open:false,note:"",startDate:"",endDate:"",...s.data()}); }).catch(()=>{});
     return ()=>subs.forEach(u=>{ try{u();}catch(_){} });
   },[live]);
 
@@ -7525,7 +7530,30 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   async function saveCfg(next){
     setCfg(next);
     try{ await F.setDoc(F.doc(F.db,"config","zarok"),{...next,updatedAt:F.serverTimestamp()}); toast(Z("✅ Hate tomarkirin","✅ Saved")); }catch(e){ err(e); }
+  }  // ── İstenen belgeler (akademi başvurusuyla aynı mantık): her belge için ayrı yükleme,
+  //    isteğe bağlı indirilebilir şablon dosyası ──
+  function pickReqFile(e){
+    const f=e.target.files&&e.target.files[0]; if(!f) return;
+    if(f.type==="application/pdf"){
+      if(f.size>620000){ toast(Z("⚠ Pel pir mezin e (max 600KB)","⚠ File too large (max 600KB)")); e.target.value=""; return; }
+      const r=new FileReader(); r.onload=ev=>setReqFile({file:ev.target.result,fileName:f.name}); r.readAsDataURL(f);
+    } else {
+      const r=new FileReader();
+      r.onload=async ev=>{ const c=await compressImage(ev.target.result,1200,1200,0.8); setReqFile({file:c,fileName:f.name.replace(/\.[^.]+$/,"")+".jpg"}); };
+      r.readAsDataURL(f);
+    }
   }
+  async function addReq(){
+    if(!reqName.trim()){ toast(Z("⚠ Navê belgeyê pêwîst e","⚠ Document name required")); return; }
+    try{
+      await F.addDoc(F.collection(F.db,"kidApplicationTemplates"),{name:reqName.trim(),file:reqFile?reqFile.file:null,fileName:reqFile?reqFile.fileName:null,
+        order:(reqs.length?Math.max(...reqs.map(r=>r.order||0)):0)+1,createdAt:F.serverTimestamp()});
+      setReqName(""); setReqFile(null); if(reqFileRef.current) reqFileRef.current.value="";
+      toast(Z("✅ Hate tomarkirin","✅ Saved"));
+    }catch(e){ err(e); }
+  }
+  async function delReq(r){ try{ await F.deleteDoc(F.doc(F.db,"kidApplicationTemplates",r.fireId)); }catch(e){ err(e); } }
+
   async function mark(k,type){
     try{ await F.addDoc(F.collection(F.db,"kidAttendance"),{kidId:k.fireId,kidNo:k.no,kidName:k.name,guardianNos:k.guardianNos||[],
         type,date:today,time:new Date().toISOString(),by:(user&&user.name)||"",createdAt:F.serverTimestamp()}); hapticSuccess(); }catch(e){ err(e); }
@@ -7692,7 +7720,29 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
             <div style={{fontWeight:700,color:"var(--text)"}}>{cfg.open?Z("🟢 Serlêdana zarokan VEKIRÎ ye","🟢 Kids applications OPEN"):Z("🔴 Serlêdana zarokan GIRTÎ ye","🔴 Kids applications CLOSED")}</div>
             <button onClick={()=>saveCfg({...cfg,open:!cfg.open})} style={btn(cfg.open?"#dc2626":"#16a34a")}>{cfg.open?Z("Bigire","Close"):Z("Veke","Open")}</button>
           </div>
-          <input style={{...inp,marginTop:8}} value={cfg.note||""} onChange={e=>setCfg(c=>({...c,note:e.target.value}))} onBlur={()=>saveCfg(cfg)} placeholder={Z("Nîşeya li ser malperê (vebijarkî)","Note shown on site")}/>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:8}}>
+            <div><label style={lbl}>{Z("Destpêk","Start")}</label><input type="date" style={inp} value={cfg.startDate||""} onChange={e=>setCfg(c=>({...c,startDate:e.target.value}))}/></div>
+            <div><label style={lbl}>{Z("Dawî","End")}</label><input type="date" style={inp} value={cfg.endDate||""} onChange={e=>setCfg(c=>({...c,endDate:e.target.value}))}/></div>
+          </div>
+          <input style={{...inp,marginTop:8}} value={cfg.note||""} onChange={e=>setCfg(c=>({...c,note:e.target.value}))} placeholder={Z("Nîşeya li ser malperê (vebijarkî)","Note shown on site")}/>
+          <button onClick={()=>saveCfg(cfg)} style={{...btn(),marginTop:8}}>💾 {Z("Tomar bike","Save")}</button>
+        </div>
+        <div style={box}>
+          <div style={{fontWeight:800,color:"var(--text)",marginBottom:4}}>📄 {Z("Belgeyên pêwîst","Required documents")} ({reqs.length})</div>
+          <div style={{...small,marginBottom:8}}>{Z("Dêûbav divê her belgeyekê cuda bar bike. Heke pelekî şablonê (forma ku were dagirtin) zêde bikî, li ser malperê tê daxistin.","Parents must upload each document separately. If you attach a template file (a form to fill in), it can be downloaded on the site.")}</div>
+          <input style={{...inp,marginBottom:8}} value={reqName} onChange={e=>setReqName(e.target.value)} placeholder={Z("Navê belgeyê (mînak: Wêneya nasnameyê)","Document name (e.g. ID photo)")}/>
+          <div onClick={()=>reqFileRef.current&&reqFileRef.current.click()} style={{border:"1.5px dashed var(--border2)",borderRadius:10,padding:10,textAlign:"center",cursor:"pointer",marginBottom:8,background:"var(--bg2)",...small}}>
+            {reqFile?("📎 "+reqFile.fileName):Z("📎 Pelê şablonê (vebijarkî — PDF an wêne)","📎 Template file (optional — PDF or image)")}
+          </div>
+          <input ref={reqFileRef} type="file" accept="image/*,application/pdf" onChange={pickReqFile} style={{display:"none"}}/>
+          <button onClick={addReq} style={btn("#16a34a")}>➕ {Z("Belgeyê zêde bike","Add document")}</button>
+          {reqs.map(r=>(
+            <div key={r.fireId} style={{display:"flex",alignItems:"center",gap:8,marginTop:8,paddingTop:8,borderTop:"1px solid var(--border2)"}}>
+              <span>📄</span>
+              <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,color:"var(--text)"}}>{r.name}</div>{r.file&&<div style={small}>📎 {r.fileName||""}</div>}</div>
+              {safeHref(r.file)&&<a href={safeHref(r.file)} download={r.fileName||r.name} rel="noopener" style={{...ghost,padding:"6px 10px",textDecoration:"none"}}>⬇</a>}
+              <button onClick={()=>delReq(r)} style={{...ghost,padding:"6px 10px"}}>🗑</button>
+            </div>))}
         </div>
         {apps.length===0&&<div style={{...box,...small,textAlign:"center"}}>{Z("Hîn serlêdan tune.","No applications yet.")}</div>}
         {apps.map(a=>{const st=a.status||"new";const isOpen=openId===a.fireId;return(
@@ -9423,7 +9473,6 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
     {key:"messages",icon:"💬",label:t.message+"s"||"Peyam"},
     {key:"reports",icon:"📊",label:lang==="en"?"Reports":K("Rapor")},
     {key:"alerts",icon:"🔔",label:lang==="en"?"Alerts":K("Hişyarî")},
-    {key:"zarok",icon:"👧",label:lang==="en"?"Kids Academy":K("Akademiya Zarokan")},
   ];
 
   // Öğrenci istatistiklerini Firebase'den yükle
@@ -9497,7 +9546,6 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
         {tab==="messages"&&<AdminMessagesPanel students={students} teachers={teachers} lang={lang} t={t} toast={toast} adminName={adminData.name}/>}
         {tab==="reports"&&<AdminReportCenter students={students} teachers={teachers} schedule={schedule} lang={lang} t={t} toast={toast} byName={adminData.name}/>}
         {tab==="alerts"&&<AdminAlertsPanel students={students} schedule={schedule} lang={lang} toast={toast}/>}
-        {tab==="zarok"&&<ZarokAdminPanel lang={lang} toast={toast} user={adminData}/>}
       </div>
       {statsModal&&(
         <StatsDetailModal type={statsModal} students={students} teachers={teachers} schedule={schedule} onClose={()=>setStatsModal(null)} t={t} lang={lang} toast={toast} onDataChange={onDataChange}/>
