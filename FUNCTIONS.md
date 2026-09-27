@@ -8,9 +8,10 @@
 | `setPassword` | **Eski şifre olmadan** şifre belirler |
 | `delete` | Auth hesabını ve rol kaydını siler |
 
-Yalnızca **yönetici seviyesindeki** personel (`idx_staff.lvl` = admin / registrar / press)
-çağırabilir; yönetici hesaplarına yalnızca admin dokunabilir. Emülatörde 10 senaryoyla
-test edildi (`tools/fonksiyon-testi.js`).
+Yalnızca **yönetici** ve **öğrenci işleri** (`idx_staff.lvl` = admin / registrar) çağırabilir;
+**basın çağıramaz**. Öğrenci işleri yalnızca öğrenci, veli, çocuk öğretmeni ve sıradan öğretmen
+hesaplarına dokunabilir — yönetici / basın / öğrenci işleri hesaplarına ve kendi hesabına dokunamaz.
+Emülatörde 17 senaryoyla test edildi (`tools/fonksiyon-testi.js`).
 
 ## Neden gerekli?
 Tarayıcı başka bir kullanıcının Firebase Auth hesabını ancak **o kişinin eski şifresiyle**

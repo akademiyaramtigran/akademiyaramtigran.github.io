@@ -1,6 +1,6 @@
 # Yayın ve Güvenlik Raporu — Akademîya Aram Tîgran
 
-_Tarama tarihi: 26.09.2026 · Kapsam: app/, ana sayfa, Firestore/Storage kuralları, dil sistemi._
+_Tarama tarihi: 27.09.2026 · Kapsam: app/, ana sayfa, Akademiya Zarokan, Firestore/Storage kuralları, Cloud Function, dil sistemi._
 _Depolama/plan satın alma kalemleri isteğiniz üzerine bu rapora dahil edilmedi._
 
 ## A. Bu taramada DÜZELTİLENLER
@@ -23,6 +23,14 @@ _Depolama/plan satın alma kalemleri isteğiniz üzerine bu rapora dahil edilmed
 | 14 | 🟠 Yüksek | Düz metin şifreler (`_plainPass`). | ✅ Cloud Function (`functions/`) hazır + emülatörde test edildi; `firebase deploy --only functions` + tek satır bayrakla açılır (`FUNCTIONS.md`). |
 | 15 | 🟡 KVKK | Tam aydınlatma metni yoktu; başvuru formunda onay yoktu. | ✅ `kvkk.html` (yer tutucular doldurulmalı) + başvuru formunda zorunlu onay kutusu. |
 | 16 | ⚡ Hız | Her açılışta 1 MB JSX telefonda derleniyordu. | ✅ Derleme önbelleği: 2. açılıştan itibaren Babel indirilmez/çalışmaz (4× yavaşlatılmış CPU'da ilk açılış 10,2 sn, ikinci açılış 3,8 sn — bunun ~3 sn'si test ortamında Firebase'e erişilemediği için beklenen süre). |
+| 17 | 🔴 Kritik | Basın ve öğrenci işleri kullanıcıları dizine kendilerini `admin` yazıp **yönetici olabiliyordu**; basın Cloud Function ile herkesin şifresini değiştirebiliyordu. | ✅ Kurallar v5 + fonksiyon: rol ayrımı (yönetici / öğrenci işleri / basın / öğretmen). |
+| 18 | 🔴 Kritik | Öğrenci, **yönetici adına tüm öğrencilere mesaj** (oltalama) gönderebiliyor; başkalarının özel mesajlarını, anket yanıtlarını, cihaz kayıtlarını okuyup silebiliyordu. | ✅ Öğrenci yalnızca kendine gelen / öğrencilere toplu mesajı okur; yalnızca "öğrenci" olarak yönetime yazar. |
+| 19 | 🟠 Yüksek | Girişsiz başvuru formundan gelen belge bağlantısı (`javascript:`) öğrenci işleri panelinde tıklanınca **oturum ele geçirilebiliyordu** (XSS); yazdırma sayfaları ve mesaj ekleri de HTML birleştiriyordu. | ✅ `safeHref` / `esc` (tırnak dahil) / güvenli görsel açma; tüm dinamik bağlantılar süzülür. |
+| 20 | 🟠 Yüksek | Tüm kütüphaneler (React, Babel, jsPDF, EmailJS `@4` — sürümü sabit değil!) dış CDN'den yükleniyordu: CDN ele geçirilirse uygulamaya kod enjekte edilir. | ✅ `app/vendor/` altında sabit sürümlerle depoda; CSP `script-src` artık CDN içermez, `unsafe-eval` kaldırıldı. |
+| 21 | 🟡 Orta | Sayfalar başka bir sitenin çerçevesine gömülebiliyordu (clickjacking). | ✅ Tüm sayfalarda çerçeve koruması (gömülünce sayfa gizlenir). |
+| 22 | 🟡 Orta | Her öğretmen site haberi yazabiliyor, başvuru belgelerini ve çocuk (veli) verisini okuyabiliyordu; Storage'a HTML/SVG yüklenebiliyordu. | ✅ Haberler yalnız basın; başvurular + çocuk verisi yalnız öğrenci işleri (ve bağlı öğretmenler); HTML/SVG yüklemesi kapalı. |
+| 23 | ⚪ Gizlilik | Ortak cihazda çıkıştan sonra önceki kullanıcının anket yanıtları/uyarıları tarayıcıda kalıyordu. | ✅ Çıkışta kullanıcıya özel önbellek temizlenir. |
+| 24 | 🟠 Dil | Türkçe seçilince yönetici panelinde alan adları Kürtçe, bazı sekmelerde anahtar adları görünüyordu; Basın/Öğrenci İşleri kartı ekleme sayfası Türkçe/Kürtçe'de **çöküyordu**. | ✅ Çeviri katmanı düzeltildi; 5 rolde otomatik Türkçe tarama: 0 Kürtçe metin, 0 hata. |
 
 **Yayın sırası için mutlaka okuyun:** `FIREBASE_SECURITY.md` → "YAYIN SIRASI" (5 adım).
 
@@ -51,7 +59,6 @@ _Depolama/plan satın alma kalemleri isteğiniz üzerine bu rapora dahil edilmed
 |---|---|---|
 | 🟠 | Düz metin şifreler — **kod hazır, yayın bekliyor**. | `firebase deploy --only functions` → `USE_CLOUD_FUNCTIONS = true` (`FUNCTIONS.md`). |
 | 🟠 | Herkese açık **hesap açma** hâlâ açık (zararsız hâle getirildi ama kaynak tüketir). | Fonksiyon açıldıktan sonra Authentication → Settings → *Enable create (sign-up)* kapatılır. |
-| 🟡 | Üye bir öğrenci teknik olarak tüm yetişkin mesajlarını okuyabilir (uygulama filtreliyor, kural filtrelemiyor). | Mesaj belgelerine `toNo` alanı + sorgularda `where` → kural daraltılır. (Yoklama ✅ düzeltildi.) |
 | 🟡 | Cihaz kilidi ve 5 deneme kilidi yalnızca **istemci tarafında** (atlatılabilir). Firebase'in kendi kaba kuvvet koruması var. | Önemli değil; App Check ile birlikte yeterli. |
 
 ## D. Performans / yayın kalitesi
@@ -61,16 +68,16 @@ _Depolama/plan satın alma kalemleri isteğiniz üzerine bu rapora dahil edilmed
   yeniden derlenir. (Tamamen ön-derleme için ileride bir yayın adımı eklenebilir.)
 - **Tek dosya (1,5 MB):** Bakımı zorlaştırıyor; çocuk akademisi gibi ikinci bir arayüz
   eklenmeden önce ekranların modüllere bölünmesi önerilir.
-- Service Worker önbellek sürümü `v15`.
+- Service Worker önbellek sürümü `v18` (Zarok: `zarok-v3`).
 
 ## E. Test edilenler
 
-- Firestore + Storage kuralları: emülatörde **80 senaryo** (`tools/kural-testi.js`, Zarok dahil) — 80/80;
+- Firestore + Storage kuralları: emülatörde **132 senaryo** (`tools/kural-testi.js`, Zarok + rol ayrımı dahil) — 132/132;
   eski kurallarla ilk 34 senaryonun 11'i açık verdi.
-- Cloud Function: 10/10 (`tools/fonksiyon-testi.js`).
+- Cloud Function: 17/17 (`tools/fonksiyon-testi.js`).
 - **Uçtan uca (gerçek kurallar + emülatör):** Öğrenci İşleri girişi → Zarok başvurusu kabul →
   veli hesabı → veli girişi → yoklama bildirimi → duyuru → mesaj/yanıt; yönetici → çocuk öğretmeni ekleme →
-  çocuk kaydı → site haberi → öğretmen girişi ve yoklama → şifre yenileme: 36/36 (`tools/e2e/`).
+  çocuk kaydı → Türkçe arayüzde basın kartı → basın girişi ve çocuk sitesi haberi → öğretmen girişi ve yoklama → şifre yenileme: 43/43 (`tools/e2e/`).
 - Dizin eşitleme fonksiyonu: emülatörde yalnızca `idx_staff/1000` varken tüm dizini
   kurduğu, silinmiş kaydı kaldırdığı doğrulandı.
 - Uygulama: Chromium'da KU / ZZ / TR / EN giriş ve ayar ekranları, canlı dil geçişi.

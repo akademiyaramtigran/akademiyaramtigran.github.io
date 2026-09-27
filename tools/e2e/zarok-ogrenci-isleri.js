@@ -10,6 +10,13 @@ const H = { 'Content-Type': 'application/json', 'Authorization': 'Bearer owner' 
 const val = v => v instanceof Date ? { timestampValue: v.toISOString() } : Array.isArray(v) ? { arrayValue: { values: v.map(val) } } : typeof v === 'boolean' ? { booleanValue: v } : { stringValue: String(v) };
 const put = (path, obj) => fetch(`${FS}/${path}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, val(v)])) }) }).then(r => { if (!r.ok) throw new Error('seed ' + path + ' ' + r.status); });
 const list = col => fetch(`${FS}/${col}?pageSize=100`, { headers: H }).then(r => r.json()).then(j => j.documents || []);
+const clickText = (p, text, top) => p.evaluate(([t, top]) => {
+  const ok = x => { const r = x.getBoundingClientRect(); return r.width > 0 && (!top || (r.top > 60 && r.top < 260)); };
+  // Önce ekrandaki, yoksa yatay şeritte kaymış olanı al (kapalı yan menüdeki kopyalar -left ile elenir)
+  const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes(t) && x.offsetParent !== null && ok(x))
+    .sort((a, c) => (a.getBoundingClientRect().left < -200) - (c.getBoundingClientRect().left < -200))[0];
+  if (!b) throw new Error('düğme yok: ' + t); b.scrollIntoView({ inline: 'center', block: 'nearest' }); b.click();
+}, [text, top]);
 const signUp = (email, password) => fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=x', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, returnSecureToken: true }) }).then(r => r.json());
 const LOCAL = { 'react.production.min.js': 'react/umd/react.production.min.js', 'react-dom.production.min.js': 'react-dom/umd/react-dom.production.min.js', 'babel.min.js': '@babel/standalone/babel.min.js' };
 
@@ -94,6 +101,14 @@ async function routes(ctx) {
   await p.locator('b', { hasText: '👤 Zelal Demir' }).first().click(); await p.waitForTimeout(500);
   await p.fill('input[placeholder^="Bersiv"]', 'Şifa be!'); await p.locator('button:has-text("📤")').last().click(); await p.waitForTimeout(2000);
   ok('Yanıt veliye ulaşır', (await vp.evaluate(() => document.body.innerText)).includes('Şifa be!'));
+  // Öğrenci İşleri çocuk akademisi öğretmeni de ekler (yönetici paneliyle aynı ekleme mantığı)
+  await p.bringToFront();
+  await clickText(p, '👩‍🏫 Mamoste'); await p.waitForTimeout(400);
+  await clickText(p, 'Mamoste Tescîl Bike'); await p.waitForTimeout(300);
+  await p.locator('label:has-text("Nav û paşnav") + input').fill('Mamoste Azad');
+  await clickText(p, '💾 Tomar bike');
+  const okT = await p.waitForSelector('text=Mamoste hate tescîlkirin', { timeout: 20000 }).then(() => true, () => false);
+  ok('Öğrenci İşleri çocuk öğretmeni ekler (numara + şifre)', okT && (await list('kidTeachers')).length > 0);
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   await p.screenshot({ path: require('os').tmpdir() + '/e2e-registrar.png' }); await vp.screenshot({ path: require('os').tmpdir() + '/e2e-parent.png' });
   console.log(out.join('\n'));

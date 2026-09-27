@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // ════════════════════════════════════════════════════════════════════════
-//  Akademîya Aram Tîgran — Firestore Security Rules  (v4: üyelik dizini)
+//  Akademîya Aram Tîgran — Firestore Security Rules  (v5: rol ayrımı + en az yetki)
 //  ----------------------------------------------------------------------
 //  YAZMA: rol bazlı kilitli (önceki sürümle aynı).
 //  OKUMA: artık varsayılan KAPALI.
@@ -20,6 +20,14 @@ rules_version = '2';
 //                  (öğretmen / yönetici / basın / öğrenci işleri)
 //    • Yönetici  : admin@aramtigran.edu (yedek, dizinden bağımsız)
 //    Dizin, yönetici girişinde uygulama tarafından otomatik eşitlenir.
+//
+//  v5 — ROL AYRIMI (en az yetki):
+//    • Yönetici (admin)          : her şey; personel dizini ve özel kartlar (basın / öğrenci işleri)
+//    • Öğrenci İşleri (registrar): öğrenci + öğretmen kayıtları (yalnızca "teacher" seviyesi),
+//                                  başvurular, Akademiya Zarokan yönetimi (çocuk/veli/öğretmen)
+//    • Basın (press)             : yalnızca site haberleri + arşiv (ana site ve çocuk sitesi)
+//    • Öğretmen (teacher)        : ders, yoklama, duyuru, anket; öğrenci ekleyebilir
+//    Hiçbir rol kendi seviyesini yükseltemez; basın/öğrenci işleri dizine "admin" yazamaz.
 //    YAYIN SIRASI: önce yeni uygulama sürümü → yönetici bir kez giriş yapar →
 //    Console'da idx_staff/idx_students dolu mu kontrol et → SONRA bu kuralları yayınla.
 // ════════════════════════════════════════════════════════════════════════
@@ -44,12 +52,21 @@ service cloud.firestore {
     function isStudent() {
       return authed() && mail().matches('.*@ogrenci[.]aat$') && exists(dbPath('idx_students'));
     }
-    // Yönetici seviyesi: admin / öğrenci işleri / basın (idx_staff.lvl)
-    function isManager() {
-      return authed() && (
-        mail() == 'admin@aramtigran.edu' ||
-        (isStaff() && get(dbPath('idx_staff')).data.get('lvl', 'teacher') in ['admin', 'registrar', 'press'])
-      );
+    // Personel seviyesi (idx_staff.lvl): admin · registrar · press · teacher
+    function lvlIn(ls) {
+      return mail() == 'admin@aramtigran.edu' ||
+        (isStaff() && get(dbPath('idx_staff')).data.get('lvl', 'teacher') in ls);
+    }
+    function isAdmin()     { return authed() && lvlIn(['admin']); }
+    function isRegistrar() { return authed() && lvlIn(['admin', 'registrar']); }   // hesap/başvuru yönetimi
+    function isPress()     { return authed() && lvlIn(['admin', 'press']); }       // site haberleri + arşiv
+    function isTeacherLvl(){ return authed() && mail() != 'admin@aramtigran.edu' && isStaff()
+                                  && get(dbPath('idx_staff')).data.get('lvl', 'teacher') == 'teacher'; }
+    // Geriye dönük ad: hesap yönetimi = admin + öğrenci işleri (basın DEĞİL)
+    function isManager()   { return isRegistrar(); }
+    // Özel yetki bayrağı taşımayan sıradan öğretmen kaydı
+    function plainTeacher(d) {
+      return d.get('isAdmin', false) != true && d.get('isPress', false) != true && d.get('isRegistrar', false) != true;
     }
     // Akademi üyesi (giriş yapmış + dizinde kayıtlı)
     function member() { return isStaff() || isStudent(); }
@@ -88,38 +105,50 @@ service cloud.firestore {
     //  bu sorgu kuralla kanıtlanabilir olduğundan çalışır.)
     match /students/{id} {
       allow read:   if isStaff() || ownsStudentDoc(resource.data);
-      allow create: if isStaff();
-      allow update: if isStaff()
+      // Öğretmen yeni öğrenci ekleyebilir; düzenleme/silme öğrenci işleri + yönetici
+      allow create: if isRegistrar() || isTeacherLvl();
+      allow update: if isRegistrar()
                     || (ownsStudentDoc(resource.data) && noUnchanged() && notGrantingAdmin() && selfEditOk());
-      allow delete: if isStaff() || ownsStudentDoc(resource.data);
+      allow delete: if isRegistrar() || ownsStudentDoc(resource.data);
     }
 
     // ── Üyelik dizini — yalnızca personel yazar; kişi kendi kaydını okuyabilir ──
-    match /idx_staff/{no}    { allow read: if isStaff() || (authed() && prefix() == no); allow write: if isManager(); }
-    match /idx_students/{no} { allow read: if isStaff() || (authed() && prefix() == no); allow write: if isManager(); }
+    // Personel dizini: yönetici her seviyeyi yazar; öğrenci işleri yalnızca "teacher" seviyesini
+    // (kendi kaydına ve yönetici/basın/öğrenci işleri kayıtlarına dokunamaz)
+    match /idx_staff/{no} {
+      allow read: if isStaff() || (authed() && prefix() == no);
+      allow create, update: if isAdmin()
+        || (isRegistrar() && no != prefix()
+            && request.resource.data.get('lvl', '') == 'teacher'
+            && (resource == null || resource.data.get('lvl', 'teacher') == 'teacher'));
+      allow delete: if isAdmin() || (isRegistrar() && no != prefix() && resource.data.get('lvl', 'teacher') == 'teacher');
+    }
+    match /idx_students/{no} { allow read: if isStaff() || (authed() && prefix() == no); allow write: if isRegistrar(); }
 
     // ── Öğretmenler / Yönetici — okuma: yalnızca personel ──────────────
     match /teachers/{id} {
       allow read:   if isStaff() || ownsTeacherDoc(resource.data);
       // Öğretmen kaydı açma/silme/başkasını düzenleme: yalnızca yönetici seviyesi.
       // Öğretmen kendi profilini (foto, telefon, e-posta, adres, bio, şifre) düzenleyebilir.
-      allow create: if isManager();
-      allow update: if isManager()
+      // Özel kartlar (isAdmin / isPress / isRegistrar) yalnızca yöneticiden
+      allow create: if isAdmin() || (isRegistrar() && plainTeacher(request.resource.data));
+      allow update: if isAdmin()
+                    || (isRegistrar() && plainTeacher(resource.data) && plainTeacher(request.resource.data))
                     || (ownsTeacherDoc(resource.data) && noUnchanged() && notGrantingAdmin() && selfEditOk());
-      allow delete: if isManager();
+      allow delete: if isAdmin() || (isRegistrar() && plainTeacher(resource.data));
     }
 
     // ── Malper nûçe (ana sayfa haberleri) — HERKESE açık okuma ─────────
     match /news/{id} {
       allow read:  if true;
-      allow write: if isStaff();
+      allow write: if isPress();
     }
 
     // ── Arşîv (ana sayfa "Dîroka Akademiyê" zaman çizgisi) — açık okuma ─
     // Yönetici/basın panelinden girilen yıl bazlı kayıtlar; site girişsiz okur.
     match /archive/{id} {
       allow read:  if true;
-      allow write: if isStaff();
+      allow write: if isPress();
     }
 
     // ── Serlêdan (kayıt başvuruları) — public create, sıkı sınırlı ─────
@@ -140,17 +169,17 @@ service cloud.firestore {
                     && request.resource.data.status == 'new'
                     && request.resource.data.docs is list
                     && request.resource.data.docs.size() <= 8;
-      allow read, update, delete: if isStaff();
+      allow read, update, delete: if isRegistrar();
     }
-    // Başvuru dönemi ayarı — site (girişsiz) okuyabilsin, yazma personel
+    // Başvuru dönemi ayarı — site (girişsiz) okuyabilsin, yazma öğrenci işleri
     match /config/applications {
       allow read:  if true;
-      allow write: if isStaff();
+      allow write: if isRegistrar();
     }
-    // İstenen belgeler (şablonlar) — herkes görebilsin (indirir), yazma personel
+    // İstenen belgeler (şablonlar) — herkes görebilsin (indirir), yazma öğrenci işleri
     match /applicationTemplates/{id} {
       allow read:  if true;
-      allow write: if isStaff();
+      allow write: if isRegistrar();
     }
 
     // ── Ortak koleksiyonlar — okuma: giriş yapmış herkes ───────────────
@@ -158,17 +187,17 @@ service cloud.firestore {
     match /schedule/{id}          { allow read: if member(); allow write: if isStaff(); }
     match /announcements/{id}     { allow read: if member(); allow write: if isStaff(); }
     match /studentSurveys/{id}    { allow read: if member(); allow write: if isStaff(); }
-    match /studentStats/{id}      { allow read: if member(); allow write: if isStaff(); }
-    match /teacherLessonLogs/{id} { allow read: if member(); allow write: if isStaff(); }
+    match /studentStats/{id}      { allow read: if isStaff(); allow write: if isStaff(); }
+    match /teacherLessonLogs/{id} { allow read: if isStaff(); allow write: if isStaff(); }
     match /qrSessions/{id}        { allow read: if member(); allow write: if isStaff(); }
-    match /config/{id}            { allow read: if member(); allow write: if isStaff(); }
-    match /admins/{id}            { allow read: if isStaff(); allow write: if isStaff(); }
+    match /config/{id}            { allow read: if member(); allow write: if isRegistrar(); }
+    match /admins/{id}            { allow read: if isStaff(); allow write: if isAdmin(); }
 
     // ── Roller — personel her rolü yazabilir (kullanıcı oluşturma için);
     //    normal kullanıcı yalnızca KENDİ uid'ini yazar ve admin olamaz ──
     match /roles/{uid} {
       allow read:  if isStaff() || (authed() && request.auth.uid == uid);
-      allow write: if isManager();
+      allow write: if isRegistrar();
     }
 
     // ── Hem öğrenci hem personel okur/yazar ────────────────────────────
@@ -184,10 +213,43 @@ service cloud.firestore {
             && (resource == null || string(resource.data.get('studentNo', '')) == prefix()));
       allow delete: if isStaff();
     }
-    match /messages/{id}               { allow read, write: if member(); }
-    match /surveyResponses/{id}        { allow read, write: if member(); }
-    match /studentSurveyResponses/{id} { allow read, write: if member(); }
-    match /devices/{id}                { allow read, write: if member(); }
+    // Mesajlar: personel hepsini okur/yazar. Öğrenci yalnızca KENDİNE gelen özel mesajı
+    // (recipientNo == kendi no) ve öğrencilere yönelik toplu mesajları okur; yalnızca
+    // yönetime/öğretmene "öğrenci" olarak yazabilir (yönetici adına veya toplu mesaj atamaz).
+    function studentGroup(d) {
+      return d.get('recipientGroup', '') in ['allStudents', 'all'] || string(d.get('recipientGroup', '')).matches('area_[a-z]+');
+    }
+    match /messages/{id} {
+      allow read: if isStaff()
+        || (isStudent() && (resource.data.get('recipientNo', '') == prefix() || studentGroup(resource.data)));
+      allow create: if isStaff()
+        || (isStudent()
+            && request.resource.data.get('fromType', '') == 'student'
+            && request.resource.data.get('senderId', '') != 'admin'
+            && request.resource.data.get('recipientGroup', null) == null
+            && request.resource.data.get('recipientNo', null) == null
+            && request.resource.data.get('toRole', '') in ['admin', 'teacher']
+            && string(request.resource.data.get('body', '')).size() <= 5000
+            && string(request.resource.data.get('subject', '')).size() <= 300);
+      allow update: if isStaff()
+        || (isStudent() && resource.data.get('recipientNo', '') == prefix()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']));
+      allow delete: if isStaff();
+    }
+    // Öğretmen haftalık anketleri: yalnızca personel
+    match /surveyResponses/{id} { allow read, write: if isStaff(); }
+    // Öğrenci anket yanıtları: öğrenci yalnızca KENDİ yanıtını (studentNo == kendi no) okur/yazar
+    match /studentSurveyResponses/{id} {
+      allow read: if isStaff() || (isStudent() && resource.data.get('studentNo', '') == prefix());
+      allow create, update: if isStaff()
+        || (isStudent() && request.resource.data.get('studentNo', '') == prefix()
+            && (resource == null || resource.data.get('studentNo', '') == prefix()));
+      allow delete: if isStaff();
+    }
+    // Cihaz kaydı: doküman kimliği = kullanıcı no; herkes yalnızca kendi cihazını
+    match /devices/{no} {
+      allow read, write: if isStaff() || (member() && prefix() == no);
+    }
 
     // ════════════════════════════════════════════════════════════════════
     //  AKADEMIYA ZAROKAN (Çocuk Akademisi) — yalnızca VELİ girişi
@@ -205,26 +267,30 @@ service cloud.firestore {
     function isKidTeacher() {
       return authed() && mail().matches('.*@zmamoste[.]aat$') && exists(dbPath('idx_kidstaff'));
     }
-    // Çocuk tarafında personel: akademi personeli VEYA çocuk öğretmeni
-    function kidStaff() { return isStaff() || isKidTeacher(); }
+    // Çocuk tarafında personel: yönetici / öğrenci işleri, çocuk öğretmeni VEYA
+    // Öğrenci İşleri'nin çocuk akademisine bağladığı akademi öğretmeni (idx_kidstaff/<no>)
+    function kidStaff() {
+      return isRegistrar() || isKidTeacher()
+        || (isStaff() && exists(dbPath('idx_kidstaff')));
+    }
 
-    match /idx_guardians/{no} { allow read: if isStaff() || (authed() && prefix() == no); allow write: if isManager(); }
-    match /idx_kidstaff/{no}  { allow read: if isStaff() || (authed() && prefix() == no); allow write: if isManager(); }
+    match /idx_guardians/{no} { allow read: if isStaff() || (authed() && prefix() == no); allow write: if isRegistrar(); }
+    match /idx_kidstaff/{no}  { allow read: if isStaff() || (authed() && prefix() == no); allow write: if isRegistrar(); }
 
-    // Geçici şifre kasası (Cloud Functions açılana kadar şifre yenileme/silme için) — yalnızca yönetici seviyesi
-    match /kidSecrets/{no} { allow read, write: if isManager(); }
+    // Geçici şifre kasası (Cloud Functions açılana kadar şifre yenileme/silme için) — yalnızca öğrenci işleri + yönetici
+    match /kidSecrets/{no} { allow read, write: if isRegistrar(); }
 
     // Çocuk akademisi öğretmen kayıtları (doc id = öğretmen no)
     match /kidTeachers/{no} {
       allow read:  if kidStaff();
-      allow write: if isManager();
+      allow write: if isRegistrar();
     }
-    // Çocuk akademisi sitesi: haberler ve arşiv (tarih) — herkese açık okuma
-    match /kidNews/{id}    { allow read: if true; allow write: if isStaff(); }
-    match /kidArchive/{id} { allow read: if true; allow write: if isStaff(); }
+    // Çocuk akademisi sitesi: haberler ve arşiv (tarih) — herkese açık okuma, yazma BASIN
+    match /kidNews/{id}    { allow read: if true; allow write: if isPress(); }
+    match /kidArchive/{id} { allow read: if true; allow write: if isPress(); }
 
     // Başvuru dönemi (site girişsiz okur)
-    match /config/zarok { allow read: if true; allow write: if isStaff(); }
+    match /config/zarok { allow read: if true; allow write: if isRegistrar(); }
     function zarokOpen() {
       return exists(/databases/$(database)/documents/config/zarok)
         && get(/databases/$(database)/documents/config/zarok).data.open == true;
@@ -244,20 +310,20 @@ service cloud.firestore {
         && optStr('kidDob', 20) && optStr('area', 20) && optStr('school', 80) && optStr('relation', 30)
         && optStr('phone2', 30) && optStr('email', 80) && optStr('health', 500) && optStr('note', 500) && optStr('dateStr', 20)
         && (!('docs' in request.resource.data) || (request.resource.data.docs is list && request.resource.data.docs.size() <= 6));
-      allow read, update, delete: if isStaff();
+      allow read, update, delete: if isRegistrar();
     }
 
     // Veli kaydı (doc id = veli no)
     match /guardians/{no} {
       allow read:  if kidStaff() || (isGuardian() && prefix() == no);
-      allow write: if isManager();
+      allow write: if isRegistrar();
     }
 
     // Çocuk kaydı — veli yalnızca izin/teslim/sağlık alanlarını güncelleyebilir
     match /kids/{id} {
       allow read:   if kidStaff() || myKid(resource.data);
-      allow create, delete: if isManager();
-      allow update: if isStaff()
+      allow create, delete: if isRegistrar();
+      allow update: if isRegistrar()
         || (myKid(resource.data)
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pickups','consentPhoto','consentShare','health','updatedAt']));
     }
@@ -268,7 +334,7 @@ service cloud.firestore {
       allow write: if kidStaff();
     }
 
-    match /kidSchedule/{id}      { allow read: if kidStaff() || isGuardian(); allow write: if isStaff(); }
+    match /kidSchedule/{id}      { allow read: if kidStaff() || isGuardian(); allow write: if isRegistrar(); }
     match /kidAnnouncements/{id} { allow read: if kidStaff() || isGuardian(); allow write: if kidStaff(); }
 
     // Veli ↔ akademi mesajları
@@ -281,7 +347,7 @@ service cloud.firestore {
             && request.resource.data.from == 'guardian'
             && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000);
       allow update: if kidStaff();
-      allow delete: if isStaff();
+      allow delete: if isRegistrar();
     }
   }
 }
