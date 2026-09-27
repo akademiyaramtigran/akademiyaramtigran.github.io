@@ -3758,14 +3758,14 @@ function printIdCards(items,lang,win){
   const safeImg=u=>/^(https:\/\/|data:image\/(png|jpe?g|webp))/i.test(String(u||""))?u:"";
   const rows=items.map(it=>{
     const kid=it.kind==="kid", qr=qrDataUrl(CARD_PREFIX+it.token,300), ph=safeImg(it.photo);
-    const t1=kid?"AKADEMIYA ZAROKAN":"AKADEMÎYA ARAM TÎGRAN";
-    const t2=kid?"Karta Zarok · Çocuk Kartı":"Karta Xwendekar · Öğrenci Kartı";
+    const t1=kid?"KONSERVATUARA ARAM TÎGRAN":"AKADEMÎYA ARAM TÎGRAN";
+    const t2=kid?"Karta Xwendekar · Konservatuvar Öğrencisi":"Karta Xwendekar · Öğrenci Kartı";
     const front=`<div class="card front ${kid?"kid":""}">
-      <div class="band"><img src="${logoD}" alt=""/><div class="bandtxt">${kid?"ZAROK":"XWENDEKAR"}</div></div>
+      <div class="band"><img src="${logoD}" alt=""/><div class="bandtxt">${kid?"KONSERVATUAR":"XWENDEKAR"}</div></div>
       <div class="main">
         <div class="t1">${t1}</div><div class="t2">${t2}</div>
         <div class="row">
-          <div class="ph">${ph?`<img src="${esc2(ph)}" alt=""/>`:`<span>${kid?"🧒":"👤"}</span>`}</div>
+          <div class="ph">${ph?`<img src="${esc2(ph)}" alt=""/>`:`<span>${kid?"🎼":"👤"}</span>`}</div>
           <div class="info">
             <div class="nm">${esc2(it.name)}</div>
             <div class="lb">Jimare · Numara</div><div class="no">${esc2(it.no)}</div>
@@ -3782,7 +3782,7 @@ function printIdCards(items,lang,win){
         <img class="lg" src="${logoL}" alt=""/>
         <b>Li dergeh û dersê bide xwendin</b><br/>Kurum girişinde ve derslerde okutunuz.<br/><br/>
         Ev kart kesane ye, nayê dayîn.<br/>Kart kişiye özeldir, devredilemez.<br/><br/>
-        <span class="sm">${kid?"Heke hat dîtin, ji akademiyê re bişînin.":"Heke hat dîtin, ji Akademîya Aram Tîgran re bişînin."}<br/>Bulunduğunda akademiye teslim ediniz.<br/>aramtigran.org</span>
+        <span class="sm">${kid?"Heke hat dîtin, ji Konservatuara Aram Tîgran re bişînin.":"Heke hat dîtin, ji Akademîya Aram Tîgran re bişînin."}<br/>Bulunduğunda akademiye teslim ediniz.<br/>aramtigran.org</span>
       </div>
     </div>`;
     return `<div class="pair">${front}${back}</div>`;
@@ -3820,11 +3820,11 @@ function printIdCards(items,lang,win){
   .txt{font-size:2.15mm;line-height:1.35;color:#0b2530}
   .txt .lg{height:7mm;display:block;margin-bottom:1.2mm}
   .txt .sm{font-size:1.85mm;color:#5b7079}
-  .kid .band{background:linear-gradient(180deg,#fb8500,#ffb703)}
-  .kid .bandtxt{color:#fff}
-  .kid .t1{color:#c2410c}
-  .kid .ph{border-color:#fb8500}
-  .kid.back{background:linear-gradient(135deg,#ffffff 55%,#fff1d6)}
+  .kid .band{background:linear-gradient(180deg,#b8923f,#6e4e1d)}
+  .kid .bandtxt{color:#fff;letter-spacing:.25em}
+  .kid .t1{color:#0f2f38;font-family:"Playfair Display",Georgia,serif;letter-spacing:.03em}
+  .kid .ph{border-color:#b8923f}
+  .kid.back{background:linear-gradient(135deg,#ffffff 55%,#f6f3ee)}
   @media print{.bar{display:none}body{background:#fff}.sheet{padding:0}.card{box-shadow:none}}
   </style></head><body>
   <div class="bar"><button onclick="window.print()">🖨 Çap bike · Yazdır</button><span>${items.length} kart · ön + arka yüz · CR80 (85,6×54 mm) · çift yüzlü kart yazıcısı veya kesip laminasyon</span></div>
@@ -3913,10 +3913,10 @@ function CardResultView({res,lang,areaLabel}){
       </div>
       <div style={{display:"flex",gap:14,padding:14,alignItems:"center"}}>
         {res.card&&<div style={{width:84,height:104,borderRadius:10,overflow:"hidden",background:"var(--bg2)",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:40}}>
-          {ph?<img src={ph} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:(c.kind==="kid"?"🧒":"👤")}</div>}
+          {ph?<img src={ph} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:(c.kind==="kid"?"🎓":"👤")}</div>}
         <div style={{minWidth:0}}>
           {res.card&&<div style={{fontSize:20,fontWeight:900,color:"var(--text)"}}>{c.name}</div>}
-          {res.card&&<div style={{fontSize:13,color:"var(--text2)",marginTop:2}}>{c.kind==="kid"?"🧒 "+W("Zarok","Child"):"🎓 "+W("Xwendekar","Student")} · #{c.no}{c.area?" · "+(areaLabel?areaLabel(c.area):c.area):""}</div>}
+          {res.card&&<div style={{fontSize:13,color:"var(--text2)",marginTop:2}}>{c.kind==="kid"?"🎓 "+W("Zarok","Child"):"🎓 "+W("Xwendekar","Student")} · #{c.no}{c.area?" · "+(areaLabel?areaLabel(c.area):c.area):""}</div>}
           {!ok&&<div style={{fontSize:14,fontWeight:800,color:"#dc2626",marginTop:6}}>{cardReasonText(res.reason,lang)}</div>}
           {ok&&<div style={{fontSize:12,color:"var(--text2)",marginTop:6}}>{W("Wêneyê bi rûyê kesî re berhev bike.","Compare the photo with the person.")}</div>}
         </div>
@@ -7503,7 +7503,7 @@ function PressPanel({user,lang,toast,onLogout}){
   const pressTabs=[
     {key:"nuce",label:lang==="en"?"Website News":K("Nûçeyên Malperê")},
     {key:"arsiv",label:lang==="en"?"Archive":K("Arşîv")},
-    {key:"zarok",label:lang==="en"?"Kids Academy":K("Akademiya Zarokan")},
+    {key:"zarok",label:lang==="en"?"Conservatory":K("Konservatuar")},
   ];
   return(
     <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
@@ -7571,7 +7571,7 @@ function docIsPdf(d, url){
   return typeof url === "string" && (url.indexOf("data:application/pdf") === 0 || /\.pdf(\?|$)/i.test(url.split("?")[0]));
 }
 
-/* ─── AKADEMIYA ZAROKAN — yönetim (Öğrenci İşleri + Yönetici) ──────────────
+/* ─── KONSERVATUARA ARAM TÎGRAN (çocuk + gençlik; eski adı Akademiya Zarokan) — yönetim ──
    Ana akademideki ekleme mantığıyla aynı: otomatik numara + otomatik şifre,
    Firebase Auth hesabı, dizin kaydı, e-postayla giriş bilgisi.
    Numaralar: çocuk öğretmeni 7YYYYnnn · çocuk 8YYYYnnn · veli 9YYYYnnn
@@ -7946,7 +7946,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
     ["arch","🏛",Z("Arşîv","Archive"),0],
   ]:[
     ["apps","📋",Z("Serlêdan","Applications"),newApps],
-    ["kids","👧",Z("Zarok","Children"),0],
+    ["kids","🎓",Z("Zarok","Children"),0],
     ["guards","👨‍👩‍👧",Z("Dêûbav","Parents"),0],
     ["teachers","👩‍🏫",Z("Mamoste","Teachers"),0],
     ["att","✅",Z("Amadebûn","Attendance"),0],
@@ -7968,9 +7968,9 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   return(
     <div>
       <div style={{display:"flex",alignItems:"center",gap:10,margin:"4px 0 12px",flexWrap:"wrap"}}>
-        <div style={{fontSize:28}}>👧</div>
+        <div style={{fontSize:28}}>🎓</div>
         <div style={{flex:1,minWidth:180}}>
-          <div style={{fontSize:17,fontWeight:800,color:"var(--text)"}}>{Z("Akademiya Zarokan","Kids Academy")}</div>
+          <div style={{fontSize:17,fontWeight:800,color:"var(--text)"}}>{Z("Konservatuara Aram Tîgran","Aram Tîgran Conservatory")}</div>
           <div style={small}>{Z("Têketin: dêûbav û mamoste · sepan:","Sign-in: parents & teachers · app:")} <a href={ZAROK_APP_URL} target="_blank" rel="noopener" style={{color:"var(--accent)"}}>{ZAROK_APP_URL}</a> · <a href={ZAROK_APP_URL.replace(/app\/?$/,"")} target="_blank" rel="noopener" style={{color:"var(--accent)"}}>{Z("malper","site")}</a></div>
         </div>
       </div>
@@ -8029,7 +8029,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
           <div key={a.fireId} style={box}>
             <div onClick={()=>setOpenId(isOpen?null:a.fireId)} style={{display:"flex",justifyContent:"space-between",gap:8,cursor:"pointer"}}>
               <div style={{minWidth:0}}>
-                <div style={{fontWeight:700,color:"var(--text)"}}>👧 {a.kidName} <span style={small}>{a.kidDob||""} · {areaLabel(a.area)}</span></div>
+                <div style={{fontWeight:700,color:"var(--text)"}}>🎓 {a.kidName} <span style={small}>{a.kidDob||""} · {areaLabel(a.area)}</span></div>
                 <div style={small}>{Z("Dêûbav","Parent")}: {a.guardianName} ({a.relation||"—"}) · {a.phone}</div>
               </div>
               <span style={{fontSize:11,fontWeight:700,color:stColor[st],whiteSpace:"nowrap"}}>{stLabel[st]}</span>
@@ -8106,7 +8106,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
             </div>)}
             <div style={{display:"flex",alignItems:"center",gap:10,marginTop:10}}>
               <div style={{width:56,height:70,borderRadius:8,overflow:"hidden",background:"var(--bg2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,flexShrink:0}}>
-                {safeHref(form.data.photo)?<img src={safeHref(form.data.photo)} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:"🧒"}</div>
+                {safeHref(form.data.photo)?<img src={safeHref(form.data.photo)} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:"🎓"}</div>
               <label style={{...ghost,display:"inline-block"}}>📷 {Z("Wêneyê zarokê (ji bo kartê)","Child photo (for the card)")}
                 <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{ const f=e.target.files&&e.target.files[0]; if(!f) return; const r=new FileReader();
                   r.onload=async ev=>{ const c=await compressImage(ev.target.result,420,520,0.8); setForm(fm=>({...fm,data:{...fm.data,photo:c}})); }; r.readAsDataURL(f); }}/></label>
@@ -8121,7 +8121,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
           <div key={k.fireId} style={box}>
             <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"flex-start"}}>
               <div style={{minWidth:0}}>
-                <div style={{fontWeight:700,color:"var(--text)"}}>👧 {k.name} <span style={small}>#{k.no} · {areaLabel(k.area)}{k.teacherNo&&teacherOf(k.teacherNo)?" · 👩‍🏫 "+teacherOf(k.teacherNo).name:""}</span></div>
+                <div style={{fontWeight:700,color:"var(--text)"}}>🎓 {k.name} <span style={small}>#{k.no} · {areaLabel(k.area)}{k.teacherNo&&teacherOf(k.teacherNo)?" · 👩‍🏫 "+teacherOf(k.teacherNo).name:""}</span></div>
                 {(k.guardianNos||[]).map(gno=>{const g=guardOf(gno);return <div key={gno} style={{fontSize:13,color:"var(--text)",marginTop:3}}>👤 {g?g.name:"?"} <span style={small}>#{gno} · {g&&g.phone}</span></div>;})}
                 <div style={{...small,marginTop:4}}>{k.consentPhoto?"📷 ✔":"📷 ✖"} · {k.consentShare?"🌐 ✔":"🌐 ✖"}{k.health?" · 🩺 "+k.health:""}{(k.pickups||[]).length?" · 🚸 "+k.pickups.join(", "):""}</div>
               </div>
@@ -8148,7 +8148,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
             <div style={{minWidth:0}}>
               <div style={{fontWeight:700,color:"var(--text)"}}>👤 {g.name} <span style={small}>#{g.no}{g.relation?" · "+g.relation:""}</span></div>
               <div style={small}>☎ {g.phone||"—"}{g.email?" · ✉ "+g.email:""}{g.phone2?" · 🆘 "+g.phone2:""}</div>
-              <div style={{...small,marginTop:3}}>👧 {ks.map(k=>k.name).join(", ")||"—"}</div>
+              <div style={{...small,marginTop:3}}>🎓 {ks.map(k=>k.name).join(", ")||"—"}</div>
             </div>
             <div style={{display:"flex",gap:6,flexShrink:0,flexWrap:"wrap",justifyContent:"flex-end"}}>
               <button title={Z("Şîfreya nû","New password")} disabled={busy} onClick={()=>resetPass(g.no,"guardian",g.name,g.email)} style={{...ghost,padding:"6px 10px"}}>🔑</button>
@@ -8177,7 +8177,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
             <div style={{minWidth:0}}>
               <div style={{fontWeight:700,color:"var(--text)"}}>👩‍🏫 {t.name}{t.academy&&<span style={{...small,marginLeft:6,padding:"1px 7px",borderRadius:8,background:"var(--bg2)"}}>🏛 {Z("Akademî","Academy")}</span>} <span style={small}>#{t.no}{t.area?" · "+areaLabel(t.area):""}</span></div>
               <div style={small}>{t.phone?"☎ "+t.phone:""}{t.email?" · ✉ "+t.email:""}</div>
-              <div style={{...small,marginTop:3}}>👧 {kids.filter(k=>k.teacherNo===t.no).length} {Z("zarok","children")} · 📅 {sched.filter(s=>s.teacherNo===t.no).length} {Z("ders","lessons")}</div>
+              <div style={{...small,marginTop:3}}>🎓 {kids.filter(k=>k.teacherNo===t.no).length} {Z("zarok","children")} · 📅 {sched.filter(s=>s.teacherNo===t.no).length} {Z("ders","lessons")}</div>
             </div>
             <div style={{display:"flex",gap:6,flexShrink:0,flexWrap:"wrap",justifyContent:"flex-end"}}>
               {!t.academy&&<button title={Z("Şîfreya nû","New password")} disabled={busy} onClick={()=>resetPass(t.no,"kidteacher",t.name,t.email)} style={{...ghost,padding:"6px 10px"}}>🔑</button>}
@@ -8264,7 +8264,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
             {msgs.filter(m=>m.guardianNo===thread).slice().reverse().map(m=>(
               <div key={m.fireId} style={{display:"flex",justifyContent:m.from==="staff"?"flex-end":"flex-start",margin:"6px 0"}}>
                 <div style={{maxWidth:"80%",padding:"8px 11px",borderRadius:12,fontSize:13.5,whiteSpace:"pre-wrap",background:m.from==="staff"?"#0f2f38":"var(--bg2)",color:m.from==="staff"?"#fff":"var(--text)"}}>
-                  {m.kidName&&m.from!=="staff"&&<div style={{fontSize:11,opacity:.7}}>👧 {m.kidName}</div>}{m.text}
+                  {m.kidName&&m.from!=="staff"&&<div style={{fontSize:11,opacity:.7}}>🎓 {m.kidName}</div>}{m.text}
                   {m.from==="staff"&&m.by&&<div style={{fontSize:10.5,opacity:.65,marginTop:2}}>— {m.by}</div>}
                 </div>
               </div>))}
@@ -8277,7 +8277,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
       </div>)}
 
       {tab==="news"&&(<div>
-        <div style={{...small,marginBottom:8}}>{Z("Ev nûçe li ser malpera Akademiya Zarokan ji her kesî re xuya dibin.","These posts appear publicly on the Kids Academy site.")}</div>
+        <div style={{...small,marginBottom:8}}>{Z("Ev nûçe li ser malpera Konservatuarê ji her kesî re xuya dibin.","These posts appear publicly on the Kids Academy site.")}</div>
         {!form&&<button onClick={()=>{setPLang("ku");setForm({type:"kidNews",data:{date:today,images:[]}});}} style={{...btn("#16a34a"),marginBottom:10}}>➕ {Z("Nûçeya nû","New post")}</button>}
         {form&&form.type==="kidNews"&&sitePostForm("kidNews")}
         {news.length===0&&!form&&<div style={{...box,...small,textAlign:"center"}}>{Z("Hîn nûçe tune.","No posts yet.")}</div>}
@@ -8310,7 +8310,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
     {key:"bername",icon:"📅",label:lang==="en"?"Schedule & Terms":K("Bername û Demsal")},
     {key:"anket",icon:"📊",label:lang==="en"?"Surveys":K("Ankêt")},
     {key:"rapor",icon:"📄",label:lang==="en"?"Reports":K("Rapor")},
-    {key:"zarok",icon:"👧",label:lang==="en"?"Kids Academy":K("Akademiya Zarokan")},
+    {key:"zarok",icon:"🎼",label:lang==="en"?"Conservatory":K("Konservatuar")},
   ];
   const [activeArea,setActiveArea]=useState(null);
   const [cfg,setCfg]=useState({open:false,startDate:"",endDate:"",note:""});
@@ -16243,9 +16243,9 @@ function LoginScreen({students,teachers,t,lang,rawLang,setLang,onLogin,onForgot,
           <div style={{textAlign:"center",fontSize:13,color:"var(--text)",cursor:"pointer",padding:"8px 0",fontWeight:500,textDecoration:"underline",textDecorationColor:"rgba(15,47,56,0.3)"}} onClick={onForgot}>
             🔑 {lang==="en"?"Forgot password?":K("Şîfre ji bîr kir?")}
           </div>
-          {/* Veliler ayrı uygulamada giriş yapar (Akademiya Zarokan) */}
+          {/* Veliler ayrı uygulamada giriş yapar (Konservatuar) */}
           <a href={ZAROK_APP_URL} style={{display:"block",textAlign:"center",fontSize:12.5,color:"var(--text2)",padding:"6px 0 2px",textDecoration:"none"}}>
-            👨‍👩‍👧 {lang==="en"?"Parent? Sign in to the Kids Academy app →":K("Dêûbav? Têketina Akademiya Zarokan →")}
+            🎼 {lang==="en"?"Parent? Sign in to the Conservatory app →":K("Dêûbav? Têketina Konservatuarê →")}
           </a>
         </div>
       </div>

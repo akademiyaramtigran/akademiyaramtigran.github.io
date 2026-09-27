@@ -8,7 +8,11 @@
  * AAT_ZAROK     : Akademiya Zarokan veli uygulaması (anahtar = zarok/app sözlük anahtarı)
  * AAT_ZAROK_SITE: Akademiya Zarokan tanıtım/başvuru sayfası
  * Elle düzenlemeyin; rapor JSON'larını tools/dil-entegre.js ile birleştirin. */
-window.AAT_TX={"ku":{},"zza":{},"tr":{"Kart hatiye betalkirin (winda / nû)":"Kart iptal edilmiş (kayıp / yenilendi)",
+window.AAT_TX={"ku":{},"zza":{},"tr":{"Konservatuar":"Konservatuvar",
+"Konservatuara Aram Tîgran":"Aram Tîgran Konservatuvarı",
+"Ev nûçe li ser malpera Konservatuarê ji her kesî re xuya dibin.":"Bu haberler Konservatuvar sitesinde herkese görünür.",
+"Dêûbav? Têketina Konservatuarê →":"Veli misiniz? Konservatuvar girişi →",
+"Kart hatiye betalkirin (winda / nû)":"Kart iptal edilmiş (kayıp / yenilendi)",
 "Kart nayê naskirin — sexte be jî dibe":"Kart tanınmıyor — sahte olabilir",
 "Ev QR ne karta akademiyê ye":"Bu QR akademi kartı değil",
 "Destûra te tune":"Yetkiniz yok",
