@@ -393,7 +393,7 @@
     return /@ogretmen\.aat$/i.test(e) || e === ADMIN_EMAIL;
   }
   // Personel yetki seviyesi (kurallar yönetici işlemlerini buna göre açar)
-  function staffLvl(tc) { return tc.isAdmin ? "admin" : tc.isRegistrar ? "registrar" : tc.isPress ? "press" : "teacher"; }
+  function staffLvl(tc) { return tc.isAdmin ? "admin" : tc.isRegistrar ? "registrar" : tc.isPress ? "press" : tc.isGate ? "gate" : "teacher"; }
   async function idxPut(kind, rec) {
     const id = idxId(rec && rec.no);
     if (!id || !isStaffSession()) return;
@@ -3688,6 +3688,282 @@ function StudentQRCode({no, size=100}){
   return <div ref={ref} style={{width:size,height:size,imageRendering:"pixelated"}}/>;
 }
 
+/* ─── ÖĞRENCİ KARTLARI — güvenli QR (yetişkin + çocuk) ────────────────────
+   QR içinde öğrenci numarası DEĞİL, 128 bitlik tahmin edilemez bir kart anahtarı
+   bulunur ("AAT1:<32 hex>"). Anahtar cards/{token} belgesini açar; kural listelemeye
+   izin vermez → numara bilen biri sahte kart üretemez. Kayıp kart "yenile" ile
+   iptal edilir (eski anahtar active:false). */
+const CARD_PREFIX="AAT1:";
+function newCardToken(){ const b=new Uint8Array(16); crypto.getRandomValues(b); return Array.from(b,x=>x.toString(16).padStart(2,"0")).join(""); }
+function parseCardPayload(raw){
+  const s=String(raw||"").trim().replace(/\s+/g,"");
+  const m=s.match(/^AAT1:([0-9a-f]{32})$/i)||s.match(/^([0-9a-f]{32})$/i);
+  return m?m[1].toLowerCase():null;
+}
+function fmtCardCode(token){ return String(token||"").toUpperCase().replace(/(.{4})/g,"$1 ").trim(); }
+// Kart çıkar / yenile (yalnızca öğrenci işleri + yönetici — kural denetler)
+async function issueCard(kind, rec){
+  const F=window.__FB; if(!F||!F.isConfigured()) throw new Error("firebase");
+  const token=newCardToken();
+  const photo=(typeof rec.photo==="string"&&rec.photo.length<700000)?rec.photo:"";
+  await F.setDoc(F.doc(F.db,"cards",token),{kind,no:String(rec.no||""),ref:String(rec.fireId||""),name:rec.name||"",
+    area:rec.area||"",photo,active:true,issuedAt:F.serverTimestamp()});
+  if(rec.cardToken){ try{ await F.updateDoc(F.doc(F.db,"cards",rec.cardToken),{active:false,revokedAt:F.serverTimestamp()}); }catch(_){} }
+  await F.updateDoc(F.doc(F.db,kind==="kid"?"kids":"students",rec.fireId),{cardToken:token});
+  return token;
+}
+// Okutulan QR'ı doğrula
+async function resolveCard(raw){
+  const token=parseCardPayload(raw);
+  if(!token) return {ok:false,reason:"format"};
+  const F=window.__FB; if(!F||!F.isConfigured()) return {ok:false,reason:"error"};
+  try{
+    const s=await F.getDoc(F.doc(F.db,"cards",token));
+    if(!s.exists()) return {ok:false,reason:"unknown",token};
+    const card=s.data();
+    if(!card.active) return {ok:false,reason:"revoked",token,card};
+    return {ok:true,token,card};
+  }catch(e){ return {ok:false,reason:(e&&e.code)==="permission-denied"?"denied":"error",token}; }
+}
+// Giriş kaydı (kapı veya ders) — okutan kişi kendi numarasıyla yazar
+async function logCardEntry(res,place,user){
+  const F=window.__FB; if(!F||!F.isConfigured()||!user) return;
+  const c=res.card||{};
+  try{ await F.addDoc(F.collection(F.db,"gateLog"),{token:res.token||"",no:String(c.no||""),kind:c.kind||"",name:c.name||"",ok:!!res.ok,
+    by:String(user.no||"").toLowerCase(),byName:user.name||"",at:F.serverTimestamp(),date:new Date().toISOString().slice(0,10),place}); }catch(_){}
+}
+function cardReasonText(r,lang){
+  const W=(ku,en)=>lang==="en"?en:K(ku);
+  return r==="revoked"?W("Kart hatiye betalkirin (winda / nû)","Card revoked (lost / replaced)")
+    :r==="unknown"?W("Kart nayê naskirin — sexte be jî dibe","Unknown card — possibly forged")
+    :r==="format"?W("Ev QR ne karta akademiyê ye","This QR is not an academy card")
+    :r==="denied"?W("Destûra te tune","No permission"):W("Girêdan tune — dîsa biceribîne","No connection — try again");
+}
+
+// QR → PNG data-url (kart baskısı için)
+function qrDataUrl(text,size){
+  try{
+    const el=document.createElement("div");
+    new QRCode(el,{text,width:size,height:size,colorDark:"#0b2530",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M});
+    const c=el.querySelector("canvas"); return c?c.toDataURL("image/png"):"";
+  }catch(_){ return ""; }
+}
+
+// Çift yüzlü kart baskısı: A4'e ön + arka yan yana (CR80 85,6 × 54 mm), kesim çizgili
+function printIdCards(items,lang,win){
+  const esc2=x=>String(x==null?"":x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const logoD=new URL("icons/akademi-mesale-koyu.png",location.href).href;
+  const logoL=new URL("icons/akademi-mesale.png",location.href).href;
+  const yr=new Date().getFullYear();
+  const safeImg=u=>/^(https:\/\/|data:image\/(png|jpe?g|webp))/i.test(String(u||""))?u:"";
+  const rows=items.map(it=>{
+    const kid=it.kind==="kid", qr=qrDataUrl(CARD_PREFIX+it.token,300), ph=safeImg(it.photo);
+    const t1=kid?"AKADEMIYA ZAROKAN":"AKADEMÎYA ARAM TÎGRAN";
+    const t2=kid?"Karta Zarok · Çocuk Kartı":"Karta Xwendekar · Öğrenci Kartı";
+    const front=`<div class="card front ${kid?"kid":""}">
+      <div class="band"><img src="${logoD}" alt=""/><div class="bandtxt">${kid?"ZAROK":"XWENDEKAR"}</div></div>
+      <div class="main">
+        <div class="t1">${t1}</div><div class="t2">${t2}</div>
+        <div class="row">
+          <div class="ph">${ph?`<img src="${esc2(ph)}" alt=""/>`:`<span>${kid?"🧒":"👤"}</span>`}</div>
+          <div class="info">
+            <div class="nm">${esc2(it.name)}</div>
+            <div class="lb">Jimare · Numara</div><div class="no">${esc2(it.no)}</div>
+            <div class="lb">Qad · Alan</div><div class="ar">${esc2(it.areaLabel||"")}</div>
+            <div class="lb">Sal · Yıl</div><div class="ar">${yr} – ${yr+1}</div>
+          </div>
+        </div>
+      </div>
+      <div class="accent" style="background:${esc2(it.color||"#e7c77b")}"></div>
+    </div>`;
+    const back=`<div class="card back ${kid?"kid":""}">
+      <div class="qr">${qr?`<img src="${qr}" alt="QR"/>`:""}<div class="code">${fmtCardCode(it.token)}</div></div>
+      <div class="txt">
+        <img class="lg" src="${logoL}" alt=""/>
+        <b>Li dergeh û dersê bide xwendin</b><br/>Kurum girişinde ve derslerde okutunuz.<br/><br/>
+        Ev kart kesane ye, nayê dayîn.<br/>Kart kişiye özeldir, devredilemez.<br/><br/>
+        <span class="sm">${kid?"Heke hat dîtin, ji akademiyê re bişînin.":"Heke hat dîtin, ji Akademîya Aram Tîgran re bişînin."}<br/>Bulunduğunda akademiye teslim ediniz.<br/>aramtigran.org</span>
+      </div>
+    </div>`;
+    return `<div class="pair">${front}${back}</div>`;
+  }).join("");
+  const html=`<!DOCTYPE html><html lang="${lang||"ku"}"><head><meta charset="UTF-8"/><title>Kart · ${items.length}</title><style>
+  @page{size:A4;margin:10mm}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:#eef1f2;color:#0b2530}
+  .bar{position:sticky;top:0;background:#0f2f38;color:#fff;padding:10px 14px;display:flex;gap:10px;align-items:center;font-size:14px}
+  .bar button{background:#e7c77b;border:none;border-radius:8px;padding:8px 14px;font-weight:800;cursor:pointer}
+  .sheet{padding:10mm;display:flex;flex-direction:column;gap:6mm;align-items:center}
+  .pair{display:flex;gap:6mm;page-break-inside:avoid;break-inside:avoid}
+  .card{width:85.6mm;height:54mm;border-radius:3.2mm;overflow:hidden;position:relative;background:#fff;outline:0.2mm dashed #9aa;outline-offset:1.2mm;
+        -webkit-print-color-adjust:exact;print-color-adjust:exact;box-shadow:0 1mm 3mm rgba(0,0,0,.12)}
+  .front{display:flex}
+  .band{width:17mm;background:linear-gradient(180deg,#0f2f38,#1d5a66);display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:4mm 0 3mm}
+  .band img{width:9mm;height:auto}
+  .bandtxt{writing-mode:vertical-rl;transform:rotate(180deg);color:#e7c77b;font-weight:900;letter-spacing:.35em;font-size:2.4mm}
+  .main{flex:1;padding:3.2mm 3.4mm 0 3.6mm;min-width:0}
+  .t1{font-weight:900;font-size:3mm;letter-spacing:.06em;color:#0f2f38}
+  .t2{font-size:2.05mm;color:#5b7079;font-weight:700;letter-spacing:.04em;margin:.4mm 0 2.4mm;text-transform:uppercase}
+  .row{display:flex;gap:3mm}
+  .ph{width:20mm;height:25mm;border-radius:2mm;overflow:hidden;border:.5mm solid #0f2f38;background:#f1f4f5;display:flex;align-items:center;justify-content:center;font-size:9mm;flex-shrink:0}
+  .ph img{width:100%;height:100%;object-fit:cover}
+  .info{min-width:0}
+  .nm{font-weight:900;font-size:3.6mm;line-height:1.15;margin-bottom:1.4mm;word-break:break-word}
+  .lb{font-size:1.7mm;text-transform:uppercase;color:#7a8b92;letter-spacing:.08em;margin-top:.8mm}
+  .no{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:900;font-size:3.4mm;letter-spacing:.08em}
+  .ar{font-size:2.5mm;font-weight:700}
+  .accent{position:absolute;left:17mm;right:0;bottom:0;height:2.2mm}
+  .back{display:flex;align-items:center;gap:3mm;padding:3.5mm;background:linear-gradient(135deg,#ffffff 60%,#f3efe2)}
+  .qr{width:33mm;text-align:center;flex-shrink:0}
+  .qr img{width:33mm;height:33mm;display:block;image-rendering:pixelated}
+  .code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1.55mm;color:#5b7079;margin-top:.8mm;letter-spacing:.02em;line-height:1.3}
+  .txt{font-size:2.15mm;line-height:1.35;color:#0b2530}
+  .txt .lg{height:7mm;display:block;margin-bottom:1.2mm}
+  .txt .sm{font-size:1.85mm;color:#5b7079}
+  .kid .band{background:linear-gradient(180deg,#fb8500,#ffb703)}
+  .kid .bandtxt{color:#fff}
+  .kid .t1{color:#c2410c}
+  .kid .ph{border-color:#fb8500}
+  .kid.back{background:linear-gradient(135deg,#ffffff 55%,#fff1d6)}
+  @media print{.bar{display:none}body{background:#fff}.sheet{padding:0}.card{box-shadow:none}}
+  </style></head><body>
+  <div class="bar"><button onclick="window.print()">🖨 Çap bike · Yazdır</button><span>${items.length} kart · ön + arka yüz · CR80 (85,6×54 mm) · çift yüzlü kart yazıcısı veya kesip laminasyon</span></div>
+  <div class="sheet">${rows}</div></body></html>`;
+  if(win&&!win.closed){ win.document.open(); win.document.write(html); win.document.close(); return; }
+  openPrintHtml(html);
+}
+// Kart listesi hazırla (eksik anahtar varsa çıkar) ve bas — tıklama anında pencere açılır
+async function issueAndPrintCards(kind,recs,lang,toast,{renew=false,areaLabel,colorOf}={}){
+  const win=window.open("","_blank");
+  if(win){ try{ win.document.write('<p style="font-family:sans-serif;padding:20px">⏳ …</p>'); }catch(_){} }
+  const items=[];
+  try{
+    for(const r of recs){
+      const token=(!renew&&r.cardToken)||await issueCard(kind,r);
+      items.push({kind,token,name:r.name,no:r.no,photo:r.photo,areaLabel:areaLabel?areaLabel(r.area):r.area,color:colorOf?colorOf(r.area):undefined});
+    }
+  }catch(e){ if(win) win.close(); toast&&toast("❌ "+((lang==="en"?"Card could not be issued: ":K("Kart nehat çêkirin: "))+((e&&e.code)||(e&&e.message)||""))); return; }
+  printIdCards(items,lang,win);
+}
+
+// Ortak kart okuyucu: kamera (BarcodeDetector / jsQR) + elle kod girişi
+function CardScanner({lang,onToken,height=220,busy}){
+  const videoRef=useRef(null), canvasRef=useRef(null), streamRef=useRef(null), rafRef=useRef(null);
+  const lastRef=useRef({v:"",t:0}); const busyRef=useRef(false);
+  const [camErr,setCamErr]=useState(false); const [code,setCode]=useState("");
+  const W=(ku,en)=>lang==="en"?en:K(ku);
+  busyRef.current=!!busy;
+  useEffect(()=>{
+    let alive=true;
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ setCamErr(true); return; }
+    navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false}).then(s=>{
+      if(!alive){ s.getTracks().forEach(t=>t.stop()); return; }
+      streamRef.current=s; if(videoRef.current){ videoRef.current.srcObject=s; videoRef.current.play().catch(()=>{}); }
+      rafRef.current=requestAnimationFrame(tick);
+    }).catch(()=>setCamErr(true));
+    return ()=>{ alive=false; cancelAnimationFrame(rafRef.current); streamRef.current&&streamRef.current.getTracks().forEach(t=>t.stop()); };
+  },[]);
+  function hit(v){
+    const now=Date.now();
+    if(busyRef.current||(v===lastRef.current.v&&now-lastRef.current.t<3500)) return;
+    lastRef.current={v,t:now}; onToken(v);
+  }
+  function tick(){
+    const v=videoRef.current,c=canvasRef.current;
+    if(v&&c&&v.readyState>=2&&v.videoWidth){
+      const w=v.videoWidth,h=v.videoHeight; c.width=w; c.height=h;
+      const ctx=c.getContext("2d",{willReadFrequently:true}); ctx.drawImage(v,0,0,w,h);
+      if(window.jsQR){ const r=window.jsQR(ctx.getImageData(0,0,w,h).data,w,h,{inversionAttempts:"dontInvert"}); if(r&&r.data) hit(r.data); }
+    }
+    rafRef.current=requestAnimationFrame(tick);
+  }
+  return(
+    <div>
+      {!camErr?(
+        <div style={{position:"relative",background:"#0b2530",borderRadius:14,overflow:"hidden"}}>
+          <video ref={videoRef} playsInline muted style={{width:"100%",height,objectFit:"cover",display:"block"}}/>
+          <canvas ref={canvasRef} style={{display:"none"}}/>
+          <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}>
+            <div style={{width:Math.min(170,height-50),height:Math.min(170,height-50),border:"3px solid #e7c77b",borderRadius:14,boxShadow:"0 0 0 2000px rgba(0,0,0,.25)"}}/>
+          </div>
+        </div>
+      ):(
+        <div style={{padding:14,borderRadius:12,background:"var(--bg2)",fontSize:12.5,color:"var(--text2)",textAlign:"center"}}>📷 {W("Kamera tune an destûr nehatiye dayîn — koda li pişt kartê binivîse.","Camera unavailable or not permitted — type the code on the back of the card.")}</div>
+      )}
+      <div style={{display:"flex",gap:8,marginTop:10}}>
+        <input className="inp" value={code} onChange={e=>setCode(e.target.value)} placeholder={W("Koda kartê (pişt kartê)","Card code (on the back)")} aria-label="card-code"
+          style={{flex:1,minWidth:0,padding:"11px 12px",borderRadius:10,border:"1.5px solid var(--border)",background:"var(--bg1)",color:"var(--text)",fontFamily:"monospace",fontSize:13}}/>
+        <button disabled={busy} onClick={()=>{ if(code.trim()){ lastRef.current={v:"",t:0}; onToken(code.trim()); setCode(""); } }}
+          style={{padding:"0 16px",borderRadius:10,border:"none",background:"#0f2f38",color:"#fff",fontWeight:800,cursor:"pointer"}}>{W("Kontrol","Check")}</button>
+      </div>
+    </div>
+  );
+}
+
+// Doğrulama sonucu (kapı görevlisi için büyük, net)
+function CardResultView({res,lang,areaLabel}){
+  const W=(ku,en)=>lang==="en"?en:K(ku);
+  if(!res) return null;
+  const c=res.card||{}, ok=res.ok;
+  const ph=safeHref(c.photo);
+  return(
+    <div style={{marginTop:12,borderRadius:16,overflow:"hidden",border:"3px solid "+(ok?"#16a34a":"#dc2626"),background:ok?"rgba(22,163,74,.08)":"rgba(220,38,38,.08)"}}>
+      <div style={{padding:"10px 14px",background:ok?"#16a34a":"#dc2626",color:"#fff",fontWeight:900,fontSize:18}}>
+        {ok?"✅ "+W("DERBAS BIBE","GEÇEBİLİR / ALLOWED"):"⛔ "+W("DERBAS NEBE","GEÇEMEZ / DENIED")}
+      </div>
+      <div style={{display:"flex",gap:14,padding:14,alignItems:"center"}}>
+        {res.card&&<div style={{width:84,height:104,borderRadius:10,overflow:"hidden",background:"var(--bg2)",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:40}}>
+          {ph?<img src={ph} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:(c.kind==="kid"?"🧒":"👤")}</div>}
+        <div style={{minWidth:0}}>
+          {res.card&&<div style={{fontSize:20,fontWeight:900,color:"var(--text)"}}>{c.name}</div>}
+          {res.card&&<div style={{fontSize:13,color:"var(--text2)",marginTop:2}}>{c.kind==="kid"?"🧒 "+W("Zarok","Child"):"🎓 "+W("Xwendekar","Student")} · #{c.no}{c.area?" · "+(areaLabel?areaLabel(c.area):c.area):""}</div>}
+          {!ok&&<div style={{fontSize:14,fontWeight:800,color:"#dc2626",marginTop:6}}>{cardReasonText(res.reason,lang)}</div>}
+          {ok&&<div style={{fontSize:12,color:"var(--text2)",marginTop:6}}>{W("Wêneyê bi rûyê kesî re berhev bike.","Compare the photo with the person.")}</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── KAPI GÜVENLİĞİ PANELİ (Ewlehî) — yalnızca kart doğrular ve giriş kaydı tutar ─── */
+function GatePanel({user,lang,toast,onLogout}){
+  const W=(ku,en)=>lang==="en"?en:K(ku);
+  const [res,setRes]=useState(null); const [busy,setBusy]=useState(false); const [log,setLog]=useState([]);
+  useEffect(()=>{
+    const F=window.__FB; if(!F||!F.isConfigured()) return;
+    let u=()=>{};
+    try{ u=F.onSnapshot(F.query(F.collection(F.db,"gateLog"),F.where("by","==",String(user.no||"").toLowerCase()),F.where("date","==",new Date().toISOString().slice(0,10))),
+      s=>setLog(s.docs.map(d=>d.data()).sort((a,b)=>((b.at&&b.at.seconds)||0)-((a.at&&a.at.seconds)||0)))); }catch(_){}
+    return ()=>{ try{u();}catch(_){} };
+  },[]);
+  async function check(raw){
+    setBusy(true);
+    const r=await resolveCard(raw);
+    setRes(r);
+    try{ navigator.vibrate&&navigator.vibrate(r.ok?[60]:[200,80,200]); }catch(_){}
+    if(r.reason!=="format") await logCardEntry(r,"gate",user);
+    setBusy(false);
+  }
+  const areaLbl=a=>AREA_MAP[a]?areaName(a,lang):a;
+  const okN=log.filter(x=>x.ok).length;
+  return(
+    <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
+      <SpecialPanelHeader user={user} icon="🛡" lang={lang} onLogout={onLogout} roleLabel={W("Ewlehî · Kontrola Dergehê","Security · Gate Control")}/>
+      <div className="scroll-area" style={{flex:1,overflowY:"auto",padding:"14px 14px 40px",maxWidth:640,margin:"0 auto",width:"100%"}}>
+        <CardScanner lang={lang} onToken={check} busy={busy} height={260}/>
+        {busy&&<div style={{textAlign:"center",padding:10,color:"var(--text2)"}}>⏳</div>}
+        <CardResultView res={res} lang={lang} areaLabel={areaLbl}/>
+        <div style={{marginTop:18,fontWeight:800,color:"var(--text)"}}>📋 {W("Îro","Today")} — ✅ {okN} · ⛔ {log.length-okN}</div>
+        {log.slice(0,60).map((x,i)=>(
+          <div key={i} style={{display:"flex",justifyContent:"space-between",gap:8,padding:"8px 2px",borderBottom:"1px solid var(--border)",fontSize:13,color:"var(--text)"}}>
+            <span>{x.ok?"✅":"⛔"} {x.name||"—"} <span style={{color:"var(--text2)"}}>{x.no?"#"+x.no:""}</span></span>
+            <span style={{color:"var(--text2)",fontFamily:"monospace"}}>{x.at&&x.at.seconds?new Date(x.at.seconds*1000).toLocaleTimeString(lang==="tr"?"tr-TR":"en-GB",{hour:"2-digit",minute:"2-digit"}):""}</span>
+          </div>))}
+      </div>
+    </div>
+  );
+}
+
 function Avatar({name,color,size=36,photo}){
   if(photo) return <img src={photo} style={{width:size,height:size,borderRadius:"50%",objectFit:"cover",flexShrink:0}} alt={name}/>;
   const ini=name?name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase():"??";
@@ -3941,7 +4217,7 @@ function StudentIDCard({student, lang, t}){
       <div style={{background:"#f8f8f8",padding:"12px 16px 14px",borderTop:"1px solid #e0e0e0",position:"relative",zIndex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
         {/* Personal QR - generated from student no */}
         <div style={{background:"var(--surface)",padding:10,borderRadius:14,boxShadow:"0 4px 14px rgba(0,0,0,0.10)",border:"3px solid #0f2f38"}}>
-          <StudentQRCode no={student.no} size={100}/>
+          {student.cardToken?<StudentQRCode no={CARD_PREFIX+student.cardToken} size={100}/>:<div style={{width:100,height:100,display:"flex",alignItems:"center",justifyContent:"center",textAlign:"center",fontSize:9,lineHeight:1.3,color:"#777"}}>{lang==="en"?"Card not issued yet — ask Student Affairs":K("Kart hîn nehatiye çêkirin — ji Karûbarên Xwendekaran bixwaze")}</div>}
         </div>
         <div style={{textAlign:"center"}}>
           <div style={{fontSize:14,color:"var(--text)",fontWeight:800,fontFamily:"monospace",letterSpacing:"0.10em"}}>{student.no}</div>
@@ -4020,7 +4296,7 @@ function StudentIDCardLandscape({student, lang, t}){
         {/* QR */}
         <div style={{flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",gap:5}}>
           <div style={{background:"var(--surface)",padding:7,borderRadius:11,boxShadow:"0 4px 14px rgba(0,0,0,0.10)",border:"3px solid #0f2f38"}}>
-            <StudentQRCode no={student.no} size={84}/>
+            {student.cardToken?<StudentQRCode no={CARD_PREFIX+student.cardToken} size={84}/>:<div style={{width:84,height:84,display:"flex",alignItems:"center",justifyContent:"center",textAlign:"center",fontSize:9,lineHeight:1.3,color:"#777"}}>{lang==="en"?"Card not issued yet — ask Student Affairs":K("Kart hîn nehatiye çêkirin — ji Karûbarên Xwendekaran bixwaze")}</div>}
           </div>
           <div style={{fontSize:11,color:"var(--text)",fontWeight:800,fontFamily:"monospace",letterSpacing:"0.08em"}}>{student.no}</div>
         </div>
@@ -4557,7 +4833,7 @@ function AddTeacherSheet({open,onClose,defaultArea,teachers,t,lang,toast,onSave,
 
   function handleSave(){
     if(!name.trim()){toast("⚠ "+t.fullName); return;}
-    const areaTeachers=teachers.filter(tc=>tc.area===area&&!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar);
+    const areaTeachers=teachers.filter(tc=>tc.area===area&&!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate);
     const seqs=areaTeachers.map(tc=>{
       const s=parseInt((tc.no||"").slice(-2))||0;
       return s;
@@ -4764,7 +5040,7 @@ function AddLessonSheet({open,onClose,defaultArea,t,lang,toast,onSave,teachers})
       <FieldWrap label={(lang==="en"?"Teacher (optional)":K("Mamosteyê Dersê (vebijarkî)"))}>
         <select style={selectStyle} value={teacherNo} onChange={e=>setTeacherNo(e.target.value)}>
           <option value="">— {lang==="en"?"Unassigned (all field teachers see it)":K("Ne diyar (hemû mamosteyên qadê dibînin)")}</option>
-          {(teachers||[]).filter(tc=>!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&(tc.area===area||tc.area==="genel")).map(tc=>(
+          {(teachers||[]).filter(tc=>!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&(tc.area===area||tc.area==="genel")).map(tc=>(
             <option key={tc.no} value={tc.no}>👨‍🏫 {tc.name} ({tc.no})</option>
           ))}
         </select>
@@ -5178,8 +5454,8 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
   // "genel" alanı: tüm öğrenciler görünür + genel alan öğretmen/dersleri
   const aStudents = isGenel ? students.filter(s=>!s.isAdmin) : students.filter(s=>s.area===areaKey);
   const aTeachers = isGenel
-    ? teachers.filter(t2=>t2.area==="genel"&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar)
-    : teachers.filter(t2=>t2.area===areaKey&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar);
+    ? teachers.filter(t2=>t2.area==="genel"&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate)
+    : teachers.filter(t2=>t2.area===areaKey&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate);
   const aSchedule=schedule.filter(s=>s.area===areaKey);
 
   const tabs=[
@@ -6481,6 +6757,9 @@ const SPECIAL_TYPES = {
   registrar: { flag:"isRegistrar", icon:"🗂", prefix:"98",
     name:{get ku(){return K("Karûbarên Xwendekaran")},en:"Student Affairs"},
     desc:{get ku(){return K("Serlêdanên tomarkirinê birêve dibe")},en:"Manages enrollment applications"} },
+  gate:      { flag:"isGate",      icon:"🛡", prefix:"97",
+    name:{get ku(){return K("Ewlehî")},en:"Security"},
+    desc:{get ku(){return K("Li dergehê kartên xwendekaran kontrol dike; tu daneyên din nabîne")},en:"Checks student cards at the gate; sees no other data"} },
 };
 
 /* Karta taybet tescîl bike — AddTeacherSheet ile aynı format */
@@ -6620,7 +6899,7 @@ function AddSpecialCardSheet({open,onClose,kind,teachers,t,lang,toast,onSave}){
 
 /* ─── EDIT SPECIAL CARD (Basın / Öğrenci İşleri — öğretmen profili düzeniyle) ── */
 function EditSpecialCardSheet({card,onClose,t,lang,toast,onSave}){
-  const SP=card.isPress?SPECIAL_TYPES.press:SPECIAL_TYPES.registrar;
+  const SP=card.isPress?SPECIAL_TYPES.press:card.isGate?SPECIAL_TYPES.gate:SPECIAL_TYPES.registrar;
   const [name,setName]=useState(card.name||"");
   const [phone,setPhone]=useState(card.phone||"");
   const [email,setEmail]=useState(card.email||"");
@@ -6745,7 +7024,7 @@ function AdminPressPanel({teachers,onDataChange,lang,toast,t}){
   const [showAdd,setShowAdd]=useState(false);
   const [editing,setEditing]=useState(null);
   const SP=SPECIAL_TYPES[kind];
-  const cards=(teachers||[]).filter(tc=>tc.isPress||tc.isRegistrar);
+  const cards=(teachers||[]).filter(tc=>tc.isPress||tc.isRegistrar||tc.isGate);
   const L=(k)=>({
     heading:{get ku(){return K("📇 Kartên Taybet")},en:"📇 Staff Cards"},
     hint:{get ku(){return K("Ev kart ji beşa MAMOSTE têkevin û tenê erka xwe dibînin.")},en:"These cards sign in via the TEACHER entry and only see their own duty."},
@@ -6777,7 +7056,7 @@ function AdminPressPanel({teachers,onDataChange,lang,toast,t}){
       <SectionHeader>{L("list")} ({cards.length})</SectionHeader>
       {cards.length===0&&<Card><div style={{fontSize:13,color:"var(--text2)",textAlign:"center",padding:"8px 0"}}>{L("empty")}</div></Card>}
       {cards.map(tc=>{
-        const tK=tc.isPress?SPECIAL_TYPES.press:SPECIAL_TYPES.registrar;
+        const tK=tc.isPress?SPECIAL_TYPES.press:tc.isGate?SPECIAL_TYPES.gate:SPECIAL_TYPES.registrar;
         return(
         <Card key={tc.no}>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -7411,7 +7690,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
     const kno=zarokNextNo(kids.map(x=>x.no),"8"+yr);
     await F.addDoc(F.collection(F.db,"kids"),{no:kno,name:(d.kidName||"").trim(),dob:d.kidDob||"",area:d.area||"",school:d.school||"",
       teacherNo:d.teacherNo||"",guardianNos:gnos,health:d.health||"",consentPhoto:!!d.consentPhoto,consentShare:!!d.consentShare,pickups:[],
-      appId:d.appId||"",createdAt:F.serverTimestamp()});
+      appId:d.appId||"",photo:d.photo||"",createdAt:F.serverTimestamp()});
     return kno;
   }
   const digits=s=>String(s||"").replace(/\D/g,"");
@@ -7434,6 +7713,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
       if(form.id){ // düzenleme
         const patch={name:d.kidName.trim(),dob:d.kidDob||"",area:d.area||"",school:d.school||"",teacherNo:d.teacherNo||"",health:d.health||"",
           consentPhoto:!!d.consentPhoto,consentShare:!!d.consentShare,pickups:(d.pickupsText||"").split("\n").map(s=>s.trim()).filter(Boolean).slice(0,8)};
+        if(d.photo&&d.photo!==form.orig.photo) patch.photo=d.photo;
         let gnos=[...(form.orig.guardianNos||[])];
         if(d.addGuardian&&!gnos.includes(d.addGuardian)) gnos.push(d.addGuardian);
         patch.guardianNos=gnos;
@@ -7780,6 +8060,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
             {ZAROK_AREAS.map(a=><option key={a} value={a}>{areaLabel(a)}</option>)}
           </select>
           <span style={small}>{kids.length} {Z("zarok","children")}</span>
+          {kidsF.length>0&&<button onClick={()=>issueAndPrintCards("kid",kidsF,lang,toast,{areaLabel})} style={btn("#fb8500")}>🪪 {Z("Kartan çap bike","Print cards")} ({kidsF.length})</button>}
         </div>
         {form&&form.type==="kid"&&(
           <div style={{...box,border:"2px solid var(--accent)"}}>
@@ -7823,6 +8104,13 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
               </div>)}
               <div style={{...small,marginTop:6}}>{Z("Şîfre otomatîk tê çêkirin û bi e-peyamê tê şandin.","Password is generated automatically and e-mailed.")}</div>
             </div>)}
+            <div style={{display:"flex",alignItems:"center",gap:10,marginTop:10}}>
+              <div style={{width:56,height:70,borderRadius:8,overflow:"hidden",background:"var(--bg2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,flexShrink:0}}>
+                {safeHref(form.data.photo)?<img src={safeHref(form.data.photo)} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:"🧒"}</div>
+              <label style={{...ghost,display:"inline-block"}}>📷 {Z("Wêneyê zarokê (ji bo kartê)","Child photo (for the card)")}
+                <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{ const f=e.target.files&&e.target.files[0]; if(!f) return; const r=new FileReader();
+                  r.onload=async ev=>{ const c=await compressImage(ev.target.result,420,520,0.8); setForm(fm=>({...fm,data:{...fm.data,photo:c}})); }; r.readAsDataURL(f); }}/></label>
+            </div>
             <div style={{display:"flex",gap:8,marginTop:12,flexWrap:"wrap"}}>
               <button disabled={busy} onClick={saveKidForm} style={btn("#16a34a")}>{busy?"⏳":"💾 "+Z("Tomar bike","Save")}</button>
               <button onClick={()=>setForm(null)} style={ghost}>{Z("Betal","Cancel")}</button>
@@ -7838,7 +8126,9 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
                 <div style={{...small,marginTop:4}}>{k.consentPhoto?"📷 ✔":"📷 ✖"} · {k.consentShare?"🌐 ✔":"🌐 ✖"}{k.health?" · 🩺 "+k.health:""}{(k.pickups||[]).length?" · 🚸 "+k.pickups.join(", "):""}</div>
               </div>
               <div style={{display:"flex",gap:6,flexShrink:0}}>
-                <button onClick={()=>setForm({type:"kid",id:k.fireId,orig:k,data:{kidName:k.name,kidDob:k.dob,area:k.area,school:k.school,teacherNo:k.teacherNo,health:k.health,consentPhoto:k.consentPhoto,consentShare:k.consentShare,pickupsText:(k.pickups||[]).join("\n")}})} style={{...ghost,padding:"6px 10px"}}>✏️</button>
+                <button title={Z("Kartê çap bike","Print card")} onClick={()=>issueAndPrintCards("kid",[k],lang,toast,{areaLabel})} style={{...ghost,padding:"6px 10px"}}>🪪</button>
+                {k.cardToken&&<button title={Z("Karta winda: ya nû çêke","Lost card: issue new")} onClick={()=>{ if(window.confirm(Z("Karteke NÛ were çêkirin? Karta kevn êdî naxebite.","Issue a NEW card? The old card will stop working."))) issueAndPrintCards("kid",[k],lang,toast,{renew:true,areaLabel}); }} style={{...ghost,padding:"6px 10px"}}>♻️</button>}
+                <button onClick={()=>setForm({type:"kid",id:k.fireId,orig:k,data:{photo:k.photo||"",kidName:k.name,kidDob:k.dob,area:k.area,school:k.school,teacherNo:k.teacherNo,health:k.health,consentPhoto:k.consentPhoto,consentShare:k.consentShare,pickupsText:(k.pickups||[]).join("\n")}})} style={{...ghost,padding:"6px 10px"}}>✏️</button>
                 <button onClick={()=>delKid(k)} style={{...ghost,padding:"6px 10px"}}>🗑</button>
               </div>
             </div>
@@ -8256,7 +8546,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
               {AREAS.filter(ar=>ar.key!=="genel").map(ar=>{
                 const am=AREA_MAP[ar.key];
                 const cnt=(students||[]).filter(st=>st.area===ar.key).length;
-                const tcnt=(teachers||[]).filter(t2=>t2.area===ar.key&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar).length;
+                const tcnt=(teachers||[]).filter(t2=>t2.area===ar.key&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate).length;
                 return(
                   <div key={ar.key} onClick={()=>setActiveArea(ar.key)} className="area-card"
                     style={{background:"var(--surface)",borderLeft:"4px solid "+am.color,boxShadow:"0 1px 4px rgba(15,23,42,.07)"}}>
@@ -8304,6 +8594,12 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
                 {showPass?"🙈 ":"👁 "}{lang==="en"?"Passwords":K("Şîfre")}
               </button>
             </div>
+            {(students||[]).length>0&&(
+              <button onClick={()=>issueAndPrintCards("student",students,lang,toast,{areaLabel:a=>areaName(a,lang),colorOf:a=>AREA_MAP[a]?.color})}
+                style={{width:"100%",padding:"11px",marginBottom:10,background:"#0f2f38",color:"#e7c77b",border:"none",borderRadius:10,fontSize:13,fontWeight:800,cursor:"pointer"}}>
+                🪪 {lang==="en"?"Print all student cards":K("Hemû kartên xwendekaran çap bike")} ({students.length})
+              </button>
+            )}
             {(students||[]).map(st=>(
               <Card key={st.no}>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -8325,14 +8621,16 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
                       </div>
                     )}
                   </div>
+                  <button title={lang==="en"?"Print card":K("Kartê çap bike")} onClick={()=>issueAndPrintCards("student",[st],lang,toast,{areaLabel:a=>areaName(a,lang),colorOf:a=>AREA_MAP[a]?.color})} style={{background:"var(--bg2)",border:"0.5px solid var(--border2)",color:"var(--text)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>🪪</button>
+                  {st.cardToken&&<button title={lang==="en"?"Lost card: issue new (old one stops working)":K("Karta winda: ya nû çêke (ya kevn betal dibe)")} onClick={()=>{ if(window.confirm(lang==="en"?"Issue a NEW card? The old card will stop working.":K("Karteke NÛ were çêkirin? Karta kevn êdî naxebite."))) issueAndPrintCards("student",[st],lang,toast,{renew:true,areaLabel:a=>areaName(a,lang),colorOf:a=>AREA_MAP[a]?.color}); }} style={{background:"var(--bg2)",border:"0.5px solid var(--border2)",color:"var(--text)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>♻️</button>}
                   <button onClick={()=>setEditingStudent(st)} style={{background:"var(--bg2)",border:"0.5px solid var(--border2)",color:"var(--text)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>✏️</button>
                   <button onClick={()=>{if(window.confirm("🗑 "+st.name+"?"))onDataChange("deleteStudent",st);}} style={{background:"var(--red-bg)",border:"0.5px solid var(--red)",color:"var(--red)",borderRadius:8,padding:"6px 10px",fontSize:11,cursor:"pointer"}}>🗑</button>
                 </div>
               </Card>
             ))}
             {(students||[]).length===0&&<Card><div style={{fontSize:12,color:"var(--text2)",textAlign:"center",padding:"8px 0"}}>—</div></Card>}
-            <SectionHeader>👨‍🏫 {(t&&t.teachers)||"Mamoste"} ({(teachers||[]).filter(tc=>!tc.isPress&&!tc.isRegistrar).length})</SectionHeader>
-            {(teachers||[]).filter(tc=>!tc.isPress&&!tc.isRegistrar).map(tc=>(
+            <SectionHeader>👨‍🏫 {(t&&t.teachers)||"Mamoste"} ({(teachers||[]).filter(tc=>!tc.isPress&&!tc.isRegistrar&&!tc.isGate).length})</SectionHeader>
+            {(teachers||[]).filter(tc=>!tc.isPress&&!tc.isRegistrar&&!tc.isGate).map(tc=>(
               <Card key={tc.no}>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
                   <Avatar name={tc.name} color={AREA_MAP[tc.area]?.color||"#16a34a"} size={36} photo={tc.photo}/>
@@ -8968,7 +9266,7 @@ function EditLessonSheet({lesson,onClose,t,lang,toast,onSave,teachers}){
       <FieldWrap label={(lang==="en"?"Teacher (optional)":K("Mamosteyê Dersê (vebijarkî)"))}>
         <select style={selectStyle} value={teacherNo} onChange={e=>setTeacherNo(e.target.value)}>
           <option value="">— {lang==="en"?"Unassigned (all field teachers see it)":K("Ne diyar (hemû mamosteyên qadê dibînin)")}</option>
-          {(teachers||[]).filter(tc=>!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&(tc.area===lesson.area||tc.area==="genel")).map(tc=>(
+          {(teachers||[]).filter(tc=>!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&(tc.area===lesson.area||tc.area==="genel")).map(tc=>(
             <option key={tc.no} value={tc.no}>👨‍🏫 {tc.name} ({tc.no})</option>
           ))}
         </select>
@@ -9482,7 +9780,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
 
   const statsCards=[
     {key:"students", label:t.totalStudents, val:students.length, icon:"🎓", color:"#0f2f38", bg:"rgba(15,47,56,0.08)"},
-    {key:"teachers", label:t.totalTeachers, val:teachers.filter(t2=>!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar).length, icon:"👨‍🏫", color:"#16a34a", bg:"rgba(22,163,74,0.08)"},
+    {key:"teachers", label:t.totalTeachers, val:teachers.filter(t2=>!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate).length, icon:"👨‍🏫", color:"#16a34a", bg:"rgba(22,163,74,0.08)"},
     {key:"programs", label:t.activePrograms, val:schedule.length, icon:"📅", color:"#d97706", bg:"rgba(217,119,6,0.08)"},
     {key:"pending", label:t.pendingApproval, val:0, icon:"⏳", color:"#dc2626", bg:"rgba(220,38,38,0.08)"},
   ];
@@ -10709,7 +11007,7 @@ ${`</html>`}`;
   // Survey data for report
   const allResponses = loadSurveyResponses();
   const allQuestions = loadSurveyQuestions();
-  const filteredTeachers = selectedArea==="all" ? teachers.filter(t2=>!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar) : teachers.filter(t2=>t2.area===selectedArea&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar);
+  const filteredTeachers = selectedArea==="all" ? teachers.filter(t2=>!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate) : teachers.filter(t2=>t2.area===selectedArea&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate);
 
   // Survey target helpers
   const surveyStudents = surveyTarget==="all_students" ? students
@@ -10717,7 +11015,7 @@ ${`</html>`}`;
     : surveyTarget==="area_students" ? filteredStudents
     : []; // area_teachers = handled separately
 
-  const surveyTeachers = surveyTarget==="all_teachers" ? teachers.filter(t2=>!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar)
+  const surveyTeachers = surveyTarget==="all_teachers" ? teachers.filter(t2=>!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate)
     : surveyTarget==="area_teachers" ? filteredTeachers
     : [];
 
@@ -15752,9 +16050,17 @@ function LoginScreen({students,teachers,t,lang,rawLang,setLang,onLogin,onForgot,
                   const snap = await window.__FB.getDocs(window.__FB.collection(window.__FB.db,"teachers"));
                   const fresh = snap.docs.map(d=>({...d.data(),fireId:d.id})).find(d=>(d.no||"")===userInput||(d.id||"")===userInput);
                   if(fresh) tc = fresh; // taze veri varsa (fotoğraf dahil) onu kullan
-                } catch(_){}
+                } catch(_){
+                  // Liste okuma yetkisi yoksa (ör. kapı güvenliği) yalnızca KENDİ kaydını sorgula
+                  try {
+                    const q2 = window.__FB.query(window.__FB.collection(window.__FB.db,"teachers"), window.__FB.where("no","==",String(userInput)));
+                    const s2 = await window.__FB.getDocs(q2);
+                    const own = s2.docs.map(d=>({...d.data(),fireId:d.id}))[0];
+                    if(own) tc = own;
+                  } catch(__){}
+                }
               }
-              if(tc){ matched = tc; matchedType = tc.isPress ? "press" : tc.isRegistrar ? "registrar" : tc.isAdmin ? "admin" : "teacher"; }
+              if(tc){ matched = tc; matchedType = tc.isGate ? "gate" : tc.isPress ? "press" : tc.isRegistrar ? "registrar" : tc.isAdmin ? "admin" : "teacher"; }
             }
             break;
           }
@@ -15777,7 +16083,7 @@ function LoginScreen({students,teachers,t,lang,rawLang,setLang,onLogin,onForgot,
       for(const tc of tcList){
         if(await verifyPassword(passInput, tc.pass)){
           matched = tc;
-          matchedType = tc.isPress ? "press" : tc.isRegistrar ? "registrar" : tc.isAdmin ? "admin" : "teacher";
+          matchedType = tc.isGate ? "gate" : tc.isPress ? "press" : tc.isRegistrar ? "registrar" : tc.isAdmin ? "admin" : "teacher";
           break;
         }
       }
@@ -16127,109 +16433,37 @@ function getSessionCheckins(){
 /* ─── QR CODE DISPLAY — GPS + DİNAMİK TOKEN ───────────────────────────── */
 /* ─── TEACHER CARD SCANNER — reads student ID card QR, does manual check-in ── */
 function TeacherCardScanner({myStudents, lang, onCheckin, onClose}){
-  const videoRef  = useRef(null);
-  const canvasRef = useRef(null);
-  const streamRef = useRef(null);
-  const rafRef    = useRef(null);
-  const [msg, setMsg] = useState(null);   // {text, ok}
-  const [lastNo, setLastNo] = useState(null);
-
-  // Start camera
-  useEffect(()=>{
-    let active = true;
-    navigator.mediaDevices?.getUserMedia({video:{facingMode:"environment"},audio:false})
-      .then(s=>{
-        if(!active){ s.getTracks().forEach(t=>t.stop()); return; }
-        streamRef.current = s;
-        if(videoRef.current){ videoRef.current.srcObject=s; videoRef.current.play().catch(()=>{}); }
-        scan();
-      })
-      .catch(()=>setMsg({text: lang==="en"?"Camera not available":K("Kamera nehat dîtin"), ok:false}));
-    return ()=>{ active=false; stop(); };
-  },[]);
-
-  function stop(){
-    cancelAnimationFrame(rafRef.current);
-    streamRef.current?.getTracks().forEach(t=>t.stop());
-  }
-
-  function scan(){
-    const v = videoRef.current, c = canvasRef.current;
-    if(!v||!c){ rafRef.current=requestAnimationFrame(scan); return; }
-    if(v.readyState < 2){ rafRef.current=requestAnimationFrame(scan); return; }
-    const W=v.videoWidth, H=v.videoHeight;
-    if(!W||!H){ rafRef.current=requestAnimationFrame(scan); return; }
-    c.width=W; c.height=H;
-    const ctx=c.getContext("2d"); ctx.drawImage(v,0,0,W,H);
-    const img=ctx.getImageData(0,0,W,H);
-    // Try native BarcodeDetector first
-    if(window.BarcodeDetector){
-      new window.BarcodeDetector({formats:["qr_code"]}).detect(c)
-        .then(codes=>{ if(codes[0]?.rawValue) processNo(codes[0].rawValue); else rafRef.current=requestAnimationFrame(scan); })
-        .catch(()=>{ if(window.jsQR){const r=window.jsQR(img.data,W,H,{inversionAttempts:"dontInvert"});if(r?.data)processNo(r.data);else rafRef.current=requestAnimationFrame(scan);}else rafRef.current=requestAnimationFrame(scan); });
-    } else if(window.jsQR){
-      const r=window.jsQR(img.data,W,H,{inversionAttempts:"dontInvert"});
-      if(r?.data) processNo(r.data);
-      else rafRef.current=requestAnimationFrame(scan);
-    } else {
-      rafRef.current=requestAnimationFrame(scan);
+  // Güvenli kart: QR'daki anahtar Firestore'dan doğrulanır (numara yazılı sahte QR kabul edilmez)
+  const [msg,setMsg]=useState(null); const [busy,setBusy]=useState(false);
+  const W=(ku,en)=>lang==="en"?en:K(ku);
+  async function onToken(raw){
+    setBusy(true);
+    const r=await resolveCard(raw);
+    if(!r.ok) setMsg({text:"⛔ "+cardReasonText(r.reason,lang),ok:false});
+    else if(r.card.kind!=="student") setMsg({text:"⛔ "+W("Ev karta zarokan e","This is a kids card"),ok:false});
+    else{
+      const student=(myStudents||[]).find(s=>String(s.no)===String(r.card.no));
+      if(!student) setMsg({text:"⚠ "+r.card.name+" — "+W("di vê dersê de nîne","not in this lesson"),ok:false});
+      else{
+        const result=onCheckin(student);
+        if(result.ok) setMsg({text:"✅ "+student.name,ok:true});
+        else if(result.reason==="already_checked_in") setMsg({text:"✓ "+W("Berê ketibû: ","Already in: ")+student.name,ok:true});
+        else setMsg({text:"⚠ "+W("Dersa aktîf nîne","No active lesson"),ok:false});
+      }
     }
+    try{ navigator.vibrate&&navigator.vibrate(r.ok?[50]:[180,60,180]); }catch(_){}
+    setBusy(false); setTimeout(()=>setMsg(null),2600);
   }
-
-  function processNo(raw){
-    // Card QR contains just the student number (e.g. "10202601")
-    // Could also be a plain number string
-    const no = raw.trim().replace(/[^0-9A-Za-z]/g,"");
-    if(!no || no === lastNo) { rafRef.current=requestAnimationFrame(scan); return; }
-
-    // Find student by no
-    const student = myStudents.find(s=>s.no===no);
-    if(!student){
-      setMsg({text:(lang==="en"?"Student not found: ":K("Xwendekar nehat dîtin: "))+no, ok:false});
-      setLastNo(no);
-      setTimeout(()=>{ setMsg(null); setLastNo(null); rafRef.current=requestAnimationFrame(scan); }, 2000);
-      return;
-    }
-
-    const result = onCheckin(student);
-    if(result.ok){
-      setMsg({text:"✅ "+student.name, ok:true});
-    } else if(result.reason==="already_checked_in"){
-      setMsg({text:"✓ "+(lang==="en"?"Already in: ":K("Berê ketibû: "))+student.name, ok:true});
-    } else {
-      setMsg({text:"⚠ "+(lang==="en"?"Session error":K("Dersa aktîf nîne")), ok:false});
-    }
-    setLastNo(no);
-    setTimeout(()=>{ setMsg(null); setLastNo(null); rafRef.current=requestAnimationFrame(scan); }, 1800);
-  }
-
   return(
-    <div style={{background:"#0f2f38",borderRadius:12,overflow:"hidden",marginBottom:10,position:"relative"}}>
-      <video ref={videoRef} playsInline muted style={{width:"100%",display:"block",maxHeight:160,objectFit:"cover"}}/>
-      <canvas ref={canvasRef} style={{display:"none"}}/>
-
-      {/* Scan frame overlay */}
-      <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}>
-        <div style={{width:100,height:100,border:"2.5px solid #e7c77b",borderRadius:10,opacity:0.8}}/>
-      </div>
-
-      {/* Feedback message */}
+    <div style={{background:"#0f2f38",borderRadius:12,overflow:"hidden",marginBottom:10,position:"relative",padding:8}}>
+      <CardScanner lang={lang} onToken={onToken} busy={busy} height={170}/>
       {msg&&(
-        <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"8px 12px",background:msg.ok?"rgba(22,163,74,0.92)":"rgba(220,38,38,0.92)",color:"#fff",fontSize:13,fontWeight:700,textAlign:"center"}}>
-          {msg.text}
-        </div>
+        <div style={{marginTop:8,padding:"8px 12px",borderRadius:8,background:msg.ok?"rgba(22,163,74,0.92)":"rgba(220,38,38,0.92)",color:"#fff",fontSize:13,fontWeight:700,textAlign:"center"}}>{msg.text}</div>
       )}
-
-      {/* Close button */}
-      <button onClick={()=>{stop();onClose();}} style={{position:"absolute",top:6,right:6,background:"rgba(0,0,0,0.6)",border:"none",color:"#fff",borderRadius:"50%",width:28,height:28,cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
-
-      <div style={{padding:"6px 10px",background:"rgba(0,0,0,0.7)",color:"rgba(255,255,255,0.7)",fontSize:10,textAlign:"center"}}>
-        {lang==="en"?"Point at student ID card QR":K("Karta xwendekarê bixwîne")}
-      </div>
+      <button onClick={onClose} aria-label="close" style={{position:"absolute",top:12,right:12,background:"rgba(0,0,0,0.6)",border:"none",color:"#fff",borderRadius:"50%",width:28,height:28,cursor:"pointer",fontSize:14}}>✕</button>
     </div>
   );
 }
-
 function TeacherQRDisplayModal(props){
   useEffect(()=>{
     try{ history.pushState({_aat_modal:"qrdisplay"},"","#qr"); }catch(_){}
@@ -17222,6 +17456,7 @@ function App(){
     };
   }, []); // Runs once on mount
 
+  const restoreTriedRef = useRef(false);
   // ── Oturumu Firebase Auth'tan geri yükle (sayfa yenilense de girişte kal) ──
   // Auth oturumu açıksa (authEmail) ve henüz currentUser yoksa, e-postadan
   // (<no>@ogrenci.aat / <no>@ogretmen.aat) kullanıcıyı bulup paneli geri aç.
@@ -17231,8 +17466,17 @@ function App(){
     const no = authEmail.split("@")[0];
     const list = isStudent ? students : teachers;
     const rec = (list || []).find(u => String(u.no) === String(no));
+    if (!rec && !isStudent && window.__FB && window.__FB.isConfigured() && !restoreTriedRef.current) {
+      // Kapı güvenliği gibi liste okuyamayan personel: kendi kaydı
+      restoreTriedRef.current = true;
+      const F = window.__FB;
+      F.getDocs(F.query(F.collection(F.db,"teachers"), F.where("no","==",String(no)))).then(snap => {
+        const own = snap.docs.map(d=>({...d.data(),fireId:d.id}))[0];
+        if (own && own.isGate) { setCurrentUser({ ...own, type: "gate" }); setScreen("gate"); }
+      }).catch(()=>{});
+    }
     if (rec) {
-      const type = isStudent ? "student" : (rec.isPress ? "press" : rec.isRegistrar ? "registrar" : rec.isAdmin ? "admin" : "teacher");
+      const type = isStudent ? "student" : (rec.isGate ? "gate" : rec.isPress ? "press" : rec.isRegistrar ? "registrar" : rec.isAdmin ? "admin" : "teacher");
       setCurrentUser({ ...rec, type });
       setScreen(type);
     }
@@ -17584,6 +17828,9 @@ function App(){
       )}
       {screen==="teacher"&&currentUser&&(
         <TeacherPanel teacher={currentUser} students={students} schedule={schedule} t={t} lang={lang} toast={toast} onLogout={handleLogout} onDataChange={onDataChange} onSettings={()=>setShowSettings(true)}/>
+      )}
+      {screen==="gate"&&currentUser&&(
+        <GatePanel user={currentUser} lang={lang} toast={toast} onLogout={handleLogout}/>
       )}
       {screen==="press"&&currentUser&&(
         <PressPanel user={currentUser} lang={lang} toast={toast} onLogout={handleLogout}/>

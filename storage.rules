@@ -21,7 +21,8 @@ service firebase.storage {
       return authed() && (
         request.auth.token.email == 'admin@aramtigran.edu' ||
         (request.auth.token.email.matches('.*@ogretmen[.]aat$')
-          && firestore.exists(/databases/(default)/documents/idx_staff/$(prefix())))
+          && firestore.exists(/databases/(default)/documents/idx_staff/$(prefix()))
+          && firestore.get(/databases/(default)/documents/idx_staff/$(prefix())).data.get('lvl', 'teacher') != 'gate')
       );
     }
     function isStudent() {
