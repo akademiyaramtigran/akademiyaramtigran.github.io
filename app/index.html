@@ -2,6 +2,9 @@
 <html lang="ku" style="position:fixed;top:0;left:0;width:100%;height:100%;overflow:hidden;background:#ffffff;">
 <head>
 <meta charset="UTF-8"/>
+<!-- Güvenlik: sayfa başka bir sitenin çerçevesine (iframe) gömülürse gizle ve çerçeveden çık (clickjacking koruması; GitHub Pages X-Frame-Options başlığı gönderemez) -->
+<style id="aat-antiframe">html{display:none!important}</style>
+<script>(function(){if(window.self===window.top){var s=document.getElementById('aat-antiframe');if(s)s.parentNode.removeChild(s);}else{try{window.top.location=window.self.location.href;}catch(e){}}})();</script>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -123,23 +126,20 @@
 
 <!-- ══ SECURITY: Content-Security-Policy ══ -->
 <meta http-equiv="Content-Security-Policy" content="
-  default-src 'self' blob: data:;
-  script-src 'self' 'unsafe-inline' 'unsafe-eval'
-    https://cdnjs.cloudflare.com
-    https://cdn.jsdelivr.net
+  default-src 'self';
+  script-src 'self' 'unsafe-inline'
     https://www.gstatic.com
-    https://*.gstatic.com
-    https://www.googleapis.com
-    https://*.googleapis.com
-    https://cdn.emailjs.com
+    https://apis.google.com
     https://www.google.com
     https://www.recaptcha.net;
+  object-src 'none';
+  worker-src 'self' blob:;
+  manifest-src 'self' data: blob:;
+  media-src 'self' blob: data: https://firebasestorage.googleapis.com https://*.firebasestorage.app;
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.googleapis.com;
   font-src 'self' https://fonts.gstatic.com https://*.gstatic.com data:;
   img-src 'self' blob: data: https:;
-  connect-src 'self' blob: http://127.0.0.1:9099 http://127.0.0.1:8080
-    https://cdn.jsdelivr.net
-    https://cdnjs.cloudflare.com
+  connect-src 'self' blob: data: http://127.0.0.1:9099 http://127.0.0.1:8080 ws://127.0.0.1:8080
     https://*.googleapis.com
     https://*.google.com
     https://*.gstatic.com
@@ -206,13 +206,14 @@
 <meta name="keywords" content="academy, art, music, theatre, cinema, dance, literature, painting"/>
 <meta name="format-detection" content="telephone=no"/>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous" defer></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js" crossorigin="anonymous" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<!-- Üçüncü taraf kütüphaneler depoda barındırılır (vendor/README.md): CDN ele geçirilse bile kod enjekte edilemez -->
+<script src="vendor/react.production.min.js"></script>
+<script src="vendor/react-dom.production.min.js"></script>
+<script src="vendor/qrcode.min.js"></script>
+<script src="vendor/html2canvas.min.js" defer></script>
+<script src="vendor/jspdf.umd.min.js" defer></script>
+<script src="vendor/jsQR.js" defer></script>
+<script src="vendor/email.min.js"></script>
 <script>
   // EmailJS başlatma — script yüklendikten sonra çalıştır
   (function(){
@@ -1573,6 +1574,7 @@ function K(ku){
   if(typeof ku!=="string") return ku;
   const P=window.AAT_TX||{}, L=RL();
   const d=P[L]; if(d&&d[ku]) return d[ku];
+  if(L==="tr"&&d) (window.__AAT_MISS||(window.__AAT_MISS=new Set())).add(ku);   // dil taraması için: Türkçesi eksik metin
   const f=P.ku; return (f&&f[ku])||ku;   // Kurmancî düzeltmesi (varsa)
 }
 function KF(ku,args){
@@ -1581,6 +1583,18 @@ function KF(ku,args){
 }
 
 /* ─── GÜVENLİK KATMANI ──────────────────────────────────────────────────── */
+// Veritabanından (başvuru belgeleri, mesaj ekleri, haber medyası) gelen bağlantılar
+// yalnızca güvenli şemalarla kullanılır: "javascript:", "data:text/html" vb. engellenir.
+function safeHref(u){
+  const s=String(u||"").trim();
+  return /^(https:\/\/|blob:|data:(?!text\/html|image\/svg|application\/(x-)?javascript)[a-z]+\/[-+.\w]+[;,])/i.test(s)?s:undefined;
+}
+// Görseli yeni sekmede güvenle aç (document.write ile HTML birleştirmeden)
+function openImageSafe(u){
+  const src=safeHref(u); if(!src) return;
+  const w=window.open("","_blank"); if(!w) return;
+  try{ w.opener=null; const img=w.document.createElement("img"); img.src=src; img.style.maxWidth="100%"; w.document.body.appendChild(img); }catch(_){}
+}
 async function hashPassword(password) {
   const msgBuffer = new TextEncoder().encode(password);
   const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
@@ -1605,11 +1619,11 @@ async function sendCredsEmail(name, email, no, pass){
 
 function checkPasswordStrength(pass) {
   if (!pass || pass.length < 8)
-    return { ok: false, msg: "Min 8 chars / 8 tîp" };
+    return { ok: false, msg: RL()==="en"?"Min 8 characters":K("Herî kêm 8 tîp") };
   if (!/[A-Z]/.test(pass))
-    return { ok: false, msg: "Uppercase required / Tipa mezin lazim e" };
+    return { ok: false, msg: RL()==="en"?"Uppercase letter required":K("Tîpa mezin lazim e") };
   if (!/[0-9]/.test(pass))
-    return { ok: false, msg: "Number required / Hejmar lazim e" };
+    return { ok: false, msg: RL()==="en"?"Number required":K("Hejmar lazim e") };
   return { ok: true, msg: "" };
 }
 const _loginAttempts = {};
@@ -1825,9 +1839,7 @@ async function deleteOwnAccount(user, role, lang, toast, onLogout){
     "Your account and all your data will be PERMANENTLY deleted. This cannot be undone. Continue?");
   if(!window.confirm(warn)) return;
   const word = L("JÊBIRIN","DELETE");
-  const typed = (window.prompt(L(
-    'Ji bo erêkirinê "'+word+'" binivîse:',
-    'Type "'+word+'" to confirm:')) || "").trim().toUpperCase();
+  const typed = (window.prompt(lang==="en"?'Type "'+word+'" to confirm:':KF('Ji bo erêkirinê "{0}" binivîse:',[word])) || "").trim().toLocaleUpperCase(lang==="tr"?"tr-TR":undefined);
   if(typed !== word){
     toast(L("✖ Jêbirin hate betalkirin","✖ Deletion cancelled"));
     return;
@@ -2293,7 +2305,7 @@ const _idCardMsg = (lang, key) => ({
   fail:   {get ku(){return K("⚠ Dakêşan bi ser neket")}, en:"⚠ Export failed"},
   savedHD:{get ku(){return K("✅ Kart hat tomarkirin (HD)")}, en:"✅ Card saved (HD)"},
   savedPDF:{get ku(){return K("✅ PDF ya çapxaneyê hat tomarkirin")}, en:"✅ Print-ready PDF saved"},
-}[key][lang] || ({prep:"📥 …",loading:"⚠",fail:"⚠",savedHD:"✅",savedPDF:"✅"}[key]));
+}[key][lang==="en"?"en":"ku"] || ({prep:"📥 …",loading:"⚠",fail:"⚠",savedHD:"✅",savedPDF:"✅"}[key]));
 
 // Hundir: kartê wek canvas'eke bilind-çareserî render dike (her tim tema ronî, paşxane spî/şefaf).
 function _renderIDCardCanvas(node, {transparent=false} = {}){
@@ -2669,7 +2681,7 @@ v3.0
 • Multi-language (Kurmancî/Zazaki/Turkish/English)` },
     },
   };
-  const data = L[type]?.[lang] || L[type]?.en;
+  const data = L[type]?.[lang==="en"?"en":"ku"] || L[type]?.ku;
   if (!data) return null;
   return (
     <>
@@ -2750,7 +2762,7 @@ function GDPRBanner({ lang, onAccept }) {
       policy: "Privacy Policy",
     },
   };
-  const L = text[lang] || text.en;
+  const L = lang==="en"?text.en:text.ku;
   
   function accept() {
     try { localStorage.setItem("aat-gdpr-consent", Date.now()); } catch {}
@@ -2817,7 +2829,7 @@ const AREAS = [
     name:{get ku(){return K("Wênesazî")},ku_short:"Wênesazî",en:"Visual Arts",en_short:"Visual Arts",de_short:"Bild. Kunst",
           emblem:"🎨",desc:{get ku(){return K("Wênesazî û Hunera Dîtbarî")},en:"Painting & Visual Arts"}} },
   { key:"genel",    code:70, icon:"🏫", color:"#4A9EBF", bg:"rgba(74,158,191,0.13)", text:"#7ecced",
-    name:{get ku(){return K("Hemû Xwendekar")},ku_short:"Genel",en:"All Students",en_short:"General",de_short:"Allgemein",
+    name:{get ku(){return K("Hemû Xwendekar")},ku_short:"Giştî",en:"All Students",en_short:"General",de_short:"Allgemein",
           emblem:"🏫",desc:{get ku(){return K("Dersên Hevpar ên Akademiyê")},en:"Academy Common Courses"}} },
 ];
 const AREA_MAP = Object.fromEntries(AREAS.map(a=>[a.key,a]));
@@ -3089,7 +3101,7 @@ const T = {
     scholarship:"",
     get "noScholarship"(){return K("Burs Tune")},
     get "fullScholarship"(){return K("Bursê Tevahî")},
-    get "sch75"(){return K("%75 Burs")}, get "sch50"(){return K("%50 Burs")}, get "sch25"(){return K("%25 Burs")},
+    get "sch75"(){return K("Bûrsa %75")}, get "sch50"(){return K("Bûrsa %50")}, get "sch25"(){return K("Bûrsa %25")},
     get "studentNoPreview"(){return K("Jimara Xwendekarê (Pêşdîtin)")},
     get "saveStudent"(){return K("Xwendekar Tescîl Bike")},
     get "username"(){return K("Navê Bikarhêner")},
@@ -3171,11 +3183,11 @@ const T = {
     get "bioLabel"(){return K("Danasîn")},
     get "photoUpload"(){return K("Wêne Barkirin")},
     get "detailedProfile"(){return K("Agahiyên Profîlê")},
-    days:{"Dûşem":"Dûşem","Sêşem":"Sêşem","Çarşem":"Çarşem","Pêncşem":"Pêncşem","Înî":"Înî","Şemî":"Şemî","Yekşem":"Yekşem"},
+    get days(){return {"Dûşem":K("Dûşem"),"Sêşem":K("Sêşem"),"Çarşem":K("Çarşem"),"Pêncşem":K("Pêncşem"),"Înî":K("Înî"),"Şemî":K("Şemî"),"Yekşem":K("Yekşem")};},
     get "students"(){return K("Xwendekar")},
     get "studentDetails"(){return K("Agahiyên Xwendekarê")},
     get "teacherDetails"(){return K("Agahiyên Mamoste")},
-    get "scholarship"(){return K("Burs")},
+    get "scholarship"(){return K("Bûrs")},
     get "idInfoTitle"(){return K("Agahiyên Nasnameyê")},
     get "idNumber"(){return K("Jimara Nasnameyê")},
     get "birthPlace"(){return K("Cihê Jidayikbûnê")},
@@ -3472,7 +3484,7 @@ function openQRPrintPage(qrVal, lesson, teacherName, dateStr, lang) {
   var KU_DAYS   = ["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"];
   function kuDate(d){ return KU_DAYS[d.getDay()]+", "+d.getDate()+" "+KU_MONTHS[d.getMonth()+1]+" "+d.getFullYear(); }
   var now = new Date();
-  var localDate = L==="en"?now.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"}):kuDate(now);
+  var localDate = L==="en"?now.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"}):L==="tr"?now.toLocaleDateString("tr-TR",{weekday:"long",day:"numeric",month:"long",year:"numeric"}):kuDate(now);
 
   var lbl = {
     lesson:  L==="en"?"Lesson":K("Ders"),
@@ -3516,13 +3528,13 @@ function openQRPrintPage(qrVal, lesson, teacherName, dateStr, lang) {
   var html = '<!DOCTYPE html><html lang="'+L+'"><head><meta charset="UTF-8"/>'
     + '<title>QR \u2013 ' + safeLs + '</title>'
     + '<style>' + css + '</style>'
-    + '<sc'+'ript src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/sc'+'ript>'
+    + '<sc'+'ript src="' + new URL('vendor/qrcode.min.js', location.href).href + '"><\/sc'+'ript>'
     + '</head><body>'
     + '<div class="page">'
       + '<div class="hdr">'
         + '<div class="logo">\uD83C\uDFDB AKADEM\xCEYA ARAM T\xCEGRAN</div>'
-        + '<div class="ttl">\uD83D\uDCCB QR \u2013 Amadeb\xFBna Ders\xEA</div>'
-        + '<div class="sub">Pergala R\xEAveberiya Zanis\xEA</div>'
+        + '<div class="ttl">\uD83D\uDCCB QR \u2013 ' + (L==="en"?"Lesson Attendance":K("Amadeb\xFBna Ders\xEA")) + '</div>'
+        + '<div class="sub">' + (L==="en"?"Academic Management System":K("Pergala R\xEAveberiya Zanist\xEA")) + '</div>'
       + '</div>'
       + '<div class="bdy">'
         + '<div class="ibox">'
@@ -3537,7 +3549,7 @@ function openQRPrintPage(qrVal, lesson, teacherName, dateStr, lang) {
         + '<div class="ins">\uD83D\uDCF1 ' + lbl.ins1 + '<span class="ins2">' + lbl.ins2 + '</span></div>'
       + '</div>'
       + '<div class="ftr">'
-        + '<span>\uD83C\uDFDB Akadem\xEEya Aram T\xEEgran \u2014 Pergala R\xEAveberiya Zanis\xEA</span>'
+        + '<span>\uD83C\uDFDB Akadem\xEEya Aram T\xEEgran \u2014 ' + (L==="en"?"Academic Management System":K("Pergala R\xEAveberiya Zanist\xEA")) + '</span>'
         + '<span>' + safeDt + '</span>'
       + '</div>'
     + '</div>'
@@ -3576,7 +3588,7 @@ function openQRPrintPage(qrVal, lesson, teacherName, dateStr, lang) {
 
 function useT(lang){return React.useMemo(()=>({...T.ku,...(T[lang]||{})}),[lang]);}
 function areaName(area,lang){const a=AREA_MAP[area];if(!a)return area;return a.name[lang]||a.name.ku;}
-function areaShortName(area,lang){const a=AREA_MAP[area];if(!a)return area;return a.name[lang+"_short"]||a.name.ku_short||a.name[lang]||a.name.ku;}
+function areaShortName(area,lang){const a=AREA_MAP[area];if(!a)return area;return lang==="en"?(a.name.en_short||a.name.en):K(a.name.ku_short||a.name.ku);}
 
 /* ─── SVG LOGO ──────────────────────────────────────────────────────────── */
 function AcademyLogo({size=48}){
@@ -3742,7 +3754,7 @@ function BirthdayModal({open,name,lang,onClose}){
   if(!open) return null;
 
   const L = {
-    ku:{get "title"(){return K("Rojbûna te pîroz be! 🎉")},sub:name?`${name}, em hemû kêfxweş in!`:"Em hemû kêfxweş in!",get "close"(){return K("Spas")}},
+    ku:{get "title"(){return K("Rojbûna te pîroz be! 🎉")},get sub(){return name?KF("{0}, em hemû kêfxweş in!",[name]):K("Em hemû kêfxweş in!")},get "close"(){return K("Spas")}},
     en:{title:"Happy Birthday! 🎉",sub:name?`Wishing you a wonderful day, ${name}!`:"Wishing you a wonderful day!",close:"Thanks"}
   };
   const Lx = L[lang]||L.ku;
@@ -3883,7 +3895,7 @@ function StudentIDCard({student, lang, t}){
       {/* Header - akademi adı + Xwendekar — lacivert şerit, beyaz yazı (yüksek kontrast) */}
       <div style={{padding:"12px 16px 10px",background:"var(--hero-grad)",display:"flex",flexDirection:"column",alignItems:"center",gap:3,position:"relative",zIndex:1}}>
         <div style={{color:"#fff",fontSize:12,fontWeight:800,letterSpacing:"0.06em",textAlign:"center",lineHeight:1.2}}>AKADEMÎYA ARAM TÎGRAN</div>
-        <div style={{color:"rgba(255,255,255,0.65)",fontSize:9,fontWeight:600,letterSpacing:"0.12em",textTransform:"uppercase",textAlign:"center"}}>Xwendekar</div>
+        <div style={{color:"rgba(255,255,255,0.65)",fontSize:9,fontWeight:600,letterSpacing:"0.12em",textTransform:"uppercase",textAlign:"center"}}>{lang==="en"?"Student":K("Xwendekar")}</div>
       </div>
 
       {/* Body — beyaz arka plan, koyu yazı */}
@@ -3966,7 +3978,7 @@ function StudentIDCardLandscape({student, lang, t}){
       {/* Header strip */}
       <div style={{padding:"8px 14px",background:"var(--hero-grad)",display:"flex",alignItems:"center",justifyContent:"center",gap:8,position:"relative",zIndex:1}}>
         <div style={{color:"#fff",fontSize:12,fontWeight:800,letterSpacing:"0.06em",textAlign:"center",lineHeight:1.15}}>AKADEMÎYA ARAM TÎGRAN</div>
-        <div style={{color:"rgba(255,255,255,0.6)",fontSize:8,fontWeight:600,letterSpacing:"0.12em",textTransform:"uppercase"}}>· Xwendekar</div>
+        <div style={{color:"rgba(255,255,255,0.6)",fontSize:8,fontWeight:600,letterSpacing:"0.12em",textTransform:"uppercase"}}>· {lang==="en"?"Student":K("Xwendekar")}</div>
       </div>
 
       {/* Body row */}
@@ -4059,7 +4071,7 @@ function ForgotScreen({t, lang, onBack, onSuccess, students, teachers, onDataCha
     doneMsg:    {get ku(){return K("Naha dikare bi şîfreya nû têkeve.")},
                  en:"The user can now sign in with the new password."},
   };
-  const lbl = k => L[k]?.[lang] || L[k]?.en || "";
+  const lbl = k => L[k]?.[lang==="en"?"en":"ku"] || L[k]?.ku || "";
 
   const adminUser = (teachers||[]).find(tc => tc.isAdmin);
 
@@ -4234,7 +4246,7 @@ function ForgotScreen({t, lang, onBack, onSuccess, students, teachers, onDataCha
               {lang==="en"?"✅ Password Sent!":K("✅ Şîfre Hat Şandin!")}
             </div>
             <div style={{fontSize:13,color:"var(--text2)",lineHeight:1.8,marginBottom:24,background:"var(--bg2)",borderRadius:12,padding:"14px 16px"}}>
-              {lang==="en"?<>New password sent to:<br/><span style={{fontFamily:"monospace",color:"var(--text)",fontWeight:700}}>{foundUser.obj.email}</span><br/><br/>Check your email and sign in with the new password.</>:<>Şîfreya nû hat şandin bo:<br/><span style={{fontFamily:"monospace",color:"var(--text)",fontWeight:700}}>{foundUser.obj.email}</span><br/><br/>Emaila xwe kontrol bike û bi şîfreya nû têkeve.</>
+              {lang==="en"?<>New password sent to:<br/><span style={{fontFamily:"monospace",color:"var(--text)",fontWeight:700}}>{foundUser.obj.email}</span><br/><br/>Check your email and sign in with the new password.</>:<>{K("Şîfreya nû hat şandin bo:")}<br/><span style={{fontFamily:"monospace",color:"var(--text)",fontWeight:700}}>{foundUser.obj.email}</span><br/><br/>{K("Emaila xwe kontrol bike û bi şîfreya nû têkeve.")}</>
               }
             </div>
             <PrimaryBtn onClick={onBack} icon="→">
@@ -4251,7 +4263,7 @@ function ForgotScreen({t, lang, onBack, onSuccess, students, teachers, onDataCha
               {lang==="en"?"✅ Password Reset Done":K("✅ Şîfre Hate Sifirkirin")}
             </div>
             <div style={{fontSize:12,color:"var(--text2)",lineHeight:1.8,marginBottom:16,background:"var(--bg2)",borderRadius:12,padding:"14px 16px"}}>
-              {lang==="en"?<>Password for <b style={{color:"var(--text)"}}>{foundUser.obj.name}</b> has been reset.<br/>Hand the new password to the user directly.</>:<>Şîfreya nû ya <b style={{color:"var(--text)"}}>{foundUser.obj.name}</b> hate guhertin.<br/>Şîfreya nû ji bikarhêner re bide.</>
+              {lang==="en"?<>Password for <b style={{color:"var(--text)"}}>{foundUser.obj.name}</b> has been reset.<br/>Hand the new password to the user directly.</>:<>{KF("Şîfreya {0} hate guhertin.",[foundUser.obj.name])}<br/>{K("Şîfreya nû ji bikarhêner re bide.")}</>
               }
             </div>
             {/* Admin için şifreyi göster (email olmayan durum) */}
@@ -4369,7 +4381,7 @@ function AddStudentSheet({open,onClose,defaultArea,students,t,lang,toast,onSave}
   // Kayıt sonrası bilgi kartı
   if(savedCreds){
     return(
-      <Sheet open={open} onClose={()=>{setSavedCreds(null);onClose();}} title="✅ Xwendekar Tescîl Bû">
+      <Sheet open={open} onClose={()=>{setSavedCreds(null);onClose();}} title={lang==="en"?"✅ Student registered":K("✅ Xwendekar Tescîl Bû")}>
         <div style={{textAlign:"center",padding:"8px 0 20px"}}>
           <div style={{fontSize:48,marginBottom:8}}>🎓</div>
           <div style={{fontSize:16,fontWeight:700,color:"var(--text)",marginBottom:4}}>{savedCreds.name}</div>
@@ -4421,7 +4433,7 @@ function AddStudentSheet({open,onClose,defaultArea,students,t,lang,toast,onSave}
         <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={handlePhoto}/>
       </div>
       <FieldWrap label={t.fullName}>
-        <input style={inputStyle} value={name} onChange={e=>setName(e.target.value)} placeholder="Nav û Nasname"/>
+        <input style={inputStyle} value={name} onChange={e=>setName(e.target.value)} placeholder={lang==="en"?"Full name":K("Nav û Nasname")}/>
       </FieldWrap>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <FieldWrap label={t.artField}>
@@ -4471,7 +4483,7 @@ function AddStudentSheet({open,onClose,defaultArea,students,t,lang,toast,onSave}
       <div style={{marginBottom:12,padding:"10px 12px",background:"var(--bg2)",borderRadius:10,border:"0.5px solid var(--border2)"}}>
         <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>📎 {t.docTitle||"Belgeyên Serlêdanê"}</div>
         <div style={{fontSize:10,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>
-          {lang==="en"?<>{`• ID Copy\n• Civil / Birth Certificate\n• Residence Document\n• Photo (2 copies)`}</>:<>• Fotokopiya Nasnameyê<br/>• Belgeya Nasnameya Sivîl / Jidayikbûnê<br/>• Belgeya Rûniştinê<br/>• Wêne (2 heb)</>}
+          {lang==="en"?<>{`• ID Copy\n• Civil / Birth Certificate\n• Residence Document\n• Photo (2 copies)`}</>:<>• {K("Fotokopiya Nasnameyê")}<br/>• {K("Belgeya Nasnameya Sivîl / Jidayikbûnê")}<br/>• {K("Belgeya Rûniştinê")}<br/>• {K("Wêne (2 heb)")}</>}
         </div>
         <div onClick={()=>docFileRef.current.click()} style={{border:"1.5px dashed var(--border2)",borderRadius:8,padding:"12px",textAlign:"center",cursor:"pointer",marginBottom:8,background:"var(--surface)"}}>
           <div style={{fontSize:20,marginBottom:4}}>📁</div>
@@ -4570,7 +4582,7 @@ function AddTeacherSheet({open,onClose,defaultArea,teachers,t,lang,toast,onSave,
   // Kayıt sonrası bilgi kartı
   if(savedCreds){
     return(
-      <Sheet open={open} onClose={()=>{setSavedCreds(null);onClose();}} title="✅ Mamoste Tescîl Bû">
+      <Sheet open={open} onClose={()=>{setSavedCreds(null);onClose();}} title={lang==="en"?"✅ Teacher registered":K("✅ Mamoste Tescîl Bû")}>
         <div style={{textAlign:"center",padding:"8px 0 20px"}}>
           <div style={{fontSize:48,marginBottom:8}}>👨‍🏫</div>
           <div style={{fontSize:16,fontWeight:700,color:"var(--text)",marginBottom:4}}>{savedCreds.name}</div>
@@ -4621,7 +4633,7 @@ function AddTeacherSheet({open,onClose,defaultArea,teachers,t,lang,toast,onSave,
         <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={handlePhoto}/>
       </div>
       <FieldWrap label={t.fullName}>
-        <input style={inputStyle} value={name} onChange={e=>setName(e.target.value)} placeholder="Nav û Nasname"/>
+        <input style={inputStyle} value={name} onChange={e=>setName(e.target.value)} placeholder={lang==="en"?"Full name":K("Nav û Nasname")}/>
       </FieldWrap>
       {/* Alan seçimi: kilitli (kart'tan açıldıysa) veya serbest */}
       <FieldWrap label={t.artField}>
@@ -5466,6 +5478,8 @@ function AdminMessagesPanel({students,teachers,lang,t,toast,adminName}){
       direction:"sent",
       senderId:"admin",
       recipientId: msgType==="private" ? recipient : null,
+      // Alıcının giriş numarası: güvenlik kuralı öğrencinin yalnızca kendine gelen özel mesajı okumasına izin verir
+      recipientNo: msgType==="private" ? String(((recipient||"").startsWith("s_")?students.find(s=>"s_"+s.id===recipient):teachers.find(tc=>"t_"+tc.id===recipient))?.no||"") : null,
       recipientGroup: msgType==="bulk" ? recipientGroup : null,
       isStudentFeedback:false,
       attachments:attachments.map(a=>({name:a.name,size:a.size,type:a.type,url:a.url,preview:a.preview}))
@@ -5530,7 +5544,7 @@ function AdminMessagesPanel({students,teachers,lang,t,toast,adminName}){
             {selectedMsg.attachments.filter(a=>a.type==="image").length>0&&(
               <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
                 {selectedMsg.attachments.filter(a=>a.type==="image").map((a,i)=>(
-                  <img key={i} src={a.preview||a.url} style={{width:80,height:80,objectFit:"cover",borderRadius:8,border:"1px solid var(--border)",cursor:"pointer"}} alt={a.name} onClick={()=>{const w=window.open();if(w){w.document.write('<img src="'+a.url+'" style="max-width:100%;"/>');}}}/>
+                  <img key={i} src={a.preview||a.url} style={{width:80,height:80,objectFit:"cover",borderRadius:8,border:"1px solid var(--border)",cursor:"pointer"}} alt={a.name} onClick={()=>openImageSafe(a.url)}/>
                 ))}
               </div>
             )}
@@ -5539,7 +5553,7 @@ function AdminMessagesPanel({students,teachers,lang,t,toast,adminName}){
                 <span style={{fontSize:18}}>📄</span>
                 <span style={{flex:1,fontSize:12,color:"var(--text)"}}>{a.name}</span>
                 <span style={{fontSize:10,color:"var(--text2)"}}>{a.size}</span>
-                {a.url&&<a href={a.url} download={a.name} style={{fontSize:12,color:"var(--text)",textDecoration:"none",fontWeight:600}}>⬇ {lang==="en"?"Download":K("Dakêşe")}</a>}
+                {safeHref(a.url)&&<a href={safeHref(a.url)} download={a.name} rel="noopener" style={{fontSize:12,color:"var(--text)",textDecoration:"none",fontWeight:600}}>⬇ {lang==="en"?"Download":K("Dakêşe")}</a>}
               </div>
             ))}
           </div>
@@ -5617,7 +5631,7 @@ function AdminMessagesPanel({students,teachers,lang,t,toast,adminName}){
                   <button onClick={()=>setAttachments(p=>p.filter(x=>x.id!==f.id))} style={{background:"none",border:"none",color:"var(--red)",cursor:"pointer",fontSize:13}}>✕</button>
                 </div>
               ))}
-              <div style={{fontSize:10,color:"var(--green)",fontWeight:600}}>✅ {attachments.length} {lang==="en"?"file(s)":K("dosya")}</div>
+              <div style={{fontSize:10,color:"var(--green)",fontWeight:600}}>✅ {attachments.length} {lang==="en"?"file(s)":K("pel")}</div>
             </div>
           )}
         </div>
@@ -5808,6 +5822,7 @@ function TeacherMessagesPanel({teacher,myStudents,aColor,lang,t,toast}){
       direction:"sent",
       senderId:String(teacher.id),
       recipientId:msgType==="private"?(recipient==="admin"?"admin":"s_"+recipient):null,
+      recipientNo:msgType==="private"&&recipient!=="admin"?String((myStudents.find(s=>String(s.id)===String(recipient))||{}).no||""):null,
       recipientGroup:msgType==="bulk"?("area_"+teacher.area):null,
       area:teacher.area,
       isStudentFeedback:false,
@@ -5854,7 +5869,7 @@ function TeacherMessagesPanel({teacher,myStudents,aColor,lang,t,toast}){
             {selectedMsg.attachments.filter(a=>a.type==="image").length>0&&(
               <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
                 {selectedMsg.attachments.filter(a=>a.type==="image").map((a,i)=>(
-                  <img key={i} src={a.preview||a.url} style={{width:80,height:80,objectFit:"cover",borderRadius:8,border:"1px solid var(--border)",cursor:"pointer"}} alt={a.name} onClick={()=>{const w=window.open();if(w){w.document.write('<img src="'+a.url+'" style="max-width:100%;"/>');}}}/>
+                  <img key={i} src={a.preview||a.url} style={{width:80,height:80,objectFit:"cover",borderRadius:8,border:"1px solid var(--border)",cursor:"pointer"}} alt={a.name} onClick={()=>openImageSafe(a.url)}/>
                 ))}
               </div>
             )}
@@ -5863,7 +5878,7 @@ function TeacherMessagesPanel({teacher,myStudents,aColor,lang,t,toast}){
                 <span style={{fontSize:18}}>📄</span>
                 <span style={{flex:1,fontSize:12,color:"var(--text)"}}>{a.name}</span>
                 <span style={{fontSize:10,color:"var(--text2)"}}>{a.size}</span>
-                {a.url&&<a href={a.url} download={a.name} style={{fontSize:12,color:"var(--text)",textDecoration:"none",fontWeight:600}}>⬇</a>}
+                {safeHref(a.url)&&<a href={safeHref(a.url)} download={a.name} rel="noopener" style={{fontSize:12,color:"var(--text)",textDecoration:"none",fontWeight:600}}>⬇</a>}
               </div>
             ))}
           </div>
@@ -5950,7 +5965,7 @@ function TeacherMessagesPanel({teacher,myStudents,aColor,lang,t,toast}){
                   <button onClick={()=>setAttachments(p=>p.filter(x=>x.id!==f.id))} style={{background:"none",border:"none",color:"var(--red)",cursor:"pointer",fontSize:12}}>✕</button>
                 </div>
               ))}
-              <div style={{fontSize:10,color:"var(--green)",fontWeight:600}}>✅ {attachments.length} {lang==="en"?"attached":K("dosya")}</div>
+              <div style={{fontSize:10,color:"var(--green)",fontWeight:600}}>✅ {attachments.length} {lang==="en"?"attached":K("pel")}</div>
             </div>
           )}
         </div>
@@ -6073,11 +6088,11 @@ function AdminNewsPanel({lang,toast,adminName}){
     done:{get ku(){return K("✅ Nûçe hate weşandin")},en:"✅ Published"},
     deleted:{get ku(){return K("🗑 Hate jêbirin")},en:"🗑 Deleted"},
     err:{get ku(){return K("❌ Çewtî — dîsa biceribîne")},en:"❌ Error — try again"},
-    vidTooBig:{ku:"⚠ Vîdyo pir mezin e (max "+MAX_VID_MB+"MB)",en:"⚠ Video too large (max "+MAX_VID_MB+"MB)"},
+    vidTooBig:{get ku(){return KF("⚠ Vîdyo pir mezin e (max {0}MB)",[MAX_VID_MB])},en:"⚠ Video too large (max "+MAX_VID_MB+"MB)"},
     vidNeedsStorage:{get ku(){return K("⚠ Ji bo vîdyoyê Firebase Storage pêwîst e (Blaze)")},en:"⚠ Video upload requires Firebase Storage (Blaze)"},
     imgUploading:{get ku(){return K("Wêne tên barkirin")},en:"Uploading photos"},
     vidUploading:{get ku(){return K("Vîdyo tê barkirin")},en:"Uploading video"},
-  }[k][lang]||k);
+  }[k][lang==="en"?"en":"ku"]||k);
 
   useEffect(()=>{
     if(!window.__FB||!window.__FB.isConfigured()) return;
@@ -6140,7 +6155,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     const vtt="WEBVTT\n\n"+text.replace(/^﻿/,"").replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g,"$1.$2");
     return new Blob([vtt],{type:"text/vtt"});
   }
-  const SUB_LANGS={ "Kurdî":"ku","Zazakî":"zza","Tirkî":"tr","English":"en","Deutsch":"de","Erebî":"ar" };
+  const SUB_LANGS={ "Kurmancî":"ku","Zazakî":"zza","Türkçe":"tr","English":"en" };
 
   async function publish(){
     // Sernav: KU an jî çevirilerden herhangi biri yeterli
@@ -6183,7 +6198,7 @@ function AdminNewsPanel({lang,toast,adminName}){
           pct=>setProgress({label:vLabel+v.name,pct}));
         if(!u){ toast(L("vidNeedsStorage"),6000); setSaving(false); setProgress(null); return; }
         // Kalite sürümleri
-        const qualities=[{label:"Orîjînal",url:u}];
+        const qualities=[{label:lang==="en"?"Original":K("Orîjînal"),url:u}];
         for(let q=0;q<(v.extras||[]).length;q++){
           const ex=v.extras[q];
           setProgress({label:vLabel+ex.label+" ("+ex.file.name+")",pct:0});
@@ -6275,7 +6290,7 @@ function AdminNewsPanel({lang,toast,adminName}){
         ):(
           <>
             <div style={{fontSize:10,color:"var(--text2)",marginBottom:6}}>
-              🌐 {trTab.toUpperCase()} {lang==="en"?"translation (optional — shown when site language is switched). If KU is left empty, this becomes the main text.":K("çeviri (isteğe bağlı — site dili değişince gösterilir). KU boş bırakılırsa ana başlık/metin bu olur.")}
+              🌐 {trTab.toUpperCase()} {lang==="en"?"translation (optional — shown when site language is switched). If KU is left empty, this becomes the main text.":K("werger (vebijarkî — dema zimanê malperê tê guhertin tê nîşandan). Ger KU vala bimîne, sernav/nivîsa sereke ev dibe.")}
             </div>
             <input value={i18n[trTab].title} onChange={e=>setI18n(p2=>({...p2,[trTab]:{...p2[trTab],title:e.target.value}}))} placeholder={L("title")+" ("+trTab.toUpperCase()+")"}
               style={{width:"100%",padding:"11px 12px",marginBottom:8,border:"1px solid var(--border2)",borderRadius:10,fontSize:14,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box"}}/>
@@ -6320,7 +6335,7 @@ function AdminNewsPanel({lang,toast,adminName}){
               <span style={{fontSize:17}}>🎬</span>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:12.5,fontWeight:600,color:"var(--text)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{v.name}</div>
-                <div style={{fontSize:10,color:"var(--text2)"}}>{(v.size/1024/1024).toFixed(1)} MB · Orîjînal</div>
+                <div style={{fontSize:10,color:"var(--text2)"}}>{(v.size/1024/1024).toFixed(1)} MB · {lang==="en"?"Original":K("Orîjînal")}</div>
               </div>
               <button onClick={()=>setVideos(p=>p.filter((_,j)=>j!==i))}
                 style={{width:22,height:22,borderRadius:"50%",background:"var(--red-bg)",border:"0.5px solid var(--red)",color:"var(--red)",fontSize:12,fontWeight:700,cursor:"pointer",lineHeight:"20px",padding:0,flexShrink:0}}>×</button>
@@ -6340,11 +6355,11 @@ function AdminNewsPanel({lang,toast,adminName}){
               <select id={"qsel"+i} defaultValue="720p" style={{fontSize:10.5,padding:"3px 4px",borderRadius:7,border:"1px solid var(--border2)",background:"var(--surface2)",color:"var(--text)"}}>
                 {["1080p","720p","480p","360p"].map(q=><option key={q}>{q}</option>)}
               </select>
-              <button style={addBtn} onClick={()=>requestExtra(i,"q",document.getElementById("qsel"+i).value)}>➕ Kalîte</button>
-              <select id={"ssel"+i} defaultValue="Kurdî" style={{fontSize:10.5,padding:"3px 4px",borderRadius:7,border:"1px solid var(--border2)",background:"var(--surface2)",color:"var(--text)"}}>
+              <button style={addBtn} onClick={()=>requestExtra(i,"q",document.getElementById("qsel"+i).value)}>➕ {lang==="en"?"Quality":K("Kalîte")}</button>
+              <select id={"ssel"+i} defaultValue="Kurmancî" style={{fontSize:10.5,padding:"3px 4px",borderRadius:7,border:"1px solid var(--border2)",background:"var(--surface2)",color:"var(--text)"}}>
                 {Object.keys(SUB_LANGS).map(l=><option key={l}>{l}</option>)}
               </select>
-              <button style={addBtn} onClick={()=>requestExtra(i,"s",document.getElementById("ssel"+i).value)}>➕ Jêrnivîs (.srt/.vtt)</button>
+              <button style={addBtn} onClick={()=>requestExtra(i,"s",document.getElementById("ssel"+i).value)}>➕ {lang==="en"?"Subtitle (.srt/.vtt)":K("Jêrnivîs (.srt/.vtt)")}</button>
             </div>
           </div>
           );
@@ -6470,7 +6485,7 @@ const SPECIAL_TYPES = {
 
 /* Karta taybet tescîl bike — AddTeacherSheet ile aynı format */
 function AddSpecialCardSheet({open,onClose,kind,teachers,t,lang,toast,onSave}){
-  const K=SPECIAL_TYPES[kind]||SPECIAL_TYPES.press;
+  const SP=SPECIAL_TYPES[kind]||SPECIAL_TYPES.press;
   const [name,setName]=useState("");
   const [year,setYear]=useState("2026");
   const [phone,setPhone]=useState("");
@@ -6496,14 +6511,14 @@ function AddSpecialCardSheet({open,onClose,kind,teachers,t,lang,toast,onSave}){
 
   function handleSave(){
     if(!name.trim()){toast("⚠ "+t.fullName); return;}
-    const same=(teachers||[]).filter(tc=>tc[K.flag]);
+    const same=(teachers||[]).filter(tc=>tc[SP.flag]);
     const seqs=same.map(tc=>parseInt((tc.no||"").slice(-2))||0);
     const seq=(seqs.length>0?Math.max(...seqs):0)+1;
-    const no=K.prefix+year+String(seq).padStart(2,"0");
+    const no=SP.prefix+year+String(seq).padStart(2,"0");
     const rawPass=genAutoPassword();
     hashPassword(rawPass).then(hashed=>{
       const tc={id:no,name:name.trim(),area:"genel",no,pass:hashed,passHash:hashed,
-        isAdmin:false,[K.flag]:true,phone,dob,address,bio:bio||(K.name.ku),photo,
+        isAdmin:false,[SP.flag]:true,phone,dob,address,bio:bio||(SP.name.ku),photo,
         _plainPass:rawPass};
       onSave(tc);
       setSavedCreds({no,pass:rawPass,name:name.trim()});
@@ -6512,14 +6527,14 @@ function AddSpecialCardSheet({open,onClose,kind,teachers,t,lang,toast,onSave}){
     setName(""); setPhone(""); setDob(""); setAddress(""); setBio(""); setPhoto(null);
   }
 
-  const typeTitle=(K.name[lang]||K.name.ku);
+  const typeTitle=(SP.name[lang]||SP.name.ku);
 
   // Kayıt sonrası bilgi kartı — Mamoste tescîl kartıyla aynı
   if(savedCreds){
     return(
-      <Sheet open={open} onClose={()=>{setSavedCreds(null);onClose();}} title={"✅ Karta "+typeTitle+" Tescîl Bû"}>
+      <Sheet open={open} onClose={()=>{setSavedCreds(null);onClose();}} title={lang==="en"?"✅ "+typeTitle+" card registered":"✅ "+KF("Karta {0} Tescîl Bû",[typeTitle])}>
         <div style={{textAlign:"center",padding:"8px 0 20px"}}>
-          <div style={{fontSize:48,marginBottom:8}}>{K.icon}</div>
+          <div style={{fontSize:48,marginBottom:8}}>{SP.icon}</div>
           <div style={{fontSize:16,fontWeight:700,color:"var(--text)",marginBottom:4}}>{savedCreds.name}</div>
           <div style={{fontSize:12,color:"var(--text2)",marginBottom:20}}>{lang==="en"?"Card registered successfully":K("Kart hate tescîlkirin")}</div>
         </div>
@@ -6556,7 +6571,7 @@ function AddSpecialCardSheet({open,onClose,kind,teachers,t,lang,toast,onSave}){
   }
 
   return(
-    <Sheet open={open} onClose={onClose} title={"➕ Karta "+typeTitle+" Tescîl Bike"}>
+    <Sheet open={open} onClose={onClose} title={lang==="en"?"➕ Register "+typeTitle+" card":"➕ "+KF("Karta {0} Tescîl Bike",[typeTitle])}>
       {/* Photo */}
       <div style={{display:"flex",justifyContent:"center",marginBottom:18}}>
         <div onClick={()=>fileRef.current.click()} style={{width:80,height:80,borderRadius:"50%",background:"var(--bg2)",border:"2px dashed var(--border2)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden"}}>
@@ -6568,16 +6583,16 @@ function AddSpecialCardSheet({open,onClose,kind,teachers,t,lang,toast,onSave}){
         <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={handlePhoto}/>
       </div>
       <FieldWrap label={t.fullName}>
-        <input style={inputStyle} value={name} onChange={e=>setName(e.target.value)} placeholder="Nav û Nasname"/>
+        <input style={inputStyle} value={name} onChange={e=>setName(e.target.value)} placeholder={lang==="en"?"Full name":K("Nav û Nasname")}/>
       </FieldWrap>
       {/* Erk (tür) — kilitli görünüm */}
       <FieldWrap label={lang==="en"?"Duty":K("Erk")}>
         <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",background:"var(--bg2)",borderRadius:10,border:"1.5px solid var(--border2)"}}>
-          <span style={{fontSize:18}}>{K.icon}</span>
+          <span style={{fontSize:18}}>{SP.icon}</span>
           <span style={{flex:1,fontSize:14,fontWeight:600,color:"var(--text)"}}>{typeTitle}</span>
           <span style={{fontSize:10,color:"var(--text2)",padding:"2px 8px",borderRadius:6,background:"var(--surface)"}}>🔒 {lang==="en"?"Locked":K("Kilkkirî")}</span>
         </div>
-        <div style={{fontSize:10,color:"var(--text2)",marginTop:5}}>{K.desc[lang]||K.desc.ku}</div>
+        <div style={{fontSize:10,color:"var(--text2)",marginTop:5}}>{SP.desc[lang]||SP.desc.ku}</div>
       </FieldWrap>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <FieldWrap label={t.regYear}>
@@ -6596,7 +6611,7 @@ function AddSpecialCardSheet({open,onClose,kind,teachers,t,lang,toast,onSave}){
         <input style={inputStyle} value={address} onChange={e=>setAddress(e.target.value)} placeholder="Amed..."/>
       </FieldWrap>
       <FieldWrap label={t.bioLabel}>
-        <textarea style={{...inputStyle,minHeight:60,resize:"vertical"}} value={bio} onChange={e=>setBio(e.target.value)} placeholder="Danasîn..."/>
+        <textarea style={{...inputStyle,minHeight:60,resize:"vertical"}} value={bio} onChange={e=>setBio(e.target.value)} placeholder={lang==="en"?"About...":K("Danasîn...")}/>
       </FieldWrap>
       <PrimaryBtn onClick={handleSave} icon="💾">{lang==="en"?"Register Card":K("Kartê Tescîl Bike")}</PrimaryBtn>
     </Sheet>
@@ -6605,7 +6620,7 @@ function AddSpecialCardSheet({open,onClose,kind,teachers,t,lang,toast,onSave}){
 
 /* ─── EDIT SPECIAL CARD (Basın / Öğrenci İşleri — öğretmen profili düzeniyle) ── */
 function EditSpecialCardSheet({card,onClose,t,lang,toast,onSave}){
-  const K=card.isPress?SPECIAL_TYPES.press:SPECIAL_TYPES.registrar;
+  const SP=card.isPress?SPECIAL_TYPES.press:SPECIAL_TYPES.registrar;
   const [name,setName]=useState(card.name||"");
   const [phone,setPhone]=useState(card.phone||"");
   const [email,setEmail]=useState(card.email||"");
@@ -6642,7 +6657,7 @@ function EditSpecialCardSheet({card,onClose,t,lang,toast,onSave}){
     onSave({...card,name:name.trim(),phone,email,dob,address,bio,pass:newHash,passHash:newHash,_plainPass:newPlain,photo});
   }
 
-  const typeTitle=(K.name[lang]||K.name.ku);
+  const typeTitle=(SP.name[lang]||SP.name.ku);
   const plainPassDisplay = card._plainPass || (card.pass && card.pass.length < 20 ? card.pass : null);
 
   return(
@@ -6661,11 +6676,11 @@ function EditSpecialCardSheet({card,onClose,t,lang,toast,onSave}){
       {/* Erk — kilitli (tescîl formundakiyle aynı) */}
       <FieldWrap label={lang==="en"?"Duty":K("Erk")}>
         <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",background:"var(--bg2)",borderRadius:10,border:"1.5px solid var(--border2)"}}>
-          <span style={{fontSize:18}}>{K.icon}</span>
+          <span style={{fontSize:18}}>{SP.icon}</span>
           <span style={{flex:1,fontSize:14,fontWeight:600,color:"var(--text)"}}>{typeTitle}</span>
           <span style={{fontSize:10,color:"var(--text2)",padding:"2px 8px",borderRadius:6,background:"var(--surface)"}}>🔒 {lang==="en"?"Locked":K("Kilkkirî")}</span>
         </div>
-        <div style={{fontSize:10,color:"var(--text2)",marginTop:5}}>{K.desc[lang]||K.desc.ku}</div>
+        <div style={{fontSize:10,color:"var(--text2)",marginTop:5}}>{SP.desc[lang]||SP.desc.ku}</div>
       </FieldWrap>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <FieldWrap label={t.phone}><input style={inputStyle} value={phone} onChange={e=>setPhone(e.target.value)} type="tel" inputMode="tel" autoComplete="tel"/></FieldWrap>
@@ -6729,7 +6744,7 @@ function AdminPressPanel({teachers,onDataChange,lang,toast,t}){
   const [kind,setKind]=useState("press");
   const [showAdd,setShowAdd]=useState(false);
   const [editing,setEditing]=useState(null);
-  const K=SPECIAL_TYPES[kind];
+  const SP=SPECIAL_TYPES[kind];
   const cards=(teachers||[]).filter(tc=>tc.isPress||tc.isRegistrar);
   const L=(k)=>({
     heading:{get ku(){return K("📇 Kartên Taybet")},en:"📇 Staff Cards"},
@@ -6738,7 +6753,7 @@ function AdminPressPanel({teachers,onDataChange,lang,toast,t}){
     list:{get ku(){return K("Kartên tescîlkirî")},en:"Registered cards"},
     empty:{get ku(){return K("Hîn kart tune.")},en:"No cards yet."},
     edit:{get ku(){return K("Biguherîne")},en:"Edit"},
-  }[k][lang]||k);
+  }[k][lang==="en"?"en":"ku"]||k);
 
   return(
     <div>
@@ -6752,8 +6767,8 @@ function AdminPressPanel({teachers,onDataChange,lang,toast,t}){
             </button>
           ))}
         </div>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:10}}>{K.icon} {K.desc[lang]||K.desc.ku}</div>
-        <PrimaryBtn onClick={()=>setShowAdd(true)} icon={K.icon}>{L("create")}</PrimaryBtn>
+        <div style={{fontSize:11,color:"var(--text2)",marginBottom:10}}>{SP.icon} {SP.desc[lang]||SP.desc.ku}</div>
+        <PrimaryBtn onClick={()=>setShowAdd(true)} icon={SP.icon}>{L("create")}</PrimaryBtn>
       </Card>
 
       <AddSpecialCardSheet open={showAdd} onClose={()=>setShowAdd(false)} kind={kind} teachers={teachers} t={t} lang={lang} toast={toast}
@@ -6926,7 +6941,7 @@ function AdminArchivePanel({lang,toast,adminName}){
     deleted:{get ku(){return K("🗑 Hate jêbirin")},en:"🗑 Deleted"},
     err:{get ku(){return K("❌ Çewtî — dîsa biceribîne")},en:"❌ Error — try again"},
     confirmDel:{get ku(){return K("Ev tomar were jêbirin?")},en:"Delete this entry?"},
-  }[k][lang]||k);
+  }[k][lang==="en"?"en":"ku"]||k);
 
   useEffect(()=>{
     if(!window.__FB||!window.__FB.isConfigured()) return;
@@ -7209,6 +7224,7 @@ function PressPanel({user,lang,toast,onLogout}){
   const pressTabs=[
     {key:"nuce",label:lang==="en"?"Website News":K("Nûçeyên Malperê")},
     {key:"arsiv",label:lang==="en"?"Archive":K("Arşîv")},
+    {key:"zarok",label:lang==="en"?"Kids Academy":K("Akademiya Zarokan")},
   ];
   return(
     <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
@@ -7229,9 +7245,9 @@ function PressPanel({user,lang,toast,onLogout}){
         ))}
       </div>
       <div className="scroll-area" style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
-        {ptab==="nuce"
-          ? <AdminNewsPanel lang={lang} toast={toast} adminName={user.name}/>
-          : <AdminArchivePanel lang={lang} toast={toast} adminName={user.name}/>}
+        {ptab==="nuce"&&<AdminNewsPanel lang={lang} toast={toast} adminName={user.name}/>}
+        {ptab==="arsiv"&&<AdminArchivePanel lang={lang} toast={toast} adminName={user.name}/>}
+        {ptab==="zarok"&&<ZarokAdminPanel lang={lang} toast={toast} user={user} mode="press"/>}
       </div>
     </div>
   );
@@ -7239,7 +7255,7 @@ function PressPanel({user,lang,toast,onLogout}){
 
 /* ─── REGISTRAR PANEL (Karûbarên Xwendekaran — serlêdanên tomarkirinê) ──── */
 // Print penceresi (rapor/başvuru PDF'i — yazdır → PDF olarak kaydet)
-function esc(x){ return String(x==null?"":x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function esc(x){ return String(x==null?"":x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
 function openPrintHtml(html){
   var w=window.open('','_blank');
   if(w){ w.document.open(); w.document.write(html); w.document.close(); return; }
@@ -7283,7 +7299,7 @@ function docIsPdf(d, url){
    Veriler: kidApplications · kids · guardians · kidTeachers · kidSecrets
             idx_guardians · idx_kidstaff · kidAttendance · kidSchedule
             kidAnnouncements · kidMessages · kidNews · kidArchive · config/zarok */
-const ZAROK_DAYS_KU=["Yekşem","Duşem","Sêşem","Çarşem","Pêncşem","În","Şemî"];
+const ZAROK_DAYS_KU=["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"];
 const ZAROK_DAYS_EN=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const ZAROK_AREAS=["muzik","tiyatro","dans","wenesazi","edebiyat","sinema"];
 function zarokNextNo(nos,prefix){
@@ -7291,11 +7307,14 @@ function zarokNextNo(nos,prefix){
   (nos||[]).forEach(n=>{ n=String(n||""); if(n.indexOf(prefix)===0){ const v=parseInt(n.slice(prefix.length),10); if(v>max) max=v; } });
   return prefix+String(max+1).padStart(3,"0");
 }
-function ZarokAdminPanel({lang,toast,user}){
+// mode="manage": Öğrenci İşleri / Yönetici — başvuru, çocuk, veli, öğretmen, yoklama, program, duyuru, mesaj
+// mode="press" : Basın — çocuk sitesi haberleri + arşiv (ana akademideki görev ayrımıyla aynı)
+function ZarokAdminPanel({lang,toast,user,mode="manage"}){
+  const PRESS=mode==="press";
   const Z=(ku,en)=>lang==="en"?en:K(ku);
   const F=window.__FB;
   const live=!!(F&&F.isConfigured());
-  const [tab,setTab]=useState("apps");
+  const [tab,setTab]=useState(PRESS?"news":"apps");
   const [cfg,setCfg]=useState({open:false,note:""});
   const [apps,setApps]=useState([]);
   const [kids,setKids]=useState([]);
@@ -7317,13 +7336,18 @@ function ZarokAdminPanel({lang,toast,user}){
   const [sForm,setSForm]=useState({day:1,start:"15:00",end:"16:00",title:"",area:"",teacherNo:"",room:""});
   const [aForm,setAForm]=useState({title:"",body:""});
   const today=new Date().toISOString().slice(0,10);
-  const DAYS=lang==="en"?ZAROK_DAYS_EN:ZAROK_DAYS_KU;
+  const DAYS=lang==="en"?ZAROK_DAYS_EN:ZAROK_DAYS_KU.map(d=>K(d));
   const yr=String(new Date().getFullYear());
 
   useEffect(()=>{
     if(!live) return;
     const subs=[];
     const listen=(q,set)=>{ try{ subs.push(F.onSnapshot(q,snap=>set(snap.docs.map(d=>({...d.data(),fireId:d.id}))),e=>console.warn("[zarok]",e&&e.code))); }catch(e){} };
+    if(PRESS){
+      listen(F.query(F.collection(F.db,"kidNews"),F.orderBy("createdAt","desc")),setNews);
+      listen(F.collection(F.db,"kidArchive"),setArch);
+      return ()=>subs.forEach(u=>{ try{u();}catch(_){} });
+    }
     listen(F.query(F.collection(F.db,"kidApplications"),F.orderBy("createdAt","desc")),setApps);
     listen(F.collection(F.db,"kids"),setKids);
     listen(F.collection(F.db,"guardians"),setGuards);
@@ -7332,8 +7356,6 @@ function ZarokAdminPanel({lang,toast,user}){
     listen(F.collection(F.db,"kidSchedule"),setSched);
     listen(F.query(F.collection(F.db,"kidAnnouncements"),F.orderBy("createdAt","desc")),setAnns);
     listen(F.query(F.collection(F.db,"kidMessages"),F.orderBy("createdAt","desc"),F.limit(300)),setMsgs);
-    listen(F.query(F.collection(F.db,"kidNews"),F.orderBy("createdAt","desc")),setNews);
-    listen(F.collection(F.db,"kidArchive"),setArch);
     F.getDoc(F.doc(F.db,"config","zarok")).then(s=>{ if(s.exists()) setCfg({open:false,note:"",...s.data()}); }).catch(()=>{});
     return ()=>subs.forEach(u=>{ try{u();}catch(_){} });
   },[live]);
@@ -7432,8 +7454,16 @@ function ZarokAdminPanel({lang,toast,user}){
     try{
       const rec={name:d.name.trim(),email:(d.email||"").trim(),phone:d.phone||"",area:d.area||""};
       if(form.id){ await F.updateDoc(F.doc(F.db,"kidTeachers",form.id),{...rec,updatedAt:F.serverTimestamp()}); toast(Z("✅ Hate tomarkirin","✅ Saved")); setForm(null); }
+      else if((d.academyNo||"").trim()){
+        // Akademi öğretmenini çocuk akademisine bağla: yeni hesap açılmaz, kendi numarası/şifresiyle girer
+        const no=String(d.academyNo).replace(/[^0-9A-Za-z]/g,"");
+        if(kteach.some(x=>x.no===no)){ toast(Z("⚠ Ev mamoste berê hatiye girêdan","⚠ This teacher is already linked")); setBusy(false); return; }
+        await F.setDoc(F.doc(F.db,"kidTeachers",no),{no,...rec,academy:true,createdAt:F.serverTimestamp()});
+        await F.setDoc(F.doc(F.db,"idx_kidstaff",no),{no,updatedAt:F.serverTimestamp()});
+        toast(Z("✅ Mamosteyê akademiyê hate girêdan","✅ Academy teacher linked")); setForm(null);
+      }
       else{
-        const no=zarokNextNo(kteach.map(x=>x.no),"7"+yr);
+        const no=zarokNextNo(kteach.filter(x=>!x.academy).map(x=>x.no),"7"+yr);
         const pass=await makeAccount(no,"kidteacher");
         await F.setDoc(F.doc(F.db,"kidTeachers",no),{no,...rec,createdAt:F.serverTimestamp()});
         await F.setDoc(F.doc(F.db,"idx_kidstaff",no),{no,updatedAt:F.serverTimestamp()});
@@ -7489,7 +7519,7 @@ function ZarokAdminPanel({lang,toast,user}){
   }
   async function delTeacher(t){
     if(!window.confirm(Z("Mamoste were jêbirin?","Delete this teacher?"))) return;
-    try{ await F.deleteDoc(F.doc(F.db,"kidTeachers",t.no)); await F.deleteDoc(F.doc(F.db,"idx_kidstaff",t.no)).catch(()=>{}); await removeAccount(t.no,"kidteacher"); toast(Z("🗑 Hate jêbirin","🗑 Deleted")); }
+    try{ await F.deleteDoc(F.doc(F.db,"kidTeachers",t.no)); await F.deleteDoc(F.doc(F.db,"idx_kidstaff",t.no)).catch(()=>{}); if(!t.academy) await removeAccount(t.no,"kidteacher"); toast(Z("🗑 Hate jêbirin","🗑 Deleted")); }
     catch(e){ err(e); }
   }
   async function saveCfg(next){
@@ -7603,7 +7633,10 @@ function ZarokAdminPanel({lang,toast,user}){
 
   const newApps=apps.filter(a=>(a.status||"new")==="new").length;
   const unread=msgs.filter(m=>m.from==="guardian"&&!m.read).length;
-  const TABS=[
+  const TABS=PRESS?[
+    ["news","📰",Z("Nûçeyên Malperê","Site News"),0],
+    ["arch","🏛",Z("Arşîv","Archive"),0],
+  ]:[
     ["apps","📋",Z("Serlêdan","Applications"),newApps],
     ["kids","👧",Z("Zarok","Children"),0],
     ["guards","👨‍👩‍👧",Z("Dêûbav","Parents"),0],
@@ -7612,8 +7645,6 @@ function ZarokAdminPanel({lang,toast,user}){
     ["sched","📅",Z("Bername","Schedule"),0],
     ["ann","📢",Z("Ragihandin","Announcements"),0],
     ["msg","💬",Z("Peyam","Messages"),unread],
-    ["news","📰",Z("Nûçeyên Malperê","Site News"),0],
-    ["arch","🏛",Z("Arşîv","Archive"),0],
   ];
   const stColor={new:"#2c6b74",accepted:"#16a34a",rejected:"#dc2626"};
   const stLabel={new:Z("Nû","New"),accepted:Z("Qebûl","Accepted"),rejected:Z("Red","Rejected")};
@@ -7681,7 +7712,7 @@ function ZarokAdminPanel({lang,toast,user}){
               {a.note&&<div>📝 {a.note}</div>}
               <div style={small}>{a.consentPhoto?"📷 ✔":"📷 ✖"} {Z("wêne","photo")} · {a.consentShare?"🌐 ✔":"🌐 ✖"} {Z("parvekirin","sharing")} · KVKK ✔ · {a.dateStr||""}</div>
               {(a.docs||[]).length>0&&<div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}}>{a.docs.map((d,i)=>(
-                <a key={i} href={/^(https?:|data:)/.test(d.file||"")?d.file:"#"} target="_blank" rel="noopener" download={d.fileName||("belge"+i)} style={{...ghost,textDecoration:"none",border:"1px solid var(--border2)"}}>📎 {d.name||d.fileName||("Belge "+(i+1))}</a>))}</div>}
+                <a key={i} href={safeHref(d.file)||"#"} target="_blank" rel="noopener noreferrer" download={d.fileName||("belge"+i)} style={{...ghost,textDecoration:"none",border:"1px solid var(--border2)"}}>📎 {d.name||d.fileName||("Belge "+(i+1))}</a>))}</div>}
               <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
                 {st!=="accepted"&&<button disabled={busy} onClick={()=>accept(a)} style={btn("#16a34a")}>{busy?"⏳":Z("✅ Qebûl û Tescîl","✅ Accept & Register")}</button>}
                 {st==="new"&&<button onClick={()=>F.updateDoc(F.doc(F.db,"kidApplications",a.fireId),{status:"rejected"}).catch(err)} style={btn("#dc2626")}>{Z("❌ Red bike","❌ Reject")}</button>}
@@ -7796,19 +7827,20 @@ function ZarokAdminPanel({lang,toast,user}){
           <div style={{...box,border:"2px solid var(--accent)"}}>
             <div style={{fontWeight:800,color:"var(--text)"}}>{form.id?"✏️ "+Z("Mamoste biguherîne","Edit teacher"):"➕ "+Z("Mamosteyekî Nû","New Teacher")}</div>
             <div style={grid2}>{fld(Z("Nav û paşnav *","Full name *"),"name")}{fld(Z("E-peyam (agahiyên têketinê)","E-mail (login details)"),"email",{type:"email"})}{fld(Z("Têlefon","Phone"),"phone",{type:"tel"})}<div><label style={lbl}>{Z("Qad","Field")}</label>{areaSel("area",true)}</div></div>
-            {!form.id&&<div style={{...small,marginTop:6}}>{Z("Jimare û şîfre otomatîk tên çêkirin û bi e-peyamê tên şandin.","Number and password are generated automatically and e-mailed.")}</div>}
+            {!form.id&&<div style={{marginTop:8}}>{fld(Z("Mamosteyê akademiyê? Jimara wî/wê (vebijarkî)","Academy teacher? Their number (optional)"),"academyNo",{inputMode:"numeric"})}</div>}
+            {!form.id&&<div style={{...small,marginTop:6}}>{(form.data.academyNo||"").trim()?Z("Hesabê nû nayê vekirin: mamoste bi jimare û şîfreya xwe ya akademiyê dikeve sepana zarokan.","No new account: the teacher signs in to the kids app with their academy number and password."):Z("Jimare û şîfre otomatîk tên çêkirin û bi e-peyamê tên şandin.","Number and password are generated automatically and e-mailed.")}</div>}
             <div style={{display:"flex",gap:8,marginTop:12}}><button disabled={busy} onClick={saveTeacherForm} style={btn("#16a34a")}>{busy?"⏳":"💾 "+Z("Tomar bike","Save")}</button><button onClick={()=>setForm(null)} style={ghost}>{Z("Betal","Cancel")}</button></div>
           </div>)}
         {kteach.length===0&&<div style={{...box,...small,textAlign:"center"}}>{Z("Hîn mamoste tune.","No teachers yet.")}</div>}
         {kteach.slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"")).map(t=>(
           <div key={t.no} style={{...box,display:"flex",justifyContent:"space-between",gap:8,alignItems:"flex-start"}}>
             <div style={{minWidth:0}}>
-              <div style={{fontWeight:700,color:"var(--text)"}}>👩‍🏫 {t.name} <span style={small}>#{t.no}{t.area?" · "+areaLabel(t.area):""}</span></div>
+              <div style={{fontWeight:700,color:"var(--text)"}}>👩‍🏫 {t.name}{t.academy&&<span style={{...small,marginLeft:6,padding:"1px 7px",borderRadius:8,background:"var(--bg2)"}}>🏛 {Z("Akademî","Academy")}</span>} <span style={small}>#{t.no}{t.area?" · "+areaLabel(t.area):""}</span></div>
               <div style={small}>{t.phone?"☎ "+t.phone:""}{t.email?" · ✉ "+t.email:""}</div>
               <div style={{...small,marginTop:3}}>👧 {kids.filter(k=>k.teacherNo===t.no).length} {Z("zarok","children")} · 📅 {sched.filter(s=>s.teacherNo===t.no).length} {Z("ders","lessons")}</div>
             </div>
             <div style={{display:"flex",gap:6,flexShrink:0,flexWrap:"wrap",justifyContent:"flex-end"}}>
-              <button title={Z("Şîfreya nû","New password")} disabled={busy} onClick={()=>resetPass(t.no,"kidteacher",t.name,t.email)} style={{...ghost,padding:"6px 10px"}}>🔑</button>
+              {!t.academy&&<button title={Z("Şîfreya nû","New password")} disabled={busy} onClick={()=>resetPass(t.no,"kidteacher",t.name,t.email)} style={{...ghost,padding:"6px 10px"}}>🔑</button>}
               <button onClick={()=>setForm({type:"teacher",id:t.no,data:{...t}})} style={{...ghost,padding:"6px 10px"}}>✏️</button>
               <button onClick={()=>delTeacher(t)} style={{...ghost,padding:"6px 10px"}}>🗑</button>
             </div>
@@ -7989,7 +8021,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
     regNote:{get ku(){return K("Van agahiyan bide xwendekar — ji beşa XWENDEKAR têkeve.")},en:"Give these to the student — sign in via STUDENT."},
     already:{get ku(){return K("Berê tescîl bûye")},en:"Already registered"},
     err:{get ku(){return K("❌ Çewtî")},en:"❌ Error"},
-  }[k][lang]||k);
+  }[k][lang==="en"?"en":"ku"]||k);
   const STATUS={new:{label:L("stNew"),color:"#2c6b74",bg:"rgba(44,79,124,0.12)"},
     accepted:{label:L("stAcc"),color:"#16a34a",bg:"rgba(22,163,74,0.12)"},
     rejected:{label:L("stRej"),color:"#dc2626",bg:"rgba(220,38,38,0.10)"}};
@@ -8098,35 +8130,37 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
     setRegCreds({name:app.name,no,pass,email:app.email||"",mailed});
   }
 
-  function esc(x){ return String(x==null?"":x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function esc(x){ return String(x==null?"":x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
+  const W=(ku,en)=>lang==="en"?en:K(ku);
+  const safeUrl=u=>/^(https:|blob:|data:image\/)/i.test(String(u||""))?esc(u):"";
   function printList(){
     const rows=shown.map((a,i)=>{
       const st=STATUS[a.status||"new"]||STATUS.new;
       return '<tr><td>'+(i+1)+'</td><td>'+esc(a.name)+'</td><td>'+esc(areaName(a.area,lang)||a.area)+'</td><td>'+esc(a.phone||"")+'</td><td>'+esc(a.dateStr||"")+'</td><td><span class="chip" style="background:'+st.bg+';color:'+st.color+'">'+st.label+'</span></td></tr>';
     }).join("");
-    const body='<h1>Akademîya Aram Tîgran</h1><div class="sub">Lîsteya Serlêdanan · '+new Date().toISOString().slice(0,10)+' · '+shown.length+' serlêdan</div>'
-      +'<table><tr><th>#</th><th>Nav</th><th>Qad</th><th>Têlefon</th><th>Dîrok</th><th>Rewş</th></tr>'+rows+'</table>';
-    openPrintHtml(_printShell("Lîsteya Serlêdanan",body));
+    const body='<h1>Akademîya Aram Tîgran</h1><div class="sub">'+W("Lîsteya Serlêdanan","Application List")+' · '+new Date().toISOString().slice(0,10)+' · '+shown.length+' '+W("serlêdan","applications")+'</div>'
+      +'<table><tr><th>#</th><th>'+W("Nav","Name")+'</th><th>'+W("Qad","Field")+'</th><th>'+W("Têlefon","Phone")+'</th><th>'+W("Dîrok","Date")+'</th><th>'+W("Rewş","Status")+'</th></tr>'+rows+'</table>';
+    openPrintHtml(_printShell(W("Lîsteya Serlêdanan","Application List"),body));
   }
   function printOne(app){
     const st=STATUS[app.status||"new"]||STATUS.new;
-    let body='<h1>'+esc(app.name)+'</h1><div class="sub">Serlêdana Xwendekariyê · '+esc(app.dateStr||"")+' · <span class="chip" style="background:'+st.bg+';color:'+st.color+'">'+st.label+'</span></div>';
-    body+='<div class="info">🎨 <b>Qad:</b> '+esc(areaName(app.area,lang)||app.area)
-      +(app.phone?'<br/>📱 <b>Têlefon:</b> '+esc(app.phone):"")
-      +(app.dob?'<br/>🎂 <b>Roja jidayikbûnê:</b> '+esc(app.dob):"")
-      +(app.studentNo?'<br/>🎓 <b>Jimara Xwendekar:</b> '+esc(app.studentNo):"")
-      +(app.note?'<br/>💬 <b>Nîşe:</b> '+esc(app.note):"")+'</div>';
+    let body='<h1>'+esc(app.name)+'</h1><div class="sub">'+W("Serlêdana Xwendekariyê","Student Application")+' · '+esc(app.dateStr||"")+' · <span class="chip" style="background:'+st.bg+';color:'+st.color+'">'+st.label+'</span></div>';
+    body+='<div class="info">🎨 <b>'+W("Qad","Field")+':</b> '+esc(areaName(app.area,lang)||app.area)
+      +(app.phone?'<br/>📱 <b>'+W("Têlefon","Phone")+':</b> '+esc(app.phone):"")
+      +(app.dob?'<br/>🎂 <b>'+W("Roja jidayikbûnê","Date of birth")+':</b> '+esc(app.dob):"")
+      +(app.studentNo?'<br/>🎓 <b>'+W("Jimara Xwendekar","Student No")+':</b> '+esc(app.studentNo):"")
+      +(app.note?'<br/>💬 <b>'+W("Nîşe","Note")+':</b> '+esc(app.note):"")+'</div>';
     (app.docs||[]).forEach((d2,i)=>{
       const url=typeof d2==="string"?d2:(d2&&d2.file);
-      const nm=typeof d2==="string"?("Belge "+(i+1)):((d2&&d2.name)||("Belge "+(i+1)));
+      const nm=typeof d2==="string"?(W("Belge","Document")+" "+(i+1)):((d2&&d2.name)||(W("Belge","Document")+" "+(i+1)));
       if(!url) return;
       if(docIsPdf(d2,url)){
-        body+='<div class="doclabel">📎 '+esc(nm)+' — PDF (ji sîstemê veke)</div>';
+        body+='<div class="doclabel">📎 '+esc(nm)+' — PDF ('+W("ji sîstemê veke","open in the system")+')</div>';
       } else {
-        body+='<div class="doclabel">📎 '+esc(nm)+'</div><img class="doc" src="'+url+'"/>';
+        body+='<div class="doclabel">📎 '+esc(nm)+'</div><img class="doc" src="'+safeUrl(url)+'"/>';
       }
     });
-    openPrintHtml(_printShell("Serlêdan — "+app.name,body));
+    openPrintHtml(_printShell(W("Serlêdan","Application")+" — "+app.name,body));
   }
 
   const shown=apps.filter(a=>filter==="all"?true:(a.status||"new")===filter);
@@ -8226,7 +8260,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
                   <Avatar name={st.name} color={AREA_MAP[st.area]?.color||"#0f2f38"} size={36} photo={st.photo}/>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:13,fontWeight:700,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{st.name}</div>
-                    <div style={{fontSize:10,color:"var(--text2)",fontFamily:"monospace"}}>{st.no} · {areaName(st.area,lang)} · {(st.classLevel||1)}. Sînif</div>
+                    <div style={{fontSize:10,color:"var(--text2)",fontFamily:"monospace"}}>{st.no} · {areaName(st.area,lang)} · {(st.classLevel||1)}. {lang==="en"?"Class":K("Sînif")}</div>
                     {showPass&&(
                       <div style={{marginTop:5,display:"flex",alignItems:"center",gap:6}}>
                         <span style={{fontSize:11.5,fontFamily:"monospace",fontWeight:800,letterSpacing:"0.06em",
@@ -8311,7 +8345,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
                 <div style={{fontSize:13.5,fontWeight:700,color:"var(--text)"}}>{r.name}</div>
                 {r.file&&<div style={{fontSize:10.5,color:"var(--text2)"}}>📎 {r.fileName||"şablon"}</div>}
               </div>
-              {r.file&&<a href={r.file} download={r.fileName||r.name} style={{background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,color:"var(--text)",textDecoration:"none"}}>⬇</a>}
+              {safeHref(r.file)&&<a href={safeHref(r.file)} rel="noopener" download={r.fileName||r.name} style={{background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,color:"var(--text)",textDecoration:"none"}}>⬇</a>}
               <button onClick={()=>delReq(r)} style={{background:"var(--red-bg)",border:"0.5px solid var(--red)",color:"var(--red)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>🗑</button>
             </div>
           </Card>
@@ -8357,12 +8391,12 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
                     <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                       {docList.map((d2,i)=>{
                         const url=typeof d2==="string"?d2:(d2&&d2.file);
-                        const nm=typeof d2==="string"?("Belge "+(i+1)):((d2&&d2.name)||("Belge "+(i+1)));
+                        const nm=typeof d2==="string"?((lang==="en"?"Document":K("Belge"))+" "+(i+1)):((d2&&d2.name)||((lang==="en"?"Document":K("Belge"))+" "+(i+1)));
                         if(!url) return null;
                         const isPdf=docIsPdf(d2,url);
                         return isPdf
-                          ? <a key={i} href={url} download={nm+".pdf"} style={{display:"flex",alignItems:"center",gap:6,background:"var(--bg2)",border:"1px solid var(--border2)",borderRadius:8,padding:"8px 10px",fontSize:11.5,fontWeight:600,color:"var(--text)",textDecoration:"none"}}>📕 {nm}</a>
-                          : <a key={i} href={url} target="_blank" rel="noopener" style={{textAlign:"center",textDecoration:"none"}}>
+                          ? <a key={i} href={safeHref(url)} rel="noopener" download={nm+".pdf"} style={{display:"flex",alignItems:"center",gap:6,background:"var(--bg2)",border:"1px solid var(--border2)",borderRadius:8,padding:"8px 10px",fontSize:11.5,fontWeight:600,color:"var(--text)",textDecoration:"none"}}>📕 {nm}</a>
+                          : <a key={i} href={safeHref(url)} target="_blank" rel="noopener noreferrer" style={{textAlign:"center",textDecoration:"none"}}>
                               <img src={url} alt={nm} style={{width:96,height:72,objectFit:"cover",borderRadius:8,border:"1px solid var(--border2)",display:"block"}}/>
                               <span style={{fontSize:9.5,color:"var(--text2)"}}>{nm}</span>
                             </a>;
@@ -8435,8 +8469,8 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
               </div>
             </div>
           </div>
-          <button onClick={async()=>{await copyToClipboard(regCreds.no+" / "+regCreds.pass);hapticSuccess();toast("✅ Kopye bû!");}} style={{width:"100%",padding:"13px",background:"#0f2f38",color:"#ffffff",border:"none",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",marginBottom:8}}>
-            📋 Hemûyan Kopye Bike
+          <button onClick={async()=>{await copyToClipboard(regCreds.no+" / "+regCreds.pass);hapticSuccess();toast("✅ "+(lang==="en"?"Copied!":K("Kopye bû!")));}} style={{width:"100%",padding:"13px",background:"#0f2f38",color:"#ffffff",border:"none",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",marginBottom:8}}>
+            📋 {lang==="en"?"Copy All":K("Hemûyan Kopye Bike")}
           </button>
           <button onClick={()=>setRegCreds(null)} style={{width:"100%",padding:"11px",background:"none",border:"0.5px solid var(--border2)",borderRadius:12,fontSize:13,color:"var(--text2)",cursor:"pointer"}}>Bigire</button>
         </Sheet>
@@ -8655,7 +8689,7 @@ function AnnouncementsPanel({t,toast,lang,senderName,senderRole,senderArea}){
                             <span>📄</span>
                             <span style={{fontSize:11,color:"var(--text)"}}>{m.name}</span>
                             <span style={{fontSize:10,color:"var(--text2)"}}>{m.size}</span>
-                            {m.url&&<a href={m.url} download={m.name} style={{marginLeft:"auto",fontSize:11,color:"var(--text)",textDecoration:"none"}}>⬇</a>}
+                            {safeHref(m.url)&&<a href={safeHref(m.url)} rel="noopener" download={m.name} style={{marginLeft:"auto",fontSize:11,color:"var(--text)",textDecoration:"none"}}>⬇</a>}
                           </div>
                         ))}
                       </div>
@@ -8987,7 +9021,8 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
   const [tEnd,setTEnd]=useState("");
   const [tSeason,setTSeason]=useState("bihar");
   const [tArea,setTArea]=useState("");   // "" = hemû qad
-  const SEASONS={bihar:{ku:"🌱 Bihar",tr:"Bahar"},payiz:{ku:"🍂 Payîz",tr:"Sonbahar"},havin:{ku:"☀️ Havîn",tr:"Yaz"},zivistan:{ku:"❄️ Zivistan",tr:"Kış"}};
+  const SEASONS={bihar:{ku:"🌱 Bihar",tr:"Bahar",en:"Spring"},payiz:{ku:"🍂 Payîz",tr:"Sonbahar",en:"Autumn"},havin:{ku:"☀️ Havîn",tr:"Yaz",en:"Summer"},zivistan:{ku:"❄️ Zivistan",tr:"Kış",en:"Winter"}};
+  const seasonName=v=>{const [ic,...w]=v.ku.split(" ");const n=w.join(" ");return ic+" "+(lang==="en"?v.en:K(n));};
   const TL=(k)=>({
     terms:{get ku(){return K("📆 Demsal (Dönemler)")},en:"📆 Terms"},
     active:{get ku(){return K("Çalak")},en:"Active"},
@@ -8998,11 +9033,11 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
     needAll:{get ku(){return K("⚠ Nav û tarîx pêwîst in")},en:"⚠ Name and dates required"},
     allTerms:{get ku(){return K("Hemû demsal")},en:"All terms"},
     noTerm:{get ku(){return K("Bê demsal")},en:"No term"},
-  }[k][lang]||k);
+  }[k][lang==="en"?"en":"ku"]||k);
   function addTerm(){
     if(!tStart||!tEnd){ toast(TL("needAll")); return; }
     const yr=(tStart||"").slice(0,4);
-    const sName=((SEASONS[tSeason]&&SEASONS[tSeason].ku)||"").replace(/^[^ ]+ /,"");
+    const sName=SEASONS[tSeason]?seasonName(SEASONS[tSeason]).replace(/^[^ ]+ /,""):"";
     const autoLabel=(yr+" "+sName+(tArea?(" — "+areaName(tArea,lang)):"")).trim();
     const nt={id:"t"+Date.now(),label:tLabel.trim()||autoLabel,season:tSeason,area:tArea||"",start:tStart,end:tEnd};
     saveTerms({list:[...(terms.list||[]),nt],activeId:terms.activeId||nt.id});
@@ -9167,7 +9202,7 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
                 <select value={tSeason} onChange={e=>setTSeason(e.target.value)}
                   style={{padding:"9px 8px",border:"1px solid var(--border2)",borderRadius:9,fontSize:12,background:"var(--bg2)",color:"var(--text)"}}>
-                  {Object.entries(SEASONS).map(([k2,v2])=>(<option key={k2} value={k2}>{v2.ku} ({v2.tr})</option>))}
+                  {Object.entries(SEASONS).map(([k2,v2])=>(<option key={k2} value={k2}>{seasonName(v2)}</option>))}
                 </select>
                 <select value={tArea} onChange={e=>setTArea(e.target.value)}
                   style={{padding:"9px 8px",border:"1px solid var(--border2)",borderRadius:9,fontSize:12,background:"var(--bg2)",color:"var(--text)"}}>
@@ -9355,7 +9390,7 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
                   </div>
                   <span style={{fontSize:10.5,fontWeight:800,padding:"3px 9px",borderRadius:99,
                     background:cur>=4?"var(--bg2)":"rgba(15,47,56,0.08)",color:cur>=4?"var(--text2)":"var(--accent)"}}>
-                    {cur>=4 ? (cur+". Sînif") : (on ? cur+". → "+(cur+1)+"." : cur+". Sînif")}
+                    {cur>=4 ? (cur+". "+(lang==="en"?"Class":K("Sînif"))) : (on ? cur+". → "+(cur+1)+"." : cur+". "+(lang==="en"?"Class":K("Sînif")))}
                   </span>
                 </div>
               );
@@ -9473,7 +9508,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
       )}
       {showProfileEdit&&(
         <AdminProfileSheet admin={adminData} onClose={()=>setShowProfileEdit(false)} t={t} lang={lang} toast={toast}
-          onSave={(updated)=>{setAdminData(updated);setShowProfileEdit(false);toast("✓ Profîl hate nûkirin");}}/>
+          onSave={(updated)=>{setAdminData(updated);setShowProfileEdit(false);toast("✓ "+(lang==="en"?"Profile updated":K("Profîl hate nûkirin")));}}/>
       )}
     </div>
   );
@@ -9647,7 +9682,7 @@ function StudentStatModal({student,aColor,onClose,t,lang,toast}){
                     color:note===tag?a.color:"#64748b",
                     border:`1px solid ${note===tag?a.color:"var(--border)"}`,
                     fontWeight:note===tag?600:400}}>
-                  {tag}
+                  {lang==="en"?({"Serketî":"Successful","Pêşkeve":"Improving","Bala xwe bide":"Needs attention","Pir baş":"Excellent","Bişopîne":"Follow up"}[tag]||tag):K(tag)}
                 </div>
               ))}
             </div>
@@ -9670,7 +9705,7 @@ function StudentStatModal({student,aColor,onClose,t,lang,toast}){
 
           {/* Contact info */}
           <Card>
-            <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:10}}>📋 Agahiyên Xwendekarê</div>
+            <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:10}}>📋 {lang==="en"?"Student Information":K("Agahiyên Xwendekarê")}</div>
             {[
               {icon:"📱",val:student.phone},
               {icon:"✉️",val:student.email},
@@ -10024,7 +10059,7 @@ tr:hover td{background:#f9fbff}
 <div class="page">
   <div class="header">
     <div class="logo">🏛 Akademîya Aram Tîgran</div>
-    <div class="subtitle">Pergala Rêveberiya Zanistê</div>
+    <div class="subtitle">${lang==="en"?"Academic Management System":K("Pergala Rêveberiya Zanistê")}</div>
     <div class="report-title">📋 ${repTitle}</div>
     <div class="report-sub">${aLabel} · ${weekLabel}</div>
     <div class="meta">
@@ -10089,7 +10124,7 @@ tr:hover td{background:#f9fbff}
 
   <div class="section" style="border-bottom:none">
     <div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:14px;border-top:1px solid #ddd;font-size:11px;color:#666">
-      <span>Karûbarên Xwendekaran / Rêveberî</span><span>Mohr û Îmze: ____________</span>
+      <span>${lang==="en"?"Student Affairs / Administration":K("Karûbarên Xwendekaran / Rêveberî")}</span><span>${lang==="en"?"Stamp / Signature":K("Mohr û Îmze")}: ____________</span>
     </div>
   </div>
   <div class="footer">
@@ -10328,7 +10363,8 @@ function makeSurveyResultsPdf(sv, allResps, lang, byName){
     const texts=rs.map(r=>({name:r.studentName,area:r.studentArea,val:r.answers?.[q.id]})).filter(x=>x.val!=null&&String(x.val).trim()!=="");
     return {q, kind:"text", n:texts.length, texts};
   });
-  const tgt=sv.targetType==="all"?"Hemû Xwendekar":sv.targetType==="area"?("Qad: "+(sv.targetAreas||[]).map(a2=>areaName(a2,lang)).join(", ")):sv.targetType==="teachers"?"Hemû Mamoste":"Mamoste (Qad)";
+  const W=(ku,en)=>lang==="en"?en:K(ku);
+  const tgt=sv.targetType==="all"?W("Hemû Xwendekar","All Students"):sv.targetType==="area"?(W("Qad","Field")+": "+(sv.targetAreas||[]).map(a2=>areaName(a2,lang)).join(", ")):sv.targetType==="teachers"?W("Hemû Mamoste","All Teachers"):W("Mamoste (Qad)","Teachers (Field)");
   let body='<h1>📊 '+esc(sv.title)+'</h1>'
     +'<div class="sub">'+(lang==="en"?"Survey Results":K("Encamên Ankêtê"))+' · '+tgt+' · '+rs.length+' '+(lang==="en"?"responses":K("bersiv"))+' · '+new Date().toISOString().slice(0,10)+'</div>';
   st.forEach((row,i)=>{
@@ -10345,7 +10381,7 @@ function makeSurveyResultsPdf(sv, allResps, lang, byName){
       body+='</div>';
     }
   });
-  body+='<div style="display:flex;justify-content:space-between;margin-top:34px;padding-top:14px;border-top:1px solid #ddd;font-size:11px;color:#666"><span>Karûbarên Xwendekaran</span><span>'+(lang==="en"?"Stamp / Signature":K("Mohr û Îmze"))+': ____________</span></div>';
+  body+='<div style="display:flex;justify-content:space-between;margin-top:34px;padding-top:14px;border-top:1px solid #ddd;font-size:11px;color:#666"><span>'+W("Karûbarên Xwendekaran","Student Affairs")+'</span><span>'+(lang==="en"?"Stamp / Signature":K("Mohr û Îmze"))+': ____________</span></div>';
   openPrintHtml(_printShell((lang==="en"?"Survey Results — ":K("Encamên Ankêtê — "))+sv.title, body));
   logReportArchive({type:"anket",label:(lang==="en"?"Survey: ":K("Ankêt: "))+sv.title,by:byName||""});
 }
@@ -10376,7 +10412,7 @@ function AdminSurveyResultsReport({lang,toast,byName}){
   function pdfOf(sv){ makeSurveyResultsPdf(sv, resps, lang, byName); }
   function csvOf(sv){
     const rs=respsOf(sv);
-    const rows=[["Xwendekar","Qad",...(sv.questions||[]).map(q=>q.text)]];
+    const rows=[[lang==="en"?"Student":K("Xwendekar"),lang==="en"?"Field":K("Qad"),...(sv.questions||[]).map(q=>q.text)]];
     rs.forEach(r=>rows.push([r.studentName||"",areaName(r.studentArea,lang)||"",...(sv.questions||[]).map(q=>r.answers?.[q.id]!=null?r.answers[q.id]:"")]));
     downloadCSV("anket-"+String(sv.title).replace(/[^A-Za-z0-9]+/g,"_").slice(0,40)+".csv",rows);
     logReportArchive({type:"csv",label:"CSV: "+sv.title,by:byName||""});
@@ -10452,8 +10488,10 @@ function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
   const reportDate = new Date().toLocaleDateString(lang==="en"?"en-GB":"ku",{year:"numeric",month:"long",day:"numeric"});
 
   function generateReportHTML(){
+    const W=(ku,en)=>lang==="en"?en:K(ku);
+    const H=x=>String(x==null?"":x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
     const areaInfo = selectedArea==="all"
-      ? {name:"Hemû Qadan", icon:"🏫", color:"#0f2f38", bg:"rgba(15,47,56,0.08)"}
+      ? {name:W("Hemû Qadan","All Fields"), icon:"🏫", color:"#0f2f38", bg:"rgba(15,47,56,0.08)"}
       : AREA_MAP[selectedArea];
     const areaLabel = selectedArea==="all" ? (lang==="en"?"All Fields":K("Hemû Qadan")) : areaName(selectedArea,lang);
 
@@ -10466,27 +10504,27 @@ function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
       let cols = "";
       if(reportType==="attendance"||reportType==="full"){
         cols += `<td style="text-align:center;font-weight:700;color:${attColor};background:${attBg};border-radius:6px;">${attTxt}</td>
-                 <td style="text-align:center;color:#A32D2D;">${st.absent} roj</td>
-                 <td style="text-align:center;color:#854F0B;">${st.late} carî</td>`;
+                 <td style="text-align:center;color:#A32D2D;">${st.absent} ${W("roj","days")}</td>
+                 <td style="text-align:center;color:#854F0B;">${st.late} ${W("carî","times")}</td>`;
       }
       if(reportType==="full"){
-        cols += `<td style="font-size:11px;color:#666;font-style:italic;">${st.note}</td>`;
+        cols += `<td style="font-size:11px;color:#666;font-style:italic;">${H(st.note)}</td>`;
       }
       return `<tr>
-        <td style="font-weight:500;">${s.name}</td>
-        <td style="font-family:monospace;font-size:11px;color:#666;">${s.no}</td>
+        <td style="font-weight:500;">${H(s.name)}</td>
+        <td style="font-family:monospace;font-size:11px;color:#666;">${H(s.no)}</td>
         ${selectedArea==="all"?`<td>${a.icon} ${areaName(s.area,lang)}</td>`:""}
-        ${s.burs?`<td style="font-size:11px;color:#3B6D11;">${s.burs}</td>`:`<td style="color:#aaa;font-size:11px;">—</td>`}
+        ${s.burs?`<td style="font-size:11px;color:#3B6D11;">${H(s.burs)}</td>`:`<td style="color:#aaa;font-size:11px;">—</td>`}
         ${cols}
       </tr>`;
     }).join("");
 
     let headerCols = "";
     if(reportType==="attendance"||reportType==="full"){
-      headerCols += `<th>Amadebûn %</th><th>Tunebûn</th><th>Dereng</th>`;
+      headerCols += `<th>${W("Amadebûn","Attendance")} %</th><th>${W("Tunebûn","Absent")}</th><th>${W("Dereng","Late")}</th>`;
     }
     if(reportType==="full"){
-      headerCols += `<th>Nîşeya Mamoste</th>`;
+      headerCols += `<th>${W("Nîşeya Mamoste","Teacher Note")}</th>`;
     }
 
     const ratedStudents = filteredStudents.filter(s=>getStudentStats(s.id).totalLessons>0);
@@ -10495,12 +10533,12 @@ function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
     const riskCount = ratedStudents.filter(s=>getStudentStats(s.id).att<75).length;
 
     return `<!DOCTYPE html>
-${`<html lang="ku">`}
+${`<html lang="${lang}">`}
 ${`<head><meta charset="UTF-8"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>`}
-<title>Akademîya Aram Tîgran – Rapor</title>
+<title>Akademîya Aram Tîgran – ${W("Rapor","Report")}</title>
 <${'style'}>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f0;color:#1a1a1a;padding:0}
@@ -10538,15 +10576,15 @@ ${`<body>`}
     <div class="summary-row">
       <div class="summary-card">
         <div class="summary-val">${filteredStudents.length}</div>
-        <div class="summary-label">Xwendekarên Tevahî</div>
+        <div class="summary-label">${W("Xwendekarên Tevahî","Total Students")}</div>
       </div>
       <div class="summary-card">
         <div class="summary-val">${avgAtt}%</div>
-        <div class="summary-label">Navgîna Amadebûnê</div>
+        <div class="summary-label">${W("Navgîna Amadebûnê","Average Attendance")}</div>
       </div>
       <div class="summary-card">
         <div class="summary-val">${riskCount}</div>
-        <div class="summary-label">Di Xeterê de</div>
+        <div class="summary-label">${W("Di Xeterê de","At Risk")}</div>
       </div>
     </div>
   </div>
@@ -10559,8 +10597,8 @@ ${`<body>`}
     <table>
       <thead>
         <tr>
-          <th>Navê Xwendekarê</th>
-          <th>Jm. Xwendekarê</th>
+          <th>${W("Navê Xwendekarê","Student Name")}</th>
+          <th>${W("Jm. Xwendekarê","Student No")}</th>
           ${selectedArea==="all"?`<th>${lang==="en"?"Field":K("Qad")}</th>`:""}
           <th>${lang==="en"?"Scholarship":K("Burs / Xelat")}</th>
           ${headerCols}
@@ -10572,7 +10610,7 @@ ${`<body>`}
     </table>
   </div>
   <div class="footer">
-    <span>Akademîya Aram Tîgran – Pergala Rêveberiya Zanistê</span>
+    <span>Akademîya Aram Tîgran – ${W("Pergala Rêveberiya Zanistê","Academic Management System")}</span>
     <span>Ev rapor di ${reportDate} de hatiye amadekirin.</span>
   </div>
 </div>
@@ -10591,19 +10629,20 @@ ${`</html>`}`;
     a.download = `rapor-${areaLabel}-${typeLabel}-${new Date().toISOString().slice(0,10)}.html`;
     a.click();
     URL.revokeObjectURL(url);
-    logReportArchive({type:"liste",label:(reportType==="attendance"?"Amadebûn":"Tevahî")+" · "+(selectedArea==="all"?"Hemû qad":areaName(selectedArea,lang))});
+    logReportArchive({type:"liste",label:(reportType==="attendance"?(lang==="en"?"Attendance":K("Amadebûn")):(lang==="en"?"Full":K("Tevahî")))+" · "+(selectedArea==="all"?(lang==="en"?"All fields":K("Hemû qad")):areaName(selectedArea,lang))});
     toast("✓ "+(lang==="en"?"Report downloaded!":K("Rapor hat dakêşîn!")));
   }
 
   // ⬇ CSV: mevcut liste raporunun tablo hâli
   function downloadListCSV(){
-    const rows=[["Xwendekar","No","Qad","Sînif","Amadebûn %","Tunebûn (roj)","Dereng"]];
+    const W2=(ku,en)=>lang==="en"?en:K(ku);
+    const rows=[[W2("Xwendekar","Student"),"No",W2("Qad","Field"),W2("Sînif","Class"),W2("Amadebûn","Attendance")+" %",W2("Tunebûn (roj)","Absent (days)"),W2("Dereng","Late")]];
     filteredStudents.forEach(st2=>{
       const d=getStudentStats(st2.id);
       rows.push([st2.name,st2.no,areaName(st2.area,lang),(st2.classLevel||1),statHasData(d)?d.att:"",d.absent||0,d.late||0]);
     });
     downloadCSV("rapor-"+(selectedArea==="all"?"hemu":selectedArea)+"-"+new Date().toISOString().slice(0,10)+".csv",rows);
-    logReportArchive({type:"csv",label:"CSV lîste · "+(selectedArea==="all"?"Hemû qad":areaName(selectedArea,lang))});
+    logReportArchive({type:"csv",label:"CSV · "+(selectedArea==="all"?W2("Hemû qad","All fields"):areaName(selectedArea,lang))});
     toast("⬇ CSV");
   }
 
@@ -10677,7 +10716,7 @@ ${`</html>`}`;
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
-<title>Ankêt Raporu – Akademîya Aram Tîgran</title>
+<title>${lang==="en"?"Survey Report":K("Raporu Ankêtê")} – Akademîya Aram Tîgran</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#f8f8f6;color:#1a1a2e;font-size:12px}
@@ -10716,7 +10755,7 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
     </tr>`).join("")}</tbody></table>`}
   </div>
   <div class="footer">
-    <span>Akademîya Aram Tîgran – Survey Report</span>
+    <span>Akademîya Aram Tîgran – ${lang==="en"?"Survey Report":K("Raporu Ankêtê")}</span>
     <span>${new Date().toLocaleDateString()}</span>
   </div>
 </div></body></html>`;
@@ -10810,7 +10849,7 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
           <div style={{background:"var(--surface)",borderRadius:10,padding:"10px 8px",textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
             <div style={{fontSize:20,fontWeight:800,color:"var(--text)"}}>{reportType==="teachers"?filteredTeachers.length:filteredStudents.length}</div>
-            <div style={{fontSize:9,color:"#64748b",marginTop:2}}>{reportType==="teachers"?(lang==="en"?"Teachers":K("Mamoste")):"Xwendekar"}</div>
+            <div style={{fontSize:9,color:"#64748b",marginTop:2}}>{reportType==="teachers"?(lang==="en"?"Teachers":K("Mamoste")):(lang==="en"?"Students":K("Xwendekar"))}</div>
           </div>
           <div style={{background:"var(--surface)",borderRadius:10,padding:"10px 8px",textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
             <div style={{fontSize:20,fontWeight:800,color:hasAttData?pctColor(avgAtt):"#94a3b8"}}>{hasAttData?avgAtt+"%":"—"}</div>
@@ -11250,7 +11289,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
       deleteS:    {get ku(){return K("Jê bibe")},           en:"Delete"},
       edit:       {get ku(){return K("Biguherîne")},        en:"Edit"},
       step1:      {get ku(){return K("Agahî")},             en:"Info"},
-      step2:      {get ku(){return K("Hedef")},             en:"Target"},
+      step2:      {get ku(){return K("Armanc")},             en:"Target"},
       step3:      {get ku(){return K("Encam Cureyê")},      en:"Result Type"},
       step4:      {get ku(){return K("Pirsên")},            en:"Questions"},
       step5:      {get ku(){return K("Belge")},             en:"Document"},
@@ -11504,7 +11543,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
         {/* New question */}
         {editQ==="new"?(
           <div style={{background:"var(--surface)",borderRadius:14,padding:"14px",border:"2px dashed #2c6b74",marginBottom:10}}>
-            <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:10}}>➕ Pirsa Nû</div>
+            <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:10}}>➕ {lang==="en"?"New Question":K("Pirsa Nû")}</div>
             <input style={inputStyle} value={form.ku} onChange={e=>setForm(f=>({...f,ku:e.target.value}))} placeholder="Kurdî — Pirsa Kurdî binivîse..."/>
             <input style={{...inputStyle,marginTop:8}} value={form.en} onChange={e=>setForm(f=>({...f,en:e.target.value}))} placeholder="English question..."/>
             <input style={{...inputStyle,marginTop:8}} value={form.zza||""} onChange={e=>setForm(f=>({...f,zza:e.target.value}))} placeholder="Zazakî — Persa Zazakî binuse..."/>
@@ -11789,7 +11828,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
                     <div style={{fontSize:12,fontWeight:600,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{q.text}</div>
                     <div style={{display:"flex",gap:5,marginTop:3,alignItems:"center"}}>
                       <span style={{fontSize:9,padding:"1px 6px",borderRadius:5,background:rtConf.bg,color:rtConf.color,fontWeight:700}}>
-                        {rtConf.icon} {q.type==="rating"?"Pûan":q.type==="text"?"Nivîs":"MC"}
+                        {rtConf.icon} {q.type==="rating"?(lang==="en"?"Rating":K("Pûan")):q.type==="text"?(lang==="en"?"Text":K("Nivîs")):"MC"}
                         {q.points?` (${q.points}pt)`:""}
                       </span>
                       {q.choices?.length>0&&<span style={{fontSize:9,color:"var(--text2)"}}>{q.choices.join(" · ")}</span>}
@@ -11950,9 +11989,9 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
             <div style={{fontSize:12,fontWeight:700,color:"rgba(255,255,255,.7)",marginBottom:10,textTransform:"uppercase",letterSpacing:"0.06em"}}>📋 {lang==="en"?"Survey Summary":K("Kurtasiya Ankêtê")}</div>
             {[
               {icon:"📝",label:lang==="en"?"Title":K("Sernav"),val:surveyForm.title},
-              {icon:"🎯",label:lang==="en"?"Target":K("Hedef"),val:surveyForm.targetType==="all"?(lang==="en"?"All Students":K("Hemû Xwendekar")):surveyForm.targetType==="teachers"?(lang==="en"?"👨‍🏫 All Teachers":K("👨‍🏫 Hemû Mamoste")):surveyForm.targetType==="teachers_area"?("👨‍🏫 "+surveyForm.targetAreas.map(a=>AREA_MAP[a]?.icon).join(" ")):surveyForm.targetAreas.map(a=>AREA_MAP[a]?.icon).join(" ")},
+              {icon:"🎯",label:lang==="en"?"Target":K("Armanc"),val:surveyForm.targetType==="all"?(lang==="en"?"All Students":K("Hemû Xwendekar")):surveyForm.targetType==="teachers"?(lang==="en"?"👨‍🏫 All Teachers":K("👨‍🏫 Hemû Mamoste")):surveyForm.targetType==="teachers_area"?("👨‍🏫 "+surveyForm.targetAreas.map(a=>AREA_MAP[a]?.icon).join(" ")):surveyForm.targetAreas.map(a=>AREA_MAP[a]?.icon).join(" ")},
               {icon:rtConf.icon,label:lang==="en"?"Result Type":K("Encam Cureyê"),val:rtConf.label[lang]||rtConf.label.ku},
-              {icon:"❓",label:lang==="en"?"Questions":K("Pirsên Hejmara"),val:surveyForm.questions.length+" pirsên"},
+              {icon:"❓",label:lang==="en"?"Questions":K("Pirsên Hejmara"),val:surveyForm.questions.length+" "+(lang==="en"?"questions":K("pirsên"))},
               {icon:"📎",label:lang==="en"?"Documents":K("Belge"),val:surveyForm.allowDocs?(lang==="en"?"Allowed":K("Destûr heye")):(lang==="en"?"Not allowed":K("Nayê destûrkirin"))},
             ].map((row,i)=>(
               <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",borderBottom:i<4?"1px solid rgba(255,255,255,.1)":"none"}}>
@@ -13241,7 +13280,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
   }
 
   const doQRScan=useCallback(()=>{
-    if(!myStudents.length){toast("Xwendekar tune"); return;}
+    if(!myStudents.length){toast(lang==="en"?"No students":K("Xwendekar tune")); return;}
     const unscanned=myStudents.filter(s=>!scannedId||s.id!==scannedId);
     const target=unscanned.length>0?unscanned[Math.floor(Math.random()*unscanned.length)]:myStudents[0];
     setScannedId(target.id);
@@ -13417,7 +13456,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                 </div>
                 <div style={{marginBottom:10}}>
                   <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"var(--text2)",marginBottom:4}}>
-                    <span>{lang==="en"?"QR Attendance":K("QR Yoklama")}</span>
+                    <span>{lang==="en"?"QR Attendance":K("Amadebûna QR")}</span>
                     <span style={{fontWeight:600}}>{Object.values(attendance).filter(v=>v==="on").length} / {myStudents.length}</span>
                   </div>
                   <div style={{height:6,background:"var(--bg2)",borderRadius:3}}>
@@ -13594,7 +13633,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                   {lang==="en"?"Upload Files":K("Pelê Barkirin")}
                 </div>
                 <div style={{fontSize:11,color:a.color,marginTop:4}}>
-                  PDF, Word, PPT, Wêne, Vîdyo
+                  {lang==="en"?"PDF, Word, PPT, Image, Video":K("PDF, Word, PPT, Wêne, Vîdyo")}
                 </div>
               </div>
               <input ref={materialFileRef} type="file" multiple accept="*/*" style={{display:"none"}} onChange={handleMaterialUpload}/>
@@ -13626,7 +13665,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                         <div style={{fontSize:12,color:"var(--text)",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{mat.name}</div>
                         <div style={{fontSize:10,color:"var(--text2)",marginTop:2}}>{mat.size} · {mat.date}</div>
                       </div>
-                      <a href={mat.url} download={mat.name}
+                      <a href={safeHref(mat.url)} rel="noopener" download={mat.name}
                         onClick={e=>e.stopPropagation()}
                         style={{padding:"5px 10px",borderRadius:6,background:a.bg,color:"var(--text)",fontSize:11,fontWeight:500,textDecoration:"none",flexShrink:0}}>
                         ⬇
@@ -13739,7 +13778,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
 
             <Card>
               <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:4}}>
-                📡 {lang==="en"?"QR Attendance":K("QR Yoklama")}
+                📡 {lang==="en"?"QR Attendance":K("Amadebûna QR")}
               </div>
               <div style={{fontSize:11,color:"var(--text2)",marginBottom:14}}>
                 {(selectedScanLesson?mySchedule.find(l=>String(l.id)===selectedScanLesson):currentLesson)?.name||t.activeLesson}
@@ -14263,11 +14302,11 @@ function BiometricModal({ open, onSuccess, onCancel, lang, aColor, user }) {
     confirm:  { get ku(){return K("Piştrast Bike")}, en: "Confirm" },
     cancel:   { get ku(){return K("Betal bike")}, en: "Cancel" },
     usePin:   { get ku(){return K("Şîfreya Hesabê Bikar Bîne")}, en: "Use Account Password" },
-    scanning: { get ku(){return K("Parmak izi / Yüz tanıma bekleniyor…")}, en: "Waiting for biometric…" },
+    scanning: { get ku(){return K("Li benda şopa tiliyê / naskirina rû…")}, en: "Waiting for biometric…" },
     success:  { get ku(){return K("✓ Nasname piştrast bû!")}, en: "✓ Identity verified!" },
     error:    { get ku(){return K("Şaşitî çêbû. Ji nû ve biceribîne.")}, en: "Verification failed. Try again." },
   };
-  const L = (k) => lbl[k]?.[lang] || lbl[k]?.en || "";
+  const L = (k) => lbl[k]?.[lang==="en"?"en":"ku"] || lbl[k]?.ku || "";
 
   return (
     <div style={{
@@ -14321,7 +14360,7 @@ function BiometricModal({ open, onSuccess, onCancel, lang, aColor, user }) {
                 <div style={{textAlign:"left"}}>
                   <div>{L("finger")}</div>
                   <div style={{fontSize:10, fontWeight:400, opacity:0.8, marginTop:2}}>
-                    {lang==="en"?"Fingerprint, Face ID, PIN":K("Parmak izi, Face ID, PIN")}
+                    {lang==="en"?"Fingerprint, Face ID, PIN":K("Şopa tiliyê, Face ID, PIN")}
                   </div>
                 </div>
               </button>
@@ -14469,7 +14508,8 @@ function StudentSurveyView({student, a, lang, toast, mode}) {
     }catch{}
     let unsubR=()=>{};
     try{
-      unsubR=window.__FB.onSnapshot(window.__FB.collection(window.__FB.db,"studentSurveyResponses"),snap=>{
+      // Yalnızca kendi yanıtları (kural da yalnızca studentNo == kendi numarası okumaya izin verir)
+      unsubR=window.__FB.onSnapshot(window.__FB.query(window.__FB.collection(window.__FB.db,"studentSurveyResponses"),window.__FB.where("studentNo","==",String(student.no||""))),snap=>{
         const all=snap.docs.map(x=>x.data());
         try{localStorage.setItem(STUDENT_SURVEY_RESPONSES_KEY,JSON.stringify(all));}catch{}
         setMyResponses(all.filter(r=>r.studentId===student.id));
@@ -14507,6 +14547,7 @@ function StudentSurveyView({student, a, lang, toast, mode}) {
     const resp={
       surveyId: activeSurvey.id,
       studentId: student.id,
+      studentNo: String(student.no||""),
       studentName: student.name,
       studentArea: student.area,
       answers,
@@ -14914,7 +14955,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
     try {
       // 1) Private mesajlar
       const qPrivate = window.__FB.query(window.__FB.collection(window.__FB.db,"messages"),
-        window.__FB.where("recipientId","==",myId), window.__FB.orderBy("createdAt","desc"), window.__FB.limit(50));
+        window.__FB.where("recipientNo","==",String(student.no||"")), window.__FB.orderBy("createdAt","desc"), window.__FB.limit(50));
       // 2) Bulk mesajlar (allStudents, area)
       const qBulk = window.__FB.query(window.__FB.collection(window.__FB.db,"messages"),
         window.__FB.where("recipientGroup","in",["allStudents","all","area_"+myArea]), window.__FB.orderBy("createdAt","desc"), window.__FB.limit(50));
@@ -14989,7 +15030,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
             <div className="pill-row">
               <span className="glass-pill">{a.icon} {areaName(student.area,lang)}</span>
               <span className="glass-pill" style={{fontFamily:"monospace"}}>{student.no}</span>
-              <span className="glass-pill">{(student.classLevel||1)}. Sînif</span>
+              <span className="glass-pill">{(student.classLevel||1)}. {lang==="en"?"Class":K("Sînif")}</span>
             </div>
           </div>
           <button onClick={onLogout} style={{color:"rgba(255,255,255,.6)",background:"rgba(255,255,255,.1)",
@@ -15097,7 +15138,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
             {/* Kurteya Ragihandanan */}
             <SectionHeader>
               {lang==="en"?"Announcements":t.announcements}
-              {unreadCount>0&&<span style={{marginLeft:"auto",fontSize:10,padding:"2px 10px",borderRadius:20,background:"var(--red-bg)",color:"var(--red)",fontWeight:700}}>{unreadCount} {lang==="en"?"new":K("yeni")}</span>}
+              {unreadCount>0&&<span style={{marginLeft:"auto",fontSize:10,padding:"2px 10px",borderRadius:20,background:"var(--red-bg)",color:"var(--red)",fontWeight:700}}>{unreadCount} {lang==="en"?"new":K("nû")}</span>}
             </SectionHeader>
             <Card>
               {announcements.slice(0,2).map((ann,i)=>{
@@ -15152,7 +15193,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
                     <div style={{fontSize:11,color:"var(--text2)"}}>{sess.teacherName}</div>
                     {sess.checkins&&sess.checkins[student.id]&&(
                       <div style={{marginTop:8,fontSize:11,color:"var(--green)",fontWeight:600}}>
-                        ✅ Hûn ketin vê dersê · {sess.checkins[student.id].time}
+                        ✅ {lang==="en"?"You joined this lesson":K("Hûn ketin vê dersê")} · {sess.checkins[student.id].time}
                       </div>
                     )}
                   </div>
@@ -15480,7 +15521,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
                 <span style={{fontSize:32}}>{a.icon}</span>
                 <div>
                   <div style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>{areaName(student.area,lang)}</div>
-                  <div style={{fontSize:11,color:a.color}}>{a.name.desc?.[lang]||""}</div>
+                  <div style={{fontSize:11,color:a.color}}>{a.name.desc?.[lang==="en"?"en":"ku"]||""}</div>
                 </div>
               </div>
               <div style={{fontSize:11,color:"var(--text2)"}}>{lang==="en"?"Student No":K("Jm. Xwendekar")}: <span style={{fontFamily:"monospace",fontWeight:700,color:"var(--text)"}}>{student.no}</span></div>
@@ -15587,7 +15628,7 @@ function ShowHidePass({value, onChange, onEnter}){
         type="button"
         style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",
           background:"none",border:"none",color:"var(--text2)",fontSize:18,cursor:"pointer",padding:4}}
-        aria-label={show?"Şîfre veşêre":"Şîfre nîşan bide"}>
+        aria-label={RL()==="en"?(show?"Hide password":"Show password"):(show?K("Şîfre veşêre"):K("Şîfre nîşan bide"))}>
         {show?"🙈":"👁️"}
       </button>
     </div>
@@ -16594,7 +16635,7 @@ function StudentQRScanner({student, onClose, toast, lang="ku"}){
       {status==="scanning"&&(
         <div style={{position:"absolute",top:12,right:12,zIndex:10}}>
           {navigator.share&&(
-            <button onClick={()=>shareContent({title:"Akademîya Aram Tîgran QR",text:"Ji bo tescîla dersê QR-a min / Mein QR-Code für Anwesenheit"})}
+            <button onClick={()=>shareContent({title:"Akademîya Aram Tîgran QR",text:RL()==="en"?"My QR code for lesson attendance":K("Ji bo tescîla dersê QR-a min")})}
               style={{background:"rgba(255,255,255,0.15)",border:"none",borderRadius:10,
                 padding:"8px 10px",fontSize:14,cursor:"pointer",color:"#fff"}}
               aria-label="Share QR">
@@ -16693,7 +16734,7 @@ function OfflineBanner({online}){
       <span style={{fontSize:15}}>{justCame?"✅":"📡"}</span>
       <div style={{flex:1}}>
         <div style={{color:"#fff",fontSize:11,fontWeight:700}}>
-          {justCame?"Bağlantı yeniden kuruldu / Girêdan vegeriya":"Bağlantı yok – Çevrimdışı mod / Offline"}
+          {RL()==="en"?(justCame?"Connection restored":"No connection – offline mode"):(justCame?K("Girêdan vegeriya"):K("Girêdan tune – moda derhêl"))}
         </div>
         {!justCame&&<div style={{color:"rgba(255,255,255,0.7)",fontSize:9}}>Veriler önbellekten yüklendi. İnternete bağlanıldığında senkronize edilecek.</div>}
       </div>
@@ -16818,7 +16859,7 @@ class ErrorBoundary extends React.Component {
           <button onClick={()=>window.location.reload()}
             style={{background:"#0f2f38",color:"#ffffff",border:"none",borderRadius:8,
               padding:"12px 28px",fontSize:14,fontWeight:700,cursor:"pointer"}}>
-            🔄 Ji nû ve bar bike · Reload · Neu laden
+            🔄 Ji nû ve bar bike · Yeniden yükle · Reload
           </button>
         </div>
       );
@@ -17406,7 +17447,7 @@ function App(){
         if(typeof Notification!=="undefined"&&Notification.permission==="granted"){
           sendLocalNotification(
             "Akademîya Aram Tîgran",
-            (type==="student"?"Xweş hatî: ":"Mamoste: ")+user.name,
+            (RL()==="en"?(type==="student"?"Welcome: ":"Teacher: "):(type==="student"?K("Xweş hatî: "):K("Mamoste")+": "))+user.name,
             {tag:"aat-login"}
           );
         }
@@ -17420,6 +17461,12 @@ function App(){
     if(window.__FB && window.__FB.isConfigured()){
       window.__FB.authSignOut().catch(()=>{});
     }
+    // Ortak cihaz güvenliği: kullanıcıya özel önbellekleri temizle (anket yanıtları, uyarılar, geri bildirim)
+    try{
+      ["aat-alerts","aat-survey-responses","aat-student-survey-responses","aat-student-surveys","aat-survey-questions"].forEach(k=>localStorage.removeItem(k));
+      Object.keys(localStorage).filter(k=>/^aat-feedback-/.test(k)).forEach(k=>localStorage.removeItem(k));
+      sessionStorage.clear();
+    }catch(_){}
     setAuthEmail(null); // önce temizle: geri-yükleme effect'i kullanıcıyı tekrar girişe almasın
     setScreen("login");
     setCurrentUser(null);
@@ -17530,7 +17577,7 @@ if (window.__FB_READY) {
    açılış 4–8 sn hızlanır. Kod değişince (özet farklı) otomatik yeniden derlenir. */
 (function(){
   var SRC=document.getElementById('aat-src').textContent;
-  var BABEL='https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.22.5/babel.min.js';
+  var BABEL='vendor/babel.min.js';
   function hash(s){var a=2166136261>>>0;for(var i=0;i<s.length;i++){a^=s.charCodeAt(i);a=Math.imul(a,16777619)>>>0;}return a.toString(36)+'-'+s.length;}
   var KEY='jsx-'+hash(SRC);
   function run(js){var el=document.createElement('script');el.text=js;document.body.appendChild(el);}

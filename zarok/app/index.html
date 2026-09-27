@@ -2,8 +2,11 @@
 <html lang="ku">
 <head>
 <meta charset="UTF-8"/>
+<!-- Güvenlik: sayfa başka bir sitenin çerçevesine (iframe) gömülürse gizle ve çerçeveden çık (clickjacking koruması; GitHub Pages X-Frame-Options başlığı gönderemez) -->
+<style id="aat-antiframe">html{display:none!important}</style>
+<script>(function(){if(window.self===window.top){var s=document.getElementById('aat-antiframe');if(s)s.parentNode.removeChild(s);}else{try{window.top.location=window.self.location.href;}catch(e){}}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://www.gstatic.com http://127.0.0.1:9099 http://127.0.0.1:8080 ws://127.0.0.1:8080; base-uri 'self'; form-action 'self'"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://www.gstatic.com http://127.0.0.1:9099 http://127.0.0.1:8080 ws://127.0.0.1:8080; base-uri 'self'; form-action 'self'; object-src 'none'"/>
 <meta name="referrer" content="strict-origin-when-cross-origin"/>
 <meta name="theme-color" content="#0f2f38"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -35,7 +38,7 @@ body{background:var(--bg);color:var(--ink);font-family:Nunito,"Segoe UI",system-
 button,input,textarea,select{font:inherit;color:inherit}
 button{cursor:pointer}
 #app{min-height:100%;display:flex;flex-direction:column;max-width:560px;margin:0 auto}
-.demo{background:var(--coral);color:#fff;text-align:center;font-weight:800;font-size:13px;padding:6px calc(10px + env(safe-area-inset-right)) 6px}
+.banner{background:var(--coral);color:#fff;text-align:center;font-weight:800;font-size:13px;padding:6px calc(10px + env(safe-area-inset-right)) 6px}
 .top{padding:calc(14px + env(safe-area-inset-top)) 16px 10px;display:flex;align-items:center;gap:10px}
 .top .logo{width:42px;height:42px;border-radius:14px;flex-shrink:0}
 .top .t1{font-weight:900;font-size:18px;line-height:1.1}
@@ -139,9 +142,9 @@ canvas.draw{width:100%;height:58vh;background:#fff;border-radius:24px;touch-acti
      Akademisyen raporlarından gelen Zazakî/Kurmancî düzeltmeleri lang-pack.js → AAT_ZAROK ile birleşir. -->
 <script id="zt" type="application/json">
 {
- "ku":{"appTitle": "Akademiya Zarokan","appSub": "Akademîya Aram Tîgran","parentLogin": "Têketina Dêûbav û Mamosteyan","loginNote": "Ev sepan ji bo dêûbav û mamosteyên Akademiya Zarokan e. Jimara têketinê û şîfre ji aliyê Karûbarên Xwendekaran ve tên şandin.","no": "Jimara dêûbav","pass": "Şîfre","signIn": "Têkeve","forgot": "Şîfre ji bîr kir?","forgotTxt": "Ji Karûbarên Xwendekaran re binivîse (info@aramtigran.edu) an jî telefon bike — şîfreyeke nû ji we re tê şandin.","errCred": "Jimare an şîfre xelet e.","errNotGuardian": "Ev hesab ne hesabê dêûbav e. Xwendekar û mamoste ji sepana sereke têkevin.","errNet": "Girêdan tune. Dîsa biceribîne.","toMainApp": "Xwendekar an mamoste? Sepana sereke →","toSite": "Derbarê Akademiya Zarokan / Serlêdan →","demoBanner": "DEMO — daneyên mînak, ne rastîn","demoLogin": "Mînakê bibîne (demo)","tabToday": "Îro","tabSched": "Bername","tabAtt": "Amadebûn","tabAnn": "Ragihandin","tabMsg": "Peyam","hello": "Silav, {0}","statusIn": "Di dersê de ye","statusOut": "Hate teslîmkirin","statusNone": "Îro hîn nehatiye","since": "ji {0} ve","at": "saet {0}","todayLessons": "Dersên îro","noLessonsToday": "Îro ders tune 🌤","week": "Bernameya hefteyê","noSched": "Hîn bername nehatiye danîn.","att30": "30 rojên dawî","attDays": "{0} roj hat","arrived": "Hat","left": "Çû","noAtt": "Hîn tomar tune.","noAnn": "Ragihandin tune.","msgHint": "Peyama we diçe Karûbarên Xwendekaran; bersiv li vir xuya dibe.","msgPh": "Peyamek binivîse…","send": "Bişîne","noMsg": "Hîn peyam tune.","academy": "Akademî","settings": "Mîheng","language": "Ziman","theme": "Tarî / ronahî","kidMode": "Moda Zarokan","kidModeDesc": "Telefonê bide zarokê xwe: tenê ekrana wî/wê ya taybet xuya dibe (bê peyam, bê mîheng). Ji bo derketinê PIN-a dêûbav pêwîst e.","setPin": "PIN-a dêûbav (4 hejmar)","pinSaved": "✅ PIN hate tomarkirin","pinNeed": "⚠ 4 hejmar binivîse","startKidMode": "▶ Moda Zarokan Veke","exitKid": "Ji bo derketinê PIN-a dêûbav","exitMath": "Ji bo derketinê bersivê bide: {0}","wrong": "Xelet — dîsa biceribîne","perms": "Destûr û ewlehî","pickups": "Kesên ku dikarin zarokê bibin","pickupPh": "Nav — yekîtî (mînak: Xalê Rênas)","add": "Zêde bike","consentPhoto": "Di dersê de wêne/vîdyo were kişandin","consentShare": "Wêne li ser malperê were parvekirin","health": "Nîşeya tenduristiyê (alerjî, derman…)","save": "Tomar bike","saved": "✅ Hate tomarkirin","changePass": "Şîfreyê biguherîne","curPass": "Şîfreya niha","newPass": "Şîfreya nû (herî kêm 6 tîp)","passChanged": "✅ Şîfre hate guhertin","passShort": "⚠ Herî kêm 6 tîp","install": "Sepanê saz bike","installIos": "Safari → Parve bike ⬆ → «Li Ekrana Sereke Zêde Bike»","installed": "✅ Sepan sazkirî ye","notif": "Agahdarî","notifNote": "Dema zarok dikeve dersê an tê teslîmkirin, agahdarî tê (dema sepan vekirî be).","notifOn": "✅ Agahdarî çalak e","logout": "Derkeve","kvkk": "KVKK / Nepenî","evIn": "🟢 {0} ket dersê","evOut": "🏠 {0} hate teslîmkirin","kidHello": "Silav {0}! 👋","kidToday": "Îro","kidStars": "Stêrkên min","kidDraw": "Wêne çêke","kidClear": "Paqij bike","kidBack": "← Vegere","kidNoLesson": "Îro betlane ye! 🎈","kidStarsNote": "Her car ku tu tê dersê, stêrkek! ⭐","noKids": "Hîn zarok bi hesabê we ve girêdayî nîne. Ji Karûbarên Xwendekaran bipirsin.","loading": "Tê barkirin…","offline": "Girêdan tune — daneyên dawî","teacher": "Mamoste","room": "Ode","d0": "Yekşem","d1": "Duşem","d2": "Sêşem","d3": "Çarşem","d4": "Pêncşem","d5": "În","d6": "Şemî","area_muzik": "Muzîk","area_tiyatro": "Şano","area_sinema": "Sînema","area_dans": "Dans","area_edebiyat": "Çîrok û Wêje","area_wenesazi": "Wênesazî","roleParent": "Dêûbav","roleTeacher": "Mamoste","teacherNo": "Jimara mamoste","errNotTeacher": "Ev hesab ne hesabê mamosteyê Akademiya Zarokan e.","teacherHello": "Silav, {0}","tabKids": "Zarok","markIn": "Hat","markOut": "Çû","notArrived": "hîn nehatiye","inClass": "Di dersê de","pickedUp": "Hate teslîmkirin","onlyToday": "Tenê dersên îro","allKids": "Hemû zarok","contacts": "Têkilî","annTitlePh": "Sernav","annBodyPh": "Ji bo dêûbavan nivîs…","sendAnn": "📢 Ji dêûbavan re bişîne","annSent": "✅ Hat şandin","needText": "⚠ Sernav û nivîs pêwîst in","back": "← Vegere","replyPh": "Bersiv binivîse…","noKidsT": "Hîn zarok nehatiye tomarkirin.","attToday": "Amadebûna îro","presentCount": "{0} / {1} hatin","pickups2": "Dikarin bibin","health2": "Tenduristî","callParent": "Telefon","myLesson": "Dersa min","parentPh": "92026001","teacherPh": "72026001","demoTeacher": "Mînaka mamoste (demo)"},
- "tr":{"appTitle": "Çocuk Akademisi","appSub": "Aram Tîgran Akademisi","parentLogin": "Veli ve Öğretmen Girişi","loginNote": "Bu uygulama Çocuk Akademisi velileri ve öğretmenleri içindir. Giriş numarası ve şifre öğrenci işleri tarafından gönderilir.","no": "Veli numarası","pass": "Şifre","signIn": "Giriş Yap","forgot": "Şifremi unuttum","forgotTxt": "Öğrenci işlerine yazın (info@aramtigran.edu) veya arayın — size yeni bir şifre gönderilir.","errCred": "Numara veya şifre hatalı.","errNotGuardian": "Bu hesap bir veli hesabı değil. Öğrenci ve öğretmenler ana uygulamadan giriş yapar.","errNet": "Bağlantı yok. Tekrar deneyin.","toMainApp": "Öğrenci veya öğretmen misiniz? Ana uygulama →","toSite": "Çocuk Akademisi hakkında / Başvuru →","demoBanner": "DEMO — örnek veriler, gerçek değil","demoLogin": "Örneği gör (demo)","tabToday": "Bugün","tabSched": "Program","tabAtt": "Devam","tabAnn": "Duyurular","tabMsg": "Mesaj","hello": "Merhaba, {0}","statusIn": "Derste","statusOut": "Teslim edildi","statusNone": "Bugün henüz gelmedi","since": "{0}'dan beri","at": "saat {0}","todayLessons": "Bugünkü dersler","noLessonsToday": "Bugün ders yok 🌤","week": "Haftalık program","noSched": "Henüz program girilmedi.","att30": "Son 30 gün","attDays": "{0} gün geldi","arrived": "Geldi","left": "Ayrıldı","noAtt": "Henüz kayıt yok.","noAnn": "Duyuru yok.","msgHint": "Mesajınız öğrenci işlerine gider; yanıt burada görünür.","msgPh": "Mesaj yazın…","send": "Gönder","noMsg": "Henüz mesaj yok.","academy": "Akademi","settings": "Ayarlar","language": "Dil","theme": "Koyu / açık","kidMode": "Çocuk Modu","kidModeDesc": "Telefonu çocuğunuza verin: yalnızca ona özel ekran görünür (mesaj ve ayar yok). Çıkmak için veli PIN'i gerekir.","setPin": "Veli PIN'i (4 rakam)","pinSaved": "✅ PIN kaydedildi","pinNeed": "⚠ 4 rakam girin","startKidMode": "▶ Çocuk Modunu Aç","exitKid": "Çıkmak için veli PIN'i","exitMath": "Çıkmak için cevaplayın: {0}","wrong": "Yanlış — tekrar deneyin","perms": "İzinler ve güvenlik","pickups": "Çocuğu alabilecek kişiler","pickupPh": "Ad — yakınlık (ör. Dayısı Rênas)","add": "Ekle","consentPhoto": "Derste fotoğraf/video çekilebilir","consentShare": "Fotoğraf sitede paylaşılabilir","health": "Sağlık notu (alerji, ilaç…)","save": "Kaydet","saved": "✅ Kaydedildi","changePass": "Şifre değiştir","curPass": "Mevcut şifre","newPass": "Yeni şifre (en az 6 karakter)","passChanged": "✅ Şifre değiştirildi","passShort": "⚠ En az 6 karakter","install": "Uygulamayı yükle","installIos": "Safari → Paylaş ⬆ → «Ana Ekrana Ekle»","installed": "✅ Uygulama yüklü","notif": "Bildirimler","notifNote": "Çocuğunuz derse girdiğinde veya teslim edildiğinde bildirim gelir (uygulama açıkken).","notifOn": "✅ Bildirimler açık","logout": "Çıkış yap","kvkk": "KVKK Aydınlatma Metni","evIn": "🟢 {0} derse girdi","evOut": "🏠 {0} teslim edildi","kidHello": "Merhaba {0}! 👋","kidToday": "Bugün","kidStars": "Yıldızlarım","kidDraw": "Resim yap","kidClear": "Temizle","kidBack": "← Geri","kidNoLesson": "Bugün tatil! 🎈","kidStarsNote": "Derse her gelişinde bir yıldız! ⭐","noKids": "Hesabınıza bağlı çocuk yok. Öğrenci işlerine başvurun.","loading": "Yükleniyor…","offline": "Bağlantı yok — son veriler","teacher": "Öğretmen","room": "Sınıf","d0": "Pazar","d1": "Pazartesi","d2": "Salı","d3": "Çarşamba","d4": "Perşembe","d5": "Cuma","d6": "Cumartesi","area_muzik": "Müzik","area_tiyatro": "Tiyatro","area_sinema": "Sinema","area_dans": "Dans","area_edebiyat": "Masal ve Edebiyat","area_wenesazi": "Resim","roleParent": "Veli","roleTeacher": "Öğretmen","teacherNo": "Öğretmen numarası","errNotTeacher": "Bu hesap bir Çocuk Akademisi öğretmen hesabı değil.","teacherHello": "Merhaba, {0}","tabKids": "Çocuklar","markIn": "Geldi","markOut": "Çıktı","notArrived": "henüz gelmedi","inClass": "Derste","pickedUp": "Teslim edildi","onlyToday": "Yalnızca bugünkü dersler","allKids": "Tüm çocuklar","contacts": "İletişim","annTitlePh": "Başlık","annBodyPh": "Velilere mesaj…","sendAnn": "📢 Velilere gönder","annSent": "✅ Gönderildi","needText": "⚠ Başlık ve metin gerekli","back": "← Geri","replyPh": "Yanıt yazın…","noKidsT": "Henüz çocuk kaydı yok.","attToday": "Bugünkü yoklama","presentCount": "{0} / {1} geldi","pickups2": "Alabilecekler","health2": "Sağlık","callParent": "Ara","myLesson": "Dersim","parentPh": "92026001","teacherPh": "72026001","demoTeacher": "Öğretmen örneği (demo)"},
- "en":{"appTitle": "Kids Academy","appSub": "Aram Tîgran Academy","parentLogin": "Parent & Teacher Sign-in","loginNote": "This app is for Kids Academy parents and teachers. Login numbers and passwords are sent by Student Affairs.","no": "Parent number","pass": "Password","signIn": "Sign in","forgot": "Forgot password?","forgotTxt": "Write to Student Affairs (info@aramtigran.edu) or call — a new password will be sent to you.","errCred": "Wrong number or password.","errNotGuardian": "This is not a parent account. Students and teachers sign in to the main app.","errNet": "No connection. Please try again.","toMainApp": "Student or teacher? Main app →","toSite": "About the Kids Academy / Apply →","demoBanner": "DEMO — sample data, not real","demoLogin": "See a sample (demo)","tabToday": "Today","tabSched": "Schedule","tabAtt": "Attendance","tabAnn": "News","tabMsg": "Messages","hello": "Hello, {0}","statusIn": "In class","statusOut": "Picked up","statusNone": "Not arrived today","since": "since {0}","at": "at {0}","todayLessons": "Today's lessons","noLessonsToday": "No lessons today 🌤","week": "Weekly schedule","noSched": "No schedule yet.","att30": "Last 30 days","attDays": "Came {0} days","arrived": "Arrived","left": "Left","noAtt": "No records yet.","noAnn": "No announcements.","msgHint": "Your message goes to Student Affairs; replies appear here.","msgPh": "Write a message…","send": "Send","noMsg": "No messages yet.","academy": "Academy","settings": "Settings","language": "Language","theme": "Dark / light","kidMode": "Kid Mode","kidModeDesc": "Hand the phone to your child: only their own screen is shown (no messages, no settings). The parent PIN is needed to exit.","setPin": "Parent PIN (4 digits)","pinSaved": "✅ PIN saved","pinNeed": "⚠ Enter 4 digits","startKidMode": "▶ Start Kid Mode","exitKid": "Parent PIN to exit","exitMath": "Answer to exit: {0}","wrong": "Wrong — try again","perms": "Permissions & safety","pickups": "People who may pick up","pickupPh": "Name — relation (e.g. Uncle Rênas)","add": "Add","consentPhoto": "Photos/videos may be taken in class","consentShare": "Photos may be shared on the website","health": "Health note (allergy, medication…)","save": "Save","saved": "✅ Saved","changePass": "Change password","curPass": "Current password","newPass": "New password (min 6 chars)","passChanged": "✅ Password changed","passShort": "⚠ At least 6 characters","install": "Install app","installIos": "Safari → Share ⬆ → «Add to Home Screen»","installed": "✅ App installed","notif": "Notifications","notifNote": "Get notified when your child checks in or is picked up (while the app is open).","notifOn": "✅ Notifications on","logout": "Sign out","kvkk": "Privacy notice (KVKK)","evIn": "🟢 {0} checked in","evOut": "🏠 {0} was picked up","kidHello": "Hi {0}! 👋","kidToday": "Today","kidStars": "My stars","kidDraw": "Draw","kidClear": "Clear","kidBack": "← Back","kidNoLesson": "No class today! 🎈","kidStarsNote": "A star every time you come to class! ⭐","noKids": "No child is linked to your account yet. Please contact Student Affairs.","loading": "Loading…","offline": "Offline — last data","teacher": "Teacher","room": "Room","d0": "Sunday","d1": "Monday","d2": "Tuesday","d3": "Wednesday","d4": "Thursday","d5": "Friday","d6": "Saturday","area_muzik": "Music","area_tiyatro": "Theatre","area_sinema": "Cinema","area_dans": "Dance","area_edebiyat": "Stories & Literature","area_wenesazi": "Painting","roleParent": "Parent","roleTeacher": "Teacher","teacherNo": "Teacher number","errNotTeacher": "This is not a Kids Academy teacher account.","teacherHello": "Hello, {0}","tabKids": "Children","markIn": "In","markOut": "Out","notArrived": "not arrived yet","inClass": "In class","pickedUp": "Picked up","onlyToday": "Only today's lessons","allKids": "All children","contacts": "Contacts","annTitlePh": "Title","annBodyPh": "Message to parents…","sendAnn": "📢 Send to parents","annSent": "✅ Sent","needText": "⚠ Title and text required","back": "← Back","replyPh": "Write a reply…","noKidsT": "No children registered yet.","attToday": "Today's attendance","presentCount": "{0} / {1} present","pickups2": "May pick up","health2": "Health","callParent": "Call","myLesson": "My lesson","parentPh": "92026001","teacherPh": "72026001","demoTeacher": "Teacher sample (demo)"},
+ "ku":{"appTitle": "Akademiya Zarokan","appSub": "Akademîya Aram Tîgran","parentLogin": "Têketina Dêûbav û Mamosteyan","loginNote": "Ev sepan ji bo dêûbav û mamosteyên Akademiya Zarokan e. Jimara têketinê û şîfre ji aliyê Karûbarên Xwendekaran ve tên şandin.","no": "Jimara dêûbav","pass": "Şîfre","signIn": "Têkeve","forgot": "Şîfre ji bîr kir?","forgotTxt": "Ji Karûbarên Xwendekaran re binivîse (info@aramtigran.edu) an jî telefon bike — şîfreyeke nû ji we re tê şandin.","errCred": "Jimare an şîfre xelet e.","errNotGuardian": "Ev hesab ne hesabê dêûbav e. Xwendekar û mamoste ji sepana sereke têkevin.","errNet": "Girêdan tune. Dîsa biceribîne.","toMainApp": "Xwendekar an mamoste? Sepana sereke →","toSite": "Derbarê Akademiya Zarokan / Serlêdan →","tabToday": "Îro","tabSched": "Bername","tabAtt": "Amadebûn","tabAnn": "Ragihandin","tabMsg": "Peyam","hello": "Silav, {0}","statusIn": "Di dersê de ye","statusOut": "Hate teslîmkirin","statusNone": "Îro hîn nehatiye","since": "ji {0} ve","at": "saet {0}","todayLessons": "Dersên îro","noLessonsToday": "Îro ders tune 🌤","week": "Bernameya hefteyê","noSched": "Hîn bername nehatiye danîn.","att30": "30 rojên dawî","attDays": "{0} roj hat","arrived": "Hat","left": "Çû","noAtt": "Hîn tomar tune.","noAnn": "Ragihandin tune.","msgHint": "Peyama we diçe Karûbarên Xwendekaran; bersiv li vir xuya dibe.","msgPh": "Peyamek binivîse…","send": "Bişîne","noMsg": "Hîn peyam tune.","academy": "Akademî","settings": "Mîheng","language": "Ziman","theme": "Tarî / ronahî","kidMode": "Moda Zarokan","kidModeDesc": "Telefonê bide zarokê xwe: tenê ekrana wî/wê ya taybet xuya dibe (bê peyam, bê mîheng). Ji bo derketinê PIN-a dêûbav pêwîst e.","setPin": "PIN-a dêûbav (4 hejmar)","pinSaved": "✅ PIN hate tomarkirin","pinNeed": "⚠ 4 hejmar binivîse","startKidMode": "▶ Moda Zarokan Veke","exitKid": "Ji bo derketinê PIN-a dêûbav","exitMath": "Ji bo derketinê bersivê bide: {0}","wrong": "Xelet — dîsa biceribîne","perms": "Destûr û ewlehî","pickups": "Kesên ku dikarin zarokê bibin","pickupPh": "Nav — yekîtî (mînak: Xalê Rênas)","add": "Zêde bike","consentPhoto": "Di dersê de wêne/vîdyo were kişandin","consentShare": "Wêne li ser malperê were parvekirin","health": "Nîşeya tenduristiyê (alerjî, derman…)","save": "Tomar bike","saved": "✅ Hate tomarkirin","changePass": "Şîfreyê biguherîne","curPass": "Şîfreya niha","newPass": "Şîfreya nû (herî kêm 6 tîp)","passChanged": "✅ Şîfre hate guhertin","passShort": "⚠ Herî kêm 6 tîp","install": "Sepanê saz bike","installIos": "Safari → Parve bike ⬆ → «Li Ekrana Sereke Zêde Bike»","installed": "✅ Sepan sazkirî ye","notif": "Agahdarî","notifNote": "Dema zarok dikeve dersê an tê teslîmkirin, agahdarî tê (dema sepan vekirî be).","notifOn": "✅ Agahdarî çalak e","logout": "Derkeve","kvkk": "KVKK / Nepenî","evIn": "🟢 {0} ket dersê","evOut": "🏠 {0} hate teslîmkirin","kidHello": "Silav {0}! 👋","kidToday": "Îro","kidStars": "Stêrkên min","kidDraw": "Wêne çêke","kidClear": "Paqij bike","kidBack": "← Vegere","kidNoLesson": "Îro betlane ye! 🎈","kidStarsNote": "Her car ku tu tê dersê, stêrkek! ⭐","noKids": "Hîn zarok bi hesabê we ve girêdayî nîne. Ji Karûbarên Xwendekaran bipirsin.","loading": "Tê barkirin…","offline": "Girêdan tune — daneyên dawî","teacher": "Mamoste","room": "Ode","d0": "Yekşem","d1": "Duşem","d2": "Sêşem","d3": "Çarşem","d4": "Pêncşem","d5": "În","d6": "Şemî","area_muzik": "Muzîk","area_tiyatro": "Şano","area_sinema": "Sînema","area_dans": "Dans","area_edebiyat": "Çîrok û Wêje","area_wenesazi": "Wênesazî","roleParent": "Dêûbav","roleTeacher": "Mamoste","teacherNo": "Jimara mamoste","errNotTeacher": "Ev hesab ne hesabê mamosteyê Akademiya Zarokan e.","teacherHello": "Silav, {0}","tabKids": "Zarok","markIn": "Hat","markOut": "Çû","notArrived": "hîn nehatiye","inClass": "Di dersê de","pickedUp": "Hate teslîmkirin","onlyToday": "Tenê dersên îro","allKids": "Hemû zarok","contacts": "Têkilî","annTitlePh": "Sernav","annBodyPh": "Ji bo dêûbavan nivîs…","sendAnn": "📢 Ji dêûbavan re bişîne","annSent": "✅ Hat şandin","needText": "⚠ Sernav û nivîs pêwîst in","back": "← Vegere","replyPh": "Bersiv binivîse…","noKidsT": "Hîn zarok nehatiye tomarkirin.","attToday": "Amadebûna îro","presentCount": "{0} / {1} hatin","pickups2": "Dikarin bibin","health2": "Tenduristî","callParent": "Telefon","myLesson": "Dersa min","parentPh": "92026001","teacherPh": "72026001"},
+ "tr":{"appTitle": "Çocuk Akademisi","appSub": "Aram Tîgran Akademisi","parentLogin": "Veli ve Öğretmen Girişi","loginNote": "Bu uygulama Çocuk Akademisi velileri ve öğretmenleri içindir. Giriş numarası ve şifre öğrenci işleri tarafından gönderilir.","no": "Veli numarası","pass": "Şifre","signIn": "Giriş Yap","forgot": "Şifremi unuttum","forgotTxt": "Öğrenci işlerine yazın (info@aramtigran.edu) veya arayın — size yeni bir şifre gönderilir.","errCred": "Numara veya şifre hatalı.","errNotGuardian": "Bu hesap bir veli hesabı değil. Öğrenci ve öğretmenler ana uygulamadan giriş yapar.","errNet": "Bağlantı yok. Tekrar deneyin.","toMainApp": "Öğrenci veya öğretmen misiniz? Ana uygulama →","toSite": "Çocuk Akademisi hakkında / Başvuru →","tabToday": "Bugün","tabSched": "Program","tabAtt": "Devam","tabAnn": "Duyurular","tabMsg": "Mesaj","hello": "Merhaba, {0}","statusIn": "Derste","statusOut": "Teslim edildi","statusNone": "Bugün henüz gelmedi","since": "{0}'dan beri","at": "saat {0}","todayLessons": "Bugünkü dersler","noLessonsToday": "Bugün ders yok 🌤","week": "Haftalık program","noSched": "Henüz program girilmedi.","att30": "Son 30 gün","attDays": "{0} gün geldi","arrived": "Geldi","left": "Ayrıldı","noAtt": "Henüz kayıt yok.","noAnn": "Duyuru yok.","msgHint": "Mesajınız öğrenci işlerine gider; yanıt burada görünür.","msgPh": "Mesaj yazın…","send": "Gönder","noMsg": "Henüz mesaj yok.","academy": "Akademi","settings": "Ayarlar","language": "Dil","theme": "Koyu / açık","kidMode": "Çocuk Modu","kidModeDesc": "Telefonu çocuğunuza verin: yalnızca ona özel ekran görünür (mesaj ve ayar yok). Çıkmak için veli PIN'i gerekir.","setPin": "Veli PIN'i (4 rakam)","pinSaved": "✅ PIN kaydedildi","pinNeed": "⚠ 4 rakam girin","startKidMode": "▶ Çocuk Modunu Aç","exitKid": "Çıkmak için veli PIN'i","exitMath": "Çıkmak için cevaplayın: {0}","wrong": "Yanlış — tekrar deneyin","perms": "İzinler ve güvenlik","pickups": "Çocuğu alabilecek kişiler","pickupPh": "Ad — yakınlık (ör. Dayısı Rênas)","add": "Ekle","consentPhoto": "Derste fotoğraf/video çekilebilir","consentShare": "Fotoğraf sitede paylaşılabilir","health": "Sağlık notu (alerji, ilaç…)","save": "Kaydet","saved": "✅ Kaydedildi","changePass": "Şifre değiştir","curPass": "Mevcut şifre","newPass": "Yeni şifre (en az 6 karakter)","passChanged": "✅ Şifre değiştirildi","passShort": "⚠ En az 6 karakter","install": "Uygulamayı yükle","installIos": "Safari → Paylaş ⬆ → «Ana Ekrana Ekle»","installed": "✅ Uygulama yüklü","notif": "Bildirimler","notifNote": "Çocuğunuz derse girdiğinde veya teslim edildiğinde bildirim gelir (uygulama açıkken).","notifOn": "✅ Bildirimler açık","logout": "Çıkış yap","kvkk": "KVKK Aydınlatma Metni","evIn": "🟢 {0} derse girdi","evOut": "🏠 {0} teslim edildi","kidHello": "Merhaba {0}! 👋","kidToday": "Bugün","kidStars": "Yıldızlarım","kidDraw": "Resim yap","kidClear": "Temizle","kidBack": "← Geri","kidNoLesson": "Bugün tatil! 🎈","kidStarsNote": "Derse her gelişinde bir yıldız! ⭐","noKids": "Hesabınıza bağlı çocuk yok. Öğrenci işlerine başvurun.","loading": "Yükleniyor…","offline": "Bağlantı yok — son veriler","teacher": "Öğretmen","room": "Sınıf","d0": "Pazar","d1": "Pazartesi","d2": "Salı","d3": "Çarşamba","d4": "Perşembe","d5": "Cuma","d6": "Cumartesi","area_muzik": "Müzik","area_tiyatro": "Tiyatro","area_sinema": "Sinema","area_dans": "Dans","area_edebiyat": "Masal ve Edebiyat","area_wenesazi": "Resim","roleParent": "Veli","roleTeacher": "Öğretmen","teacherNo": "Öğretmen numarası","errNotTeacher": "Bu hesap bir Çocuk Akademisi öğretmen hesabı değil.","teacherHello": "Merhaba, {0}","tabKids": "Çocuklar","markIn": "Geldi","markOut": "Çıktı","notArrived": "henüz gelmedi","inClass": "Derste","pickedUp": "Teslim edildi","onlyToday": "Yalnızca bugünkü dersler","allKids": "Tüm çocuklar","contacts": "İletişim","annTitlePh": "Başlık","annBodyPh": "Velilere mesaj…","sendAnn": "📢 Velilere gönder","annSent": "✅ Gönderildi","needText": "⚠ Başlık ve metin gerekli","back": "← Geri","replyPh": "Yanıt yazın…","noKidsT": "Henüz çocuk kaydı yok.","attToday": "Bugünkü yoklama","presentCount": "{0} / {1} geldi","pickups2": "Alabilecekler","health2": "Sağlık","callParent": "Ara","myLesson": "Dersim","parentPh": "92026001","teacherPh": "72026001"},
+ "en":{"appTitle": "Kids Academy","appSub": "Aram Tîgran Academy","parentLogin": "Parent & Teacher Sign-in","loginNote": "This app is for Kids Academy parents and teachers. Login numbers and passwords are sent by Student Affairs.","no": "Parent number","pass": "Password","signIn": "Sign in","forgot": "Forgot password?","forgotTxt": "Write to Student Affairs (info@aramtigran.edu) or call — a new password will be sent to you.","errCred": "Wrong number or password.","errNotGuardian": "This is not a parent account. Students and teachers sign in to the main app.","errNet": "No connection. Please try again.","toMainApp": "Student or teacher? Main app →","toSite": "About the Kids Academy / Apply →","tabToday": "Today","tabSched": "Schedule","tabAtt": "Attendance","tabAnn": "News","tabMsg": "Messages","hello": "Hello, {0}","statusIn": "In class","statusOut": "Picked up","statusNone": "Not arrived today","since": "since {0}","at": "at {0}","todayLessons": "Today's lessons","noLessonsToday": "No lessons today 🌤","week": "Weekly schedule","noSched": "No schedule yet.","att30": "Last 30 days","attDays": "Came {0} days","arrived": "Arrived","left": "Left","noAtt": "No records yet.","noAnn": "No announcements.","msgHint": "Your message goes to Student Affairs; replies appear here.","msgPh": "Write a message…","send": "Send","noMsg": "No messages yet.","academy": "Academy","settings": "Settings","language": "Language","theme": "Dark / light","kidMode": "Kid Mode","kidModeDesc": "Hand the phone to your child: only their own screen is shown (no messages, no settings). The parent PIN is needed to exit.","setPin": "Parent PIN (4 digits)","pinSaved": "✅ PIN saved","pinNeed": "⚠ Enter 4 digits","startKidMode": "▶ Start Kid Mode","exitKid": "Parent PIN to exit","exitMath": "Answer to exit: {0}","wrong": "Wrong — try again","perms": "Permissions & safety","pickups": "People who may pick up","pickupPh": "Name — relation (e.g. Uncle Rênas)","add": "Add","consentPhoto": "Photos/videos may be taken in class","consentShare": "Photos may be shared on the website","health": "Health note (allergy, medication…)","save": "Save","saved": "✅ Saved","changePass": "Change password","curPass": "Current password","newPass": "New password (min 6 chars)","passChanged": "✅ Password changed","passShort": "⚠ At least 6 characters","install": "Install app","installIos": "Safari → Share ⬆ → «Add to Home Screen»","installed": "✅ App installed","notif": "Notifications","notifNote": "Get notified when your child checks in or is picked up (while the app is open).","notifOn": "✅ Notifications on","logout": "Sign out","kvkk": "Privacy notice (KVKK)","evIn": "🟢 {0} checked in","evOut": "🏠 {0} was picked up","kidHello": "Hi {0}! 👋","kidToday": "Today","kidStars": "My stars","kidDraw": "Draw","kidClear": "Clear","kidBack": "← Back","kidNoLesson": "No class today! 🎈","kidStarsNote": "A star every time you come to class! ⭐","noKids": "No child is linked to your account yet. Please contact Student Affairs.","loading": "Loading…","offline": "Offline — last data","teacher": "Teacher","room": "Room","d0": "Sunday","d1": "Monday","d2": "Tuesday","d3": "Wednesday","d4": "Thursday","d5": "Friday","d6": "Saturday","area_muzik": "Music","area_tiyatro": "Theatre","area_sinema": "Cinema","area_dans": "Dance","area_edebiyat": "Stories & Literature","area_wenesazi": "Painting","roleParent": "Parent","roleTeacher": "Teacher","teacherNo": "Teacher number","errNotTeacher": "This is not a Kids Academy teacher account.","teacherHello": "Hello, {0}","tabKids": "Children","markIn": "In","markOut": "Out","notArrived": "not arrived yet","inClass": "In class","pickedUp": "Picked up","onlyToday": "Only today's lessons","allKids": "All children","contacts": "Contacts","annTitlePh": "Title","annBodyPh": "Message to parents…","sendAnn": "📢 Send to parents","annSent": "✅ Sent","needText": "⚠ Title and text required","back": "← Back","replyPh": "Write a reply…","noKidsT": "No children registered yet.","attToday": "Today's attendance","presentCount": "{0} / {1} present","pickups2": "May pick up","health2": "Health","callParent": "Call","myLesson": "My lesson","parentPh": "92026001","teacherPh": "72026001"},
  "zza":{}
 }
 </script>
@@ -151,7 +154,6 @@ canvas.draw{width:100%;height:58vh;background:#fff;border-radius:24px;touch-acti
 //  Akademiya Zarokan — VELİ uygulaması (yalnızca veli girişi)
 //  • Giriş: <veliNo>@veli.aat (Firebase Auth). Çocuğun kendi hesabı yoktur.
 //  • Veri: guardians · kids · kidAttendance · kidSchedule · kidAnnouncements · kidMessages
-//  • ?demo=1 → Firebase'e bağlanmadan örnek verilerle çalışır.
 // ════════════════════════════════════════════════════════════════════════
 const FB_CONFIG = {
   apiKey: "AIzaSyDwzScCH_NTnpEfmSlgIRlOkGivMWc9bGw",
@@ -166,7 +168,6 @@ const MAIN_APP = "../../app/";           // alan adı ayrılınca: "https://akad
 const SITE = "../";                       // Zarok tanıtım/başvuru sayfası
 const KVKK = "../../kvkk.html";
 const Q = new URLSearchParams(location.search);
-const DEMO = Q.has("demo");
 const EMU = Q.has("emu");                 // yerel test: Firebase emülatörleri
 
 // ── Dil ──────────────────────────────────────────────────────────────────
@@ -224,8 +225,7 @@ function cleanup() { while (unsubs.length) { try { unsubs.pop()(); } catch (_) {
 async function signIn(no, pass) {
   S.err = "";
   const clean = String(no || "").replace(/[^A-Za-z0-9]/g, "");
-  if (!clean || !pass) { S.err = T("errCred"); render(); return; }
-  if (DEMO) { S.role === "teacher" ? startDemoTeacher() : startDemo(); return; }
+  if (!clean || !pass) { S.err = "errCred"; render(); return; }
   // Veli: <no>@veli.aat · Öğretmen: önce çocuk öğretmeni (<no>@zmamoste.aat), sonra akademi öğretmeni (<no>@ogretmen.aat)
   const emails = S.role === "teacher" ? [clean + "@zmamoste.aat", clean + "@ogretmen.aat"] : [clean + "@veli.aat"];
   let lastErr = null;
@@ -233,12 +233,12 @@ async function signIn(no, pass) {
     try { await FB.au.signInWithEmailAndPassword(FB.auth, em, pass); return; }
     catch (e) { lastErr = e; if (/network/.test(e.code || "")) break; }
   }
-  S.err = /network/.test((lastErr && lastErr.code) || "") ? T("errNet") : T("errCred"); render();
+  S.err = /network/.test((lastErr && lastErr.code) || "") ? "errNet" : "errCred"; render();
 }
 async function onSignedIn(u) {
   const email = u.email || "";
   if (/@(zmamoste|ogretmen)\.aat$/i.test(email)) return onTeacherSignedIn(u);
-  if (!/@veli\.aat$/i.test(email)) { await FB.au.signOut(FB.auth); S.phase = "login"; S.err = T("errNotGuardian"); render(); return; }
+  if (!/@veli\.aat$/i.test(email)) { await FB.au.signOut(FB.auth); S.phase = "login"; S.err = "errNotGuardian"; render(); return; }
   S.mode = "guardian";
   const no = email.split("@")[0];
   S.phase = "loading"; S.user = { no }; render();
@@ -248,7 +248,7 @@ async function onSignedIn(u) {
     if (!g.exists()) throw { code: "permission-denied" };
     S.guardian = { no, ...g.data() };
   } catch (e) {
-    await FB.au.signOut(FB.auth); S.phase = "login"; S.err = e.code === "unavailable" ? T("errNet") : T("errNotGuardian"); render(); return;
+    await FB.au.signOut(FB.auth); S.phase = "login"; S.err = e.code === "unavailable" ? "errNet" : "errNotGuardian"; render(); return;
   }
   cleanup();
   const listen = (q, fn) => unsubs.push(onSnapshot(q, snap => { fn(snap.docs.map(d => ({ ...d.data(), id: d.id }))); render(); }, err => console.warn("[zarok]", err.code)));
@@ -267,11 +267,12 @@ async function onTeacherSignedIn(u) {
   const { doc, getDoc, getDocs, collection, query, where, orderBy, limit, onSnapshot } = FB.fs;
   try {
     let name = "";
-    if (kidT) { const d = await getDoc(doc(FB.db, "kidTeachers", no)); if (!d.exists()) throw { code: "permission-denied" }; name = d.data().name || ""; }
-    else { const q = await getDocs(query(collection(FB.db, "teachers"), where("no", "==", no))); if (q.empty) throw { code: "permission-denied" }; name = q.docs[0].data().name || ""; }
+    // Hem çocuk öğretmeni hem akademi öğretmeni için kidTeachers/<no> kaydı gerekir
+    // (akademi öğretmeni, Öğrenci İşleri tarafından çocuk akademisine bağlanmış olmalı)
+    const d = await getDoc(doc(FB.db, "kidTeachers", no)); if (!d.exists()) throw { code: "permission-denied" }; name = d.data().name || "";
     S.teacher = { no, name, kind: kidT ? "kid" : "academy" };
   } catch (e) {
-    await FB.au.signOut(FB.auth); S.phase = "login"; S.err = e.code === "unavailable" ? T("errNet") : T("errNotTeacher"); render(); return;
+    await FB.au.signOut(FB.auth); S.phase = "login"; S.err = e.code === "unavailable" ? "errNet" : "errNotTeacher"; render(); return;
   }
   cleanup(); S.mode = "teacher"; S.tab = "att";
   const listen = (q, fn) => unsubs.push(onSnapshot(q, snap => { fn(snap.docs.map(d => ({ ...d.data(), id: d.id }))); render(); }, err => console.warn("[zarok]", err.code)));
@@ -284,7 +285,6 @@ async function onTeacherSignedIn(u) {
   S.phase = "home"; render();
 }
 async function tWrite(kind, a, b) {
-  if (DEMO) return demoTWrite(kind, a, b);
   const { doc, updateDoc, addDoc, collection, serverTimestamp } = FB.fs;
   const by = (S.teacher && S.teacher.name) || "";
   if (kind === "att") return addDoc(collection(FB.db, "kidAttendance"), { kidId: a.id, kidNo: a.no || "", kidName: a.name || "", guardianNos: a.guardianNos || [], type: b, date: todayStr(), time: new Date().toISOString(), by, createdAt: serverTimestamp() });
@@ -304,79 +304,16 @@ function notifyNewAtt(list) {
   }
 }
 async function write(kind, ...args) {
-  if (DEMO) return demoWrite(kind, ...args);
   const { doc, updateDoc, addDoc, collection, serverTimestamp } = FB.fs;
   if (kind === "kid") return updateDoc(doc(FB.db, "kids", args[0]), { ...args[1], updatedAt: serverTimestamp() });
   if (kind === "msg") return addDoc(collection(FB.db, "kidMessages"), { guardianNo: S.guardian.no, guardianName: S.guardian.name || "", kidId: args[1] ? args[1].id : "", kidName: args[1] ? args[1].name : "", text: args[0], from: "guardian", read: false, createdAt: serverTimestamp() });
-}
-
-// ── Demo ─────────────────────────────────────────────────────────────────
-function startDemo() {
-  const d = todayStr(), now = new Date(), dow = now.getDay();
-  const iso = (hh, mm, back) => { const x = new Date(); x.setDate(x.getDate() - (back || 0)); x.setHours(hh, mm, 0, 0); return x.toISOString(); };
-  S.mode = "guardian"; S.tab = "today"; S.user = { no: "92026001" }; S.guardian = { no: "92026001", name: "Leyla Aram", phone: "0555 000 00 00" };
-  S.kids = [
-    { id: "k1", no: "82026001", name: "Rojda", area: "muzik", guardianNos: ["92026001"], pickups: ["Xalê Rênas — xal"], consentPhoto: true, consentShare: false, health: "Alerjiya fistiqan" },
-    { id: "k2", no: "82026002", name: "Baran", area: "wenesazi", guardianNos: ["92026001"], pickups: [], consentPhoto: true, consentShare: true, health: "" }
-  ];
-  S.att = [{ id: "a1", kidId: "k1", kidName: "Rojda", type: "in", date: d, time: iso(14, 2) }];
-  for (let b = 1; b < 30; b++) { const x = new Date(); x.setDate(x.getDate() - b); if ([2, 4, 6].includes(x.getDay())) { S.att.push({ id: "r" + b, kidId: "k1", kidName: "Rojda", type: "in", date: x.toISOString().slice(0, 10), time: iso(14, 5, b) }, { id: "o" + b, kidId: "k1", kidName: "Rojda", type: "out", date: x.toISOString().slice(0, 10), time: iso(15, 32, b) }); }
-    if ([3, 6].includes(x.getDay())) S.att.push({ id: "b" + b, kidId: "k2", kidName: "Baran", type: "in", date: x.toISOString().slice(0, 10), time: iso(11, 0, b) }); }
-  S.att.sort((a, b) => b.time.localeCompare(a.time));
-  S.sched = [
-    { id: "s1", day: dow, start: "14:00", end: "15:30", title: "Muzîka Zarokan — Tembûr", area: "muzik", teacher: "Mamoste Hêvî", room: "A2" },
-    { id: "s2", day: dow, start: "16:00", end: "17:00", title: "Koroya Zarokan", area: "muzik", teacher: "Mamoste Azad", room: "Salon" },
-    { id: "s3", day: (dow + 2) % 7, start: "11:00", end: "12:30", title: "Rengên Min — Wênesazî", area: "wenesazi", teacher: "Mamoste Nûdem", room: "B1" },
-    { id: "s4", day: (dow + 4) % 7, start: "14:00", end: "15:30", title: "Muzîka Zarokan — Ritm", area: "muzik", teacher: "Mamoste Hêvî", room: "A2" }
-  ];
-  S.anns = [
-    { id: "n1", title: "Şahiya dawiya demsalê 🎉", body: "Roja Şemiyê saet 15:00 de zarokên me li salona mezin stranan dibêjin û wêneyên xwe pêşkêş dikin. Hûn hemû vexwendî ne!", createdAt: Date.now() - 864e5 },
-    { id: "n2", title: "Pêdiviyên dersa wênesaziyê", body: "Ji kerema xwe ji bo Baran û hevalên wî fîstanek kevn (ji bo boyaxê) bişînin.", createdAt: Date.now() - 4 * 864e5 }
-  ];
-  S.msgs = [
-    { id: "m1", from: "guardian", text: "Silav, Rojda sibê dibe ku 15 deqe dereng bê.", createdAt: Date.now() - 2 * 864e5 },
-    { id: "m2", from: "staff", text: "Silav Leyla xanim, spas ji bo agahdariyê. Em ê ji mamosteyê re bibêjin. 🌸", createdAt: Date.now() - 2 * 864e5 + 36e5 }
-  ];
-  S.phase = "home"; resumeKidMode(); render();
-  // 12 sn sonra canlı bildirim örneği: Baran derse girer
-  setTimeout(() => { const r = { id: "live1", kidId: "k2", kidName: "Baran", type: "in", date: todayStr(), time: new Date().toISOString() }; S.seenAtt = new Set(S.att.map(x => x.id)); S.att.unshift(r); notifyNewAtt(S.att); render(); }, 12000);
-}
-function startDemoTeacher() {
-  const dow = new Date().getDay(), d = todayStr();
-  const iso = (hh, mm) => { const x = new Date(); x.setHours(hh, mm, 0, 0); return x.toISOString(); };
-  S.mode = "teacher"; S.tab = "att"; S.user = { no: "72026001" }; S.teacher = { no: "72026001", name: "Mamoste Hêvî", kind: "kid" };
-  S.guards = [{ no: "92026001", name: "Leyla Aram", phone: "0555 000 00 00", phone2: "Xalê Rênas 0555 111 11 11" }, { no: "92026002", name: "Zelal Demir", phone: "0555 222 22 22" }, { no: "92026003", name: "Azad Kaya", phone: "0555 333 33 33" }];
-  S.kids = [
-    { id: "k1", no: "82026001", name: "Rojda Aram", area: "muzik", teacherNo: "72026001", guardianNos: ["92026001"], pickups: ["Xalê Rênas"], health: "Alerjiya fistiqan" },
-    { id: "k3", no: "82026003", name: "Hêvîn Demir", area: "muzik", teacherNo: "72026001", guardianNos: ["92026002"], pickups: [], health: "" },
-    { id: "k4", no: "82026004", name: "Dilan Kaya", area: "muzik", teacherNo: "72026001", guardianNos: ["92026003"], pickups: ["Dapîr"], health: "" },
-    { id: "k2", no: "82026002", name: "Baran Aram", area: "wenesazi", guardianNos: ["92026001"], pickups: [], health: "" }];
-  S.att = [{ id: "a1", kidId: "k1", kidName: "Rojda Aram", type: "in", date: d, time: iso(14, 2) }];
-  S.sched = [{ id: "s1", day: dow, start: "14:00", end: "15:30", title: "Muzîka Zarokan — Tembûr", area: "muzik", teacher: "Mamoste Hêvî", teacherNo: "72026001", room: "A2" },
-    { id: "s3", day: (dow + 2) % 7, start: "11:00", end: "12:30", title: "Rengên Min — Wênesazî", area: "wenesazi", teacher: "Mamoste Nûdem", room: "B1" }];
-  S.anns = [{ id: "n1", title: "Şahiya dawiya demsalê 🎉", body: "Roja Şemiyê saet 15:00 de zarokên me li salona mezin stranan dibêjin.", createdAt: Date.now() - 864e5, by: "Karûbarên Xwendekaran" }];
-  S.msgs = [{ id: "m1", guardianNo: "92026002", guardianName: "Zelal Demir", kidName: "Hêvîn Demir", from: "guardian", text: "Hêvîn îro 15 deqe dereng tê.", read: false, createdAt: Date.now() - 36e5 }];
-  S.phase = "home"; render();
-}
-function demoTWrite(kind, a, b) {
-  if (kind === "att") S.att.unshift({ id: "d" + Date.now(), kidId: a.id, kidName: a.name, type: b, date: todayStr(), time: new Date().toISOString() });
-  if (kind === "ann") S.anns.unshift({ id: "d" + Date.now(), title: a, body: b, createdAt: Date.now(), by: S.teacher.name });
-  if (kind === "reply") S.msgs.push({ id: "d" + Date.now(), guardianNo: a, from: "staff", text: b, by: S.teacher.name, createdAt: Date.now() });
-  if (kind === "read") { const m = S.msgs.find(x => x.id === a); if (m) m.read = true; }
-  render(); return Promise.resolve();
-}
-function demoWrite(kind, ...a) {
-  if (kind === "kid") { const k = S.kids.find(x => x.id === a[0]); Object.assign(k, a[1]); }
-  if (kind === "msg") { S.msgs.push({ id: "d" + Date.now(), from: "guardian", text: a[0], createdAt: Date.now() });
-    setTimeout(() => { S.msgs.push({ id: "d" + Date.now() + "r", from: "staff", text: lang === "en" ? "Thank you, we received your message. 🌸" : lang === "tr" ? "Teşekkürler, mesajınızı aldık. 🌸" : "Spas, peyama we gihîşt me. 🌸", createdAt: Date.now() }); render(); }, 2500); }
-  return Promise.resolve();
 }
 
 // ── Görünümler ───────────────────────────────────────────────────────────
 function viewLogin() {
   const isT = S.role === "teacher";
   const noIn = h("input", { class: "in", id: "l-no", inputmode: "numeric", autocomplete: "username", placeholder: isT ? T("teacherPh") : T("parentPh"), value: S.drafts.no || "", oninput: e => S.drafts.no = e.target.value });
-  const setRole = r => { S.role = r; S.err = ""; try { localStorage.setItem("zarok-role", r); } catch (_) {} if (DEMO) { S.drafts.no = r === "teacher" ? "72026001" : "92026001"; } render(); };
+  const setRole = r => { S.role = r; S.err = ""; try { localStorage.setItem("zarok-role", r); } catch (_) {} render(); };
   const pwIn = h("input", { class: "in", id: "l-pw", type: "password", autocomplete: "current-password", value: S.drafts.pw || "", oninput: e => S.drafts.pw = e.target.value, onkeydown: e => { if (e.key === "Enter") go(); } });
   const go = () => signIn(noIn.value, pwIn.value);
   return h("div", { class: "login" },
@@ -391,12 +328,11 @@ function viewLogin() {
       h("div", { class: "muted" }, T("loginNote")),
       h("label", { class: "lb", for: "l-no" }, isT ? T("teacherNo") : T("no")), noIn,
       h("label", { class: "lb", for: "l-pw" }, T("pass")), pwIn,
-      h("div", { class: "err", role: "alert" }, S.err || ""),
+      h("div", { class: "err", role: "alert" }, S.err ? T(S.err) : ""),
       h("button", { class: "btn", onclick: go }, T("signIn"))),
     langRow(),
     h("div", { class: "links" },
       h("button", { onclick: () => toast(T("forgotTxt"), 7000) }, "🔑 " + T("forgot")),
-      DEMO ? null : h("a", { href: "?demo=1" }, "👀 " + T("demoLogin")),
       h("a", { href: SITE }, T("toSite")),
       h("a", { href: MAIN_APP }, T("toMainApp"))));
 }
@@ -413,7 +349,6 @@ function kidStatus(k) {
 }
 function header() {
   return [
-    DEMO ? h("div", { class: "demo" }, "👀 " + T("demoBanner")) : null,
     h("div", { class: "top" },
       h("img", { class: "logo", src: "icons/icon-192.png", alt: "" }),
       h("div", null, h("div", { class: "t1" }, T("appTitle")), h("div", { class: "t2" }, S.mode === "teacher" ? "👩‍🏫 " + T("teacherHello", (S.teacher && S.teacher.name) || "") : T("hello", (S.guardian && S.guardian.name || "").split(" ")[0]))),
@@ -423,7 +358,7 @@ function header() {
       return h("button", { class: "kidchip" + (i === S.kidIdx ? " on" : ""), onclick: () => { S.kidIdx = i; render(); } },
         h("span", { class: "av", style: "background:" + col + "22" }, em), k.name);
     })) : null,
-    S.online ? null : h("div", { class: "demo", style: "background:#6b7a85" }, "📡 " + T("offline"))
+    S.online ? null : h("div", { class: "banner", style: "background:#6b7a85" }, "📡 " + T("offline"))
   ];
 }
 function viewToday() {
@@ -640,14 +575,14 @@ function viewSettings() {
       window.Notification ? h("button", { class: "btn alt sm", style: "margin-top:10px", onclick: async () => { const p = await Notification.requestPermission(); if (p === "granted") toast(T("notifOn")); render(); } }, Notification.permission === "granted" ? T("notifOn") : "🔔 " + T("notif")) : null),
     h("div", { class: "card" }, h("div", { class: "h" }, "📲 " + T("install")),
       standalone ? h("div", { class: "muted" }, T("installed")) : deferredInstall ? h("button", { class: "btn alt sm", onclick: async () => { deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall = null; render(); } }, "➕ " + T("install")) : h("div", { class: "muted" }, T("installIos"))),
-    DEMO ? null : h("div", { class: "card" }, h("div", { class: "h" }, "🔑 " + T("changePass")), cur, nw,
+    h("div", { class: "card" }, h("div", { class: "h" }, "🔑 " + T("changePass")), cur, nw,
       h("button", { class: "btn alt sm", style: "margin-top:10px", onclick: async () => {
         if ((nw.value || "").length < 6) { toast(T("passShort")); return; }
         try { const u = FB.auth.currentUser; await FB.au.reauthenticateWithCredential(u, FB.au.EmailAuthProvider.credential(u.email, cur.value)); await FB.au.updatePassword(u, nw.value); cur.value = nw.value = ""; toast(T("passChanged")); }
         catch (e) { toast("❌ " + (e.code === "auth/invalid-credential" || e.code === "auth/wrong-password" ? T("errCred") : e.code)); } } }, T("save"))),
     h("div", { class: "card" },
       h("a", { href: KVKK, style: "display:block;font-weight:800;color:inherit;margin-bottom:12px" }, "📄 " + T("kvkk")),
-      h("button", { class: "btn", style: "background:var(--bad)", onclick: async () => { S.sheet = null; if (DEMO) { location.href = "./"; return; } await FB.au.signOut(FB.auth); } }, "⎋ " + T("logout"))));
+      h("button", { class: "btn", style: "background:var(--bad)", onclick: async () => { S.sheet = null; await FB.au.signOut(FB.auth); } }, "⎋ " + T("logout"))));
 }
 
 // ── Çocuk modu (ebeveyn kilitli) ─────────────────────────────────────────
@@ -751,8 +686,7 @@ function render() {
 // ── Başlat ───────────────────────────────────────────────────────────────
 document.documentElement.lang = lang;
 if ("serviceWorker" in navigator && !EMU) navigator.serviceWorker.register("sw.js").catch(() => {});
-if (DEMO) { S.phase = "login"; S.drafts.no = "92026001"; S.drafts.pw = "demo1234"; render(); }
-else { S.phase = "boot"; render(); initFirebase().catch(e => { console.error(e); S.phase = "login"; S.err = T("errNet"); render(); }); }
+S.phase = "boot"; render(); initFirebase().catch(e => { console.error(e); S.phase = "login"; S.err = "errNet"; render(); });
 </script>
 </body>
 </html>

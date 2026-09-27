@@ -83,15 +83,52 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   ok('Çocuk öğretmene atanır', kid && kid.fields.teacherNo.stringValue === tno);
   await clickText(p, 'Baş e');
 
-  // 3) Site haberi yayınla
-  await clickText(p, 'Nûçeyên Malperê'); await p.waitForTimeout(400);
-  await clickText(p, 'Nûçeya nû'); await p.waitForTimeout(300);
-  await p.locator('label:has-text("Sernav") + input').fill('Konsera zarokan');
-  await p.locator('label:has-text("Nivîs") + textarea').fill('Roja Şemiyê konsera me heye.');
-  await clickText(p, 'Türkçe'); await p.locator('label:has-text("Sernav") + input').fill('Çocuk konseri');
-  await clickText(p, '📤 Biweşîne'); await p.waitForTimeout(2500);
+  // 3) Yönetici TÜRKÇE arayüzde Basın kartı açar (önceden "K is not a function" ile çöküyordu);
+  //    çocuk sitesi haberini artık BASIN kullanıcısı yayınlar (ana akademideki görev ayrımı)
+  const trc = await b.newContext({ viewport: { width: 1280, height: 900 } }); await routes(trc);
+  await trc.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'tr'); } catch (_) {} });
+  const ap = await trc.newPage(); ap.on('pageerror', e => errs.push('tr-yönetici: ' + e.message)); ap.on('dialog', d => d.accept());
+  await ap.goto('http://localhost:8765/app/?emu=1'); await ap.waitForSelector('input[type=password]', { timeout: 60000 });
+  await ap.getByText('Öğretmen', { exact: true }).first().click();
+  await ap.locator('input.inp').first().fill('1000'); await ap.locator('input[type=password]').first().fill('Admin123');
+  await ap.getByText('Giriş Yap', { exact: true }).last().click(); await ap.waitForTimeout(8000);
+  await clickText(ap, 'Basın', true); await ap.waitForTimeout(800);
+  await clickText(ap, '➕ Kartı Kaydet'); await ap.waitForTimeout(600);
+  const crashed = () => ap.evaluate(() => document.body.innerText.includes('An Error Occurred'));
+  ok('TR: Basın kartı formu açılır (çökme yok)', !(await crashed()) && (await ap.evaluate(() => document.body.innerText)).includes('Basın Kartı Kaydet'));
+  await ap.locator('input[placeholder="Ad ve Soyad"]').last().fill('Basın Sorumlusu');
+  await ap.evaluate(() => { const bs = [...document.querySelectorAll('button')].filter(x => x.offsetParent && x.textContent.includes('Kartı Kaydet')); bs[bs.length - 1].click(); });
+  await ap.waitForFunction(() => document.body.innerText.includes('Kartı Kaydedildi'), null, { timeout: 20000 }).catch(() => {});
+  const [pno, ppass] = await ap.evaluate(() => [...document.querySelectorAll('div')].filter(d => d.offsetParent && d.style.fontFamily === 'monospace' && d.children.length === 0).map(d => d.textContent.trim()).slice(-2));
+  ok('TR: Basın kartı kaydedilir (numara + şifre)', /^99\d+$/.test(pno || '') && (ppass || '').length >= 6 && !(await crashed()), 'no ' + pno);
+  // Kayıt arka planda sürer (Firestore + Auth hesabı): dizine düşmesini bekle
+  for (let i = 0; i < 30 && !(await list('idx_staff')).some(d => d.name.endsWith('/' + pno)); i++) await ap.waitForTimeout(500);
+  await ap.waitForTimeout(2000);
+  ok('Basın kartı dizine "press" seviyesiyle yazıldı', (await list('idx_staff')).some(d => d.name.endsWith('/' + pno) && d.fields.lvl.stringValue === 'press'));
+  await trc.close();
+
+  const pc = await b.newContext({ viewport: { width: 1280, height: 900 } }); await routes(pc);
+  await pc.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} });
+  const pp = await pc.newPage(); pp.on('pageerror', e => errs.push('basın: ' + e.message)); pp.on('dialog', d => d.accept());
+  await pp.goto('http://localhost:8765/app/?emu=1'); await pp.waitForSelector('text=Têkeve', { timeout: 60000 });
+  await pp.getByText('Mamoste', { exact: true }).first().click();
+  await pp.locator('input.inp').first().fill(pno); await pp.locator('input[type=password]').first().fill(ppass);
+  await pp.getByText('Têkeve', { exact: true }).last().click(); await pp.waitForTimeout(7000);
+  const pbody = await pp.evaluate(() => document.body.innerText);
+  ok('Basın kullanıcısı girer, Basın paneli açılır', /ÇAPEMENÎ|Çapemenî/.test(pbody), pbody.slice(0, 120).replace(/\s+/g, ' '));
+  await clickText(pp, 'Akademiya Zarokan', true); await pp.waitForTimeout(1200);
+  const ptxt = await pp.evaluate(() => document.body.innerText);
+  ok('Basın Zarok sekmesinde yalnızca haber + arşiv görür', ptxt.includes('Nûçeya nû') && !ptxt.includes('Zarokê Tescîl Bike') && !ptxt.includes('Serlêdana zarokan'));
+  await clickText(pp, 'Nûçeya nû'); await pp.waitForTimeout(300);
+  await pp.locator('label:has-text("Sernav") + input').fill('Konsera zarokan');
+  await pp.locator('label:has-text("Nivîs") + textarea').fill('Roja Şemiyê konsera me heye.');
+  await clickText(pp, 'Türkçe'); await pp.locator('label:has-text("Sernav") + input').fill('Çocuk konseri');
+  await clickText(pp, '📤 Biweşîne'); await pp.waitForTimeout(2500);
   const news = await list('kidNews');
-  ok('Site haberi (KU + TR çeviri) yayınlanır', news.some(d => d.fields.title.stringValue === 'Konsera zarokan' && JSON.stringify(d.fields.i18n).includes('Çocuk konseri')));
+  ok('Basın Zarok site haberini (KU + TR çeviri) yayınlar', news.some(d => d.fields.title.stringValue === 'Konsera zarokan' && JSON.stringify(d.fields.i18n).includes('Çocuk konseri')));
+  await clickText(p, 'Akademiya Zarokan', true); await p.waitForTimeout(800);
+  const atxt = await p.evaluate(() => document.body.innerText);
+  ok('Yönetici Zarok sekmesinde haber sekmesi yok (basının işi)', !atxt.includes('Nûçeya nû'));
 
   // 4) Öğretmen Zarok uygulamasına girer, yoklama alır
   const tp = await ctx.newPage(); tp.on('pageerror', e => errs.push('öğretmen: ' + e.message));
@@ -120,13 +157,16 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   ok('Haber çocuk sitesinde görünür', await sp.waitForFunction(() => document.body.innerText.includes('Konsera zarokan'), null, { timeout: 20000 }).then(() => true, () => false));
   // 6) Şifre yenileme (Cloud Functions kapalıyken kidSecrets ile)
   await p.bringToFront(); await clickText(p, '👩‍🏫 Mamoste'); await p.waitForTimeout(400);
-  await p.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.trim() === '🔑' && x.offsetParent); b.click(); });
+  // Doğru satırdaki 🔑 (başka testler de çocuk öğretmeni eklemiş olabilir)
+  await p.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.trim() === '🔑' && x.offsetParent)
+    .find(x => { let r = x; const keys = e => [...e.querySelectorAll('button')].filter(y => y.textContent.trim() === '🔑').length;
+      while (r.parentElement && keys(r.parentElement) === 1) r = r.parentElement; return r.textContent.includes('Mamoste Hêvî'); }); b.click(); });
   await p.waitForSelector('text=Şîfreya nû', { timeout: 20000 }); await p.waitForTimeout(500);
   t = await p.evaluate(() => document.body.innerText);
   const npass = (t.match(/Şîfre:\s*(\S+)/) || [])[1];
   const lctx = await b.newContext(); await routes(lctx); const lp = await lctx.newPage();
   const tryLogin = async pw => { await lp.goto('http://localhost:8765/zarok/app/?emu=1'); await lp.waitForSelector('#l-no', { timeout: 20000 }); await lp.click('.roles button:nth-child(2)'); await lp.fill('#l-no', tno); await lp.fill('#l-pw', pw); await lp.click('.login .btn'); return lp.waitForSelector('.attrow', { timeout: 8000 }).then(() => true, () => false); };
-  ok('Şifre yenilenir, öğretmen YENİ şifreyle girer', npass && npass !== tpass && await tryLogin(npass));
+  ok('Şifre yenilenir, öğretmen YENİ şifreyle girer', npass && npass !== tpass && await tryLogin(npass), 'tno ' + tno + ' eski ' + tpass + ' yeni ' + npass);
   await lctx.close(); const l2 = await b.newContext(); await routes(l2); const lp2 = await l2.newPage();
   await lp2.goto('http://localhost:8765/zarok/app/?emu=1'); await lp2.waitForSelector('#l-no', { timeout: 20000 }); await lp2.click('.roles button:nth-child(2)'); await lp2.fill('#l-no', tno); await lp2.fill('#l-pw', tpass); await lp2.click('.login .btn');
   ok('Eski şifre artık çalışmaz', await lp2.waitForSelector('.attrow', { timeout: 6000 }).then(() => false, () => true));

@@ -18,7 +18,8 @@ admin.initializeApp();
 setGlobalOptions({ region: "europe-west1", maxInstances: 5 });
 
 const SUFFIX = { student: "@ogrenci.aat", teacher: "@ogretmen.aat", admin: "@ogretmen.aat", guardian: "@veli.aat", kidteacher: "@zmamoste.aat" };
-const MANAGERS = ["admin", "registrar", "press"];
+// Hesap yönetimi yalnızca yönetici + öğrenci işleri (basın hesap açamaz/şifre değiştiremez)
+const MANAGERS = ["admin", "registrar"];
 const idxId = no => String(no || "").replace(/[^A-Za-z0-9_\-.]/g, "").toLowerCase();
 
 // Çağıranın yetki seviyesi — Firestore kurallarıyla aynı mantık (idx_staff.lvl)
@@ -39,10 +40,17 @@ exports.aatUser = onCall(async (req) => {
   const id = idxId(no), suffix = SUFFIX[role];
   if (!id || !suffix) throw new HttpsError("invalid-argument", "no / role hatalı");
 
-  // Yönetici hesaplarına yalnızca yönetici dokunabilir
-  if (suffix === "@ogretmen.aat" && lvl !== "admin") {
-    const t = await admin.firestore().doc("idx_staff/" + id).get();
-    if (t.exists && t.get("lvl") === "admin") throw new HttpsError("permission-denied", "Yönetici hesabı");
+  // Personel hesapları: öğrenci işleri yalnızca "teacher" seviyesindeki (veya henüz dizinde
+  // olmayan yeni) öğretmen hesaplarına dokunabilir; yönetici / basın / öğrenci işleri
+  // hesaplarına ve KENDİ hesabına dokunamaz (Firestore kurallarıyla aynı ayrım).
+  if (lvl !== "admin") {
+    if (role === "admin") throw new HttpsError("permission-denied", "Yönetici hesabı");
+    const callerId = String(req.auth.token.email).split("@")[0].toLowerCase();
+    if (suffix === "@ogretmen.aat") {
+      if (id === callerId) throw new HttpsError("permission-denied", "Kendi hesabı");
+      const t = await admin.firestore().doc("idx_staff/" + id).get();
+      if (t.exists && (t.get("lvl") || "teacher") !== "teacher") throw new HttpsError("permission-denied", "Özel personel hesabı");
+    }
   }
 
   const email = id + suffix;

@@ -7,8 +7,8 @@ Giriş: **Veli** ve **Öğretmen**. Çocukların kendi hesabı yoktur.
 |---|---|---|
 | Tanıtım + veli başvuru formu | `/zarok/` | `https://zarok.aramtigran.org/` |
 | Veli uygulaması (PWA) | `/zarok/app/` | `https://zarok.aramtigran.org/app/` |
-| Demo (örnek verilerle) | `/zarok/app/?demo=1` · `/zarok/?demo=1` | aynı |
-| Yönetim | Ana uygulama → **Yönetici** veya **Öğrenci İşleri** → **Akademiya Zarokan** sekmesi | aynı |
+| Yönetim | Ana uygulama → **Öğrenci İşleri** (veya Yönetici) → **Akademiya Zarokan** sekmesi | aynı |
+| Site haberleri + arşiv | Ana uygulama → **Basın** → **Akademiya Zarokan** sekmesi | aynı |
 
 > **Alan adı notu:** `.gov` / `.gov.tr` uzantıları yalnızca kamu kurumlarına verilir; özel bir
 > akademi alamaz. `zarok.aramtigran.org` (veya `.com`) önerilir.
@@ -24,8 +24,9 @@ Veli /zarok/app/ → giriş ──► Bugün · Program · Devam · Duyurular ·
 Öğrenci İşleri "✅ Hat / 🏠 Çû" ──► kidAttendance ──► veliye anında bildirim
 ```
 
-## Yönetim (ana akademideki ekleme mantığıyla aynı)
-Sekmeler: Serlêdan · Zarok · Dêûbav · Mamoste · Amadebûn · Bername · Ragihandin · Peyam · Nûçeyên Malperê · Arşîv
+## Yönetim (ana akademideki görev ayrımıyla aynı)
+**Öğrenci İşleri / Yönetici** sekmeleri: Serlêdan · Zarok · Dêûbav · Mamoste · Amadebûn · Bername · Ragihandin · Peyam
+**Basın** sekmeleri: Nûçeyên Malperê · Arşîv (çocuk sitesi)
 - **Çocuk kaydı:** başvurudan tek tıkla veya elle; yeni veli hesabı ya da mevcut veliye bağlama; öğretmen atama
 - **Öğretmen kaydı:** otomatik numara (7YYYYnnn) + otomatik şifre + e-posta; düzenle / 🔑 şifre yenile / sil
 - **Veliler:** düzenle / 🔑 şifre yenile / sil (bağlı çocuk yoksa)
@@ -33,8 +34,9 @@ Sekmeler: Serlêdan · Zarok · Dêûbav · Mamoste · Amadebûn · Bername · R
 - Numaralar: öğretmen `7YYYYnnn` · çocuk `8YYYYnnn` · veli `9YYYYnnn`
 
 ## Öğretmen uygulaması (aynı PWA, "Mamoste" sekmesiyle giriş)
-- Çocuk akademisi öğretmeni: `<no>@zmamoste.aat` (yetişkin akademinin verisini **göremez**);
-  akademi öğretmenleri de kendi numarasıyla girebilir
+- Çocuk akademisi öğretmeni: `<no>@zmamoste.aat` (yetişkin akademinin verisini **göremez**)
+- Akademi öğretmeni de kendi numarası/şifresiyle girebilir — **Öğrenci İşleri onu çocuk akademisine
+  bağladıktan sonra** (Mamoste → "Mamosteyê akademiyê? Jimara wî/wê"); bağlanmamış öğretmen çocuk verisini göremez
 - **Yoklama:** bugünkü derslerin çocukları, "✅ Hat / 🏠 Çû" → veliye anında bildirim
 - **Çocuklar:** sağlık uyarısı, teslim listesi, veliyi tek dokunuşla arama
 - **Program**, **Duyuru gönderme**, **Veli mesajlarına yanıt**
@@ -50,13 +52,13 @@ Sekmeler: Serlêdan · Zarok · Dêûbav · Mamoste · Amadebûn · Bername · R
 - Ana akademi oturumuyla **karışmaz** (ayrı Firebase uygulama adı, ayrı PWA kapsamı)
 
 ## Güvenlik (firestore.rules → "AKADEMIYA ZAROKAN")
-- Veli = `<no>@veli.aat` **ve** `idx_guardians/<no>` kaydı (yalnızca yönetici seviyesi yazar)
+- Veli = `<no>@veli.aat` **ve** `idx_guardians/<no>` kaydı (yalnızca öğrenci işleri + yönetici yazar)
 - Veli yalnızca `guardianNos` listesinde olduğu çocukları, onların yoklamasını ve kendi
   mesajlarını görür; yetişkin öğrenci verisine hiç erişemez
 - Veli çocuk kaydında yalnızca `pickups`, `consentPhoto`, `consentShare`, `health` alanlarını değiştirebilir
 - Başvuru formu yalnızca dönem açıkken, KVKK onayıyla ve sınırlı alanlarla yazılabilir
-- Emülatörde test edildi: `tools/kural-testi.js` (80 senaryo) ve `tools/e2e/` (veli, öğrenci işleri,
-  yönetim + öğretmen; 36 adım)
+- Emülatörde test edildi: `tools/kural-testi.js` (132 senaryo) ve `tools/e2e/` (veli, öğrenci işleri,
+  yönetim + basın + öğretmen; 43 adım)
 
 ## Kendi alan adına taşıma (zarok.aramtigran.org)
 ```bash

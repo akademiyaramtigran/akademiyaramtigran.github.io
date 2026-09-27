@@ -2,8 +2,12 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8"/>
+<!-- Güvenlik: sayfa başka bir sitenin çerçevesine (iframe) gömülürse gizle ve çerçeveden çık (clickjacking koruması; GitHub Pages X-Frame-Options başlığı gönderemez) -->
+<style id="aat-antiframe">html{display:none!important}</style>
+<script>(function(){if(window.self===window.top){var s=document.getElementById('aat-antiframe');if(s)s.parentNode.removeChild(s);}else{try{window.top.location=window.self.location.href;}catch(e){}}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="referrer" content="strict-origin-when-cross-origin"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data:; base-uri 'self'; form-action 'self'; object-src 'none'"/>
 <title>KVKK Aydınlatma Metni — Akademîya Aram Tîgran</title>
 <meta name="description" content="Akademîya Aram Tîgran kişisel verilerin korunması aydınlatma metni."/>
 <style>

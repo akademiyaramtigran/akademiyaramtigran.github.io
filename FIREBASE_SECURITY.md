@@ -1,4 +1,29 @@
-# Firebase Güvenlik — Kurallar v4 (üyelik dizini)
+# Firebase Güvenlik — Kurallar v5 (rol ayrımı + en az yetki)
+
+## v5 — Rol ayrımı (27.09.2026)
+
+| Rol | Yapabilir | Yapamaz |
+|---|---|---|
+| **Yönetici** | Her şey; basın / öğrenci işleri kartları; personel dizini | — |
+| **Öğrenci İşleri** | Öğrenci + (sıradan) öğretmen kaydı, başvurular, Akademiya Zarokan yönetimi (çocuk, veli, çocuk öğretmeni, yoklama, program, duyuru, mesaj) | Kendini/başkasını yönetici/basın yapmak; özel kartlara dokunmak; site haberi |
+| **Basın** | Site haberleri + arşiv (ana site **ve** çocuk sitesi), haber medyası | Hesap açmak, şifre değiştirmek, öğrenci/başvuru/çocuk verisi okumak |
+| **Öğretmen** | Ders, yoklama, duyuru, anket; öğrenci ekleme | Öğrenci silme/düzenleme, site haberi, başvurular, çocuk verisi (bağlanmadıkça) |
+| **Öğrenci** | Kendi kaydı (profil alanları), kendine gelen mesajlar, kendi anket yanıtı, QR yoklama | Başkasının mesajı/yanıtı/cihazı; yönetici adına toplu mesaj |
+| **Veli** | Yalnız kendi çocuğu (izin/teslim/sağlık alanları), kendi mesajları | Diğer çocuklar, yetişkin akademi verisi |
+| **Çocuk öğretmeni** | Çocuklar, veli iletişimi, yoklama, duyuru, veli mesajları | Çocuk kaydı açmak, program değiştirmek, yetişkin verisi |
+
+Akademi öğretmeni çocuk akademisinde ders veriyorsa Öğrenci İşleri → Akademiya Zarokan →
+Mamoste → "Mamosteyê akademiyê? Jimara wî/wê" alanıyla bağlanır (yeni hesap açılmaz).
+
+Kapatılan açıklar (v5): basın/öğrenci işleri dizine `lvl:"admin"` yazıp **yönetici olabiliyordu**;
+basın Cloud Function ile herkesin şifresini değiştirebiliyordu; her öğretmen site haberi yazıp
+başvuru belgelerini okuyabiliyordu; öğrenci **yönetici adına tüm öğrencilere mesaj** atabiliyor,
+başkalarının özel mesajlarını/anket yanıtlarını okuyup silebiliyordu. Hepsi emülatörde testli
+(`tools/kural-testi.js` 132 senaryo, `tools/fonksiyon-testi.js` 17 senaryo).
+
+---
+
+# Kurallar v4 (üyelik dizini) — önceki sürüm notları
 
 ## Kapatılan açık (kritik)
 
@@ -47,7 +72,7 @@ okuyabiliyor, silebiliyor, haber yükleyebiliyordu. Emülatörde doğrulandı (e
 ```bash
 cd tools && npm install && npm run kural-testi     # Java 11+ gerekir
 ```
-80 senaryo: sahte hesaplar, öğretmen yetki yükseltme, öğrenci izolasyonu, yoklama sahipliği,
+132 senaryo: sahte hesaplar, rol yükseltme (basın/öğrenci işleri), mesaj gizliliği, öğretmen yetki yükseltme, öğrenci izolasyonu, yoklama sahipliği,
 site başvurusu, Storage yüklemeleri ve **Akademiya Zarokan** (veli yalnızca kendi çocuğu,
 sahte veli, başvuru doğrulama, çocuk akademisi öğretmeni, site haberleri/arşiv). Kural değiştirdiğinizde yeniden çalıştırın.
 
@@ -65,7 +90,6 @@ belgenin başındaki açığı geri getirir.
    istemciden oluşturduğu için). v4 kuralları bunu zararsız kılar; Cloud Functions'a
    geçince Console → Authentication → Settings → User actions → **"Enable create (sign-up)"
    kapatılmalı**.
-3. `messages`: üye olan her öğrenci teknik olarak tüm mesajları okuyabilir (uygulama filtreler,
-   kural filtrelemez). `attendance` ✅ daraltıldı (öğrenci yalnızca kendi adına yazar).
+3. ✅ (v5) `messages`: öğrenci yalnızca kendine gelen özel mesajı ve öğrencilere toplu mesajı okur.
 4. **App Check kapalı** (`APPCHECK_SITE_KEY` boş). reCAPTCHA v3 anahtarı alınıp
    `app/index.html` içine yazılmalı → bot/otomasyon istekleri engellenir.
