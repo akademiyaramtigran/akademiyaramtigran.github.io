@@ -146,6 +146,19 @@ async function routes(ctx) {
   const diag = await p.waitForFunction(() => document.body.innerText.includes('idx_staff → 13202601: lvl = registrar'), null, { timeout: 20000 }).then(() => true, () => false);
   ok('"Yetki yok" hatası nedeni gösterir (idx_staff seviyesi)', diag, diag ? '' : (await p.evaluate(() => document.body.innerText)).slice(0, 200));
   await put('idx_staff/13202601', { no: '13202601', lvl: 'registrar' });
+  // Yetişkin öğrenci: sıradaki numarada önceki denemeden kalmış sahipsiz giriş hesabı varsa
+  // kayıt yarım kalmamalı ve mükerrer belge oluşmamalı → sıradaki numaraya geçilir.
+  await signUp('10202601@ogrenci.aat', 'Hayalet123');
+  await clickText(p, 'Tescîl', true); await p.waitForTimeout(800);
+  await clickText(p, '🎓 Xwendekar Tescîl Bike'); await p.waitForTimeout(600);
+  await p.locator('.sheet-shell input:not([type=file])').first().fill('Test Xwendekar');
+  await p.evaluate(() => { const b = [...document.querySelectorAll('.sheet-shell button')].filter(x => x.textContent.includes('Xwendekar Tescîl Bike') && x.offsetParent).pop(); b.click(); });
+  await p.waitForTimeout(6000);
+  const st = (await list('students')).filter(d => d.fields.name && d.fields.name.stringValue === 'Test Xwendekar');
+  const sno = st[0] && st[0].fields.no.stringValue;
+  ok('Sahipsiz hesaplı numara atlanır, tek öğrenci kaydı oluşur', st.length === 1 && sno === '10202602', st.length + ' kayıt, no ' + sno);
+  const idxS = await list('idx_students');
+  ok('Öğrenci dizine yazıldı', idxS.some(d => d.name.endsWith('/10202602')));
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   await p.screenshot({ path: require('os').tmpdir() + '/e2e-registrar.png' }); await vp.screenshot({ path: require('os').tmpdir() + '/e2e-parent.png' });
   console.log(out.join('\n'));
