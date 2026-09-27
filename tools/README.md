@@ -8,9 +8,9 @@ cd tools && npm install
 |---|---|
 | `npm run rapor` | Koddan dil raporlarını üretir (`dil-raporu.html`, `dil-raporu-zazaki.html`) |
 | `node dil-entegre.js rapor.json …` | Akademisyen rapor dosyalarını `app/lang-pack.js`'e işler |
-| `npm run kural-testi` | Firestore + Storage kuralları, 136 senaryo (Java 11+ gerekir) |
+| `npm run kural-testi` | Firestore + Storage kuralları, 166 senaryo (Java 11+ gerekir) |
 | `npm run fonksiyon-testi` | Cloud Function `aatUser`, 17 senaryo (önce `cd ../functions && npm install`) |
-| `npm run e2e` | Uçtan uca: veli, öğrenci işleri, yönetim + basın + öğretmen (48 adım) |
+| `npm run e2e` | Uçtan uca: veli, öğrenci işleri, yönetim + basın + öğretmen, kart + kapı güvenliği, saldırı senaryoları (78 adım) |
 | `node zarok-paketle.js zarok.aramtigran.org` | Zarok'u kendi alan adına taşımak için `dist-zarok/` üretir |
 
 ## E2E çalıştırma

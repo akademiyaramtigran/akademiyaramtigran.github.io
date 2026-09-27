@@ -62,8 +62,8 @@ Veli /zarok/app/ → giriş ──► Bugün · Program · Devam · Duyurular ·
   mesajlarını görür; yetişkin öğrenci verisine hiç erişemez
 - Veli çocuk kaydında yalnızca `pickups`, `consentPhoto`, `consentShare`, `health` alanlarını değiştirebilir
 - Başvuru formu yalnızca dönem açıkken, KVKK onayıyla ve sınırlı alanlarla yazılabilir
-- Emülatörde test edildi: `tools/kural-testi.js` (136 senaryo) ve `tools/e2e/` (veli, öğrenci işleri,
-  yönetim + basın + öğretmen; 48 adım)
+- Emülatörde test edildi: `tools/kural-testi.js` (166 senaryo) ve `tools/e2e/` (veli, öğrenci işleri,
+  yönetim + basın + öğretmen; 78 adım)
 
 ## Kendi alan adına taşıma (zarok.aramtigran.org)
 ```bash

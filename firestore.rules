@@ -42,11 +42,18 @@ service cloud.firestore {
     function dbPath(c) { return /databases/$(database)/documents/$(c)/$(prefix()); }
 
     // Personel: dizinde kayıtlı öğretmen/yönetici (veya yedek admin hesabı)
+    // (Kapı güvenlik görevlisi — lvl "gate" — personel SAYILMAZ: yalnızca kart doğrular)
     function isStaff() {
       return authed() && (
         mail() == 'admin@aramtigran.edu' ||
-        (mail().matches('.*@ogretmen[.]aat$') && exists(dbPath('idx_staff')))
+        (mail().matches('.*@ogretmen[.]aat$') && exists(dbPath('idx_staff'))
+          && get(dbPath('idx_staff')).data.get('lvl', 'teacher') != 'gate')
       );
+    }
+    // Kapı güvenliği: yalnızca kart okutur (cards/{token} get) ve giriş kaydı yazar
+    function isGate() {
+      return authed() && mail().matches('.*@ogretmen[.]aat$') && exists(dbPath('idx_staff'))
+        && get(dbPath('idx_staff')).data.get('lvl', 'teacher') == 'gate';
     }
     // Öğrenci: dizinde kayıtlı
     function isStudent() {
@@ -66,7 +73,8 @@ service cloud.firestore {
     function isManager()   { return isRegistrar(); }
     // Özel yetki bayrağı taşımayan sıradan öğretmen kaydı
     function plainTeacher(d) {
-      return d.get('isAdmin', false) != true && d.get('isPress', false) != true && d.get('isRegistrar', false) != true;
+      return d.get('isAdmin', false) != true && d.get('isPress', false) != true && d.get('isRegistrar', false) != true
+        && d.get('isGate', false) != true;
     }
     // Akademi üyesi (giriş yapmış + dizinde kayıtlı)
     function member() { return isStaff() || isStudent(); }
@@ -74,12 +82,13 @@ service cloud.firestore {
     // Kendi kaydında değiştirilemeyecek alanlar (alan, sınıf, burs, yetki bayrakları…)
     function selfEditOk() {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(
-        ['no','name','isAdmin','isPress','isRegistrar','area','classLevel','burs','scholarship','grade','regYear','status','role']);
+        ['no','name','isAdmin','isPress','isRegistrar','isGate','area','classLevel','burs','scholarship','grade','regYear','status','role','cardToken']);
     }
 
     // Bir öğrenci/öğretmen dokümanı bu kullanıcıya mı ait? ("no" alanı = e-posta öneki)
     function ownsStudentDoc(d) { return isStudent() && mail() == d.no + '@ogrenci.aat'; }
-    function ownsTeacherDoc(d) { return isStaff()   && mail() == d.no + '@ogretmen.aat'; }
+    // Kendi personel kaydı (güvenlik görevlisi dahil) — e-posta Auth ile kanıtlı olduğundan güvenli
+    function ownsTeacherDoc(d) { return authed() && mail() == d.no + '@ogretmen.aat'; }
 
     // Kendi kendine "admin" olmayı engelle (isAdmin alanı true yapılamaz)
     function notGrantingAdmin() {
@@ -350,6 +359,29 @@ service cloud.firestore {
             && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000);
       allow update: if kidStaff();
       allow delete: if isRegistrar();
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  ÖĞRENCİ KARTLARI (yetişkin + çocuk) — QR içinde tahmin edilemez anahtar (128 bit)
+    //    cards/{token}: {kind:'student'|'kid', no, ref, name, area, photo, active}
+    //    • Anahtarı bilen (kartı elinde tutan) yetkili okutur; LİSTELENEMEZ (tahmin/tarama yok)
+    //    • Yalnızca öğrenci işleri + yönetici kart çıkarır / iptal eder
+    // ════════════════════════════════════════════════════════════════════
+    match /cards/{token} {
+      allow get:  if isStaff() || isGate() || (isKidTeacher() && resource.data.kind == 'kid');
+      allow list: if isRegistrar();
+      allow create, update, delete: if isRegistrar();
+    }
+    // Kapı / ders girişi kaydı — okutan kişi kendi numarasıyla yazar; değiştirilemez, silinemez
+    match /gateLog/{id} {
+      allow create: if (isGate() || isStaff() || isKidTeacher())
+        && request.resource.data.keys().hasOnly(['token','no','kind','name','ok','by','byName','at','date','place'])
+        && request.resource.data.by == prefix()
+        && request.resource.data.date is string && request.resource.data.date.size() <= 10
+        && request.resource.data.get('place', 'gate') in ['gate', 'lesson'];
+      allow read: if isRegistrar() || ((isGate() || isStaff() || isKidTeacher()) && resource.data.by == prefix());
+      allow update: if false;
+      allow delete: if isAdmin();
     }
   }
 }

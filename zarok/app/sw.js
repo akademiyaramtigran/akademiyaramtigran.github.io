@@ -1,6 +1,6 @@
 // Akademiya Zarokan — veli uygulaması Service Worker (kapsam: bu klasör)
-const CACHE = 'zarok-v4';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-180.png'];
+const CACHE = 'zarok-v5';
+const SHELL = ['./', './index.html', './manifest.webmanifest', './vendor/jsQR.js', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-180.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).catch(() => {}));

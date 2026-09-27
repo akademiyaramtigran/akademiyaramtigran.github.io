@@ -31,6 +31,8 @@ _Depolama/plan satın alma kalemleri isteğiniz üzerine bu rapora dahil edilmed
 | 22 | 🟡 Orta | Her öğretmen site haberi yazabiliyor, başvuru belgelerini ve çocuk (veli) verisini okuyabiliyordu; Storage'a HTML/SVG yüklenebiliyordu. | ✅ Haberler yalnız basın; başvurular + çocuk verisi yalnız öğrenci işleri (ve bağlı öğretmenler); HTML/SVG yüklemesi kapalı. |
 | 23 | ⚪ Gizlilik | Ortak cihazda çıkıştan sonra önceki kullanıcının anket yanıtları/uyarıları tarayıcıda kalıyordu. | ✅ Çıkışta kullanıcıya özel önbellek temizlenir. |
 | 24 | 🟠 Dil | Türkçe seçilince yönetici panelinde alan adları Kürtçe, bazı sekmelerde anahtar adları görünüyordu; Basın/Öğrenci İşleri kartı ekleme sayfası Türkçe/Kürtçe'de **çöküyordu**. | ✅ Çeviri katmanı düzeltildi; 5 rolde otomatik Türkçe tarama: 0 Kürtçe metin, 0 hata. |
+| 25 | 🔴 Kritik | Öğrenci kartındaki QR yalnızca **öğrenci numarası** taşıyordu: herkes başkasının numarasıyla QR üretip derse/kuruma girebilirdi. | ✅ QR'da 128 bit tahmin edilemez anahtar; listelenemez; kayıp kart iptal edilir (`KART.md`). |
+| 26 | — Yeni | Kapı güvenliği rolü, kartla derse giriş, çocuk kartıyla veliye anlık bildirim. | ✅ Güvenlik rolü başka hiçbir veriye erişemez (kural testli). |
 
 **Yayın sırası için mutlaka okuyun:** `FIREBASE_SECURITY.md` → "YAYIN SIRASI" (5 adım).
 
@@ -72,12 +74,12 @@ _Depolama/plan satın alma kalemleri isteğiniz üzerine bu rapora dahil edilmed
 
 ## E. Test edilenler
 
-- Firestore + Storage kuralları: emülatörde **136 senaryo** (`tools/kural-testi.js`, Zarok + rol ayrımı dahil) — 136/136;
+- Firestore + Storage kuralları: emülatörde **166 senaryo** (`tools/kural-testi.js`, Zarok + rol ayrımı dahil) — 166/166;
   eski kurallarla ilk 34 senaryonun 11'i açık verdi.
 - Cloud Function: 17/17 (`tools/fonksiyon-testi.js`).
 - **Uçtan uca (gerçek kurallar + emülatör):** Öğrenci İşleri girişi → Zarok başvurusu kabul →
   veli hesabı → veli girişi → yoklama bildirimi → duyuru → mesaj/yanıt; yönetici → çocuk öğretmeni ekleme →
-  çocuk kaydı → Türkçe arayüzde basın kartı → basın girişi ve çocuk sitesi haberi → öğretmen girişi ve yoklama → şifre yenileme: 48/48 (`tools/e2e/`).
+  çocuk kaydı → Türkçe arayüzde basın kartı → basın girişi ve çocuk sitesi haberi → öğretmen girişi ve yoklama → şifre yenileme: 78/78 (`tools/e2e/`).
 - Dizin eşitleme fonksiyonu: emülatörde yalnızca `idx_staff/1000` varken tüm dizini
   kurduğu, silinmiş kaydı kaldırdığı doğrulandı.
 - Uygulama: Chromium'da KU / ZZ / TR / EN giriş ve ayar ekranları, canlı dil geçişi.
