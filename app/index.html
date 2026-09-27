@@ -17529,6 +17529,8 @@ function App(){
       const type = isStudent ? "student" : (rec.isGate ? "gate" : rec.isPress ? "press" : rec.isRegistrar ? "registrar" : rec.isAdmin ? "admin" : "teacher");
       setCurrentUser({ ...rec, type });
       setScreen(type);
+      // Oturum geri yüklenince de (sayfa yenileme) yönetici dizin eşitlemesi çalışsın
+      if (type === "admin") memberSyncPending.current = true;
     }
   }, [authEmail, students, teachers, currentUser]);
 
