@@ -470,6 +470,17 @@
       }
     },
 
+    // Yeni hesap: giriş hesabını Firestore kaydından ÖNCE aç. Numarada önceki bir denemeden
+    // kalmış sahipsiz hesap varsa ("email-already-in-use") sıradaki adaya geç → kayıt yarım kalmaz,
+    // mükerrer kayıt oluşmaz. Dönen numara kullanılmalıdır.
+    async reserveAccount(candidates, role, password) {
+      for (const no of candidates) {
+        try { await this.createAuthUser(no, password, role); return no; }
+        catch (e) { if (e.code !== "auth/email-already-in-use") throw e; }
+      }
+      throw Object.assign(new Error("no-free-number"), { code: "aat/no-free-number" });
+    },
+
     // Kullanıcı silinince Firebase Auth hesabını da sil.
     // (Aksi halde aynı numara yeniden eklendiğinde Auth'ta ESKİ şifreli
     //  "hayalet hesap" kalır ve giriş "email-already-in-use" ile patlar.)
@@ -560,7 +571,7 @@
       // _plainPass: personelin ürettiği şifrelerin düz hali — panelde
       // görüntüleme için kaydedilir. Kullanıcının KENDİ seçtiği şifre
       // hiçbir zaman düz yazılmaz (kendi-değiştirme akışları "" gönderir).
-      const SKIP = new Set(["pass","_authEmail","docs","id"].concat(USE_CLOUD_FUNCTIONS ? ["_plainPass"] : []));
+      const SKIP = new Set(["pass","_authEmail","docs","id","_authDone"].concat(USE_CLOUD_FUNCTIONS ? ["_plainPass"] : []));
       const cleanData = {};
       for(const [k,v] of Object.entries(s)){
         if(SKIP.has(k)) continue;
@@ -585,7 +596,7 @@
     },
     async saveTeacher(tc) {
       const hasPhoto = !!(tc.photo);
-      const SKIP = new Set(["pass","_authEmail","docs","id"].concat(USE_CLOUD_FUNCTIONS ? ["_plainPass"] : []));
+      const SKIP = new Set(["pass","_authEmail","docs","id","_authDone"].concat(USE_CLOUD_FUNCTIONS ? ["_plainPass"] : []));
       const cleanData = {};
       for(const [k,v] of Object.entries(tc)){
         if(SKIP.has(k)) continue;
@@ -1665,6 +1676,21 @@ function FirebaseBanner() {
 }
 
 // Firestore'a güvenli yazma — FB yoksa sessizce atlar
+// Yeni kişi için giriş hesabını önceden aç; sahipsiz eski hesabı olan numaraları atla.
+// Firebase yoksa ilk adayı döndürür. Hata → çağıran uyarı gösterir, kayıt yapılmaz.
+async function reserveNo(candidates, role, pass) {
+  const F = window.__FB;
+  if (!F || !F.isConfigured() || !F.reserveAccount) return candidates[0];
+  return await F.reserveAccount(candidates, role, pass);
+}
+function reserveErrText(e, lang) {
+  const c = String((e && (e.code || e.message)) || "?");
+  if (/permission|insufficient/i.test(c)) return lang==="en" ? "Permission denied — check this account's idx_staff record" : K("Destûr tune — qeyda idx_staff a vê hesabê kontrol bike");
+  if (c === "auth/network-request-failed") return lang==="en" ? "No internet connection" : K("Girêdana înternetê tune");
+  return c;
+}
+const newFireId = () => Array.from(crypto.getRandomValues(new Uint8Array(15)), b => "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[b % 62]).join("");
+
 // Okul numarası = Firebase Auth kullanıcı adı (no@ogrenci.aat / no@ogretmen.aat)
 async function fbSave(type, data) {
 
@@ -1692,7 +1718,7 @@ async function fbSave(type, data) {
     }
     if (data._plainPass && data.no) {
       try {
-        await window.__FB.createAuthUser(data.no, data._plainPass, "student");
+        if (!data._authDone) await window.__FB.createAuthUser(data.no, data._plainPass, "student");
       } catch(authErr) {
         const code = authErr.code || authErr.message || String(authErr);
         if (code === "auth/email-already-in-use") {
@@ -1730,7 +1756,7 @@ async function fbSave(type, data) {
     if (data._plainPass && data.no) {
       const role = data.isAdmin ? "admin" : "teacher";
       try {
-        await window.__FB.createAuthUser(data.no, data._plainPass, role);
+        if (!data._authDone) await window.__FB.createAuthUser(data.no, data._plainPass, role);
       } catch(authErr) {
         const code = authErr.code || authErr.message || String(authErr);
         if (code === "auth/email-already-in-use") {
@@ -4592,6 +4618,7 @@ function AddStudentSheet({open,onClose,defaultArea,students,t,lang,toast,onSave}
   const [showCard,setShowCard]=useState(false);
   const [docs,setDocs]=useState([]);
   const [savedCreds,setSavedCreds]=useState(null); // {no, pass} — show after registration
+  const savingRef=useRef(false);
   const fileRef=useRef();
   const docFileRef=useRef();
   const areaLocked = !!defaultArea; // Alan kart'tan açıldıysa kilitle
@@ -4623,9 +4650,15 @@ function AddStudentSheet({open,onClose,defaultArea,students,t,lang,toast,onSave}
     const existing=students.filter(s=>s.area===area&&(s.no||"").startsWith(String((AREA_MAP[area]||{code:0}).code)));
     const seqs=existing.map(s=>parseInt((s.no||'').slice(-2))||0);
     const seq=(seqs.length>0?Math.max(...seqs):0)+1;
-    const no=genStudentNo(area,year,seq);
-    if(students.find(s=>s.no===no)){toast("⚠ "+t.errLogin); return;}
+    if(savingRef.current) return;
     const tempPass = genAutoPassword();
+    const taken=new Set(students.map(s=>String(s.no)));
+    const cands=[]; for(let i=0;cands.length<15&&i<60;i++){ const c=genStudentNo(area,year,seq+i); if(!taken.has(c)) cands.push(c); }
+    let no;
+    savingRef.current=true;
+    try{ no=await reserveNo(cands,"student",tempPass); }
+    catch(e){ savingRef.current=false; toast("❌ "+reserveErrText(e,lang),8000); return; }
+    savingRef.current=false;
     // Form değerlerini async bitmeden kaybet etmemek için snapshot al
     const snapName=name, snapBurs=burs, snapPhone=phone, snapDob=dob, snapAddress=address, snapEmail=email, snapPhoto=photo, snapDocs=docs;
     // Formu hemen temizle
@@ -4640,7 +4673,7 @@ function AddStudentSheet({open,onClose,defaultArea,students,t,lang,toast,onSave}
       email:snapEmail.trim(),
       dob:snapDob, address:sanitizeText(snapAddress),
       photo:snapPhoto, docs:snapDocs,
-      _plainPass:tempPass
+      _plainPass:tempPass, _authDone:true
     };
     onSave(student);
     setSavedCreds({no, pass:tempPass, name:snapName.trim()});
@@ -4817,6 +4850,7 @@ function AddTeacherSheet({open,onClose,defaultArea,teachers,t,lang,toast,onSave,
   const [address,setAddress]=useState("");
   const [bio,setBio]=useState("");
   const [photo,setPhoto]=useState(null);
+  const savingRef=useRef(false);
   const [savedCreds,setSavedCreds]=useState(null);
   const fileRef=useRef();
   // Alan kart'tan açıldıysa (defaultArea) alan kilitle
@@ -4845,20 +4879,26 @@ function AddTeacherSheet({open,onClose,defaultArea,teachers,t,lang,toast,onSave,
       return s;
     });
     const seq=(seqs.length>0?Math.max(...seqs):0)+1;
-    const no=genTeacherNo(area,year,seq);
+    if(savingRef.current) return;
     const rawPass = genAutoPassword();
-    hashPassword(rawPass).then(hashed=>{
-      const tc={id:no,name:name.trim(),area,no,pass:hashed,passHash:hashed,isAdmin:false,phone,dob,address,bio,photo,
-        _plainPass:rawPass
+    const taken=new Set((teachers||[]).map(x=>String(x.no)));
+    const cands=[]; for(let i=0;cands.length<15&&i<60;i++){ const c=genTeacherNo(area,year,seq+i); if(!taken.has(c)) cands.push(c); }
+    savingRef.current=true;
+    const snap={name:name.trim(),phone,dob,address,bio,photo};
+    reserveNo(cands,"teacher",rawPass).then(no=>hashPassword(rawPass).then(hashed=>{
+      savingRef.current=false;
+      const {name:nm,phone,dob,address,bio,photo}=snap;
+      const tc={id:no,name:nm,area,no,pass:hashed,passHash:hashed,isAdmin:false,phone,dob,address,bio,photo,
+        _plainPass:rawPass, _authDone:true
       };
       onSave(tc);
       // Seçilen bername derslerine ata
       const ids=Object.keys(assignSel).filter(k=>assignSel[k]);
       if(ids.length&&onAssignLessons) onAssignLessons(ids,tc);
-      setSavedCreds({no, pass:rawPass, name:name.trim()});
-      toast("✅ "+name.trim()+" · "+no+" | 🔑 "+rawPass, 8000);
-    });
-    setName(""); setPhone(""); setDob(""); setAddress(""); setBio(""); setPhoto(null); setAssignSel({});
+      setSavedCreds({no, pass:rawPass, name:nm});
+      toast("✅ "+nm+" · "+no+" | 🔑 "+rawPass, 8000);
+      setName(""); setPhone(""); setDob(""); setAddress(""); setBio(""); setPhoto(null); setAssignSel({});
+    })).catch(e=>{ savingRef.current=false; toast("❌ "+reserveErrText(e,lang),8000); });
   }
 
   // Kayıt sonrası bilgi kartı
@@ -6770,6 +6810,7 @@ const SPECIAL_TYPES = {
 
 /* Karta taybet tescîl bike — AddTeacherSheet ile aynı format */
 function AddSpecialCardSheet({open,onClose,kind,teachers,t,lang,toast,onSave}){
+  const savingRef=useRef(false);
   const SP=SPECIAL_TYPES[kind]||SPECIAL_TYPES.press;
   const [name,setName]=useState("");
   const [year,setYear]=useState("2026");
@@ -6799,17 +6840,23 @@ function AddSpecialCardSheet({open,onClose,kind,teachers,t,lang,toast,onSave}){
     const same=(teachers||[]).filter(tc=>tc[SP.flag]);
     const seqs=same.map(tc=>parseInt((tc.no||"").slice(-2))||0);
     const seq=(seqs.length>0?Math.max(...seqs):0)+1;
-    const no=SP.prefix+year+String(seq).padStart(2,"0");
+    if(savingRef.current) return;
     const rawPass=genAutoPassword();
-    hashPassword(rawPass).then(hashed=>{
-      const tc={id:no,name:name.trim(),area:"genel",no,pass:hashed,passHash:hashed,
+    const taken=new Set((teachers||[]).map(x=>String(x.no)));
+    const cands=[]; for(let i=0;cands.length<15&&i<60;i++){ const c=SP.prefix+year+String(seq+i).padStart(2,"0"); if(!taken.has(c)) cands.push(c); }
+    savingRef.current=true;
+    const snap={name:name.trim(),phone,dob,address,bio,photo};
+    reserveNo(cands,"teacher",rawPass).then(no=>hashPassword(rawPass).then(hashed=>{
+      savingRef.current=false;
+      const {name:nm,phone,dob,address,bio,photo}=snap;
+      const tc={id:no,name:nm,area:"genel",no,pass:hashed,passHash:hashed,
         isAdmin:false,[SP.flag]:true,phone,dob,address,bio:bio||(SP.name.ku),photo,
-        _plainPass:rawPass};
+        _plainPass:rawPass, _authDone:true};
       onSave(tc);
-      setSavedCreds({no,pass:rawPass,name:name.trim()});
-      toast("✅ "+name.trim()+" · "+no+" | 🔑 "+rawPass, 8000);
-    });
-    setName(""); setPhone(""); setDob(""); setAddress(""); setBio(""); setPhoto(null);
+      setSavedCreds({no,pass:rawPass,name:nm});
+      toast("✅ "+nm+" · "+no+" | 🔑 "+rawPass, 8000);
+      setName(""); setPhone(""); setDob(""); setAddress(""); setBio(""); setPhoto(null);
+    })).catch(e=>{ savingRef.current=false; toast("❌ "+reserveErrText(e,lang),8000); });
   }
 
   const typeTitle=(SP.name[lang]||SP.name.ku);
@@ -8501,11 +8548,14 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
     const existing=(students||[]).filter(s2=>s2.area===area&&(s2.no||"").startsWith(code));
     const seqs=existing.map(s2=>parseInt((s2.no||"").slice(-2))||0);
     const seq=(seqs.length?Math.max(...seqs):0)+1;
-    const no=genStudentNo(area,year,seq);
     const pass=genAutoPassword();
+    const taken=new Set((students||[]).map(s2=>String(s2.no)));
+    const cands=[]; for(let i=0;cands.length<15&&i<60;i++){ const c=genStudentNo(area,year,seq+i); if(!taken.has(c)) cands.push(c); }
+    let no;
+    try{ no=await reserveNo(cands,"student",pass); }catch(e){ toast("❌ "+reserveErrText(e,lang),8000); return; }
     const hashed=await hashPassword(pass);
     const student={id:Date.now(),name:sanitizeText(app.name),area,no,classLevel:1,pass:hashed,passHash:hashed,
-      phone:app.phone||"",dob:app.dob||"",address:"",email:app.email||"",photo:null,_plainPass:pass};
+      phone:app.phone||"",dob:app.dob||"",address:"",email:app.email||"",photo:null,_plainPass:pass,_authDone:true};
     onDataChange&&onDataChange("addStudent",student);
     await setStatus(app,"accepted",{studentNo:no});
     // Serlêdanê e-peyam hebe: jimare + şîfre bişîne (EmailJS — heman servîsa "şîfre ji bîr kir")
@@ -17661,7 +17711,8 @@ function App(){
         const exists = p.some(s=>s.id===payload.id);
         return exists ? p : [...p, payload];
       });
-      // Firebase'e kaydet — 3 kez dene
+      // Firebase'e kaydet — 3 kez dene (aynı belge kimliğiyle → tekrar denemede mükerrer kayıt oluşmaz)
+      if(!payload.fireId) payload.fireId = newFireId();
       let saved = false;
       for(let attempt = 1; attempt <= 3; attempt++){
         try {
@@ -17669,13 +17720,15 @@ function App(){
           saved = true;
           break;
         } catch(e) {
-          if(attempt === 3){
+          const orphan = String(e.message||"").indexOf("AUTH_ORPHAN:")===0;
+          if(attempt === 3 || orphan){
             const errCode = e.message || e.code || String(e);
             if(String(errCode).indexOf("AUTH_ORPHAN:")===0){
               const em = String(errCode).split(":")[1]||"";
               toast("⚠ "+(lang==="en"?("This number already has an old Firebase account ("+em+"). Delete it in Console → Authentication, then add again."):KF("Ji vê jimarê re hesabekî Firebase yê kevn heye ({0}). Di Console → Authentication de jê bibe, paşê dîsa zêde bike.",[em])), 14000);
             } else
             toast((lang==="en"?"❌ Save failed: ":K("❌ Xelet: "))+errCode, 6000);
+            break;
           } else {
             await new Promise(r => setTimeout(r, 1000 * attempt));
           }
@@ -17687,6 +17740,7 @@ function App(){
         const exists = p.some(tc=>tc.id===payload.id);
         return exists ? p : [...p, payload];
       });
+      if(!payload.fireId) payload.fireId = newFireId();
       for(let attempt=1;attempt<=3;attempt++){
         try {
           await fbSave("teacher", payload);

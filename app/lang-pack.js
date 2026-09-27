@@ -8,7 +8,8 @@
  * AAT_ZAROK     : Akademiya Zarokan veli uygulaması (anahtar = zarok/app sözlük anahtarı)
  * AAT_ZAROK_SITE: Akademiya Zarokan tanıtım/başvuru sayfası
  * Elle düzenlemeyin; rapor JSON'larını tools/dil-entegre.js ile birleştirin. */
-window.AAT_TX={"ku":{},"zza":{},"tr":{"Ev hesab di qaîdeyan de wek Karûbarên Xwendekaran nayê naskirin":"Bu hesap kurallarda Öğrenci İşleri olarak tanınmıyor",
+window.AAT_TX={"ku":{},"zza":{},"tr":{"Destûr tune — qeyda idx_staff a vê hesabê kontrol bike":"Yetki yok — bu hesabın idx_staff kaydını kontrol edin",
+"Ev hesab di qaîdeyan de wek Karûbarên Xwendekaran nayê naskirin":"Bu hesap kurallarda Öğrenci İşleri olarak tanınmıyor",
 "niha":"şu an",
 "belge tune":"belge yok",
 "Hesab hate çêkirin lê qeyda destûrê nehat nivîsîn (idx_staff/{0}). Divê di qeyda we ya idx_staff/{1} de lvl = admin be.":"Hesap oluşturuldu ama yetki kaydı yazılamadı (idx_staff/{0}). Kendi kaydınızda (idx_staff/{1}) lvl = admin olmalı.",
