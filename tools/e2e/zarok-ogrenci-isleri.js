@@ -39,6 +39,13 @@ async function routes(ctx) {
   await put('teachers/T13', { no: '13202601', name: 'Karûbarên Xwendekaran', isRegistrar: true, area: 'genel' });
   await signUp('13202601@ogretmen.aat', 'Reg12345');
   await put('config/zarok', { open: true });
+  // Önceki yarım kalmış denemeden Auth'ta kalan "hayalet" veli hesabı (Firestore kaydı yok):
+  // kabul işlemi "email-already-in-use" ile durmamalı, sıradaki numaraya geçmeli.
+  const GP = '9' + new Date().getFullYear();
+  const gMax = (await list('guardians')).map(d => d.name.split('/').pop()).filter(n => n.startsWith(GP))
+    .reduce((m, n) => Math.max(m, parseInt(n.slice(GP.length), 10) || 0), 0);
+  const ORPHAN = GP + String(gMax + 1).padStart(3, '0'); // uygulamanın seçeceği sıradaki numara
+  await signUp(ORPHAN + '@veli.aat', 'Hayalet123');
   await put('kidApplications/KA1', { kidName: 'Hêvîn Demir', kidDob: '2018-04-02', area: 'dans', guardianName: 'Zelal Demir', relation: 'dayik', phone: '0555 111 22 33', consentKvkk: true, consentPhoto: true, consentShare: false, status: 'new', dateStr: '2026-09-26', createdAt: new Date() });
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
 
@@ -67,6 +74,7 @@ async function routes(ctx) {
   const gno = (credTxt.match(/Jimara têketinê:\s*(\d+)/) || [])[1];
   const pass = (credTxt.match(/Şîfre:\s*(\S+)/) || [])[1];
   ok('Kabul → veli hesabı + çocuk kaydı oluşur', !!gno && !!pass, 'veli ' + gno);
+  ok('Hayalet Auth hesabı atlanır (email-already-in-use hatası yok)', gno && gno !== ORPHAN, 'hayalet ' + ORPHAN + ' → ' + gno);
   const kids = await list('kids'), guards = await list('guardians'), idx = await list('idx_guardians');
   const kid = kids.find(d => d.fields.name.stringValue === 'Hêvîn Demir');
   ok('kids kaydı veli numarasına bağlı', kid && JSON.stringify(kid.fields.guardianNos).includes(gno));

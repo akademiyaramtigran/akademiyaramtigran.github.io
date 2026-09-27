@@ -8,7 +8,13 @@
  * AAT_ZAROK     : Akademiya Zarokan veli uygulaması (anahtar = zarok/app sözlük anahtarı)
  * AAT_ZAROK_SITE: Akademiya Zarokan tanıtım/başvuru sayfası
  * Elle düzenlemeyin; rapor JSON'larını tools/dil-entegre.js ile birleştirin. */
-window.AAT_TX={"ku":{},"zza":{},"tr":{"Konservatuar":"Konservatuvar",
+window.AAT_TX={"ku":{},"zza":{},"tr":{"Destûr tune: qaîdeyên Firestore yên nû (firestore.rules) di Firebase Console de biweşînin":"Yetki yok: güncel Firestore kurallarını (firestore.rules) Firebase Console'da yayınlayın",
+"Firebase Console → Authentication → Sign-in method: E-mail/Şîfre çalak bikin":"Firebase Console → Authentication → Sign-in method: E-posta/Şifre girişini etkinleştirin",
+"Bi vê hejmarê hesabek berê heye":"Bu numarayla zaten bir hesap var",
+"Gelek hewl hatin dan — çend deqîqe paşê dîsa biceribînin":"Çok fazla deneme yapıldı — birkaç dakika sonra tekrar deneyin",
+"Girêdana înternetê tune":"İnternet bağlantısı yok",
+"Hejmareke vala nehat dîtin":"Boş numara bulunamadı",
+"Konservatuar":"Konservatuvar",
 "Konservatuara Aram Tîgran":"Aram Tigran Konservatuvarı",
 "Ev nûçe li ser malpera Konservatuarê ji her kesî re xuya dibin.":"Bu haberler Konservatuvar sitesinde herkese görünür.",
 "Dêûbav? Têketina Konservatuarê →":"Veli misiniz? Konservatuvar girişi →",
