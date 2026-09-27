@@ -7665,8 +7665,23 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
       :c==="auth/network-request-failed"?Z("Girêdana înternetê tune","No internet connection")
       :c==="aat/no-free-number"?Z("Hejmareke vala nehat dîtin","No free number found")
       :c;
+    if(/permission|insufficient/i.test(c)){ diagnosePerm().then(d=>toast("❌ "+(d||m),12000)); return; }
     toast("❌ "+m);
   };
+  // "Yetki yok" hatasında nedeni bul: kurallar hesabı hangi seviyede görüyor? (kendi dizin kaydı okunabilir)
+  async function diagnosePerm(){
+    try{
+      const email=(F.auth&&F.auth.currentUser&&F.auth.currentUser.email)||"";
+      if(!email) return Z("Têketina Firebase tune — derkeve û dîsa têkeve","No Firebase session — sign out and sign in again");
+      if(email===F.ADMIN_EMAIL) return Z("Qaîdeyên Firestore kevn in — firestore.rules a nû biweşînin","Firestore rules are outdated — publish the latest firestore.rules");
+      const no=email.split("@")[0];
+      const s=await F.getDoc(F.doc(F.db,"idx_staff",no));
+      if(!s.exists()) return Z("Qeyda destûrê tune","No permission record")+": Firestore → idx_staff → "+no+" (lvl = registrar / admin)";
+      const lvl=s.data().lvl||"teacher";
+      if(lvl!=="admin"&&lvl!=="registrar") return Z("Asta destûrê","Permission level")+" '"+lvl+"' (idx_staff/"+no+") — "+Z("rêveber (1000) derkeve û dîsa têkeve, an lvl bi destan rast bike","admin should sign out and in again, or fix lvl manually");
+      return Z("Qaîdeyên Firestore kevn in — firestore.rules a nû biweşînin","Firestore rules are outdated — publish the latest firestore.rules");
+    }catch(_){ return null; }
+  }
   const fld=(label,key,extra)=>(
     <div><label style={lbl}>{label}</label>
       <input style={inp} value={(form&&form.data[key])||""} onChange={e=>{const v=e.target.value;setForm(f=>({...f,data:{...f.data,[key]:v}}));}} {...(extra||{})}/></div>);
