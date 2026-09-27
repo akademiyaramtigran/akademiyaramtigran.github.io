@@ -38,6 +38,10 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await put('idx_staff/1000', { no: '1000', lvl: 'admin' });
   await put('teachers/TA', { no: '1000', name: 'Rêveber', isAdmin: true, area: 'genel' });
   await signUp('1000@ogretmen.aat', 'Admin123');
+  // Çocuk akademisi yönetimi Öğrenci İşleri'nde (yönetici panelinde Zarok sekmesi yok)
+  await put('idx_staff/14202601', { no: '14202601', lvl: 'registrar' });
+  await put('teachers/T14', { no: '14202601', name: 'Karûbar', isRegistrar: true, area: 'genel' });
+  await signUp('14202601@ogretmen.aat', 'Reg12345');
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log(l); };
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
   const ctx = await b.newContext({ viewport: { width: 430, height: 900 } });
@@ -48,12 +52,13 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await p.goto('http://localhost:8765/app/?emu=1');
   await p.waitForSelector('text=Têkeve', { timeout: 60000 });
   await p.getByText('Mamoste', { exact: true }).first().click();
-  await p.locator('input.inp').first().fill('1000');
-  await p.locator('input[type=password]').first().fill('Admin123');
+  await p.locator('input.inp').first().fill('14202601');
+  await p.locator('input[type=password]').first().fill('Reg12345');
   await p.getByText('Têkeve', { exact: true }).last().click();
   await p.waitForTimeout(8000);
-  await clickText(p, 'Akademiya Zarokan', true); await p.waitForTimeout(1500);
-  ok('Yönetici panelinde Zarok sekmesi', (await p.evaluate(() => document.body.innerText)).includes('Serlêdana zarokan'));
+  const openZarok = () => p.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('Akademiya Zarokan')).find(x => { const r = x.getBoundingClientRect(); return r.top > 80 && r.top < 220; }); b.scrollIntoView(); b.click(); });
+  await openZarok(); await p.waitForTimeout(1500);
+  ok('Öğrenci İşleri panelinde Zarok yönetimi', (await p.evaluate(() => document.body.innerText)).includes('Serlêdana zarokan'));
 
   // 1) Öğretmen ekle
   await clickText(p, '👩‍🏫 Mamoste'); await p.waitForTimeout(400);
@@ -92,6 +97,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await ap.getByText('Öğretmen', { exact: true }).first().click();
   await ap.locator('input.inp').first().fill('1000'); await ap.locator('input[type=password]').first().fill('Admin123');
   await ap.getByText('Giriş Yap', { exact: true }).last().click(); await ap.waitForTimeout(8000);
+  ok('Yönetici panelinde Çocuk Akademisi sekmesi YOK', !(await ap.evaluate(() => [...document.querySelectorAll('.tab-bar button')].some(b => b.textContent.includes('Çocuk Akademisi')))));
   await clickText(ap, 'Basın', true); await ap.waitForTimeout(800);
   await clickText(ap, '➕ Kartı Kaydet'); await ap.waitForTimeout(600);
   const crashed = () => ap.evaluate(() => document.body.innerText.includes('An Error Occurred'));
@@ -126,9 +132,9 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await clickText(pp, '📤 Biweşîne'); await pp.waitForTimeout(2500);
   const news = await list('kidNews');
   ok('Basın Zarok site haberini (KU + TR çeviri) yayınlar', news.some(d => d.fields.title.stringValue === 'Konsera zarokan' && JSON.stringify(d.fields.i18n).includes('Çocuk konseri')));
-  await clickText(p, 'Akademiya Zarokan', true); await p.waitForTimeout(800);
+  await openZarok(); await p.waitForTimeout(800);
   const atxt = await p.evaluate(() => document.body.innerText);
-  ok('Yönetici Zarok sekmesinde haber sekmesi yok (basının işi)', !atxt.includes('Nûçeya nû'));
+  ok('Öğrenci İşleri Zarok bölümünde haber sekmesi yok (basının işi)', !atxt.includes('Nûçeya nû'));
 
   // 4) Öğretmen Zarok uygulamasına girer, yoklama alır
   const tp = await ctx.newPage(); tp.on('pageerror', e => errs.push('öğretmen: ' + e.message));

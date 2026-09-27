@@ -19,7 +19,7 @@ Kapatılan açıklar (v5): basın/öğrenci işleri dizine `lvl:"admin"` yazıp 
 basın Cloud Function ile herkesin şifresini değiştirebiliyordu; her öğretmen site haberi yazıp
 başvuru belgelerini okuyabiliyordu; öğrenci **yönetici adına tüm öğrencilere mesaj** atabiliyor,
 başkalarının özel mesajlarını/anket yanıtlarını okuyup silebiliyordu. Hepsi emülatörde testli
-(`tools/kural-testi.js` 132 senaryo, `tools/fonksiyon-testi.js` 17 senaryo).
+(`tools/kural-testi.js` 136 senaryo, `tools/fonksiyon-testi.js` 17 senaryo).
 
 ---
 
@@ -72,7 +72,7 @@ okuyabiliyor, silebiliyor, haber yükleyebiliyordu. Emülatörde doğrulandı (e
 ```bash
 cd tools && npm install && npm run kural-testi     # Java 11+ gerekir
 ```
-132 senaryo: sahte hesaplar, rol yükseltme (basın/öğrenci işleri), mesaj gizliliği, öğretmen yetki yükseltme, öğrenci izolasyonu, yoklama sahipliği,
+136 senaryo: sahte hesaplar, rol yükseltme (basın/öğrenci işleri), mesaj gizliliği, öğretmen yetki yükseltme, öğrenci izolasyonu, yoklama sahipliği,
 site başvurusu, Storage yüklemeleri ve **Akademiya Zarokan** (veli yalnızca kendi çocuğu,
 sahte veli, başvuru doğrulama, çocuk akademisi öğretmeni, site haberleri/arşiv). Kural değiştirdiğinizde yeniden çalıştırın.
 

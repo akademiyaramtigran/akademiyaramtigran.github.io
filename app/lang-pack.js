@@ -8,7 +8,14 @@
  * AAT_ZAROK     : Akademiya Zarokan veli uygulaması (anahtar = zarok/app sözlük anahtarı)
  * AAT_ZAROK_SITE: Akademiya Zarokan tanıtım/başvuru sayfası
  * Elle düzenlemeyin; rapor JSON'larını tools/dil-entegre.js ile birleştirin. */
-window.AAT_TX={"ku":{},"zza":{},"tr":{"⚠ Ev mamoste berê hatiye girêdan":"⚠ Bu öğretmen zaten bağlı",
+window.AAT_TX={"ku":{},"zza":{},"tr":{"⚠ Pel pir mezin e (max 600KB)":"⚠ Dosya çok büyük (en fazla 600KB)",
+"⚠ Navê belgeyê pêwîst e":"⚠ Belge adı gerekli",
+"Belgeyên pêwîst":"İstenen belgeler",
+"Dêûbav divê her belgeyekê cuda bar bike. Heke pelekî şablonê (forma ku were dagirtin) zêde bikî, li ser malperê tê daxistin.":"Veli her belgeyi ayrı yükler. Bir şablon dosyası (doldurulacak form) eklerseniz sitede indirilebilir.",
+"Navê belgeyê (mînak: Wêneya nasnameyê)":"Belge adı (ör. Kimlik fotoğrafı)",
+"📎 Pelê şablonê (vebijarkî — PDF an wêne)":"📎 Şablon dosyası (isteğe bağlı — PDF veya görsel)",
+"Belgeyê zêde bike":"Belge ekle",
+"⚠ Ev mamoste berê hatiye girêdan":"⚠ Bu öğretmen zaten bağlı",
 "✅ Mamosteyê akademiyê hate girêdan":"✅ Akademi öğretmeni bağlandı",
 "Mamosteyê akademiyê? Jimara wî/wê (vebijarkî)":"Akademi öğretmeni mi? Numarası (isteğe bağlı)",
 "Hesabê nû nayê vekirin: mamoste bi jimare û şîfreya xwe ya akademiyê dikeve sepana zarokan.":"Yeni hesap açılmaz: öğretmen çocuk uygulamasına kendi akademi numarası ve şifresiyle girer.",

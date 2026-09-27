@@ -167,6 +167,10 @@ const { ref, uploadString, getBytes } = require('firebase/storage');
   await t('Öğrenci işleri başvuruları okur', getDocs(collection(reg, 'applications')), true);
   await t('Öğrenci işleri çocuk kaydı açar', setDoc(doc(reg, 'kids/K7'), { no: '82026007', guardianNos: ['92026001'] }), true);
   await t('Öğrenci işleri Zarok haberi YAZAMAZ (basının işi)', addDoc(collection(reg, 'kidNews'), { title: 'x' }), false);
+  await t('Site çocuk başvurusu istenen belgelerini okur', getDocs(collection(anon, 'kidApplicationTemplates')), true);
+  await t('Girişsiz istenen belge YAZAMAZ', addDoc(collection(anon, 'kidApplicationTemplates'), { name: 'x' }), false);
+  await t('Öğretmen istenen belge YAZAMAZ', addDoc(collection(teacher, 'kidApplicationTemplates'), { name: 'x' }), false);
+  await t('Öğrenci işleri istenen belge tanımlar', addDoc(collection(reg, 'kidApplicationTemplates'), { name: 'Nasname' }), true);
   // Mesaj gizliliği
   await t('Öğrenci KENDİNE gelen özel mesajları sorgular', getDocs(query(collection(student, 'messages'), where('recipientNo', '==', '10202601'))), true);
   await t('Öğrenci BAŞKASININ özel mesajını okuyamaz', getDoc(doc(student, 'messages/M3')), false);

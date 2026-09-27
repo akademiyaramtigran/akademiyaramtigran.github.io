@@ -101,6 +101,27 @@ async function routes(ctx) {
   await p.locator('b', { hasText: '👤 Zelal Demir' }).first().click(); await p.waitForTimeout(500);
   await p.fill('input[placeholder^="Bersiv"]', 'Şifa be!'); await p.locator('button:has-text("📤")').last().click(); await p.waitForTimeout(2000);
   ok('Yanıt veliye ulaşır', (await vp.evaluate(() => document.body.innerText)).includes('Şifa be!'));
+  // Başvuru: akademiyle aynı mantık — Öğrenci İşleri istenen belgeyi tanımlar, veli her belgeyi yükler
+  await p.bringToFront();
+  await clickText(p, '📋 Serlêdan'); await p.waitForTimeout(400);
+  await p.locator('input[placeholder^="Navê belgeyê"]').fill('Wêneya nasnameyê');
+  await clickText(p, 'Belgeyê zêde bike'); await p.waitForTimeout(1500);
+  ok('Öğrenci İşleri istenen belge tanımlar', (await list('kidApplicationTemplates')).some(d => d.fields.name.stringValue === 'Wêneya nasnameyê'));
+  const sctx = await b.newContext({ viewport: { width: 1280, height: 900 } }); await routes(sctx);
+  await sctx.addInitScript(() => { try { localStorage.setItem('zarok-lang', 'ku'); } catch (_) {} });
+  const sp = await sctx.newPage(); sp.on('pageerror', e => errs.push('site: ' + e.message));
+  await sp.goto('http://localhost:8765/zarok/?emu=1'); await sp.waitForSelector('#f-kid', { timeout: 20000 });
+  ok('Site formunda istenen belge görünür', (await sp.evaluate(() => document.body.innerText)).includes('Wêneya nasnameyê'));
+  await sp.fill('#f-kid', 'Baran Kaya'); await sp.fill('#f-gname', 'Roza Kaya'); await sp.fill('#f-phone', '0555 999 88 77'); await sp.check('#c-kvkk');
+  await sp.evaluate(() => document.querySelector('form.card button[type=submit]').click()); await sp.waitForTimeout(600);
+  ok('Belge yüklenmeden başvuru GÖNDERİLEMEZ', (await sp.evaluate(() => document.querySelector('.msg').textContent)).includes('Wêneya nasnameyê'));
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAIAAAACUFjqAAAAEklEQVR4nGP4z8CAB+GTG8HSALfKY52fTcuYAAAAAElFTkSuQmCC', 'base64');
+  await sp.setInputFiles('form.card input[type=file]', { name: 'nasname.png', mimeType: 'image/png', buffer: png });
+  await sp.evaluate(() => document.querySelector('form.card button[type=submit]').click());
+  const sentOk = await sp.waitForFunction(() => document.body.innerText.includes('🎉') || /Hat şandin|wergirtin/.test(document.body.innerText), null, { timeout: 25000 }).then(() => true, () => false);
+  const kapp = (await list('kidApplications')).find(d => d.fields.kidName.stringValue === 'Baran Kaya');
+  ok('Belgeli başvuru gönderilir (belge adıyla)', sentOk && kapp && JSON.stringify(kapp.fields.docs).includes('Wêneya nasnameyê'));
+  await sctx.close();
   // Öğrenci İşleri çocuk akademisi öğretmeni de ekler (yönetici paneliyle aynı ekleme mantığı)
   await p.bringToFront();
   await clickText(p, '👩‍🏫 Mamoste'); await p.waitForTimeout(400);

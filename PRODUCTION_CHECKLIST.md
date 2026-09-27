@@ -72,12 +72,12 @@ _Depolama/plan satın alma kalemleri isteğiniz üzerine bu rapora dahil edilmed
 
 ## E. Test edilenler
 
-- Firestore + Storage kuralları: emülatörde **132 senaryo** (`tools/kural-testi.js`, Zarok + rol ayrımı dahil) — 132/132;
+- Firestore + Storage kuralları: emülatörde **136 senaryo** (`tools/kural-testi.js`, Zarok + rol ayrımı dahil) — 136/136;
   eski kurallarla ilk 34 senaryonun 11'i açık verdi.
 - Cloud Function: 17/17 (`tools/fonksiyon-testi.js`).
 - **Uçtan uca (gerçek kurallar + emülatör):** Öğrenci İşleri girişi → Zarok başvurusu kabul →
   veli hesabı → veli girişi → yoklama bildirimi → duyuru → mesaj/yanıt; yönetici → çocuk öğretmeni ekleme →
-  çocuk kaydı → Türkçe arayüzde basın kartı → basın girişi ve çocuk sitesi haberi → öğretmen girişi ve yoklama → şifre yenileme: 43/43 (`tools/e2e/`).
+  çocuk kaydı → Türkçe arayüzde basın kartı → basın girişi ve çocuk sitesi haberi → öğretmen girişi ve yoklama → şifre yenileme: 48/48 (`tools/e2e/`).
 - Dizin eşitleme fonksiyonu: emülatörde yalnızca `idx_staff/1000` varken tüm dizini
   kurduğu, silinmiş kaydı kaldırdığı doğrulandı.
 - Uygulama: Chromium'da KU / ZZ / TR / EN giriş ve ayar ekranları, canlı dil geçişi.
