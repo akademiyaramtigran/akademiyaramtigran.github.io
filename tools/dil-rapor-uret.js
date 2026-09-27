@@ -140,7 +140,7 @@ const SECTIONS = [
   ['ogrisleri', 'Öğrenci İşleri — Başvuru, Kayıt, Dönem', /^RegistrarPanel$/],
   ['ayar', 'Ayarlar, Uygulama Kurulumu (PWA), Yasal Metinler', /^(SettingsSheet|PWAInstallBanner|LegalModal|GDPRBanner|ThemeToggle)$/],
   ['alan', 'Sanat Alanları', /^AREAS$/],
-  ['zarokadmin', 'Akademiya Zarokan — Öğrenci İşleri yönetimi', /^(ZarokAdminPanel|zarokNextNo)$/],
+  ['zarokadmin', 'Konservatuar — Öğrenci İşleri yönetimi', /^(ZarokAdminPanel|zarokNextNo)$/],
 ];
 function sectionOf(comps) {
   for (const c of comps) for (const [id, , re] of SECTIONS) if (re.test(c)) return id;
@@ -357,7 +357,7 @@ function main() {
   const site = siteStrings();
   const zarok = zarokStrings();
   const secNames = SECTIONS.map(([id, name]) => ({ id, name })).concat([{ id: 'diger', name: 'Diğer Ekranlar' }, { id: 'site', name: 'Ana Sayfa (Site) — akademiyaramtigran.github.io' },
-    { id: 'zarok', name: 'Akademiya Zarokan — Veli uygulaması (PWA)' }, { id: 'zaroksite', name: 'Akademiya Zarokan — Tanıtım ve başvuru sayfası' }]);
+    { id: 'zarok', name: 'Konservatuar — Veli / öğretmen uygulaması (PWA)' }, { id: 'zaroksite', name: 'Konservatuar — Tanıtım ve başvuru sayfası' }]);
   const order = Object.fromEntries(secNames.map((s, i) => [s.id, i]));
   const hash = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); };
   function rowsFor(lang) {

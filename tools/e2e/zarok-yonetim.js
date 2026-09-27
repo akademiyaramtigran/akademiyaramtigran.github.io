@@ -56,7 +56,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await p.locator('input[type=password]').first().fill('Reg12345');
   await p.getByText('Têkeve', { exact: true }).last().click();
   await p.waitForTimeout(8000);
-  const openZarok = () => p.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('Akademiya Zarokan')).find(x => { const r = x.getBoundingClientRect(); return r.top > 80 && r.top < 220; }); b.scrollIntoView(); b.click(); });
+  const openZarok = () => p.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('Konservatuar')).find(x => { const r = x.getBoundingClientRect(); return r.top > 80 && r.top < 220; }); b.scrollIntoView(); b.click(); });
   await openZarok(); await p.waitForTimeout(1500);
   ok('Öğrenci İşleri panelinde Zarok yönetimi', (await p.evaluate(() => document.body.innerText)).includes('Serlêdana zarokan'));
 
@@ -73,7 +73,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await clickText(p, 'Baş e');
 
   // 2) Çocuğu elle kaydet (yeni veli)
-  await clickText(p, '👧 Zarok'); await p.waitForTimeout(400);
+  await clickText(p, '🎓 Zarok'); await p.waitForTimeout(400);
   await clickText(p, 'Zarokê Tescîl Bike'); await p.waitForTimeout(300);
   await p.locator('label:has-text("Nav û paşnavê zarokê") + input').fill('Rojîn Aydın');
   await p.locator('label:has-text("Navê dêûbav") + input').fill('Sara Aydın');
@@ -122,7 +122,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await pp.getByText('Têkeve', { exact: true }).last().click(); await pp.waitForTimeout(7000);
   const pbody = await pp.evaluate(() => document.body.innerText);
   ok('Basın kullanıcısı girer, Basın paneli açılır', /ÇAPEMENÎ|Çapemenî/.test(pbody), pbody.slice(0, 120).replace(/\s+/g, ' '));
-  await clickText(pp, 'Akademiya Zarokan', true); await pp.waitForTimeout(1200);
+  await clickText(pp, 'Konservatuar', true); await pp.waitForTimeout(1200);
   const ptxt = await pp.evaluate(() => document.body.innerText);
   ok('Basın Zarok sekmesinde yalnızca haber + arşiv görür', ptxt.includes('Nûçeya nû') && !ptxt.includes('Zarokê Tescîl Bike') && !ptxt.includes('Serlêdana zarokan'));
   await clickText(pp, 'Nûçeya nû'); await pp.waitForTimeout(300);

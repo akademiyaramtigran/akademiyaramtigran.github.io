@@ -1,19 +1,37 @@
 {
   "id": "./",
-  "name": "Akademiya Zarokan — Dêûbav",
-  "short_name": "Zarok",
-  "description": "Akademîya Aram Tîgran — çocuk akademisi veli uygulaması: program, giriş-çıkış, duyurular, mesajlar.",
+  "name": "Konservatuara Aram Tîgran",
+  "short_name": "Konservatuar",
+  "description": "Konservatuara Aram Tîgran — sepana dêûbav û mamosteyan: bername, ketin-derketin, ragihandin, peyam.",
   "lang": "ku",
   "start_url": "./?source=pwa",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#fffaf2",
+  "background_color": "#f6f3ee",
   "theme_color": "#0f2f38",
-  "categories": ["education", "kids"],
+  "categories": [
+    "education",
+    "music"
+  ],
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }

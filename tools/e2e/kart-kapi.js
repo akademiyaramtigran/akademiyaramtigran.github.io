@@ -116,11 +116,11 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   ok('Kapı giriş kayıtları tutuldu (görevli numarasıyla)', logs.length >= 4 && logs.every(d => d.fields.by.stringValue === '97202601'));
 
   // 5) Çocuk kartı → çocuk öğretmeni okutur → yoklama + veli bildirimi
-  await rp.bringToFront(); await topTab(rp, 'Akademiya Zarokan'); await rp.waitForTimeout(1500);
-  await rp.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.includes('👧 Zarok') && x.offsetParent); b.click(); }); await rp.waitForTimeout(800);
+  await rp.bringToFront(); await topTab(rp, 'Konservatuar'); await rp.waitForTimeout(1500);
+  await rp.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.includes('🎓 Zarok') && x.offsetParent); b.click(); }); await rp.waitForTimeout(800);
   const [pop3] = await Promise.all([rc.waitForEvent('page'), rp.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.trim() === '🪪' && x.offsetParent); b.click(); })]);
   await pop3.waitForTimeout(2500); await shot(pop3, 'kart-zarok.png');
-  ok('Çocuk kartı basılır', (await pop3.evaluate(() => document.body.innerText)).includes('AKADEMIYA ZAROKAN'));
+  ok('Çocuk kartı basılır', (await pop3.evaluate(() => document.body.innerText)).includes('KONSERVATUARA ARAM'));
   await pop3.close();
   const ktok = (await getDocF('kids/K1')).fields.cardToken.stringValue;
   const vc = await mk(); const vp = await vc.newPage(); vp.on('pageerror', e => errs.push('veli: ' + e.message));

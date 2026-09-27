@@ -1,4 +1,7 @@
-# 👧 Akademiya Zarokan — Çocuk Akademisi
+# 🎼 Konservatuara Aram Tîgran — Çocuk ve Gençlik Bölümü
+
+> Eski adı: Akademiya Zarokan. Tasarım: Model C (krem kâğıt, lacivert, altın; Playfair Display + Inter).
+> Tüm arayüz (tanıtım sitesi, veli/öğretmen uygulaması, öğrenci kartı, uygulama simgeleri) bu kimlikle.
 
 Yetişkin akademiyle **aynı Firebase projesi ve güvenlik altyapısı**, ayrı bir arayüz.
 Giriş: **Veli** ve **Öğretmen**. Çocukların kendi hesabı yoktur.
@@ -7,8 +10,8 @@ Giriş: **Veli** ve **Öğretmen**. Çocukların kendi hesabı yoktur.
 |---|---|---|
 | Tanıtım + veli başvuru formu | `/zarok/` | `https://zarok.aramtigran.org/` |
 | Veli uygulaması (PWA) | `/zarok/app/` | `https://zarok.aramtigran.org/app/` |
-| Yönetim | Ana uygulama → **Öğrenci İşleri** → **Akademiya Zarokan** bölümü (yönetici panelinde yok) | aynı |
-| Site haberleri + arşiv | Ana uygulama → **Basın** → **Akademiya Zarokan** sekmesi | aynı |
+| Yönetim | Ana uygulama → **Öğrenci İşleri** → **Konservatuar** bölümü (yönetici panelinde yok) | aynı |
+| Site haberleri + arşiv | Ana uygulama → **Basın** → **Konservatuar** sekmesi | aynı |
 
 > **Alan adı notu:** `.gov` / `.gov.tr` uzantıları yalnızca kamu kurumlarına verilir; özel bir
 > akademi alamaz. `zarok.aramtigran.org` (veya `.com`) önerilir.
