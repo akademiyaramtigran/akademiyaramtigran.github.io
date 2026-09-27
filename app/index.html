@@ -396,9 +396,9 @@
   function staffLvl(tc) { return tc.isAdmin ? "admin" : tc.isRegistrar ? "registrar" : tc.isPress ? "press" : tc.isGate ? "gate" : "teacher"; }
   async function idxPut(kind, rec) {
     const id = idxId(rec && rec.no);
-    if (!id || !isStaffSession()) return;
+    if (!id || !isStaffSession()) return false;
     const data = kind === "student" ? { no: id } : { no: id, lvl: staffLvl(rec) };
-    try { await setDoc(doc(db, kind === "student" ? "idx_students" : "idx_staff", id), { ...data, updatedAt: serverTimestamp() }); } catch (_) {}
+    try { await setDoc(doc(db, kind === "student" ? "idx_students" : "idx_staff", id), { ...data, updatedAt: serverTimestamp() }); return true; } catch (_) { return false; }
   }
   async function idxDel(kind, no) {
     const id = idxId(no);
@@ -603,7 +603,13 @@
         }
       }
       await setDoc(ref, {...cleanData, passHash: tc.pass || "", fireId: ref.id, hasPhoto, photo: photoToSave, updatedAt: serverTimestamp()});
-      await idxPut("staff", tc);
+      const idxOk = await idxPut("staff", tc);
+      // Özel personel (Öğrenci İşleri / Basın / Güvenlik) yetki kaydı yazılamadıysa hesap
+      // açılır ama kurallar onu tanımaz ("Yetki yok"). Sessiz geçme — kaydedene bildir.
+      if (!idxOk && (tc.isRegistrar || tc.isPress || tc.isGate)) {
+        const me = ((auth.currentUser && auth.currentUser.email) || "").split("@")[0];
+        try { window.dispatchEvent(new CustomEvent("aat-idx-fail", { detail: { no: idxId(tc.no), me } })); } catch (_) {}
+      }
       return ref.id;
     },
     async saveSchedule(ls) {
@@ -7672,14 +7678,16 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   async function diagnosePerm(){
     try{
       const email=(F.auth&&F.auth.currentUser&&F.auth.currentUser.email)||"";
+      const outdated=Z("Qaîdeyên Firestore kevn in — firestore.rules a nû biweşînin","Firestore rules are outdated — publish the latest firestore.rules");
       if(!email) return Z("Têketina Firebase tune — derkeve û dîsa têkeve","No Firebase session — sign out and sign in again");
-      if(email===F.ADMIN_EMAIL) return Z("Qaîdeyên Firestore kevn in — firestore.rules a nû biweşînin","Firestore rules are outdated — publish the latest firestore.rules");
+      if(email===F.ADMIN_EMAIL) return outdated;
       const no=email.split("@")[0];
       const s=await F.getDoc(F.doc(F.db,"idx_staff",no));
-      if(!s.exists()) return Z("Qeyda destûrê tune","No permission record")+": Firestore → idx_staff → "+no+" (lvl = registrar / admin)";
-      const lvl=s.data().lvl||"teacher";
-      if(lvl!=="admin"&&lvl!=="registrar") return Z("Asta destûrê","Permission level")+" '"+lvl+"' (idx_staff/"+no+") — "+Z("rêveber (1000) derkeve û dîsa têkeve, an lvl bi destan rast bike","admin should sign out and in again, or fix lvl manually");
-      return Z("Qaîdeyên Firestore kevn in — firestore.rules a nû biweşînin","Firestore rules are outdated — publish the latest firestore.rules");
+      const lvl=s.exists()?(s.data().lvl||"teacher"):"";
+      if(lvl!=="registrar"&&lvl!=="admin")
+        return Z("Ev hesab di qaîdeyan de wek Karûbarên Xwendekaran nayê naskirin","This account is not recognised as Student Affairs by the rules")
+          +" — Firebase Console → Firestore → idx_staff → "+no+": lvl = registrar"+(lvl?" ("+Z("niha","now")+": "+lvl+")":" ("+Z("belge tune","no document")+")");
+      return outdated;
     }catch(_){ return null; }
   }
   const fld=(label,key,extra)=>(
@@ -17636,6 +17644,14 @@ function App(){
 
   useEffect(()=>{ if(!currentUser) seenAnnIds.current = new Set(); },[currentUser]);
 
+  // Özel personelin yetki kaydı (idx_staff) yazılamadıysa uyar — aksi halde o hesap "Yetki yok" alır
+  useEffect(()=>{
+    const h=e=>{ const d=(e&&e.detail)||{};
+      toast("⚠ "+(lang==="en"
+        ?("Account created but its permission record could not be written (idx_staff/"+d.no+"). Your own record idx_staff/"+d.me+" must have lvl = admin.")
+        :KF("Hesab hate çêkirin lê qeyda destûrê nehat nivîsîn (idx_staff/{0}). Divê di qeyda we ya idx_staff/{1} de lvl = admin be.",[d.no,d.me])),15000); };
+    window.addEventListener("aat-idx-fail",h); return ()=>window.removeEventListener("aat-idx-fail",h);
+  },[lang,toast]);
   const onDataChange=useCallback(async (action,payload)=>{
     if(action==="addStudent") {
       // Optimistik güncelleme: Firebase listener gelmeden önce UI'da göster

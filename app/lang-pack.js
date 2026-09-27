@@ -8,7 +8,11 @@
  * AAT_ZAROK     : Akademiya Zarokan veli uygulaması (anahtar = zarok/app sözlük anahtarı)
  * AAT_ZAROK_SITE: Akademiya Zarokan tanıtım/başvuru sayfası
  * Elle düzenlemeyin; rapor JSON'larını tools/dil-entegre.js ile birleştirin. */
-window.AAT_TX={"ku":{},"zza":{},"tr":{"Têketina Firebase tune — derkeve û dîsa têkeve":"Firebase oturumu yok — çıkış yapıp tekrar giriş yapın",
+window.AAT_TX={"ku":{},"zza":{},"tr":{"Ev hesab di qaîdeyan de wek Karûbarên Xwendekaran nayê naskirin":"Bu hesap kurallarda Öğrenci İşleri olarak tanınmıyor",
+"niha":"şu an",
+"belge tune":"belge yok",
+"Hesab hate çêkirin lê qeyda destûrê nehat nivîsîn (idx_staff/{0}). Divê di qeyda we ya idx_staff/{1} de lvl = admin be.":"Hesap oluşturuldu ama yetki kaydı yazılamadı (idx_staff/{0}). Kendi kaydınızda (idx_staff/{1}) lvl = admin olmalı.",
+"Têketina Firebase tune — derkeve û dîsa têkeve":"Firebase oturumu yok — çıkış yapıp tekrar giriş yapın",
 "Qaîdeyên Firestore kevn in — firestore.rules a nû biweşînin":"Firestore kuralları eski — güncel firestore.rules dosyasını yayınlayın",
 "Qeyda destûrê tune":"Yetki kaydı yok",
 "Asta destûrê":"Yetki seviyesi",
