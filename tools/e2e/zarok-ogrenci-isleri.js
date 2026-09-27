@@ -138,6 +138,14 @@ async function routes(ctx) {
   await clickText(p, '💾 Tomar bike');
   const okT = await p.waitForSelector('text=Mamoste hate tescîlkirin', { timeout: 20000 }).then(() => true, () => false);
   ok('Öğrenci İşleri çocuk öğretmeni ekler (numara + şifre)', okT && (await list('kidTeachers')).length > 0);
+  // Yetki kaydı bozuksa (ör. yönetici henüz tekrar giriş yapmadı) hata mesajı nedeni ve belgeyi söyler
+  await put('idx_staff/13202601', { no: '13202601', lvl: 'teacher' });
+  await clickText(p, 'Mamoste Tescîl Bike'); await p.waitForTimeout(300);
+  await p.locator('label:has-text("Nav û paşnav") + input').fill('Mamoste Diyar');
+  await clickText(p, '💾 Tomar bike');
+  const diag = await p.waitForFunction(() => /idx_staff\/13202601/.test(document.body.innerText), null, { timeout: 20000 }).then(() => true, () => false);
+  ok('"Yetki yok" hatası nedeni gösterir (idx_staff seviyesi)', diag, diag ? '' : (await p.evaluate(() => document.body.innerText)).slice(0, 200));
+  await put('idx_staff/13202601', { no: '13202601', lvl: 'registrar' });
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   await p.screenshot({ path: require('os').tmpdir() + '/e2e-registrar.png' }); await vp.screenshot({ path: require('os').tmpdir() + '/e2e-parent.png' });
   console.log(out.join('\n'));
