@@ -116,7 +116,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   ok('Kapı giriş kayıtları tutuldu (görevli numarasıyla)', logs.length >= 4 && logs.every(d => d.fields.by.stringValue === '97202601'));
 
   // 5) Çocuk kartı → çocuk öğretmeni okutur → yoklama + veli bildirimi
-  await rp.bringToFront(); await topTab(rp, 'Konservatuar'); await rp.waitForTimeout(1500);
+  await rp.bringToFront(); await topTab(rp, 'Akademiya Zarokan'); await rp.waitForTimeout(1500);
   await rp.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.includes('🎓 Zarok') && x.offsetParent); b.click(); }); await rp.waitForTimeout(800);
   const [pop3] = await Promise.all([rc.waitForEvent('page'), rp.evaluate(() => {
     // Önceki testlerin eklediği çocuklar da listede olabilir → "Rojda Aram" satırındaki kart düğmesi

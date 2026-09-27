@@ -63,7 +63,7 @@ async function routes(ctx) {
   await p.waitForTimeout(8000);
   const t0 = await p.evaluate(() => document.body.innerText);
   ok('Öğrenci İşleri girişi', /Serlêdan|Applications/.test(t0), t0.slice(0, 80).replace(/\n/g, ' '));
-  await p.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('Konservatuar')).find(x => { const r = x.getBoundingClientRect(); return r.top > 80 && r.top < 220; }); b.scrollIntoView(); b.click(); });
+  await p.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('Akademiya Zarokan')).find(x => { const r = x.getBoundingClientRect(); return r.top > 80 && r.top < 220; }); b.scrollIntoView(); b.click(); });
   await p.waitForTimeout(2500);
   const t1 = await p.evaluate(() => document.body.innerText);
   ok('Zarok sekmesi açılır, başvuru listelenir', t1.includes('Hêvîn Demir'));

@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Konservatuara Aram Tîgran",
-  "short_name": "Konservatuar",
-  "description": "Konservatuara Aram Tîgran — sepana dêûbav û mamosteyan: bername, ketin-derketin, ragihandin, peyam.",
+  "name": "Akademiya Zarokan — Konservatuara Aram Tîgran",
+  "short_name": "Akademiya Zarokan",
+  "description": "Akademiya Zarokan (Konservatuara Aram Tîgran) — sepana dêûbav û mamosteyan: bername, ketin-derketin, ragihandin, peyam.",
   "lang": "ku",
   "start_url": "./?source=pwa",
   "scope": "./",

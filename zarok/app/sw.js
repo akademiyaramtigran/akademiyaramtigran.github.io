@@ -1,5 +1,5 @@
-// Konservatuara Aram Tîgran — veli/öğretmen uygulaması Service Worker (kapsam: bu klasör)
-const CACHE = 'zarok-v7';
+// Akademiya Zarokan (Konservatuara Aram Tîgran) — veli/öğretmen uygulaması Service Worker (kapsam: bu klasör)
+const CACHE = 'zarok-v8';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './vendor/jsQR.js', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-180.png'];
 
 self.addEventListener('install', e => {
@@ -30,7 +30,7 @@ self.addEventListener('fetch', e => {
 // Uygulama açıkken gelen yoklama bildirimi (sayfa postMessage ile ister)
 self.addEventListener('message', e => {
   const d = e.data || {};
-  if (d.type === 'notify') self.registration.showNotification(d.title || 'Konservatuara Aram Tîgran', { body: d.body || '', icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: d.tag || 'zarok' });
+  if (d.type === 'notify') self.registration.showNotification(d.title || 'Akademiya Zarokan', { body: d.body || '', icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: d.tag || 'zarok' });
 });
 self.addEventListener('notificationclick', e => {
   e.notification.close();
