@@ -38,6 +38,9 @@ header .wrap{display:flex;align-items:center;gap:10px;padding-top:calc(10px + en
 .langsel{display:flex;align-items:center;gap:6px;border:1.5px solid var(--line);background:var(--card);border-radius:14px;padding:0 10px;min-height:40px;flex-shrink:0}
 .langsel select{appearance:none;-webkit-appearance:none;border:none;background:transparent;font-weight:800;font-size:14px;padding:8px 2px;outline:none;cursor:pointer;color:var(--ink)}
 .acad{flex-shrink:0}
+.mesale{height:26px;width:auto;display:block}
+.acad picture{display:block}
+.flogo{display:inline-flex;align-items:center;gap:6px}
 /* Haberler */
 .news{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .ncard{background:var(--card);border-radius:24px;overflow:hidden;box-shadow:var(--shadow);cursor:pointer;display:flex;flex-direction:column;border:none;padding:0;text-align:left;font:inherit;color:inherit}
@@ -168,7 +171,7 @@ footer a{font-weight:800;text-decoration:none}
     <div class="brand"><b data-t="title">Akademiya Zarokan</b><span data-t="sub">Akademîya Aram Tîgran</span></div>
     <div class="sp"></div>
     <nav class="hnav" aria-label="Menû"><a href="#nuce" data-t="navNews">Nûçe</a><a href="#qad" data-t="areasH">Qad</a><a href="#derbare" data-t="aboutH">Derbarê Me</a><a href="#serledan" data-t="navApply">Serlêdan</a></nav>
-    <a class="btn ghost sm acad" href="../" title="Akademîya Aram Tîgran"><span aria-hidden="true">🏛</span><span class="acad-t" data-t="backAcademy">Akademîya Aram Tîgran</span></a>
+    <a class="btn ghost sm acad" href="../" title="Akademîya Aram Tîgran"><picture><source srcset="app/icons/akademi-mesale-koyu.png" media="(prefers-color-scheme: dark)"/><img class="mesale" src="app/icons/akademi-mesale.png" alt="" width="17" height="27"/></picture><span class="acad-t" data-t="backAcademy">Akademîya Aram Tîgran</span></a>
     <label class="langsel"><span aria-hidden="true">🌐</span><select id="lang" aria-label="Ziman · Dil · Language"></select></label>
     <a class="btn sm" href="app/"><span aria-hidden="true">🔑</span><span class="login-t" data-t="login">Têketin</span></a>
   </div>
@@ -268,7 +271,7 @@ footer a{font-weight:800;text-decoration:none}
       <a href="#nuce" data-t="navNews">Nûçe</a>
       <a href="#derbare" data-t="aboutH">Derbarê Me</a>
       <a href="../kvkk.html" data-t="kvkk">KVKK / Nepenî</a>
-      <a href="../" data-t="mainSite">Akademîya Aram Tîgran →</a>
+      <a href="../" class="flogo"><picture><source srcset="app/icons/akademi-mesale-koyu.png" media="(prefers-color-scheme: dark)"/><img class="mesale" style="height:22px" src="app/icons/akademi-mesale.png" alt="" width="17" height="27"/></picture><span data-t="mainSite">Akademîya Aram Tîgran →</span></a>
     </div>
   </div>
 </footer>
