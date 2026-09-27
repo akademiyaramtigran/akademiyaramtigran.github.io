@@ -7,7 +7,7 @@
     "entegre": "node dil-entegre.js",
     "kural-testi": "cd .. && firebase emulators:exec --only firestore,storage --project aram2026-test \"node tools/kural-testi.js\"",
     "fonksiyon-testi": "cd .. && firebase emulators:exec --only auth,firestore,functions --project aram2026-a9fd7 \"node tools/fonksiyon-testi.js\"",
-    "e2e": "cd .. && firebase emulators:exec --only auth,firestore --project aram2026-a9fd7 \"node tools/e2e/zarok-veli.js && node tools/e2e/zarok-ogrenci-isleri.js && node tools/e2e/zarok-yonetim.js && node tools/e2e/kart-kapi.js && node tools/e2e/saldiri.js\""
+    "e2e": "cd .. && firebase emulators:exec --only auth,firestore --project aram2026-a9fd7 \"node tools/e2e/zarok-veli.js\" && firebase emulators:exec --only auth,firestore --project aram2026-a9fd7 \"node tools/e2e/zarok-ogrenci-isleri.js\" && firebase emulators:exec --only auth,firestore --project aram2026-a9fd7 \"node tools/e2e/zarok-yonetim.js\" && firebase emulators:exec --only auth,firestore --project aram2026-a9fd7 \"node tools/e2e/kart-kapi.js\" && firebase emulators:exec --only auth,firestore --project aram2026-a9fd7 \"node tools/e2e/saldiri.js\""
   },
   "devDependencies": {
     "@babel/parser": "^7.25.0",

@@ -7655,7 +7655,18 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   const guardOf=no=>guards.find(g=>g.no===no);
   const teacherOf=no=>kteach.find(t=>t.no===no);
   const areaLabel=a=>{ try{ return areaName(a,lang); }catch(_){ return a||""; } };
-  const err=e=>toast("❌ "+((e&&(e.code||e.message))||"?"));
+  // Hata kodlarını anlaşılır mesaja çevir (ham "auth/..." kodu yerine)
+  const err=e=>{
+    const c=String((e&&(e.code||e.message))||"?");
+    const m=/permission|insufficient/i.test(c)?Z("Destûr tune: qaîdeyên Firestore yên nû (firestore.rules) di Firebase Console de biweşînin","Permission denied: publish the latest firestore.rules in Firebase Console")
+      :c==="auth/operation-not-allowed"?Z("Firebase Console → Authentication → Sign-in method: E-mail/Şîfre çalak bikin","Enable Email/Password sign-in in Firebase Console → Authentication")
+      :c==="auth/email-already-in-use"?Z("Bi vê hejmarê hesabek berê heye","An account with this number already exists")
+      :c==="auth/too-many-requests"?Z("Gelek hewl hatin dan — çend deqîqe paşê dîsa biceribînin","Too many attempts — try again in a few minutes")
+      :c==="auth/network-request-failed"?Z("Girêdana înternetê tune","No internet connection")
+      :c==="aat/no-free-number"?Z("Hejmareke vala nehat dîtin","No free number found")
+      :c;
+    toast("❌ "+m);
+  };
   const fld=(label,key,extra)=>(
     <div><label style={lbl}>{label}</label>
       <input style={inp} value={(form&&form.data[key])||""} onChange={e=>{const v=e.target.value;setForm(f=>({...f,data:{...f.data,[key]:v}}));}} {...(extra||{})}/></div>);
@@ -7666,20 +7677,37 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
     </select>);
 
   // ── hesap yardımcıları (ana akademi mantığı) ──
-  async function makeAccount(no,role){
-    const pass=genAutoPassword();
-    try{ await F.createAuthUser(no,pass,role); }
-    catch(e){ if(e.code==="auth/email-already-in-use"){ const r=await F.forceResetPassword(no,role,null,pass); if(!r) throw e; } else throw e; }
-    if(!F.serverUserMgmt) await F.setDoc(F.doc(F.db,"kidSecrets",no),{no,role,pass,updatedAt:F.serverTimestamp()});
-    return pass;
+  // Yeni hesap: sıradaki boş numarayı bulur. Önceki yarım kalmış bir denemeden
+  // Firebase Auth'ta aynı e-posta ("email-already-in-use") kalmışsa: şifre kasasında
+  // eski şifresi varsa hesap devralınır, yoksa o numara atlanıp bir sonrakine geçilir.
+  // Şifre kasası Auth'tan ÖNCE yazılır → kural/yetki sorunu hesap açılmadan yakalanır.
+  async function makeAccount(nos,prefix,role){
+    const taken=new Set((nos||[]).map(String));
+    const first=parseInt(zarokNextNo(nos,prefix).slice(prefix.length),10);
+    for(let i=0;i<30;i++){
+      const no=prefix+String(first+i).padStart(3,"0");
+      if(taken.has(no)) continue;
+      const pass=genAutoPassword();
+      let old=null;
+      if(!F.serverUserMgmt){
+        try{ const s=await F.getDoc(F.doc(F.db,"kidSecrets",no)); if(s.exists()) old=s.data().pass||null; }catch(_){}
+        await F.setDoc(F.doc(F.db,"kidSecrets",no),{no,role,pass,updatedAt:F.serverTimestamp()});
+      }
+      try{ await F.createAuthUser(no,pass,role); return {no,pass}; }
+      catch(e){
+        if(e.code!=="auth/email-already-in-use") throw e;
+        if(old){ const r=await F.forceResetPassword(no,role,old,pass); if(r) return {no,pass}; }
+        if(!F.serverUserMgmt){ try{ await F.setDoc(F.doc(F.db,"kidSecrets",no),{no,role,pass:old||"",orphan:true,updatedAt:F.serverTimestamp()}); }catch(_){} }
+      }
+    }
+    throw Object.assign(new Error("no-free-number"),{code:"aat/no-free-number"});
   }
   async function mailCreds(name,email,no,pass){
     if(!email||!pass) return false;
     try{ await sendCredsEmail(name,email,no,pass); return true; }catch(_){ return false; }
   }
   async function createGuardian(d){
-    const no=zarokNextNo(guards.map(x=>x.no),"9"+yr);
-    const pass=await makeAccount(no,"guardian");
+    const {no,pass}=await makeAccount(guards.map(x=>x.no),"9"+yr,"guardian");
     const g={no,name:(d.guardianName||d.name||"").trim(),phone:d.phone||"",phone2:d.phone2||"",email:(d.email||"").trim(),relation:d.relation||""};
     await F.setDoc(F.doc(F.db,"guardians",no),{...g,createdAt:F.serverTimestamp()});
     await F.setDoc(F.doc(F.db,"idx_guardians",no),{no,updatedAt:F.serverTimestamp()});
@@ -7748,8 +7776,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
         toast(Z("✅ Mamosteyê akademiyê hate girêdan","✅ Academy teacher linked")); setForm(null);
       }
       else{
-        const no=zarokNextNo(kteach.filter(x=>!x.academy).map(x=>x.no),"7"+yr);
-        const pass=await makeAccount(no,"kidteacher");
+        const {no,pass}=await makeAccount(kteach.map(x=>x.no),"7"+yr,"kidteacher");
         await F.setDoc(F.doc(F.db,"kidTeachers",no),{no,...rec,createdAt:F.serverTimestamp()});
         await F.setDoc(F.doc(F.db,"idx_kidstaff",no),{no,updatedAt:F.serverTimestamp()});
         const mailed=await mailCreds(rec.name,rec.email,no,pass);
