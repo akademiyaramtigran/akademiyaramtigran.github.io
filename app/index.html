@@ -7636,7 +7636,10 @@ function docIsPdf(d, url){
             kidAnnouncements · kidMessages · kidNews · kidArchive · config/zarok */
 const ZAROK_DAYS_KU=["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"];
 const ZAROK_DAYS_EN=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-const ZAROK_AREAS=["muzik","tiyatro","dans","wenesazi","edebiyat","sinema"];
+// Çocuk Akademisi dersleri (eski kayıtlardaki alan anahtarları için areaName yedeği kullanılır)
+const ZAROK_AREAS=["solfej","ziman","teori","dalcroze","drama","enstruman"];
+const ZAROK_AREA_NAMES={solfej:["Solfej","Solfège"],ziman:["Ziman","Language"],teori:["Teorîya Muzîkê","Music Theory"],
+  dalcroze:["Dalcroze","Dalcroze"],drama:["Drama","Drama"],enstruman:["Enstrûman","Instrument"]};
 function zarokNextNo(nos,prefix){
   let max=0;
   (nos||[]).forEach(n=>{ n=String(n||""); if(n.indexOf(prefix)===0){ const v=parseInt(n.slice(prefix.length),10); if(v>max) max=v; } });
@@ -7710,7 +7713,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   const grid2={display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:"0 10px"};
   const guardOf=no=>guards.find(g=>g.no===no);
   const teacherOf=no=>kteach.find(t=>t.no===no);
-  const areaLabel=a=>{ try{ return areaName(a,lang); }catch(_){ return a||""; } };
+  const areaLabel=a=>{ const z=ZAROK_AREA_NAMES[a]; if(z) return lang==="en"?z[1]:K(z[0]); try{ return areaName(a,lang); }catch(_){ return a||""; } };
   // Hata kodlarını anlaşılır mesaja çevir (ham "auth/..." kodu yerine)
   const err=e=>{
     const c=String((e&&(e.code||e.message))||"?");
