@@ -202,7 +202,7 @@
 <meta property="og:description" content="Pergala Rêveberiya Zanistê - Aram Tigran Conservatory Management System"/>
 <meta property="og:type" content="website"/>
 <!-- Description -->
-<meta name="description" content="Konservatuara Aram Tîgran – Aram Tigran Konservatuarı – Aram Tigran Conservatory"/>
+<meta name="description" content="Konservatuara Aram Tîgran – Aram Tigran Konservatuvarı"/>
 <meta name="keywords" content="academy, art, music, theatre, cinema, dance, literature, painting"/>
 <meta name="format-detection" content="telephone=no"/>
 
@@ -1569,9 +1569,9 @@ const { useState, useEffect, useRef, useCallback } = React;
    Zazakî / Türkçe karşılıkları ve Kurmancî düzeltmeleri app/lang-pack.js'ten
    gelir (akademisyen dil raporlarıyla doldurulur). Karşılık yoksa Kurmancî
    gösterilir. İngilizce ayrı dal olarak kodda durur. */
-const AAT_LANGS=["ku","zza","tr","en"];
+const AAT_LANGS=["ku","zza","tr"];
 // Dil seçimi: açılır menü, tam isimler (tüm ekranlarda aynı bileşen)
-const AAT_LANG_NAMES={ku:"Kurmancî",zza:"Zazakî",tr:"Türkçe",en:"English"};
+const AAT_LANG_NAMES={ku:"Kurmancî",zza:"Zazakî",tr:"Türkçe"};
 function LangSelect({value,onChange}){
   return(
     <label style={{display:"flex",alignItems:"center",gap:10,width:"100%",background:"var(--bg1)",border:"1.5px solid var(--border)",borderRadius:12,padding:"4px 12px",minHeight:46,cursor:"pointer"}}>
@@ -1587,7 +1587,7 @@ function LangSelect({value,onChange}){
 // Çocuk akademisi veli uygulaması (alan adı alınınca: "https://zarok.aramtigran.org/app/")
 const ZAROK_APP_URL="/zarok/app/";
 function RL(){ return window.__AAT_LANG||"ku"; }
-// Kurumun adı (dile göre) — ku/zza: Konservatuara Aram Tîgran · tr: Aram Tigran Konservatuarı · en: Aram Tigran Conservatory
+// Kurumun adı (dile göre) — ku/zza: Konservatuara Aram Tîgran · tr: Aram Tigran Konservatuvarı · en: Aram Tigran Conservatory
 function BRAND(){ return RL()==="en"?"Aram Tigran Conservatory":K("Konservatuara Aram Tîgran"); }
 function BRAND_U(){ return RL()==="en"?"ARAM TIGRAN CONSERVATORY":K("KONSERVATUARA ARAM TÎGRAN"); }
 function K(ku){
@@ -2904,7 +2904,7 @@ const INIT_SCHEDULE = []; // Gerçek ders programı Firebase'den yüklenir
 /* ─── TRANSLATIONS ──────────────────────────────────────────────────────── */
 const T = {
   tr:{
-    appName:"ARAM TİGRAN KONSERVATUARI",
+    appName:"ARAM TİGRAN KONSERVATUVARI",
     appSub:"Yönetim Bilgi Sistemi",
     selectRole:"Giriş türünü seç",
     roleStudent:"Öğrenci",
@@ -3074,8 +3074,8 @@ const T = {
     profile:"Profil",
     survey:"Anket",
     area:"Alan",
-    commonAreaDesc:"Konservatuar Ortak Dersleri",
-    commonAreaSub:"Tüm konservatuar öğrencileri katılabilir",
+    commonAreaDesc:"Konservatuvar Ortak Dersleri",
+    commonAreaSub:"Tüm konservatuvar öğrencileri katılabilir",
     addCommonStudent:"Öğrenci Ekle",
     addCommonTeacher:"Öğretmen Ekle",
     addCommonLesson:"Ortak Ders Ekle",
@@ -3817,7 +3817,7 @@ function printIdCards(items,lang,win){
         <img class="lg" src="${logoL}" alt=""/>
         <b>Li dergeh û dersê bide xwendin</b><br/>Kurum girişinde ve derslerde okutunuz.<br/><br/>
         Ev kart kesane ye, nayê dayîn.<br/>Kart kişiye özeldir, devredilemez.<br/><br/>
-        <span class="sm">Heke hat dîtin, ji Konservatuara Aram Tîgran re bişînin.<br/>Bulunduğunda Aram Tigran Konservatuarı'na teslim ediniz.<br/>aramtigran.org</span>
+        <span class="sm">Heke hat dîtin, ji Konservatuara Aram Tîgran re bişînin.<br/>Bulunduğunda Aram Tigran Konservatuvarı'na teslim ediniz.<br/>aramtigran.org</span>
       </div>
     </div>`;
     return `<div class="pair">${front}${back}</div>`;
@@ -5543,7 +5543,7 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
             <>
               {!isGenel&&<PrimaryBtn onClick={()=>setShowAddStudent(true)} style={{marginBottom:12}} icon="➕">{t.areaCard_student}</PrimaryBtn>}
               {isGenel&&<div style={{fontSize:11,color:"var(--text2)",marginBottom:10,padding:"8px 12px",background:"var(--bg2)",borderRadius:8}}>
-                🏫 {t.commonAreaDesc||"Konservatuarın tüm öğrencileri"} — {aStudents.length} {t.totalStudents.toLowerCase()}
+                🏫 {t.commonAreaDesc||"Konservatuvarın tüm öğrencileri"} — {aStudents.length} {t.totalStudents.toLowerCase()}
               </div>}
               {aStudents.length===0
                 ? <div style={{textAlign:"center",padding:20,color:"var(--text2)",fontSize:13}}>—</div>
@@ -6480,7 +6480,7 @@ function AdminNewsPanel({lang,toast,adminName}){
     const vtt="WEBVTT\n\n"+text.replace(/^﻿/,"").replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g,"$1.$2");
     return new Blob([vtt],{type:"text/vtt"});
   }
-  const SUB_LANGS={ "Kurmancî":"ku","Zazakî":"zza","Türkçe":"tr","English":"en" };
+  const SUB_LANGS={ "Kurmancî":"ku","Zazakî":"zza","Türkçe":"tr" };
 
   async function publish(){
     // Sernav: KU an jî çevirilerden herhangi biri yeterli
@@ -6548,7 +6548,7 @@ function AdminNewsPanel({lang,toast,adminName}){
       setProgress(null);
       // Yalnızca doldurulmuş çeviriler kaydedilir
       const i18nOut={};
-      ["zza","tr","en"].forEach(l2=>{
+      ["zza","tr"].forEach(l2=>{
         const e2=i18n[l2]||{};
         if((e2.title||"").trim()||(e2.body||"").trim())
           i18nOut[l2]={title:(e2.title||"").trim(),body:(e2.body||"").trim()};
@@ -6593,7 +6593,7 @@ function AdminNewsPanel({lang,toast,adminName}){
         <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>{L("hint")} <span style={{opacity:0.5,fontFamily:"monospace"}}>· v13.9</span></div>
         {/* Dil sekmeleri: KU zorunlu ana metin, diğerleri çeviri */}
         <div style={{display:"flex",gap:5,marginBottom:8}}>
-          {[["ku","KU"],["zza","ZZA"],["tr","TR"],["en","EN"]].map(([lk,lb])=>{
+          {[["ku","KU"],["zza","ZZA"],["tr","TR"]].map(([lk,lb])=>{
             const filled=lk==="ku"?!!title.trim():!!((i18n[lk]&&(i18n[lk].title||i18n[lk].body))||"").trim();
             return(
               <button key={lk} onClick={()=>setTrTab(lk)}
@@ -6727,7 +6727,7 @@ function AdminNewsPanel({lang,toast,adminName}){
             <div style={{display:"flex",alignItems:"center",gap:8,padding:"13px 16px",borderBottom:"1px solid var(--border2)",position:"sticky",top:0,background:"var(--surface)",zIndex:2}}>
               <span style={{fontSize:12.5,fontWeight:800,color:"var(--text)"}}>👁 {lang==="en"?"Preview":K("Pêşdîtin")}</span>
               <div style={{display:"flex",gap:4,marginLeft:8}}>
-                {["ku","zza","tr","en"].map(lk=>(
+                {["ku","zza","tr"].map(lk=>(
                   <button key={lk} onClick={()=>setPvLang(lk)}
                     style={{padding:"4px 9px",borderRadius:8,fontSize:10.5,fontWeight:pvLang===lk?800:600,cursor:"pointer",
                       border:"1px solid "+(pvLang===lk?"#0f2f38":"var(--border2)"),
@@ -7350,7 +7350,7 @@ function AdminArchivePanel({lang,toast,adminName}){
         if(u) imgUrls.push(u);
       }
       const i18nOut={};
-      ["zza","tr","en"].forEach(l2=>{
+      ["zza","tr"].forEach(l2=>{
         const e2=i18n[l2]||{};
         if((e2.title||"").trim()||(e2.body||"").trim()||(e2.tag||"").trim())
           i18nOut[l2]={title:(e2.title||"").trim(),body:(e2.body||"").trim(),tag:(e2.tag||"").trim()};
@@ -7418,7 +7418,7 @@ function AdminArchivePanel({lang,toast,adminName}){
         )}
         {/* Dil sekmeleri */}
         <div style={{display:"flex",gap:5,marginBottom:8}}>
-          {[["ku","KU"],["zza","ZZA"],["tr","TR"],["en","EN"]].map(([lk,lb])=>{
+          {[["ku","KU"],["zza","ZZA"],["tr","TR"]].map(([lk,lb])=>{
             const filled=lk==="ku"?!!title.trim():!!(((i18n[lk]||{}).title||"")+((i18n[lk]||{}).body||"")).trim();
             return(
               <button key={lk} onClick={()=>setTrTab(lk)}
@@ -7961,7 +7961,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   },[thread,msgs.length]);
 
   // ── Site haberleri / arşiv (çok dilli) ──
-  const PLANGS=[["ku","Kurmancî"],["zza","Zazakî"],["tr","Türkçe"],["en","English"]];
+  const PLANGS=[["ku","Kurmancî"],["zza","Zazakî"],["tr","Türkçe"]];
   const [pLang,setPLang]=useState("ku");
   function pGet(k){ const d=(form&&form.data)||{}; return pLang==="ku"?(d[k]||""):(((d.i18n||{})[pLang]||{})[k]||""); }
   function pSet(k,v){ setForm(f=>{ const d={...f.data}; if(pLang==="ku") d[k]=v; else { const i=d.i18n||{}; d.i18n={...i,[pLang]:{...(i[pLang]||{}),[k]:v}}; } return {...f,data:d}; }); }
@@ -11966,7 +11966,6 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
               {editQ&&editQ.id===q.id?(
                 <>
                 <input style={inputStyle} value={form.ku} onChange={e=>setForm(f=>({...f,ku:e.target.value}))} placeholder="Kurdî"/>
-                <input style={{...inputStyle,marginTop:6}} value={form.en} onChange={e=>setForm(f=>({...f,en:e.target.value}))} placeholder="English"/>
                 <input style={{...inputStyle,marginTop:6}} value={form.zza||""} onChange={e=>setForm(f=>({...f,zza:e.target.value}))} placeholder="Zazakî"/>
                 <input style={{...inputStyle,marginTop:6}} value={form.tr||""} onChange={e=>setForm(f=>({...f,tr:e.target.value}))} placeholder="Türkçe"/>
                 <div style={{display:"flex",gap:6,marginTop:8}}>
@@ -11994,7 +11993,6 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
           <div style={{background:"var(--surface)",borderRadius:14,padding:"14px",border:"2px dashed #2c6b74",marginBottom:10}}>
             <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:10}}>➕ {lang==="en"?"New Question":K("Pirsa Nû")}</div>
             <input style={inputStyle} value={form.ku} onChange={e=>setForm(f=>({...f,ku:e.target.value}))} placeholder="Kurdî — Pirsa Kurdî binivîse..."/>
-            <input style={{...inputStyle,marginTop:8}} value={form.en} onChange={e=>setForm(f=>({...f,en:e.target.value}))} placeholder="English question..."/>
             <input style={{...inputStyle,marginTop:8}} value={form.zza||""} onChange={e=>setForm(f=>({...f,zza:e.target.value}))} placeholder="Zazakî — Persa Zazakî binuse..."/>
             <input style={{...inputStyle,marginTop:8}} value={form.tr||""} onChange={e=>setForm(f=>({...f,tr:e.target.value}))} placeholder="Türkçe soru..."/>
             <div style={{display:"flex",gap:8,marginTop:12}}>
@@ -15684,7 +15682,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
                   {/* Navê Akademiyê */}
                   <div style={{textAlign:"center"}}>
                     <div style={{fontSize:10,letterSpacing:"0.15em",color:"rgba(231,199,123,0.7)",textTransform:"uppercase",marginBottom:2}}>{RL()==="en"?"Aram Tigran":RL()==="tr"?"Aram Tigran":"Konservatuara"}</div>
-                    <div style={{fontSize:13,fontWeight:800,color:"var(--text)",letterSpacing:"0.05em"}}>{RL()==="en"?"Conservatory":RL()==="tr"?"Konservatuarı":"Aram Tîgran"}</div>
+                    <div style={{fontSize:13,fontWeight:800,color:"var(--text)",letterSpacing:"0.05em"}}>{RL()==="en"?"Conservatory":RL()==="tr"?"Konservatuvarı":"Aram Tîgran"}</div>
                   </div>
 
                   {/* QR animation frame */}
