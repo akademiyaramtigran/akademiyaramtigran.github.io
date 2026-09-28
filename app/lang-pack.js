@@ -1073,7 +1073,12 @@ window.AAT_TX={"ku":{},"zza":{},"tr":{"Destûr tune — qeyda idx_staff a vê he
 "Hemû xwendekarên konservatuarê":"Konservatuvarın tüm öğrencileri",
 "Hemû mamosteyên konservatuarê":"Konservatuvarın tüm öğretmenleri",
 "Ji kerema xwe anketên konservatuarê yên li jêr bersiv bide.":"Lütfen konservatuvarın gönderdiği aşağıdaki anketleri doldurun.",
-"KONSERVATUARA ARAM TÎGRAN":"ARAM TİGRAN KONSERVATUVARI"}};
+"KONSERVATUARA ARAM TÎGRAN":"ARAM TİGRAN KONSERVATUVARI",
+"Solfej":"Solfej",
+"Teorîya Muzîkê":"Müzik Teorisi",
+"Dalcroze":"Dalcroze",
+"Drama":"Drama",
+"Enstrûman":"Enstrüman"}};
 window.AAT_SITE={"ku":{},"zza":{}};
 window.AAT_SITE_AREA={"ku":{},"zza":{}};
 window.AAT_ZAROK={"ku":{},"zza":{}};
