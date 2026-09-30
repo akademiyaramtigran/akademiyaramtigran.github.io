@@ -8071,7 +8071,13 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   return(
     <div>
       <div style={{display:"flex",alignItems:"center",gap:10,margin:"4px 0 12px",flexWrap:"wrap"}}>
-        <div style={{fontSize:28}}>🎓</div>
+        {/* Çocuk Akademisi madalyonu (çocuk sitesi ve veli uygulamasıyla aynı) */}
+        <svg viewBox="0 0 64 64" width="44" height="44" aria-hidden="true" style={{flex:"none"}}>
+          <defs><linearGradient id="zmg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#e6c883"/><stop offset="1" stopColor="#b8923f"/></linearGradient></defs>
+          <circle cx="32" cy="32" r="31" fill="url(#zmg)"/>
+          <circle cx="32" cy="32" r="26.5" fill="none" stroke="#fbf7ef" strokeWidth="1" strokeDasharray="1 3" strokeLinecap="round"/>
+          <text x="32" y="39" textAnchor="middle" fontFamily="Playfair Display,Georgia,serif" fontSize="19" fontWeight="700" fill="#0f2f38">2010</text>
+        </svg>
         <div style={{flex:1,minWidth:180}}>
           <div style={{fontSize:17,fontWeight:800,color:"var(--text)"}}>{Z("Akademiya Zarokan","Children's Academy")}</div>
           <div style={small}>{Z("Têketin: dêûbav û mamoste · sepan:","Sign-in: parents & teachers · app:")} <a href={ZAROK_APP_URL} target="_blank" rel="noopener" style={{color:"var(--accent)"}}>{ZAROK_APP_URL}</a> · <a href={ZAROK_APP_URL.replace(/app\/?$/,"")} target="_blank" rel="noopener" style={{color:"var(--accent)"}}>{Z("malper","site")}</a></div>
