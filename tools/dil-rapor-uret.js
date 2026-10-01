@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
-//  Dil raporu üretici — Akademîya Aram Tîgran
+//  Dil raporu üretici — Konservatuara Aram Tîgran
 //  Koddan (app/index.html + index.html) TÜM çevrilebilir metinleri çıkarır ve
 //  akademisyenlerin doldurduğu iki rapor sayfası üretir:
 //    dil-raporu.html          → Kurmancî düzeltme raporu
@@ -34,7 +34,7 @@ function appStrings() {
     const [n, p] = stack.pop();
     if (!n || typeof n.type !== 'string') continue;
     parent.set(n, p);
-    if (n.type === 'CallExpression' && n.callee.type === 'Identifier' && (n.callee.name === 'K' || n.callee.name === 'KF' || n.callee.name === 'Z')
+    if (n.type === 'CallExpression' && n.callee.type === 'Identifier' && (n.callee.name === 'K' || n.callee.name === 'KF' || n.callee.name === 'Z' || n.callee.name === 'W')
       && n.arguments[0] && n.arguments[0].type === 'StringLiteral') calls.push(n);
     for (const k of Object.keys(n)) {
       if (k === 'loc' || k === 'extra' || /Comments$/.test(k)) continue;
@@ -68,7 +68,7 @@ function appStrings() {
     const ku = n.arguments[0].value;
     let en = '', tkey = '';
     const p = parent.get(n);
-    if (n.callee.name === 'Z') en = lit(n.arguments[1]);   // Z("kurmancî","english")
+    if (n.callee.name === 'Z' || n.callee.name === 'W') en = lit(n.arguments[1]);   // Z/W("kurmancî","english")
     if (p && p.type === 'ConditionalExpression' && p.alternate === n) en = lit(p.consequent);
     const ret = p && p.type === 'ReturnStatement' ? p : null, blk = ret && parent.get(ret), meth = blk && parent.get(blk);
     if (meth && meth.type === 'ObjectMethod') {
@@ -87,6 +87,14 @@ function appStrings() {
     const c = comp(n.start); if (!x.comps.includes(c)) x.comps.push(c);
     byKu.set(ku, x);
   }
+  // K(değişken) ile çevrilen sabit listeler: kaynakta düz dizi/nesne olarak durur, AST taramasına girmez
+  const add = (ku, en, comp) => { if (!ku || byKu.has(ku)) return; byKu.set(ku, { ku, en: en || '', keys: [], comps: [comp] }); };
+  const arr = name => { const m = code.match(new RegExp('const ' + name + '=\\[([^\\]]*)\\]')); return m ? JSON.parse('[' + m[1] + ']') : []; };
+  const dk = arr('ZAROK_DAYS_KU'), de = arr('ZAROK_DAYS_EN'); dk.forEach((d, i) => add(d, de[i], 'ZarokAdminPanel'));
+  const za = code.match(/const ZAROK_AREA_NAMES=(\{[\s\S]*?\});/); if (za) { const o = vm.runInNewContext('(' + za[1] + ')'); Object.values(o).forEach(([ku, en]) => add(ku, en, 'ZarokAdminPanel')); }
+  const se = code.match(/const SEASONS=(\{[^;]*?\});/); if (se) { const o = vm.runInNewContext('(' + se[1] + ')'); Object.values(o).forEach(v => add(v.ku.split(' ').slice(1).join(' '), v.en, 'RegistrarPanel')); }
+  for (const m of code.matchAll(/\(\{("[^"]+":"[^"]*"(?:,"[^"]+":"[^"]*")*)\}\[tag\]/g)) Object.entries(JSON.parse('{' + m[1] + '}')).forEach(([ku, en]) => add(ku, en, 'TeacherPanel'));
+  for (const m of code.matchAll(/ku_short:"([^"]+)",en:"[^"]*",en_short:"([^"]*)"/g)) add(m[1], m[2], 'AREAS');
   return [...byKu.values()];
 }
 
@@ -128,7 +136,8 @@ function loadPack() {
 
 // ── 3) Bölümler ─────────────────────────────────────────────────────────
 const SECTIONS = [
-  ['giris', 'Giriş, Şifre ve Oturum', /^(LoginScreen|ForgotScreen|App|BiometricModal|StudentChangePassSheet|deleteOwnAccount|ErrorBoundary)$/],
+  ['giris', 'Giriş, Şifre ve Oturum', /^(LoginScreen|ForgotScreen|App|BiometricModal|StudentChangePassSheet|deleteOwnAccount|ErrorBoundary|BRAND|checkPasswordStrength|ShowHidePass|OfflineBanner|reserveErrText)$/],
+  ['kart', 'Öğrenci Kartı ve Kapı Güvenliği', /^(cardReasonText|issueAndPrintCards|CardScanner|CardResultView|GatePanel)$/],
   ['sozluk', 'Temel Sözlük (tüm ekranlarda ortak)', /^T$/],
   ['yonetici', 'Yönetici Paneli — Öğrenci/Öğretmen/Program', /^(AdminPanel|AdminProfileSheet|Add\w*Sheet|Edit\w*Sheet|DeviceResetBtn|AdminScheduleTab|AdminAlertsPanel|StatsDetailModal|StudentStatModal|AreaDetailModal)$/],
   ['rapor', 'Raporlar ve Rapor Merkezi', /^(Admin\w*Report\w*|AdminReportCenter|ReportArchiveTab|makeSurveyResultsPdf|pctLabel)$/],
@@ -140,7 +149,7 @@ const SECTIONS = [
   ['ogrisleri', 'Öğrenci İşleri — Başvuru, Kayıt, Dönem', /^RegistrarPanel$/],
   ['ayar', 'Ayarlar, Uygulama Kurulumu (PWA), Yasal Metinler', /^(SettingsSheet|PWAInstallBanner|LegalModal|GDPRBanner|ThemeToggle)$/],
   ['alan', 'Sanat Alanları', /^AREAS$/],
-  ['zarokadmin', 'Konservatuar — Öğrenci İşleri yönetimi', /^(ZarokAdminPanel|zarokNextNo)$/],
+  ['zarokadmin', 'Çocuk Akademisi — Öğrenci İşleri / Basın yönetimi', /^(ZarokAdminPanel|zarokNextNo)$/],
 ];
 function sectionOf(comps) {
   for (const c of comps) for (const [id, , re] of SECTIONS) if (re.test(c)) return id;
@@ -153,7 +162,7 @@ function page(lang, rows, sections) {
   const title = isZZ ? 'Zazakî (Kirmanckî) Çeviri Raporu' : 'Kurmancî Düzeltme Raporu';
   const colHead = isZZ ? 'Zazakî ✍️' : 'Yeni Kurmancî ✍️';
   const intro = isZZ
-    ? 'Her satırdaki metnin <b>Zazakî</b> karşılığını sarı kutuya yazın. Kurmancî, Türkçe ve İngilizce sütunları anlamı göstermek içindir. Boş bırakılan satırlar uygulamada şimdilik <b>Kurmancî</b> görünür.'
+    ? 'Her satırdaki metnin <b>Zazakî</b> karşılığını sarı kutuya yazın. Kurmancî ve Türkçe sütunları anlamı göstermek içindir. Boş bırakılan satırlar sitede şimdilik <b>Kurmancî</b> görünür.'
     : 'Sistemde şu an görünen <b>Kurmancî</b> metinleri kontrol edin. Yanlış/eksik bulduğunuz satırın <b>doğru hâlini</b> sarı kutuya yazın. <b>Boş bırakılan satır “doğru, değişmesin”</b> demektir.';
   const data = JSON.stringify({ lang, rows, sections }).replace(/</g, '\\u003c');
   return `<!DOCTYPE html>
@@ -162,7 +171,7 @@ function page(lang, rows, sections) {
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="robots" content="noindex,nofollow"/>
-<title>${title} — Akademîya Aram Tîgran</title>
+<title>${title} — Konservatuara Aram Tîgran</title>
 <style>
 :root{--navy:#0f2f38;--ink:#1e2936;--muted:#5b6b7c;--line:#dfe6ee;--soft:#f4f7fa;--gold:#c9a227;--ok:#16a34a;--bg:#fff;--fill:#fffdf2}
 @media (prefers-color-scheme:dark){:root{--navy:#9fd3dc;--ink:#e6edf3;--muted:#9aa7b4;--line:#2a3642;--soft:#16202a;--bg:#0d151c;--fill:#1d1a0e}}
@@ -182,13 +191,13 @@ h1{font-size:21px;color:var(--navy);margin:6px 0 8px}
 .prog i{display:block;height:100%;width:0;background:var(--ok);transition:width .3s}
 h2{font-size:15.5px;color:var(--navy);margin:26px 0 8px;padding:8px 12px;background:var(--soft);border-left:4px solid var(--gold);border-radius:0 8px 8px 0;display:flex;justify-content:space-between;gap:8px}
 h2 small{font-weight:600;color:var(--muted);white-space:nowrap}
-.row{display:grid;grid-template-columns:44px 1.1fr 1fr 1fr 1.3fr;gap:0;border:1px solid var(--line);border-top:none;font-size:13px}
+.row{display:grid;grid-template-columns:44px 1.2fr 1fr 1.4fr;gap:0;border:1px solid var(--line);border-top:none;font-size:13px}
 .row.head{border-top:1px solid var(--line);background:var(--navy);color:var(--bg);font-size:11px;font-weight:700;letter-spacing:.03em;position:sticky;top:0}
 .row>div{padding:7px 9px;min-width:0;overflow-wrap:anywhere;white-space:pre-wrap}
 .row>div+div{border-left:1px solid var(--line)}
 .row .n{color:var(--muted);font-size:11px}
 .row .ku{font-weight:600}
-.row .tr,.row .en{color:var(--muted)}
+.row .tr{color:var(--muted)}
 .row .f{background:var(--fill);padding:4px 6px}
 .row textarea{width:100%;min-height:36px;resize:vertical;border:1px dashed #d9c877;border-radius:7px;padding:6px 8px;font:inherit;font-size:13px;background:transparent;color:inherit}
 .row textarea:focus{outline:none;border:1.5px solid var(--gold);background:var(--bg)}
@@ -268,13 +277,12 @@ h2 small{font-weight:600;color:var(--muted);white-space:nowrap}
     var o=document.createElement('option');o.value=sec.id;o.textContent=sec.name+' ('+rows.length+')';secSel.appendChild(o);
     var box=el('div');box.dataset.sec=sec.id;
     var h=el('h2');h.appendChild(document.createTextNode(sec.name));var sm=el('small');h.appendChild(sm);box.appendChild(h);
-    var hd=el('div','row head');['#','Kurmancî (şu an)','Türkçe anlamı','English','${colHead}'].forEach(function(t){hd.appendChild(el('div',null,t));});box.appendChild(hd);
+    var hd=el('div','row head');['#','Kurmancî (şu an)','Türkçe anlamı','${colHead}'].forEach(function(t){hd.appendChild(el('div',null,t));});box.appendChild(hd);
     rows.forEach(function(r){
       var R=el('div','row');R._r=r;
       R.appendChild(el('div','n',String(r.i)));
       var c1=el('div','ku');c1.appendChild(el('span','lab','Kurmancî'));withPh(c1,r.k);if(r.key){c1.appendChild(el('span','key',r.key));}if(r.w&&D.lang==='ku'){c1.appendChild(document.createElement('br'));c1.appendChild(el('span','warn','⚠ Türkçe kalmış olabilir'));}R.appendChild(c1);
       var c2=el('div','tr');c2.appendChild(el('span','lab','Türkçe'));withPh(c2,r.t||'—');R.appendChild(c2);
-      var c3=el('div','en');c3.appendChild(el('span','lab','English'));withPh(c3,r.e||'—');R.appendChild(c3);
       var c4=el('div','f');c4.appendChild(el('span','lab','${colHead}'));
       var ta=document.createElement('textarea');ta.rows=Math.min(8,Math.max(1,Math.ceil(r.k.length/42)+(r.k.split('\\n').length-1)));
       ta.placeholder=${isZZ ? "'Zazakî…'" : "'boş = doğru'"};
@@ -297,7 +305,7 @@ h2 small{font-weight:600;color:var(--muted);white-space:nowrap}
     areas.forEach(function(b){
       var any=false;
       b._rows.forEach(function(R){var r=R._r;var v=R._ta.value.trim();
-        var ok=(!s||r.s===s)&&(!q||(r.k+' '+r.t+' '+r.e+' '+v).toLowerCase().indexOf(q)>=0)&&(!f||(f==='empty'?!v:f==='warn'?!!r.w:!!v));
+        var ok=(!s||r.s===s)&&(!q||(r.k+' '+r.t+' '+v).toLowerCase().indexOf(q)>=0)&&(!f||(f==='empty'?!v:f==='warn'?!!r.w:!!v));
         R.classList.toggle('hide',!ok);if(ok)any=true;});
       b.classList.toggle('hide',!any);
     });
@@ -356,8 +364,8 @@ function main() {
   const app = appStrings();
   const site = siteStrings();
   const zarok = zarokStrings();
-  const secNames = SECTIONS.map(([id, name]) => ({ id, name })).concat([{ id: 'diger', name: 'Diğer Ekranlar' }, { id: 'site', name: 'Ana Sayfa (Site) — akademiyaramtigran.github.io' },
-    { id: 'zarok', name: 'Konservatuar — Veli / öğretmen uygulaması (PWA)' }, { id: 'zaroksite', name: 'Konservatuar — Tanıtım ve başvuru sayfası' }]);
+  const secNames = SECTIONS.map(([id, name]) => ({ id, name })).concat([{ id: 'diger', name: 'Diğer Ekranlar' }, { id: 'site', name: 'Konservatuvar Ana Sayfası (site)' },
+    { id: 'zarok', name: 'Çocuk Akademisi — Veli / öğretmen uygulaması' }, { id: 'zaroksite', name: 'Çocuk Akademisi — Tanıtım ve başvuru sitesi' }]);
   const order = Object.fromEntries(secNames.map((s, i) => [s.id, i]));
   const hash = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); };
   function rowsFor(lang) {
