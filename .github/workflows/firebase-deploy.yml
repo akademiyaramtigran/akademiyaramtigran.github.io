@@ -1,0 +1,65 @@
+# Firebase'e yükleme (bulut fonksiyonu + Firestore kuralları + Storage kuralları)
+# Elle çalıştırılır: GitHub → Actions → "Firebase'e yükle" → Run workflow.
+# Gerekli tek ayar: depo sırrı FIREBASE_SERVICE_ACCOUNT (hizmet hesabı JSON anahtarı) —
+# adımlar SATIN_ALMA_REHBERI.md içinde.
+name: Firebase'e yükle
+
+on:
+  workflow_dispatch:
+    inputs:
+      hedef:
+        description: "Ne yüklensin?"
+        type: choice
+        default: hepsi
+        options:
+          - hepsi
+          - kurallar
+          - fonksiyon
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Anahtar var mı?
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT sırrı eklenmemiş — SATIN_ALMA_REHBERI.md adım 4'e bakın."
+            exit 1
+          fi
+
+      - name: Fonksiyon bağımlılıkları
+        if: inputs.hedef != 'kurallar'
+        run: npm install --omit=dev --no-audit --no-fund
+        working-directory: functions
+
+      - name: Yükle
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          HEDEF: ${{ inputs.hedef }}
+        run: |
+          KEY="$RUNNER_TEMP/sa.json"
+          printf '%s' "$SA" > "$KEY"
+          export GOOGLE_APPLICATION_CREDENTIALS="$KEY"
+          case "$HEDEF" in
+            kurallar)  ONLY="firestore:rules,storage" ;;
+            fonksiyon) ONLY="functions" ;;
+            *)         ONLY="firestore:rules,storage,functions" ;;
+          esac
+          npx --yes firebase-tools@13 deploy --only "$ONLY" --project aram2026-a9fd7 --non-interactive --force
+          rm -f "$KEY"
