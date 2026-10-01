@@ -202,7 +202,7 @@ footer .flogo img{height:26px;width:auto}
       <picture><source srcset="app/icons/akademi-mesale-koyu.png" media="(prefers-color-scheme: dark)"/><img class="mesale" src="app/icons/akademi-mesale.png" alt="" width="29" height="46"/></picture>
       <span class="brand"><b data-t="title">Akademiya Zarokan</b><span data-t="sub">Konservatuara Aram Tîgran</span></span>
     </a>
-    <nav class="hnav" aria-label="Menû"><a href="#qad" data-t="navDepts">Ders</a><a href="#nuce" data-t="navNews">Nûçe</a><a href="#derbare" data-t="navHistory">Dîrok</a><a href="#serledan" data-t="navApply">Serlêdan</a></nav>
+    <nav class="hnav" aria-label="Menû"><a href="#nuce" data-t="navNews">Nûçe</a><a href="#qad" data-t="navDepts">Ders</a><a href="#derbare" data-t="navHistory">Dîrok</a><a href="#serledan" data-t="navApply">Serlêdan</a></nav>
     <label class="langsel"><span aria-hidden="true">🌐</span><select id="lang" aria-label="Ziman · Dil · Language"></select></label>
     <a class="btn sm" href="app/"><span aria-hidden="true">🔑</span><span class="login-t" data-t="login">Têketina Dêûbav</span></a>
   </div>
@@ -241,7 +241,14 @@ footer .flogo img{height:26px;width:auto}
     </div>
   </section>
 
-  <section id="qad">
+  <section id="nuce">
+    <div class="wrap">
+      <div class="h2"><h2 data-t="newsH">Nûçe û Bûyer</h2><p class="lead" data-t="newsP">Konser, pêşangeh û sehneyên xwendekarên me.</p></div>
+      <div id="newsRoot" class="news"><div class="closed" data-t="loading">Tê barkirin…</div></div>
+    </div>
+  </section>
+
+  <section id="qad" style="background:var(--paper)">
     <div class="wrap">
       <div class="h2"><h2 data-t="areasH">Dersên Akademiya Zarokan</h2><p class="lead" data-t="areasP">Şeş ders, yek armanc: hunermendên sibê.</p></div>
       <div class="depts" id="areas"></div>
@@ -250,13 +257,6 @@ footer .flogo img{height:26px;width:auto}
 
   <section class="quote">
     <div class="wrap"><blockquote data-t="motto">“Huner zimanê giyanê ye; em fêrî xwendekarên xwe dikin ku bi wî zimanî biaxivin.”</blockquote><cite data-t="mottoBy">Konservatuara Aram Tîgran</cite></div>
-  </section>
-
-  <section id="nuce">
-    <div class="wrap">
-      <div class="h2"><h2 data-t="newsH">Nûçe û Bûyer</h2><p class="lead" data-t="newsP">Konser, pêşangeh û sehneyên xwendekarên me.</p></div>
-      <div id="newsRoot" class="news"><div class="closed" data-t="loading">Tê barkirin…</div></div>
-    </div>
   </section>
 
   <section id="ewlehi" class="trust">
