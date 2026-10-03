@@ -366,6 +366,19 @@ service cloud.firestore {
     match /kidSchedule/{id}      { allow read: if kidStaff() || isGuardian(); allow write: if isRegistrar(); }
     // Sınıflar (1., 2., …): çocuğun sınıfı kids.classLevel; sınıf öğretmeni burada (doc id = L<seviye>)
     match /kidClasses/{id}       { allow read: if kidStaff() || isGuardian(); allow write: if isRegistrar(); }
+    // Veli anketleri: öğrenci işleri/yönetici oluşturur; veli okur ve ailesi adına BİR kez (güncelleyerek) yanıtlar
+    match /kidSurveys/{id} { allow read: if kidStaff() || isGuardian(); allow write: if isRegistrar(); }
+    match /kidSurveyResponses/{id} {
+      allow read: if isRegistrar() || (isGuardian() && resource.data.guardianNo == prefix());
+      allow create, update: if isGuardian()
+        && id == request.resource.data.surveyId + '_' + prefix()
+        && request.resource.data.guardianNo == prefix()
+        && request.resource.data.keys().hasOnly(['surveyId','guardianNo','guardianName','kidLevels','answers','submittedAt'])
+        && request.resource.data.answers is map && request.resource.data.answers.size() <= 60
+        && exists(/databases/$(database)/documents/kidSurveys/$(request.resource.data.surveyId))
+        && get(/databases/$(database)/documents/kidSurveys/$(request.resource.data.surveyId)).data.active == true;
+      allow delete: if isRegistrar();
+    }
     match /kidClassPosts/{id} {
       allow read: if kidStaff() || isGuardian();
       allow create: if isRegistrar() || (kidStaff() && classPostOk('kidClasses'));

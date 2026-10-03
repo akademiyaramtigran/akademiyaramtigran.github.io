@@ -11183,13 +11183,19 @@ function ReportArchiveTab({lang}){
 
 /* ─── ANKET SONUÇ PDF — paylaşılan üretici (anket listesi + rapor merkezi) ── */
 function makeSurveyResultsPdf(sv, allResps, lang, byName){
-  const rs=(allResps||[]).filter(r=>String(r.surveyId)===String(sv.id));
+  const rs=(allResps||[]).filter(r=>String(r.surveyId)===String(sv.id)||(sv.fireId&&String(r.surveyId)===String(sv.fireId)));
+  const has=v=>v!=null&&v!==""&&!(Array.isArray(v)&&!v.length);
   const st=(sv.questions||[]).map(q=>{
-    if(q.type==="rating"){
+    if(q.type==="rating"||q.type==="likert"){
       const vals=rs.map(r=>parseFloat(r.answers?.[q.id])).filter(v=>!isNaN(v));
-      return {q, kind:"rating", n:vals.length, avg: vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length):null};
+      return {q, kind:"rating", max:q.type==="likert"?5:(sv.resultType==="percent"?100:10), n:vals.length, avg: vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length):null};
     }
-    const texts=rs.map(r=>({name:r.studentName,area:r.studentArea,val:r.answers?.[q.id]})).filter(x=>x.val!=null&&String(x.val).trim()!=="");
+    if(q.type==="choice"||q.type==="multi"||q.type==="yesno"){
+      const vals=rs.map(r=>r.answers?.[q.id]).filter(has);
+      const opts=q.type==="yesno"?["yes","no"]:(q.choices||[]);
+      return {q, kind:"opts", n:vals.length, rows:opts.map(o=>[q.type==="yesno"?(o==="yes"?YESNO()[0]:YESNO()[1]):o, vals.filter(v=>Array.isArray(v)?v.includes(o):v===o).length])};
+    }
+    const texts=rs.map(r=>({name:sv.anonymous?"":(r.studentName||r.guardianName||""),area:sv.anonymous?"":r.studentArea,val:r.answers?.[q.id]})).filter(x=>x.val!=null&&String(x.val).trim()!=="");
     return {q, kind:"text", n:texts.length, texts};
   });
   const W=(ku,en)=>lang==="en"?en:K(ku);
@@ -11197,11 +11203,16 @@ function makeSurveyResultsPdf(sv, allResps, lang, byName){
   let body='<h1>📊 '+esc(sv.title)+'</h1>'
     +'<div class="sub">'+(lang==="en"?"Survey Results":K("Encamên Ankêtê"))+' · '+tgt+' · '+rs.length+' '+(lang==="en"?"responses":K("bersiv"))+' · '+new Date().toISOString().slice(0,10)+'</div>';
   st.forEach((row,i)=>{
+    if(row.kind==="opts"){
+      body+='<div class="info" style="margin-bottom:8px"><b>'+(i+1)+'. '+esc(row.q.text)+'</b> — '+row.n+' '+(lang==="en"?"answers":K("bersiv"));
+      row.rows.forEach(([lb,c])=>{ const pc=row.n?Math.round(c/row.n*100):0; body+='<div style="font-size:12px;margin-top:6px">'+esc(lb)+' — <b>'+c+'</b> ('+pc+'%)<div style="height:7px;background:#eee;border-radius:4px;margin-top:3px;overflow:hidden"><div style="height:100%;width:'+pc+'%;background:#2c6b74"></div></div></div>'; });
+      body+='</div>'; return;
+    }
     if(row.kind==="rating"){
-      const pct=row.avg!=null?Math.round(row.avg*10):null;
+      const pct=row.avg!=null?Math.round(row.avg/row.max*100):null;
       body+='<div class="info" style="margin-bottom:8px"><b>'+(i+1)+'. '+esc(row.q.text)+'</b><br/>'
         +(row.avg!=null
-          ? ('⭐ <b style="font-size:18px;color:'+(pct>=80?"#1a7a4a":pct>=50?"#c07800":"#c0392b")+'">'+row.avg.toFixed(1)+' / 10</b> — '+row.n+' '+(lang==="en"?"answers":K("bersiv"))
+          ? ('⭐ <b style="font-size:18px;color:'+(pct>=80?"#1a7a4a":pct>=50?"#c07800":"#c0392b")+'">'+row.avg.toFixed(1)+' / '+row.max+'</b> — '+row.n+' '+(lang==="en"?"answers":K("bersiv"))
             +'<div style="height:8px;background:#eee;border-radius:4px;margin-top:6px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+(pct>=80?"#1a7a4a":pct>=50?"#c07800":"#c0392b")+'"></div></div>')
           : (lang==="en"?"No answers yet":K("Hîn bersiv tune")))+'</div>';
     } else {
@@ -11224,9 +11235,13 @@ function AdminSurveyResultsReport({lang,toast,byName}){
     let u1=()=>{},u2=()=>{};
     try{ u1=window.__FB.onSnapshot(window.__FB.collection(window.__FB.db,"studentSurveys"),snap=>setSurveys(snap.docs.map(d=>({...d.data(),fireId:d.id})))); }catch(_){}
     try{ u2=window.__FB.onSnapshot(window.__FB.collection(window.__FB.db,"studentSurveyResponses"),snap=>setResps(snap.docs.map(d=>d.data()))); }catch(_){}
-    return ()=>{u1();u2();};
+    let u3=()=>{},u4=()=>{};
+    try{ u3=window.__FB.onSnapshot(window.__FB.collection(window.__FB.db,"kidSurveys"),snap=>setKSurveys(snap.docs.map(d=>({...d.data(),fireId:d.id,_kid:true})))); }catch(_){}
+    try{ u4=window.__FB.onSnapshot(window.__FB.collection(window.__FB.db,"kidSurveyResponses"),snap=>setKResps(snap.docs.map(d=>d.data()))); }catch(_){}
+    return ()=>{u1();u2();u3();u4();};
   },[]);
-  function respsOf(sv){ return resps.filter(r=>String(r.surveyId)===String(sv.id)); }
+  const [kSurveys,setKSurveys]=useState([]); const [kResps,setKResps]=useState([]);
+  function respsOf(sv){ return sv._kid?kResps.filter(r=>r.surveyId===sv.fireId):resps.filter(r=>String(r.surveyId)===String(sv.id)); }
   function stats(sv){
     const rs=respsOf(sv);
     return (sv.questions||[]).map(q=>{
@@ -11238,11 +11253,12 @@ function AdminSurveyResultsReport({lang,toast,byName}){
       return {q, kind:"text", n:texts.length, texts};
     });
   }
-  function pdfOf(sv){ makeSurveyResultsPdf(sv, resps, lang, byName); }
+  function pdfOf(sv){ makeSurveyResultsPdf(sv, sv._kid?kResps:resps, lang, byName); }
   function csvOf(sv){
     const rs=respsOf(sv);
-    const rows=[[lang==="en"?"Student":K("Xwendekar"),lang==="en"?"Field":K("Qad"),...(sv.questions||[]).map(q=>q.text)]];
-    rs.forEach(r=>rows.push([r.studentName||"",areaName(r.studentArea,lang)||"",...(sv.questions||[]).map(q=>r.answers?.[q.id]!=null?r.answers[q.id]:"")]));
+    const fmt=(q,v)=>v==null?"":Array.isArray(v)?v.join(" | "):q.type==="yesno"?(v==="yes"?YESNO()[0]:YESNO()[1]):q.type==="likert"?(LIKERT()[v-1]||v):v;
+    const rows=[[sv._kid?(lang==="en"?"Parent":K("Dêûbav")):(lang==="en"?"Student":K("Xwendekar")),sv._kid?(lang==="en"?"Class":K("Sinif")):(lang==="en"?"Field":K("Qad")),...(sv.questions||[]).map(q=>q.text)]];
+    rs.forEach(r=>rows.push([sv.anonymous?"":(r.studentName||r.guardianName||""),sv._kid?(r.kidLevels||[]).map(l=>classTitle(l)).join(", "):(areaName(r.studentArea,lang)||""),...(sv.questions||[]).map(q=>fmt(q,r.answers?.[q.id]))]));
     downloadCSV("anket-"+String(sv.title).replace(/[^A-Za-z0-9]+/g,"_").slice(0,40)+".csv",rows);
     logReportArchive({type:"csv",label:"CSV: "+sv.title,by:byName||""});
     toast("⬇ CSV");
@@ -11253,7 +11269,7 @@ function AdminSurveyResultsReport({lang,toast,byName}){
         📊 {lang==="en"?"Results of every published survey — pull as PDF or CSV.":K("Encamên her ankêta weşandî — wek PDF an CSV bikişîne.")}
       </div>
       {surveys.length===0&&<Card><div style={{fontSize:12,color:"var(--text2)",textAlign:"center",padding:"10px 0"}}>{lang==="en"?"No surveys yet.":K("Hîn ankêt tune.")}</div></Card>}
-      {surveys.map(sv=>{
+      {[...surveys,...kSurveys].map(sv=>{
         const n=respsOf(sv).length;
         return(
         <Card key={sv.fireId||sv.id}>
@@ -11261,7 +11277,7 @@ function AdminSurveyResultsReport({lang,toast,byName}){
             <div style={{flex:1,minWidth:140}}>
               <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{sv.title}</div>
               <div style={{fontSize:10,color:"var(--text2)"}}>
-                {sv.active?"🟢":"⚪"} {(sv.questions||[]).length} {lang==="en"?"questions":K("pirs")} · {n} {lang==="en"?"responses":K("bersiv")}
+                {sv._kid?"🎼 "+(lang==="en"?"Children's Academy · ":K("Akademiya Zarokan")+" · "):""}{sv.active?"🟢":"⚪"} {(sv.questions||[]).length} {lang==="en"?"questions":K("pirs")} · {n} {lang==="en"?"responses":K("bersiv")}
               </div>
             </div>
             <button onClick={()=>pdfOf(sv)} style={{padding:"8px 13px",background:"#0f2f38",color:"#fff",border:"none",borderRadius:9,fontSize:11.5,fontWeight:700,cursor:"pointer"}}>📄 PDF</button>
@@ -11281,6 +11297,7 @@ function AdminReportCenter({students,teachers,schedule,lang,t,toast,byName}){
     {key:"liste",icon:"📄",label:lang==="en"?"Lists":K("Lîste")},
     {key:"nirxandin",icon:"📅",label:lang==="en"?"Evaluation":K("Nirxandin")},
     {key:"anket",icon:"📊",label:lang==="en"?"Surveys":K("Ankêt")},
+    {key:"zarok",icon:"🎼",label:lang==="en"?"Children's Academy":K("Akademiya Zarokan")},
     {key:"arsiv",icon:"🗂",label:lang==="en"?"Archive":K("Arşîv")},
   ];
   return(
@@ -11298,6 +11315,7 @@ function AdminReportCenter({students,teachers,schedule,lang,t,toast,byName}){
       {rTab==="liste"&&<AdminReportsPanel students={students} teachers={teachers} schedule={schedule} lang={lang} t={t} toast={toast}/>}
       {rTab==="nirxandin"&&<AdminWeeklyReportPanel students={students} teachers={teachers} schedule={schedule} lang={lang} toast={toast}/>}
       {rTab==="anket"&&<AdminSurveyResultsReport lang={lang} toast={toast} byName={byName}/>}
+      {rTab==="zarok"&&<KidAcademyReport lang={lang} toast={toast}/>}
       {rTab==="arsiv"&&<ReportArchiveTab lang={lang}/>}
     </div>
   );
@@ -12011,6 +12029,436 @@ function weekRangeLabel(weekKey, lang) {
 }
 
 /* ─── ADMIN SURVEY MANAGER ───────────────────────────────────────────────── */
+// ══════════════════════════════════════════════════════════════════════
+//  ANKET STÜDYOSU — tek sayfada, şablonla başlayan profesyonel anket oluşturucu
+//   Soru türleri: likert (5'li katılım) · rating (1–10) · choice (tek seçim)
+//                 multi (çoklu seçim) · yesno (evet/hayır) · text (açık uçlu)
+//   Hedef: öğrenciler (alan/sınıf/sınıf öğretmeni) · öğretmenler · Çocuk Akademisi velileri
+//   Kayıt: studentSurveys (akademi) · kidSurveys (çocuk akademisi; veli uygulamasında yanıtlanır)
+// ══════════════════════════════════════════════════════════════════════
+const SQ_TYPES=[
+  ["likert","📊",["Pîvana razîbûnê (5)","Agreement scale (5)"]],
+  ["rating","⭐",["Pûan 1–10","Score 1–10"]],
+  ["choice","🔘",["Yek bijare","Single choice"]],
+  ["multi","☑️",["Çend bijare","Multiple choice"]],
+  ["yesno","👍",["Erê / Na","Yes / No"]],
+  ["text","💬",["Bersiva nivîskî","Written answer"]],
+];
+const sqTypeLabel=k=>{ const x=SQ_TYPES.find(t=>t[0]===k); return x?(RL()==="en"?x[2][1]:K(x[2][0])):k; };
+const LIKERT=()=>[K("Qet razî nîn im"),K("Ne razî me"),K("Bêalî"),K("Razî me"),K("Gelek razî me")].map((x,i)=>RL()==="en"?["Strongly disagree","Disagree","Neutral","Agree","Strongly agree"][i]:x);
+const YESNO=()=>RL()==="en"?["Yes","No"]:[K("Erê"),K("Na")];
+// Hazır şablonlar (metinler oluşturma anındaki dile çevrilir)
+const SURVEY_TEMPLATES=[
+  {k:"ders",ic:"🎓",aud:"students",t:["Razîbûna dersê","Lesson satisfaction"],qs:[
+    ["likert","Ders bi rêk û pêk û fêmbar tê dayîn."],["likert","Mamoste ji pirsan re dem vediqetîne."],
+    ["likert","Materyal û amûrên dersê têrê dikin."],["rating","Bi giştî tu dersê çawa dinirxînî?"],["text","Pêşniyara te çi ye?",false]]},
+  {k:"mamoste",ic:"👩‍🏫",aud:"students",t:["Nirxandina mamoste","Teacher evaluation"],qs:[
+    ["rating","Zanîna mamoste ya li ser qadê"],["rating","Têkiliya mamoste bi xwendekaran re"],["likert","Mamoste di wext de dest bi dersê dike."],
+    ["yesno","Tu dixwazî dîsa bi vî mamosteyî re bixwînî?"],["text","Tiştekî din heye ku tu dixwazî bibêjî?",false]]},
+  {k:"etkinlik",ic:"🎭",aud:"students",t:["Nêrîna li ser çalakiyê","Event feedback"],qs:[
+    ["rating","Çalakî bi giştî çawa bû?"],["choice","Te ji çalakiyê çawa agahî girt?",true,["Malper","Mamoste","Heval","Torên civakî"]],
+    ["multi","Kîjan beşan bala te kişand?",true,["Muzîk","Şano","Dans","Pêşangeh"]],["text","Ji bo çalakiya bê pêşniyara te",false]]},
+  {k:"ortam",ic:"🏛",aud:"teachers",t:["Hawîrdora xebatê","Work environment"],qs:[
+    ["likert","Amûr û dersxane têrê dikin."],["likert","Têkiliya bi rêveberiyê re baş e."],["likert","Bernameya dersan maqûl e."],["text","Pêşniyarên te",false]]},
+  {k:"veli",ic:"👨‍👩‍👧",aud:"guardians",t:["Razîbûna dêûbavan","Parent satisfaction"],qs:[
+    ["likert","Zarokê min bi kêfxweşî tê dersê."],["likert","Ez ji pêşketina zarokê xwe razî me."],["likert","Agahdarî (ragihandin, peyam) têrê dike."],
+    ["likert","Ewlehî û teslîmkirina zarokan baş e."],["yesno","Hûn ê akademiyê ji kesên din re pêşniyar bikin?"],["text","Pêşniyarên we",false]]},
+  {k:"tercih",ic:"🗓",aud:"guardians",t:["Bijartina çalakiyê","Activity preference"],qs:[
+    ["multi","Hûn kîjan çalakiyan ji bo zarokê xwe dixwazin?",true,["Konser","Şanoya zarokan","Kargeh","Gera derve"]],
+    ["choice","Kîjan roj ji we re guncav e?",true,["Şemî","Yekşem","Roja hefteyê"]],["text","Ramanên we",false]]},
+];
+const newSQ=(type,text,required,choices)=>({id:"sq"+Date.now().toString(36)+Math.random().toString(36).slice(2,6),type:type||"likert",text:text||"",
+  required:required!==false,choices:(type==="choice"||type==="multi")?(choices&&choices.length?choices:["",""]):[]});
+// Bir sorunun yanıt alanı (öğrenci, öğretmen ve önizlemede ortak)
+function SurveyQuestionInput({q,value,onChange,disabled,percent}){
+  const pick=v=>{ if(!disabled) onChange(v); };
+  const opt=(on)=>({padding:"10px 12px",borderRadius:10,fontSize:13,textAlign:"left",cursor:disabled?"default":"pointer",display:"flex",alignItems:"center",gap:10,
+    border:"1.5px solid "+(on?"#0f2f38":"var(--border2)"),background:on?"rgba(15,47,56,0.08)":"var(--bg2)",color:"var(--text)",fontWeight:on?700:500,width:"100%"});
+  if(q.type==="rating"&&percent) return(
+    <div style={{display:"flex",flexDirection:"column",gap:4}}>
+      <input type="range" min={0} max={100} value={value??50} onChange={e=>pick(Number(e.target.value))} style={{width:"100%",accentColor:"#0f2f38"}} disabled={disabled}/>
+      <div style={{textAlign:"right",fontSize:13,fontWeight:700,color:"var(--text)"}}>{value??50}%</div>
+    </div>);
+  if(q.type==="rating") return(
+    <div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6}}>
+        {[1,2,3,4,5,6,7,8,9,10].map(n=>{ const on=value===n, c=n<=3?"#c0392b":n<=6?"#c07800":"#1a7a4a";
+          return <button key={n} type="button" onClick={()=>pick(n)} style={{height:40,borderRadius:10,border:"2px solid "+(on?c:"var(--border2)"),background:on?c:"var(--bg2)",color:on?"#fff":"var(--text)",fontSize:15,fontWeight:700,cursor:disabled?"default":"pointer"}}>{n}</button>; })}
+      </div>
+      <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"var(--text2)",marginTop:6}}><span>1 · {RL()==="en"?"Poor":K("Xirab")}</span><span>10 · {RL()==="en"?"Excellent":K("Bêkêmasî")}</span></div>
+    </div>);
+  if(q.type==="likert"){ const L=LIKERT(); return(
+    <div style={{display:"flex",flexDirection:"column",gap:6}}>
+      {L.map((lb,i)=>{ const on=value===i+1; return <button key={i} type="button" onClick={()=>pick(i+1)} style={opt(on)}><span style={{width:22,height:22,borderRadius:"50%",flexShrink:0,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,background:on?"#0f2f38":"var(--surface)",color:on?"#fff":"var(--text2)",border:"1px solid var(--border2)"}}>{i+1}</span>{lb}</button>; })}
+    </div>); }
+  if(q.type==="yesno"){ const Y=YESNO(); return(
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+      {["yes","no"].map((v,i)=>{ const on=value===v; return <button key={v} type="button" onClick={()=>pick(v)} style={{...opt(on),justifyContent:"center"}}>{v==="yes"?"👍":"👎"} {Y[i]}</button>; })}
+    </div>); }
+  if(q.type==="choice") return(
+    <div style={{display:"flex",flexDirection:"column",gap:6}}>
+      {(q.choices||[]).filter(Boolean).map(ch=>{ const on=value===ch; return <button key={ch} type="button" onClick={()=>pick(ch)} style={opt(on)}><span style={{width:16,height:16,borderRadius:"50%",flexShrink:0,border:"2px solid "+(on?"#0f2f38":"var(--border2)"),background:on?"#0f2f38":"transparent"}}/>{ch}</button>; })}
+    </div>);
+  if(q.type==="multi"){ const arr=Array.isArray(value)?value:[]; return(
+    <div style={{display:"flex",flexDirection:"column",gap:6}}>
+      {(q.choices||[]).filter(Boolean).map(ch=>{ const on=arr.includes(ch); return <button key={ch} type="button" onClick={()=>pick(on?arr.filter(x=>x!==ch):[...arr,ch])} style={opt(on)}><span style={{width:16,height:16,borderRadius:4,flexShrink:0,border:"2px solid "+(on?"#0f2f38":"var(--border2)"),background:on?"#0f2f38":"transparent",color:"#fff",fontSize:11,lineHeight:"12px",textAlign:"center"}}>{on?"✓":""}</span>{ch}</button>; })}
+      <div style={{fontSize:10.5,color:"var(--text2)"}}>{RL()==="en"?"You can choose more than one.":K("Tu dikarî ji yekê zêdetir hilbijêrî.")}</div>
+    </div>); }
+  return <textarea value={value||""} disabled={disabled} maxLength={1500} onChange={e=>pick(e.target.value)} placeholder={RL()==="en"?"Write your answer...":K("Bersiva xwe binivîse...")}
+    style={{width:"100%",minHeight:80,padding:"10px 12px",borderRadius:10,border:"1.5px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:13,fontFamily:"inherit",resize:"vertical",boxSizing:"border-box"}}/>;
+}
+// Zorunlu sorular yanıtlandı mı? (boş = tamam; değilse eksik soru numaraları)
+function surveyMissing(sv,answers){
+  const out=[];
+  (sv.questions||[]).forEach((q,i)=>{ const v=answers[q.id]; const empty=v==null||v===""||(Array.isArray(v)&&!v.length);
+    if(empty&&(q.required||(q.required==null&&false))) out.push(i+1); });
+  return out;
+}
+function SurveyStudio({mode,initial,teachers,lang,toast,onSave,onCancel}){
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const kids=mode==="kids";
+  const init=initial||{};
+  const [title,setTitle]=useState(init.title||"");
+  const [desc,setDesc]=useState(init.desc||"");
+  const [aud,setAud]=useState(kids?"guardians":(init.targetType==="teachers"||init.targetType==="teachers_area"?"teachers":"students"));
+  const [areas,setAreas]=useState(init.targetAreas||[]);
+  const [levels,setLevels]=useState(init.targetLevels||[]);
+  const [tno,setTno]=useState(init.targetTeacherNo||"");
+  const [endDate,setEndDate]=useState(init.endDate||"");
+  const [anon,setAnon]=useState(!!init.anonymous);
+  const [qs,setQs]=useState(()=>(init.questions||[]).map(q=>({...q,required:q.required!==false})));
+  const [preview,setPreview]=useState(false);
+  const [pv,setPv]=useState({});
+  const plainT=(teachers||[]).filter(t2=>t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate);
+  const lvls=kids?KID_CLASS_LEVELS:CLASS_LEVELS;
+  const card={background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:14,padding:14,marginBottom:12};
+  const h={fontSize:12,fontWeight:800,color:"var(--text2)",letterSpacing:".06em",textTransform:"uppercase",marginBottom:8};
+  const inp={width:"100%",padding:"11px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:14,fontFamily:"inherit",boxSizing:"border-box"};
+  const chip=on=>({padding:"7px 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",border:"1.5px solid "+(on?"#0f2f38":"var(--border2)"),background:on?"#0f2f38":"var(--surface)",color:on?"#fff":"var(--text)"});
+  const ib={border:"1px solid var(--border2)",background:"var(--bg2)",borderRadius:8,padding:"5px 9px",cursor:"pointer",fontSize:13,color:"var(--text)"};
+  const upd=(i,p)=>setQs(a=>a.map((q,j)=>j===i?{...q,...p}:q));
+  const move=(i,d)=>setQs(a=>{ const b=[...a]; const j=i+d; if(j<0||j>=b.length) return a; [b[i],b[j]]=[b[j],b[i]]; return b; });
+  function useTemplate(tp){
+    if(qs.length&&!window.confirm(W2("Pirsên heyî dê bên guhertin. Bidomîne?","Current questions will be replaced. Continue?"))) return;
+    setTitle(W2(tp.t[0],tp.t[1])); if(!kids) setAud(tp.aud==="teachers"?"teachers":"students");
+    setQs(tp.qs.map(([ty,tx,req,ch])=>newSQ(ty,lang==="en"?tx:K(tx),req,(ch||[]).map(c=>lang==="en"?c:K(c)))));
+    toast("✓ "+W2(tp.t[0],tp.t[1]));
+  }
+  function build(active){
+    if(!title.trim()){ toast("⚠ "+W2("Sernava ankêtê binivîse","Enter a survey title")); return null; }
+    const clean=qs.map(q=>({...q,text:(q.text||"").trim(),choices:(q.type==="choice"||q.type==="multi")?(q.choices||[]).map(c=>c.trim()).filter(Boolean):[]})).filter(q=>q.text);
+    if(!clean.length){ toast("⚠ "+W2("Herî kêm 1 pirsek lazim e","At least 1 question required")); return null; }
+    const bad=clean.findIndex(q=>(q.type==="choice"||q.type==="multi")&&q.choices.length<2);
+    if(bad>=0){ toast("⚠ "+(bad+1)+". "+W2("pirs: herî kêm 2 bijare","question: at least 2 options")); return null; }
+    const targetType=kids?"guardians":aud==="teachers"?(areas.length?"teachers_area":"teachers"):(areas.length?"area":"all");
+    return {title:title.trim(),desc:desc.trim(),targetType,targetAreas:kids?[]:areas,targetLevels:aud==="teachers"?[]:levels,
+      targetTeacherNo:aud==="students"?tno:"",endDate,anonymous:anon,questions:clean,resultType:"mixed",active};
+  }
+  const save=active=>{ const sv=build(active); if(sv) onSave(sv); };
+  if(preview) return(
+    <div>
+      <div style={{...card,background:"linear-gradient(135deg,#0f2f38,#2c6b74)",color:"#fff",border:"none"}}>
+        <div style={{fontSize:11,opacity:.8,fontWeight:700,letterSpacing:".08em"}}>👁 {W2("PÊŞDÎTIN","PREVIEW")}</div>
+        <div style={{fontSize:18,fontWeight:800,marginTop:4}}>{title||"—"}</div>
+        {desc&&<div style={{fontSize:13,opacity:.85,marginTop:4,whiteSpace:"pre-wrap"}}>{desc}</div>}
+      </div>
+      {qs.filter(q=>q.text).map((q,i)=>(
+        <div key={q.id} style={card}>
+          <div style={{fontSize:13.5,fontWeight:700,color:"var(--text)",marginBottom:10}}>{i+1}. {q.text}{q.required&&<span style={{color:"#dc2626"}}> *</span>}</div>
+          <SurveyQuestionInput q={{...q,choices:(q.choices||[]).filter(Boolean)}} value={pv[q.id]} onChange={v=>setPv(p=>({...p,[q.id]:v}))}/>
+        </div>))}
+      <button onClick={()=>setPreview(false)} style={{...chip(true),width:"100%",padding:12,borderRadius:12,fontSize:14}}>✏️ {W2("Vegere sererastkirinê","Back to editing")}</button>
+    </div>);
+  return(
+    <div>
+      {/* 1 · Şablon */}
+      <div style={card}>
+        <div style={h}>① {W2("Bi şablonê dest pê bike (vebijarkî)","Start from a template (optional)")}</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:8}}>
+          {SURVEY_TEMPLATES.filter(tp=>kids?tp.aud==="guardians":tp.aud!=="guardians").map(tp=>(
+            <button key={tp.k} onClick={()=>useTemplate(tp)} style={{textAlign:"left",padding:"10px 12px",borderRadius:12,border:"1px solid var(--border2)",background:"var(--bg2)",cursor:"pointer",color:"var(--text)"}}>
+              <div style={{fontSize:20}}>{tp.ic}</div>
+              <div style={{fontSize:12.5,fontWeight:800,marginTop:4}}>{W2(tp.t[0],tp.t[1])}</div>
+              <div style={{fontSize:10.5,color:"var(--text2)",marginTop:2}}>{tp.qs.length} {W2("pirs","questions")}</div>
+            </button>))}
+        </div>
+      </div>
+      {/* 2 · Başlık */}
+      <div style={card}>
+        <div style={h}>② {W2("Sernav û rave","Title & description")}</div>
+        <input style={inp} value={title} maxLength={120} onChange={e=>setTitle(e.target.value)} placeholder={W2("Sernava ankêtê","Survey title")}/>
+        <textarea style={{...inp,marginTop:8,minHeight:60,resize:"vertical"}} value={desc} maxLength={600} onChange={e=>setDesc(e.target.value)} placeholder={W2("Rave ji bo beşdaran (vebijarkî)","Note for respondents (optional)")}/>
+      </div>
+      {/* 3 · Hedef */}
+      <div style={card}>
+        <div style={h}>③ {W2("Kî dê bersiv bide?","Who will answer?")}</div>
+        {kids?<div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:8}}>👨‍👩‍👧 {W2("Dêûbavên Akademiya Zarokan","Children's Academy parents")}</div>:(
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
+          <button onClick={()=>setAud("students")} style={chip(aud==="students")}>🎓 {W2("Xwendekar","Students")}</button>
+          <button onClick={()=>{setAud("teachers");setLevels([]);setTno("");}} style={chip(aud==="teachers")}>👩‍🏫 {W2("Mamoste","Teachers")}</button>
+        </div>)}
+        {!kids&&<>
+          <div style={{fontSize:11.5,color:"var(--text2)",margin:"4px 0 6px"}}>🎭 {W2("Qad (vala = hemû)","Fields (empty = all)")}</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {AREAS.filter(a2=>a2.key!=="genel").map(a2=>{ const on=areas.includes(a2.key); return <button key={a2.key} onClick={()=>setAreas(x=>on?x.filter(y=>y!==a2.key):[...x,a2.key])} style={chip(on)}>{a2.icon} {areaName(a2.key,lang)}</button>; })}
+          </div></>}
+        {aud!=="teachers"&&<>
+          <div style={{fontSize:11.5,color:"var(--text2)",margin:"10px 0 6px"}}>🏫 {W2("Sinif (vala = hemû)","Classes (empty = all)")}</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {lvls.map(l=>{ const on=levels.includes(l); return <button key={l} onClick={()=>setLevels(x=>on?x.filter(y=>y!==l):[...x,l])} style={chip(on)}>{classTitle(l)}</button>; })}
+          </div></>}
+        {aud==="students"&&<>
+          <div style={{fontSize:11.5,color:"var(--text2)",margin:"10px 0 6px"}}>👩‍🏫 {W2("Tenê sinifên vî mamosteyî (vebijarkî)","Only this teacher's classes (optional)")}</div>
+          <select style={inp} value={tno} onChange={e=>setTno(e.target.value)}><option value="">— {W2("Hemû","All")}</option>{plainT.map(t2=><option key={t2.no} value={t2.no}>{t2.name}</option>)}</select></>}
+      </div>
+      {/* 4 · Sorular */}
+      <div style={card}>
+        <div style={h}>④ {W2("Pirs","Questions")} ({qs.length})</div>
+        {qs.length===0&&<div style={{fontSize:12.5,color:"var(--text2)",padding:"6px 0 10px"}}>{W2("Şablonek hilbijêre an li jêr cureyekî pirsê zêde bike.","Pick a template or add a question type below.")}</div>}
+        {qs.map((q,i)=>(
+          <div key={q.id} style={{border:"1px solid var(--border2)",borderRadius:12,padding:12,marginBottom:10,background:"var(--bg2)"}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",marginBottom:8}}>
+              <span style={{fontWeight:800,color:"var(--text)",fontSize:13}}>{i+1}.</span>
+              <select aria-label={W2("Cureyê pirsê","Question type")} value={q.type} onChange={e=>{const ty=e.target.value; upd(i,{type:ty,choices:(ty==="choice"||ty==="multi")?((q.choices||[]).length?q.choices:["",""]):[]});}} style={{...inp,width:"auto",padding:"6px 8px",fontSize:12.5}}>
+                {SQ_TYPES.map(([k,ic])=><option key={k} value={k}>{ic} {sqTypeLabel(k)}</option>)}
+              </select>
+              <label style={{fontSize:12,color:"var(--text)",display:"flex",alignItems:"center",gap:4,marginLeft:"auto"}}><input type="checkbox" checked={!!q.required} onChange={e=>upd(i,{required:e.target.checked})}/> {W2("Mecbûrî","Required")}</label>
+              <button aria-label="↑" onClick={()=>move(i,-1)} style={ib}>↑</button>
+              <button aria-label="↓" onClick={()=>move(i,1)} style={ib}>↓</button>
+              <button aria-label="⧉" title={W2("Dubare bike","Duplicate")} onClick={()=>setQs(a=>{const b=[...a]; b.splice(i+1,0,{...q,id:newSQ().id}); return b;})} style={ib}>⧉</button>
+              <button aria-label="🗑" onClick={()=>setQs(a=>a.filter((_,j)=>j!==i))} style={{...ib,color:"#dc2626"}}>🗑</button>
+            </div>
+            <input style={inp} value={q.text} maxLength={300} onChange={e=>upd(i,{text:e.target.value})} placeholder={W2("Pirsê binivîse","Write the question")}/>
+            {(q.type==="choice"||q.type==="multi")&&(
+              <div style={{marginTop:8}}>
+                {(q.choices||[]).map((c,ci)=>(
+                  <div key={ci} style={{display:"flex",gap:6,marginBottom:6,alignItems:"center"}}>
+                    <span style={{fontSize:12,color:"var(--text2)",width:18}}>{q.type==="multi"?"☐":"○"}</span>
+                    <input style={{...inp,padding:"8px 10px",fontSize:13}} value={c} maxLength={120} onChange={e=>{const v=e.target.value; upd(i,{choices:q.choices.map((x,k)=>k===ci?v:x)});}} placeholder={W2("Bijare","Option")+" "+(ci+1)}/>
+                    {q.choices.length>2&&<button aria-label="✕" onClick={()=>upd(i,{choices:q.choices.filter((_,k)=>k!==ci)})} style={ib}>✕</button>}
+                  </div>))}
+                {(q.choices||[]).length<10&&<button onClick={()=>upd(i,{choices:[...(q.choices||[]),""]})} style={{...ib,borderStyle:"dashed"}}>➕ {W2("Bijare","Option")}</button>}
+              </div>)}
+            {q.type==="likert"&&<div style={{fontSize:11,color:"var(--text2)",marginTop:6}}>{LIKERT().join(" · ")}</div>}
+            {q.type==="yesno"&&<div style={{fontSize:11,color:"var(--text2)",marginTop:6}}>{YESNO().join(" · ")}</div>}
+            {q.type==="rating"&&<div style={{fontSize:11,color:"var(--text2)",marginTop:6}}>1 … 10</div>}
+          </div>))}
+        <div style={{fontSize:11.5,color:"var(--text2)",margin:"6px 0"}}>➕ {W2("Pirs zêde bike:","Add question:")}</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:6}}>
+          {SQ_TYPES.map(([k,ic])=><button key={k} onClick={()=>setQs(a=>[...a,newSQ(k)])} style={{...ib,padding:"9px 10px",textAlign:"left",fontWeight:700}}>{ic} {sqTypeLabel(k)}</button>)}
+        </div>
+      </div>
+      {/* 5 · Ayarlar */}
+      <div style={card}>
+        <div style={h}>⑤ {W2("Mîheng","Settings")}</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:10,alignItems:"end"}}>
+          <div><div style={{fontSize:11.5,color:"var(--text2)",marginBottom:4}}>⏰ {W2("Roja dawî (vebijarkî)","Closing date (optional)")}</div><input type="date" style={inp} value={endDate} onChange={e=>setEndDate(e.target.value)}/></div>
+          <label style={{fontSize:13,color:"var(--text)",display:"flex",gap:8,alignItems:"center",padding:"10px 0"}}><input type="checkbox" checked={anon} onChange={e=>setAnon(e.target.checked)}/> 🕶 {W2("Bênav (nav di encaman de nayê nîşandan)","Anonymous (names hidden in results)")}</label>
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,position:"sticky",bottom:0,background:"var(--bg2)",padding:"10px 0"}}>
+        <button onClick={()=>setPreview(true)} style={{...chip(false),padding:12,borderRadius:12}}>👁 {W2("Pêşdîtin","Preview")}</button>
+        <button onClick={()=>save(true)} style={{...chip(true),padding:12,borderRadius:12,background:"#16a34a",borderColor:"#16a34a"}}>🚀 {W2("Biweşîne","Publish")}</button>
+        <button onClick={()=>save(false)} style={{...chip(false),padding:10,borderRadius:12}}>💾 {W2("Wek reşnivîs tomar bike","Save as draft")}</button>
+        <button onClick={onCancel} style={{...chip(false),padding:10,borderRadius:12}}>{W2("Betal","Cancel")}</button>
+      </div>
+    </div>);
+}
+// Sonuçlar: soru başına özet + katılım + CSV / yazdır
+function SurveyStats({survey,resps,lang,expected,whoLabel}){
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const bar=(pct,best)=>(<div style={{height:9,background:"var(--bg2)",borderRadius:5,overflow:"hidden",marginTop:3}}><div style={{height:"100%",width:Math.min(100,pct)+"%",background:best?"#0f2f38":"#94a3b8",borderRadius:5}}/></div>);
+  const vals=q=>resps.map(r=>r.answers&&r.answers[q.id]).filter(v=>v!=null&&v!==""&&!(Array.isArray(v)&&!v.length));
+  function csv(){
+    const qs=survey.questions||[];
+    const fmt=(q,v)=>v==null?"":Array.isArray(v)?v.join(" | "):q.type==="yesno"?(v==="yes"?YESNO()[0]:YESNO()[1]):q.type==="likert"?(LIKERT()[v-1]||v):v;
+    const rows=[[...(survey.anonymous?[]:[W2("Nav","Name")]),W2("Dem","Time"),...qs.map((q,i)=>(i+1)+". "+q.text)]];
+    resps.forEach(r=>rows.push([...(survey.anonymous?[]:[r.studentName||r.guardianName||r.teacherName||""]),r.submittedAt||"",...qs.map(q=>fmt(q,r.answers&&r.answers[q.id]))]));
+    downloadCSV("anket-"+String(survey.title||"").replace(/[^\wçğıöşüÇĞİÖŞÜ]+/g,"-").slice(0,40)+".csv",rows);
+  }
+  const part=expected?Math.round(resps.length/expected*100):null;
+  return(
+    <div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:8,marginBottom:12}}>
+        <div style={{background:"var(--bg2)",borderRadius:10,padding:10,textAlign:"center"}}><div style={{fontSize:20,fontWeight:800,color:"var(--text)"}}>{resps.length}</div><div style={{fontSize:10,color:"var(--text2)"}}>{W2("Bersiv","Responses")}</div></div>
+        {expected?<div style={{background:"var(--bg2)",borderRadius:10,padding:10,textAlign:"center"}}><div style={{fontSize:20,fontWeight:800,color:part>=60?"#15803d":"#b45309"}}>{part}%</div><div style={{fontSize:10,color:"var(--text2)"}}>{W2("Beşdarî","Participation")} ({expected} {whoLabel||""})</div></div>:null}
+        <button onClick={csv} disabled={!resps.length} style={{borderRadius:10,border:"1px solid var(--border2)",background:"var(--surface)",color:"var(--text)",fontWeight:700,cursor:"pointer"}}>⬇ CSV</button>
+      </div>
+      {!resps.length&&<div style={{textAlign:"center",padding:20,color:"var(--text2)",fontSize:12}}>📭 {W2("Hîn bersiv tune","No responses yet")}</div>}
+      {resps.length>0&&(survey.questions||[]).map((q,qi)=>{
+        const v=vals(q); const head=<div style={{fontSize:12.5,fontWeight:700,color:"var(--text)",marginBottom:6}}>{qi+1}. {q.text} <span style={{fontSize:10,fontWeight:500,color:"var(--text2)"}}>· {sqTypeLabel(q.type)} · {v.length} {W2("bersiv","resp.")}</span></div>;
+        let body=null;
+        if(q.type==="rating"||q.type==="likert"){
+          const max=q.type==="likert"?5:(survey.resultType==="percent"?100:10); const nums=v.map(Number).filter(n=>!isNaN(n));
+          const avg=nums.length?nums.reduce((a,b)=>a+b,0)/nums.length:0; const pct=Math.round(avg/max*100); const c=pct>=75?"#15803d":pct>=50?"#d97706":"#c92020";
+          const steps=q.type==="likert"?[1,2,3,4,5]:(max===10?[1,2,3,4,5,6,7,8,9,10]:[]);
+          body=(<div>
+            <div style={{display:"flex",alignItems:"baseline",gap:8}}><span style={{fontSize:22,fontWeight:800,color:c}}>{nums.length?avg.toFixed(1):"—"}</span><span style={{fontSize:11,color:"var(--text2)"}}>/ {max} · {pct}%</span></div>
+            {bar(pct,true)}
+            {steps.length>0&&<div style={{display:"grid",gridTemplateColumns:"repeat("+steps.length+",minmax(0,1fr))",gap:4,marginTop:10,maxWidth:steps.length*44}}>
+              {steps.map(s=>{ const n=nums.filter(x=>x===s).length, h2=nums.length?Math.max(2,Math.round(n/nums.length*40)):2; return <div key={s} title={(q.type==="likert"?LIKERT()[s-1]:s)+": "+n} style={{display:"flex",flexDirection:"column",alignItems:"center"}}><div style={{fontSize:9,color:"var(--text2)",height:12}}>{n||""}</div><div style={{height:42,width:"100%",display:"flex",alignItems:"flex-end"}}><div style={{width:"100%",height:h2,background:n?"#2c6b74":"var(--border2)",borderRadius:3}}/></div><div style={{fontSize:9,color:"var(--text2)",marginTop:2}}>{s}</div></div>; })}
+            </div>}
+            {q.type==="likert"&&<div style={{fontSize:9.5,color:"var(--text2)",marginTop:3}}>1 = {LIKERT()[0]} · 5 = {LIKERT()[4]}</div>}
+          </div>);
+        } else if(q.type==="choice"||q.type==="multi"||q.type==="yesno"){
+          const opts=q.type==="yesno"?["yes","no"]:(q.choices||[]); const lbl=o=>q.type==="yesno"?(o==="yes"?"👍 "+YESNO()[0]:"👎 "+YESNO()[1]):o;
+          const cnt=o=>v.filter(x=>Array.isArray(x)?x.includes(o):x===o).length; const mx=Math.max(1,...opts.map(cnt));
+          body=<div>{opts.map(o=>{ const n=cnt(o), pct=v.length?Math.round(n/v.length*100):0; return <div key={o} style={{marginBottom:6}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11.5,color:"var(--text)"}}><span style={{fontWeight:n===mx&&n>0?800:500}}>{n===mx&&n>0?"🏆 ":""}{lbl(o)}</span><span style={{color:"var(--text2)",fontWeight:700}}>{n} · {pct}%</span></div>{bar(pct,n===mx&&n>0)}</div>; })}
+            {q.type==="multi"&&<div style={{fontSize:9.5,color:"var(--text2)"}}>{W2("Rêje li gorî kesên bersiv dane ye (çend bijare)","Share of respondents (multiple choice)")}</div>}</div>;
+        } else {
+          body=<div style={{maxHeight:180,overflowY:"auto",display:"flex",flexDirection:"column",gap:4}}>{v.slice(0,50).map((t,i)=><div key={i} style={{fontSize:12,color:"var(--text)",padding:"7px 10px",background:"var(--bg2)",borderRadius:8,lineHeight:1.5}}>“{String(t)}”</div>)}</div>;
+        }
+        return <div key={q.id} style={{padding:"10px 0",borderTop:"1px solid var(--border2)"}}>{head}{body}</div>;
+      })}
+    </div>);
+}
+// Çocuk Akademisi veli anketleri (kidSurveys) — oluştur, yayınla, sonuçlar
+function KidSurveysPanel({lang,toast}){
+  const F=window.__FB; const live=!!(F&&F.isConfigured());
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const [list,setList]=useState([]); const [resps,setResps]=useState([]); const [kids,setKids]=useState([]);
+  const [view,setView]=useState("list"); const [edit,setEdit]=useState(null); const [lvlF,setLvlF]=useState("all");
+  useEffect(()=>{
+    if(!live) return; const subs=[];
+    const L=(c,set)=>{ try{ subs.push(F.onSnapshot(F.collection(F.db,c),s=>set(s.docs.map(d=>({...d.data(),fireId:d.id}))),e=>console.warn("[kidSurveys]",e&&e.code))); }catch(_){} };
+    L("kidSurveys",v=>setList(v.sort((a,b)=>String(b.createdAtIso||"").localeCompare(String(a.createdAtIso||""))))); L("kidSurveyResponses",setResps); L("kids",setKids);
+    return ()=>subs.forEach(u=>{ try{u();}catch(_){} });
+  },[live]);
+  const today=new Date().toISOString().slice(0,10);
+  const status=sv=>!sv.active?["⏸",W2("Reşnivîs / rawestiyayî","Draft / paused"),"#64748b"]:(sv.endDate&&sv.endDate<today)?["⌛",W2("Dem qediya","Closed"),"#b45309"]:["🟢",W2("Çalak","Live"),"#15803d"];
+  const famOf=sv=>{ const g=new Set(); kids.filter(k=>!(sv.targetLevels||[]).length||(sv.targetLevels||[]).map(Number).includes(+k.classLevel)).forEach(k=>(k.guardianNos||[]).forEach(x=>g.add(x))); return g.size; };
+  const rOf=sv=>resps.filter(r=>r.surveyId===sv.fireId);
+  async function save(sv){
+    try{
+      if(edit&&edit.fireId) await F.setDoc(F.doc(F.db,"kidSurveys",edit.fireId),{...sv,updatedAt:F.serverTimestamp()},{merge:true});
+      else await F.addDoc(F.collection(F.db,"kidSurveys"),{...sv,createdAtIso:new Date().toISOString(),createdAt:F.serverTimestamp()});
+      toast("✅ "+sv.title+(sv.active?" — "+W2("hate weşandin","published"):"")); setView("list"); setEdit(null);
+    }catch(e){ toast("❌ "+(/permission/i.test(String(e&&e.code))?W2("Destûr tune: qaîdeyên Firestore yên nû biweşînin","Permission denied: publish the latest firestore.rules"):(e.code||e.message))); }
+  }
+  if(!live) return <div style={{fontSize:13,color:"var(--text2)"}}>{W2("Firebase girêdayî nîne.","Firebase is not connected.")}</div>;
+  if(view==="studio") return <SurveyStudio mode="kids" initial={edit} lang={lang} toast={toast} onSave={save} onCancel={()=>{setView("list");setEdit(null);}}/>;
+  if(view==="results"&&edit){
+    const rs=rOf(edit).filter(r=>lvlF==="all"||(r.kidLevels||[]).map(Number).includes(+lvlF));
+    return(<div>
+      <button onClick={()=>{setView("list");setEdit(null);}} style={{padding:"7px 14px",fontSize:12,background:"var(--bg2)",border:"1px solid var(--border2)",borderRadius:10,cursor:"pointer",color:"var(--text)",fontWeight:600,marginBottom:10}}>← {W2("Vegere","Back")}</button>
+      <div style={{background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:14,padding:14}}>
+        <div style={{fontSize:15,fontWeight:800,color:"var(--text)"}}>{edit.title}</div>
+        <div style={{display:"flex",gap:8,alignItems:"center",margin:"8px 0 12px",flexWrap:"wrap"}}>
+          <select aria-label={W2("Sînif","Class")} value={lvlF} onChange={e=>setLvlF(e.target.value)} style={{padding:"8px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:12}}>
+            <option value="all">🏫 {W2("Hemû sinif","All classes")}</option>{KID_CLASS_LEVELS.map(l=><option key={l} value={l}>{classTitle(l)}</option>)}
+          </select>
+        </div>
+        <SurveyStats survey={edit} resps={rs} lang={lang} expected={lvlF==="all"?famOf(edit):null} whoLabel={W2("malbat","families")}/>
+      </div>
+    </div>);
+  }
+  return(
+    <div>
+      <button onClick={()=>{setEdit(null);setView("studio");}} style={{width:"100%",padding:13,borderRadius:12,border:"none",background:"#0f2f38",color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer",marginBottom:12}}>✨ {W2("Ankêta nû ji bo dêûbavan","New parent survey")}</button>
+      <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>{W2("Dêûbav ankêtê di sepana Akademiya Zarokan de (Ragihandin) dibînin û bersiv didin. Her malbat carekê bersiv dide.","Parents see and answer the survey in the Children's Academy app (Announcements). Each family answers once.")}</div>
+      {list.length===0&&<div style={{textAlign:"center",padding:28,color:"var(--text2)",fontSize:13}}>📭 {W2("Hîn ankêt tune","No surveys yet")}</div>}
+      {list.map(sv=>{ const [ic,lb,col]=status(sv); const n=rOf(sv).length, ex=famOf(sv); return(
+        <div key={sv.fireId} style={{background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:14,padding:12,marginBottom:10}}>
+          <div style={{display:"flex",gap:8,alignItems:"flex-start"}}>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontWeight:800,color:"var(--text)"}}>{sv.title}</div>
+              <div style={{fontSize:11,color:"var(--text2)",marginTop:3}}>
+                <span style={{color:col,fontWeight:700}}>{ic} {lb}</span> · {(sv.questions||[]).length} {W2("pirs","questions")} · 🏫 {(sv.targetLevels||[]).length?(sv.targetLevels.map(l=>classTitle(l)).join(", ")):W2("Hemû sinif","All classes")}{sv.endDate?" · ⏰ "+sv.endDate:""}{sv.anonymous?" · 🕶":""}
+              </div>
+              <div style={{fontSize:11.5,color:"var(--text)",marginTop:4,fontWeight:700}}>📝 {n} / {ex} {W2("malbat","families")}</div>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
+            <button onClick={()=>{setEdit(sv);setLvlF("all");setView("results");}} style={{padding:"7px 11px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12,cursor:"pointer"}}>📊 {W2("Encam","Results")}</button>
+            <button onClick={()=>{setEdit(sv);setView("studio");}} style={{padding:"7px 11px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12,cursor:"pointer"}}>✏️</button>
+            <button onClick={()=>F.updateDoc(F.doc(F.db,"kidSurveys",sv.fireId),{active:!sv.active}).catch(e=>toast("❌ "+e.code))} style={{padding:"7px 11px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12,cursor:"pointer"}}>{sv.active?"⏸ "+W2("Rawestîne","Pause"):"▶ "+W2("Biweşîne","Publish")}</button>
+            <button onClick={()=>{ if(window.confirm(W2("Ankêt were jêbirin?","Delete survey?"))) F.deleteDoc(F.doc(F.db,"kidSurveys",sv.fireId)).catch(e=>toast("❌ "+e.code)); }} style={{padding:"7px 11px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"#dc2626",fontWeight:700,fontSize:12,cursor:"pointer"}}>🗑</button>
+          </div>
+        </div>);})}
+    </div>);
+}
+// Yönetici / Öğrenci İşleri: Çocuk Akademisi raporu
+function KidAcademyReport({lang,toast}){
+  const F=window.__FB; const live=!!(F&&F.isConfigured());
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const [d,setD]=useState({kids:[],guards:[],kteach:[],cls:[],att:[],apps:[]});
+  const [days,setDays]=useState(30); const [lvlF,setLvlF]=useState("all"); const [areaF,setAreaF]=useState("all");
+  const since=new Date(Date.now()-days*864e5).toISOString().slice(0,10);
+  useEffect(()=>{
+    if(!live) return; const subs=[];
+    const L=(q,k)=>{ try{ subs.push(F.onSnapshot(q,s=>setD(x=>({...x,[k]:s.docs.map(dd=>({...dd.data(),fireId:dd.id}))})),e=>console.warn("[kidReport]",e&&e.code))); }catch(_){} };
+    L(F.collection(F.db,"kids"),"kids"); L(F.collection(F.db,"guardians"),"guards"); L(F.collection(F.db,"kidTeachers"),"kteach");
+    L(F.collection(F.db,"kidClasses"),"cls"); L(F.collection(F.db,"kidApplications"),"apps");
+    L(F.query(F.collection(F.db,"kidAttendance"),F.where("date",">=",since)),"att");
+    return ()=>subs.forEach(u=>{ try{u();}catch(_){} });
+  },[live,since]);
+  if(!live) return <div style={{fontSize:13,color:"var(--text2)"}}>{W2("Firebase girêdayî nîne.","Firebase is not connected.")}</div>;
+  const aName=a=>{ const z=ZAROK_AREA_NAMES[a]; return z?(lang==="en"?z[1]:K(z[0])):(a||"—"); };
+  const kidsF=d.kids.filter(k=>(lvlF==="all"||String(k.classLevel||0)===String(lvlF))&&(areaF==="all"||k.area===areaF));
+  const presentDays=k=>new Set(d.att.filter(a=>a.kidId===k.fireId&&a.type==="in").map(a=>a.date)).size;
+  const lessonDays=new Set(d.att.filter(a=>a.type==="in").map(a=>a.date)).size;
+  const fam=new Set(); kidsF.forEach(k=>fam.add([...(k.guardianNos||[])].sort().join("+")));
+  const sib=[...fam].filter(f=>kidsF.filter(k=>[...(k.guardianNos||[])].sort().join("+")===f).length>1).length;
+  const tile=(v,l,c)=>(<div style={{background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,padding:"12px 10px",textAlign:"center"}}><div style={{fontSize:22,fontWeight:800,color:c||"var(--text)"}}>{v}</div><div style={{fontSize:10.5,color:"var(--text2)",marginTop:2}}>{l}</div></div>);
+  const box={background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:14,padding:14,marginBottom:12};
+  const th={textAlign:"left",fontSize:11,color:"var(--text2)",padding:"6px 6px",borderBottom:"1px solid var(--border2)"}, td={fontSize:12.5,color:"var(--text)",padding:"7px 6px",borderBottom:"1px solid var(--border2)"};
+  const byArea=ZAROK_AREAS.map(a=>[a,kidsF.filter(k=>k.area===a).length]).filter(x=>x[1]);
+  const byLvl=KID_CLASS_LEVELS.map(l=>[l,kidsF.filter(k=>+k.classLevel===l)]).filter(x=>x[1].length||d.cls.some(c=>c.id==="L"+x[0]));
+  const noLvl=kidsF.filter(k=>!+k.classLevel).length;
+  const appSt=s=>d.apps.filter(a=>(a.status||"new")===s).length;
+  const rows=kidsF.slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"")).map(k=>{ const p=presentDays(k); return {k,p,pct:lessonDays?Math.round(p/lessonDays*100):null}; });
+  function csv(){
+    downloadCSV("cocuk-akademisi-rapor-"+new Date().toISOString().slice(0,10)+".csv",[[W2("Nav","Name"),W2("Jimare","No"),W2("Qad","Field"),W2("Sinif","Class"),W2("Dêûbav","Parents"),W2("Rojên hatinê","Days present"),"%"],
+      ...rows.map(r=>[r.k.name,r.k.no,aName(r.k.area),+r.k.classLevel?classTitle(+r.k.classLevel):"",(r.k.guardianNos||[]).map(g=>((d.guards.find(x=>x.no===g)||{}).name)||g).join(" | "),r.p,r.pct==null?"":r.pct])]);
+    try{ logReportArchive({type:"csv",label:"CSV · "+W2("Akademiya Zarokan","Children's Academy")}); }catch(_){}
+  }
+  return(
+    <div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
+        <select aria-label={W2("Dem","Period")} value={days} onChange={e=>setDays(+e.target.value)} style={{padding:"8px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:12}}>
+          {[7,30,90,365].map(n=><option key={n} value={n}>📅 {W2("Dawiya","Last")} {n} {W2("rojan","days")}</option>)}
+        </select>
+        <select aria-label={W2("Sînif","Class")} value={lvlF} onChange={e=>setLvlF(e.target.value)} style={{padding:"8px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:12}}>
+          <option value="all">🏫 {W2("Hemû sinif","All classes")}</option>{KID_CLASS_LEVELS.map(l=><option key={l} value={l}>{classTitle(l)}</option>)}
+        </select>
+        <select aria-label={W2("Qad","Field")} value={areaF} onChange={e=>setAreaF(e.target.value)} style={{padding:"8px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:12}}>
+          <option value="all">🎭 {W2("Hemû qad","All fields")}</option>{ZAROK_AREAS.map(a=><option key={a} value={a}>{aName(a)}</option>)}
+        </select>
+        <button onClick={csv} style={{padding:"8px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--surface)",color:"var(--text)",fontWeight:700,fontSize:12,cursor:"pointer"}}>⬇ CSV</button>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:8,marginBottom:12}}>
+        {tile(kidsF.length,W2("Zarok","Children"))}
+        {tile(fam.size,W2("Malbat","Families"))}
+        {tile(sib,W2("Malbatên bi xwişk/bira","Families with siblings"))}
+        {tile(d.kteach.length,W2("Mamoste","Teachers"))}
+        {tile(lessonDays,W2("Rojên dersê","Lesson days"))}
+        {tile(appSt("new"),W2("Serlêdanên nû","New applications"),appSt("new")?"#b45309":null)}
+      </div>
+      <div style={box}>
+        <div style={{fontWeight:800,color:"var(--text)",marginBottom:8}}>🏫 {W2("Sinif","Classes")}</div>
+        <table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr><th style={th}>{W2("Sinif","Class")}</th><th style={th}>{W2("Zarok","Children")}</th><th style={th}>{W2("Mamosteyê sinifê","Class teacher")}</th><th style={th}>{W2("Amadebûn","Attendance")}</th></tr></thead>
+          <tbody>{byLvl.map(([l,ks])=>{ const c=d.cls.find(x=>x.id==="L"+l); const ps=ks.map(presentDays); const avg=ks.length&&lessonDays?Math.round(ps.reduce((a,b)=>a+b,0)/ks.length/lessonDays*100):null;
+            return <tr key={l}><td style={td}>{classTitle(l)}</td><td style={td}>{ks.length}</td><td style={td}>{((c&&c.teacherNames)||[]).filter(Boolean).join(", ")||"—"}</td><td style={td}>{avg==null?"—":avg+"%"}</td></tr>; })}
+            {noLvl>0&&<tr><td style={{...td,color:"#b45309"}}>⚠ {W2("Sinif nehatiye diyarkirin","No class assigned")}</td><td style={td}>{noLvl}</td><td style={td}></td><td style={td}></td></tr>}</tbody></table>
+      </div>
+      <div style={box}>
+        <div style={{fontWeight:800,color:"var(--text)",marginBottom:8}}>🎭 {W2("Qad","Fields")}</div>
+        {byArea.map(([a,n])=><div key={a} style={{marginBottom:6}}><div style={{display:"flex",justifyContent:"space-between",fontSize:12.5,color:"var(--text)"}}><span>{aName(a)}</span><b>{n}</b></div><div style={{height:8,background:"var(--bg2)",borderRadius:4,overflow:"hidden",marginTop:3}}><div style={{height:"100%",width:(kidsF.length?n/kidsF.length*100:0)+"%",background:"#2c6b74"}}/></div></div>)}
+        {!byArea.length&&<div style={{fontSize:12,color:"var(--text2)"}}>—</div>}
+      </div>
+      <div style={box}>
+        <div style={{fontWeight:800,color:"var(--text)",marginBottom:8}}>📋 {W2("Serlêdan","Applications")}</div>
+        <div style={{display:"flex",gap:14,fontSize:13,color:"var(--text)",flexWrap:"wrap"}}><span>🆕 {appSt("new")}</span><span>✅ {appSt("accepted")}</span><span>❌ {appSt("rejected")}</span></div>
+      </div>
+      <div style={box}>
+        <div style={{fontWeight:800,color:"var(--text)",marginBottom:8}}>✅ {W2("Amadebûna zarokan","Children's attendance")} <span style={{fontSize:11,color:"var(--text2)",fontWeight:500}}>({W2("Dawiya","Last")} {days} {W2("rojan","days")})</span></div>
+        <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",minWidth:420}}><thead><tr><th style={th}>{W2("Nav","Name")}</th><th style={th}>{W2("Sinif","Class")}</th><th style={th}>{W2("Qad","Field")}</th><th style={th}>{W2("Roj","Days")}</th><th style={th}>%</th></tr></thead>
+          <tbody>{rows.map(r=><tr key={r.k.fireId}><td style={td}>{r.k.name}</td><td style={td}>{+r.k.classLevel?classTitle(+r.k.classLevel):"—"}</td><td style={td}>{aName(r.k.area)}</td><td style={td}>{r.p}</td><td style={{...td,fontWeight:700,color:r.pct==null?"var(--text2)":r.pct>=75?"#15803d":r.pct>=50?"#b45309":"#dc2626"}}>{r.pct==null?"—":r.pct+"%"}</td></tr>)}</tbody></table></div>
+        {!rows.length&&<div style={{fontSize:12,color:"var(--text2)"}}>—</div>}
+      </div>
+    </div>);
+}
+
 function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
   const [mainTab, setMainTab] = useState("student"); // teacher | student
 
@@ -12196,7 +12644,23 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
   function startEdit(q){ setEditQ(q); setForm({ku:q.ku||"",tr:q.tr||"",zza:q.zza||"",en:q.en||""}); }
 
   /* ── STUDENT SURVEY CRUD ── */
+  // ── Anket Stüdyosu (yeni oluşturucu) ──
+  const [studio,setStudio]=useState(null);
+  function saveStudio(part){
+    const now=new Date().toISOString();
+    const base=studio&&(studio.id||studio.fireId)?studio:null;
+    const sv={...(base||{}),...part,id:base?(base.id||base.fireId):Date.now(),createdAt:(base&&base.createdAt)||now,updatedAt:now,docTemplate:(base&&base.docTemplate)||null,allowDocs:!!(base&&base.allowDocs)};
+    const updated=base?studentSurveys.map(x=>(String(x.id)===String(sv.id)||(x.fireId&&x.fireId===base.fireId))?{...x,...sv}:x):[...studentSurveys,sv];
+    setStudentSurveys(updated); saveSS(updated);
+    toast("✅ "+sv.title+(sv.active?" — "+(lang==="en"?"published":K("hate weşandin")):""));
+    setStudio(null); setViewMode("list");
+  }
+  const expectedFor=sv=>{
+    if(sv.targetType==="teachers"||sv.targetType==="teachers_area") return (teachers||[]).filter(t2=>t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate&&(sv.targetType==="teachers"||(sv.targetAreas||[]).includes(t2.area))).length;
+    return (students||[]).filter(st=>!st.isAdmin&&(sv.targetType!=="area"||(sv.targetAreas||[]).includes(st.area))&&(!(sv.targetLevels||[]).length||(sv.targetLevels||[]).map(Number).includes(+(st.classLevel||1)))).length;
+  };
   function startCreateSurvey(){
+    setStudio({});
     setSurveyForm({title:"",desc:"",targetType:"all",targetAreas:[],targetLevels:[],targetTeacherNo:"",resultType:"percent",pointMax:100,allowDocs:false,questions:[]});
     setEditingSurveyId("new");
     setNewQ({text:"",type:"rating",choices:["",""]});
@@ -12205,6 +12669,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
     setViewMode("create");
   }
   function startEditSurvey(sv){
+    setStudio(sv);
     setSurveyForm({
       title:sv.title||"",desc:sv.desc||"",
       targetType:sv.targetType||"all",
@@ -13050,84 +13515,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
             )}
           </div>
 
-          {allResps.length===0?(
-            <div style={{textAlign:"center",padding:"20px 0",color:"var(--text2)"}}>
-              <div style={{fontSize:28,marginBottom:6}}>📭</div>
-              <div style={{fontSize:12}}>{L("noResults")}</div>
-            </div>
-          ):(
-            sv.questions?.map((q,qi)=>{
-              if(q.type==="rating"){
-                const vals=allResps.map(r=>r.answers?.[q.id]).filter(v=>v!=null&&!isNaN(v));
-                const avg=vals.length?(vals.reduce((a,b)=>a+Number(b),0)/vals.length):null;
-                const isPercent=sv.resultType==="percent";
-                const isPoints=sv.resultType==="points";
-                const maxVal=isPoints?(q.points||sv.pointMax||100):10;
-                const pct=avg!=null?Math.round((avg/maxVal)*100):0;
-                const c=pct>=80?"#15803d":pct>=50?"#d97706":"#c92020";
-                const dispVal=isPercent?(avg!=null?`${Math.round(avg)}%`:"—"):isPoints?(avg!=null?`${avg.toFixed(1)}/${maxVal}pt`:"—"):(avg!=null?`${avg.toFixed(1)}/10`:"—");
-                return(
-                  <div key={q.id} style={{marginBottom:12}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
-                      <div style={{fontSize:11,fontWeight:600,color:"var(--text)",flex:1,marginRight:8}}>{qi+1}. {q.text}</div>
-                      <div style={{textAlign:"right",flexShrink:0}}>
-                        <div style={{fontSize:14,fontWeight:800,color:c,lineHeight:1}}>{dispVal}</div>
-                        <div style={{fontSize:9,color:"var(--text2)"}}>{vals.length} {lang==="en"?"resp.":K("bersiv")}</div>
-                      </div>
-                    </div>
-                    <div style={{height:10,background:"var(--bg2)",borderRadius:5,overflow:"hidden"}}>
-                      <div style={{height:"100%",width:`${Math.min(pct,100)}%`,borderRadius:5,transition:"width .6s",
-                        background:`linear-gradient(90deg,${c}88,${c})`}}/>
-                    </div>
-                  </div>
-                );
-              }
-              if(q.type==="choice"){
-                const allAns=allResps.map(r=>r.answers?.[q.id]).filter(v=>v);
-                const counts={};allAns.forEach(a2=>{counts[a2]=(counts[a2]||0)+1;});
-                const maxCount=Math.max(...Object.values(counts),1);
-                return(
-                  <div key={q.id} style={{marginBottom:12}}>
-                    <div style={{fontSize:11,fontWeight:700,color:"var(--text)",marginBottom:8}}>{qi+1}. {q.text}</div>
-                    {q.choices?.map(ch=>{
-                      const cnt=counts[ch]||0;
-                      const pct=allAns.length?Math.round(cnt/allAns.length*100):0;
-                      const isMax=cnt===maxCount&&cnt>0;
-                      return(
-                      <div key={ch} style={{marginBottom:6}}>
-                        <div style={{display:"flex",justifyContent:"space-between",fontSize:10,marginBottom:3}}>
-                          <span style={{color:"var(--text)",fontWeight:isMax?700:400}}>{isMax?"🏆 ":""}{ch}</span>
-                          <span style={{color:"var(--text2)",fontWeight:700}}>{cnt} ({pct}%)</span>
-                        </div>
-                        <div style={{height:8,background:"var(--bg2)",borderRadius:4,overflow:"hidden"}}>
-                          <div style={{height:"100%",width:`${pct}%`,borderRadius:4,
-                            background:isMax?"linear-gradient(90deg,#0f2f38,#0f2f38)":"#94a3b8"}}/>
-                        </div>
-                      </div>
-                      );
-                    })}
-                  </div>
-                );
-              }
-              if(q.type==="text"){
-                const txts=allResps.map(r=>r.answers?.[q.id]).filter(v=>v&&v.trim());
-                return(
-                  <div key={q.id} style={{marginBottom:12}}>
-                    <div style={{fontSize:11,fontWeight:700,color:"var(--text)",marginBottom:8}}>{qi+1}. {q.text} <span style={{fontSize:9,fontWeight:400,color:"var(--text2)"}}>({txts.length} {lang==="en"?"resp.":K("bersiv")})</span></div>
-                    <div style={{maxHeight:120,overflowY:"auto",display:"flex",flexDirection:"column",gap:4}}>
-                      {txts.slice(0,8).map((txt,ti)=>(
-                        <div key={ti} style={{fontSize:11,color:"var(--text)",padding:"7px 10px",background:"var(--bg2)",borderRadius:8,lineHeight:1.5}}>
-                          "{txt}"
-                        </div>
-                      ))}
-                      {txts.length===0&&<div style={{fontSize:11,color:"var(--text2)",fontStyle:"italic"}}>{L("noResults")}</div>}
-                    </div>
-                  </div>
-                );
-              }
-              return null;
-            })
-          )}
+          <SurveyStats survey={sv} resps={allResps} lang={lang} expected={expectedFor(sv)} whoLabel={(sv.targetType||"").startsWith("teachers")?(lang==="en"?"teachers":K("mamoste")):(lang==="en"?"students":K("xwendekar"))}/>
         </div>
         );
       })}
@@ -13167,7 +13555,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
       </div>
       {/* Main tabs */}
       <div style={{display:"flex",gap:0,background:"var(--bg2)",borderRadius:14,padding:4,marginBottom:16}}>
-        {[{k:"student",icon:"🎓",lbl:L("studentTab")},{k:"teacher",icon:"👨‍🏫",lbl:L("teacherTab")}].map(tab=>(
+        {[{k:"student",icon:"🎓",lbl:L("studentTab")},{k:"teacher",icon:"👨‍🏫",lbl:L("teacherTab")},{k:"zarok",icon:"🎼",lbl:"🎼 "+(lang==="en"?"Children's Academy":K("Akademiya Zarokan"))}].map(tab=>(
           <button key={tab.k} onClick={()=>setMainTab(tab.k)}
             style={{flex:1,padding:"11px 8px",fontSize:12,fontWeight:700,
               background:mainTab===tab.k?"linear-gradient(135deg,#0f2f38,#0f2f38)":"transparent",
@@ -13180,10 +13568,11 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
 
       {/* Teacher tab */}
       {mainTab==="teacher"&&teacherTab}
+      {mainTab==="zarok"&&<KidSurveysPanel lang={lang} toast={toast}/>}
 
       {/* Student tab */}
       {mainTab==="student"&&(
-        viewMode==="create" ? surveyCreateWizard
+        viewMode==="create" ? <SurveyStudio mode="academy" initial={studio&&(studio.id||studio.fireId)?studio:null} teachers={teachers} lang={lang} toast={toast} onSave={saveStudio} onCancel={()=>{setStudio(null);setViewMode("list");}}/>
         : viewMode==="results" ? surveyResults
         : (
           <>
@@ -13202,55 +13591,10 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
               📊 {L("results")}
             </button>
           </div>
-          {/* ⚡ Bilez Ankêt — pratik oluşturma (sihirbaz da duruyor) */}
-          <div style={{background:"var(--surface)",border:"1px solid rgba(15,23,42,.09)",borderRadius:14,padding:"14px",marginBottom:14}}>
-            <div style={{fontSize:13,fontWeight:800,color:"var(--text)",marginBottom:4}}>⚡ {lang==="en"?"Quick Survey":K("Bilez Ankêt")}</div>
-            <div style={{fontSize:10.5,color:"var(--text2)",marginBottom:10}}>{lang==="en"?"Title + questions — publishes instantly. Use the wizard below for advanced options.":K("Sernav + pirs — tavilê çalak dibe. Ji bo vebijarkên pêşketî sêrbazê bikar bîne.")}</div>
-            <input value={qsTitle} onChange={e=>setQsTitle(e.target.value)} placeholder={lang==="en"?"Survey title":K("Sernava ankêtê")}
-              style={{width:"100%",padding:"11px 12px",marginBottom:8,border:"1px solid var(--border2)",borderRadius:10,fontSize:13.5,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box"}}/>
-            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
-              <button onClick={()=>setQsAreas([])}
-                style={{padding:"5px 11px",borderRadius:20,fontSize:10.5,fontWeight:700,cursor:"pointer",
-                  border:`1.5px solid ${qsAreas.length===0?"#0f2f38":"var(--border2)"}`,
-                  background:qsAreas.length===0?"#0f2f38":"var(--bg2)",color:qsAreas.length===0?"#fff":"var(--text2)"}}>
-                🌍 {lang==="en"?"All students":K("Hemû Xwendekar")}
-              </button>
-              {AREAS.filter(a=>a.key!=="genel").map(a=>(
-                <button key={a.key} onClick={()=>qsToggleArea(a.key)}
-                  style={{padding:"5px 11px",borderRadius:20,fontSize:10.5,fontWeight:700,cursor:"pointer",
-                    border:`1.5px solid ${qsAreas.includes(a.key)?"#0f2f38":"var(--border2)"}`,
-                    background:qsAreas.includes(a.key)?"#0f2f38":"var(--bg2)",color:qsAreas.includes(a.key)?"#fff":"var(--text2)"}}>
-                  {a.icon} {areaName(a.key,lang)}
-                </button>
-              ))}
-            </div>
-            {qsQuestions.map((q,i)=>(
-              <div key={i} style={{display:"flex",gap:6,marginBottom:6}}>
-                <input value={q.text} onChange={e=>setQsQuestions(p=>p.map((x,j)=>j===i?{...x,text:e.target.value}:x))}
-                  placeholder={(lang==="en"?"Question ":K("Pirs "))+(i+1)}
-                  style={{flex:1,padding:"10px 11px",border:"1px solid var(--border2)",borderRadius:9,fontSize:12.5,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box",minWidth:0}}/>
-                <select value={q.type} onChange={e=>setQsQuestions(p=>p.map((x,j)=>j===i?{...x,type:e.target.value}:x))}
-                  style={{padding:"8px 6px",border:"1px solid var(--border2)",borderRadius:9,fontSize:11,background:"var(--bg2)",color:"var(--text)",flexShrink:0}}>
-                  <option value="rating">⭐ 1-10</option>
-                  <option value="text">💬 {lang==="en"?"Text":K("Nivîs")}</option>
-                </select>
-                {qsQuestions.length>1&&(
-                  <button onClick={()=>setQsQuestions(p=>p.filter((_,j)=>j!==i))}
-                    style={{width:32,borderRadius:9,border:"0.5px solid var(--red)",background:"var(--red-bg)",color:"var(--red)",cursor:"pointer",fontSize:13,flexShrink:0}}>×</button>
-                )}
-              </div>
-            ))}
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1.5fr",gap:8,marginTop:8}}>
-              <button onClick={()=>setQsQuestions(p=>[...p,{text:"",type:"rating"}])}
-                style={{padding:"10px",borderRadius:10,border:"1.5px dashed var(--border2)",background:"none",color:"var(--text2)",fontSize:12,fontWeight:700,cursor:"pointer"}}>
-                ➕ {lang==="en"?"Question":K("Pirs")}
-              </button>
-              <button onClick={qsCreate}
-                style={{padding:"10px",borderRadius:10,border:"none",background:"#0f2f38",color:"#fff",fontSize:12.5,fontWeight:800,cursor:"pointer"}}>
-                🚀 {lang==="en"?"Create & Publish":K("Biafirîne û Çalak Bike")}
-              </button>
-            </div>
-          </div>
+          <button onClick={startCreateSurvey} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:"linear-gradient(135deg,#0f2f38,#2c6b74)",color:"#fff",fontWeight:800,fontSize:14.5,cursor:"pointer",marginBottom:14,textAlign:"left"}}>
+            ✨ {lang==="en"?"New survey":K("Ankêta nû")}
+            <div style={{fontSize:11,fontWeight:500,opacity:.85,marginTop:3}}>{lang==="en"?"Start from a template, add questions, preview and publish — on one page.":K("Bi şablonê dest pê bike, pirsan zêde bike, pêşdîtin û biweşîne — di rûpelekê de.")}</div>
+          </button>
           {surveyList}
           </>
         )
@@ -13478,7 +13822,7 @@ function TeacherSurveyPanel({teacher, schedule, lang, t, toast}) {
     try{
       unsub=window.__FB.onSnapshot(window.__FB.collection(window.__FB.db,"studentSurveys"),snap=>{
         const all=snap.docs.map(x=>({...x.data(),fireId:x.id}));
-        setTeacherSurveys(all.filter(sv=>sv.active&&(sv.targetType==="teachers"||(sv.targetType==="teachers_area"&&(sv.targetAreas||[]).includes(teacher.area)))));
+        setTeacherSurveys(all.filter(sv=>sv.active&&!(sv.endDate&&sv.endDate<new Date().toISOString().slice(0,10))&&(sv.targetType==="teachers"||(sv.targetType==="teachers_area"&&(sv.targetAreas||[]).includes(teacher.area)))));
       });
     }catch{}
     let unsubR=()=>{};
@@ -13567,11 +13911,13 @@ function TeacherSurveyPanel({teacher, schedule, lang, t, toast}) {
   }
   function submitTSurvey(){
     if(!activeTSurvey) return;
-    const filled=activeTSurvey.questions?.filter(q=>tAnswers[q.id]!=null&&tAnswers[q.id]!=="");
+    const filled=activeTSurvey.questions?.filter(q=>tAnswers[q.id]!=null&&tAnswers[q.id]!==""&&!(Array.isArray(tAnswers[q.id])&&!tAnswers[q.id].length));
     if(!filled||filled.length===0){toast("⚠ "+(lang==="en"?"Answer at least 1 question":K("Herî kêm 1 bersivê bide")));return;}
+    const miss=surveyMissing(activeTSurvey,tAnswers);
+    if(miss.length){toast("⚠ "+(lang==="en"?"Required questions: ":K("Pirsên mecbûrî: "))+miss.join(", "));return;}
     const resp={
       studentId:"teacher_"+teacher.id,
-      studentName:teacher.name,
+      studentName:activeTSurvey.anonymous?"":teacher.name,
       surveyId:activeTSurvey.id||activeTSurvey.fireId,
       surveyTitle:activeTSurvey.title,
       answers:tAnswers,
@@ -13634,28 +13980,7 @@ function TeacherSurveyPanel({teacher, schedule, lang, t, toast}) {
             {(activeTSurvey.questions||[]).map((q,qi)=>(
               <div key={q.id||qi} style={{background:"var(--surface)",borderRadius:12,padding:"14px",border:"1px solid var(--border)"}}>
                 <div style={{fontSize:13,fontWeight:600,color:"var(--text)",marginBottom:10}}>{qi+1}. {q.text}</div>
-                {q.type==="rating"&&(
-                  <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                    <input type="range" min={0} max={100} value={tAnswers[q.id]??50}
-                      onChange={e=>setTAnswers(p=>({...p,[q.id]:Number(e.target.value)}))}
-                      style={{width:"100%",accentColor:"#0f2f38"}} disabled={tSubmitted}/>
-                    <div style={{textAlign:"right",fontSize:13,fontWeight:700,color:"var(--text)"}}>{tAnswers[q.id]??50}%</div>
-                  </div>
-                )}
-                {q.type==="text"&&(
-                  <textarea value={tAnswers[q.id]||""} onChange={e=>setTAnswers(p=>({...p,[q.id]:e.target.value}))}
-                    disabled={tSubmitted}
-                    style={{width:"100%",padding:"9px 11px",border:"1.5px solid var(--border2)",borderRadius:8,fontSize:12,fontFamily:"inherit",resize:"vertical",minHeight:70,boxSizing:"border-box"}}
-                    placeholder={lang==="en"?"Write your answer...":K("Bersiva xwe binivîse...")}/>
-                )}
-                {q.type==="choice"&&(q.choices||[]).map((ch,ci)=>(
-                  <div key={ci} onClick={()=>!tSubmitted&&setTAnswers(p=>({...p,[q.id]:ch}))}
-                    style={{padding:"9px 12px",borderRadius:8,border:`1.5px solid ${tAnswers[q.id]===ch?"#0f2f38":"var(--border)"}`,
-                      background:tAnswers[q.id]===ch?"rgba(15,47,56,0.07)":"#fff",
-                      cursor:tSubmitted?"default":"pointer",marginBottom:5,fontSize:12,color:"var(--text)"}}>
-                    {tAnswers[q.id]===ch?"● ":"○ "}{ch}
-                  </div>
-                ))}
+                <SurveyQuestionInput q={q} value={tAnswers[q.id]} onChange={v=>setTAnswers(p=>({...p,[q.id]:v}))} disabled={tSubmitted} percent={activeTSurvey.resultType==="percent"}/>
               </div>
             ))}
           </div>
@@ -15437,6 +15762,7 @@ function StudentSurveyView({student, a, lang, toast, mode}) {
   const svCls=useClassDocs("classes",mode!=="teacher");
   const visibleSurveys = surveys.filter(sv=>{
     if(!sv.active) return false;
+    if(sv.endDate&&sv.endDate<new Date().toISOString().slice(0,10)) return false;
     if(mode==="teacher"){
       if(sv.targetType==="teachers") return true;
       if(sv.targetType==="teachers_area") return (sv.targetAreas||[]).includes(student.area);
@@ -15462,13 +15788,15 @@ function StudentSurveyView({student, a, lang, toast, mode}) {
   }
 
   function submitSurvey(){
-    const filled=activeSurvey.questions?.filter(q=>answers[q.id]!=null&&answers[q.id]!=="");
+    const filled=activeSurvey.questions?.filter(q=>answers[q.id]!=null&&answers[q.id]!==""&&!(Array.isArray(answers[q.id])&&!answers[q.id].length));
     if(!filled||filled.length===0){toast("⚠ "+(lang==="en"?"Answer at least 1 question":K("Herî kêm 1 bersivê bide")));return;}
+    const miss=surveyMissing(activeSurvey,answers);
+    if(miss.length){toast("⚠ "+(lang==="en"?"Required questions: ":K("Pirsên mecbûrî: "))+miss.join(", "));return;}
     const resp={
       surveyId: activeSurvey.id,
       studentId: student.id,
       studentNo: String(student.no||""),
-      studentName: student.name,
+      studentName: activeSurvey.anonymous?"":student.name,
       studentArea: student.area,
       answers,
       submittedAt: new Date().toISOString(),
@@ -15510,61 +15838,9 @@ function StudentSurveyView({student, a, lang, toast, mode}) {
           <div key={q.id} style={{background:"var(--surface)",borderRadius:10,padding:"12px",marginBottom:10,border:"0.5px solid var(--border2)"}}>
             <div style={{fontSize:12,fontWeight:600,color:"var(--text)",marginBottom:10}}>
               <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:20,height:20,borderRadius:"50%",background:"var(--navy)",color:"var(--text)",fontSize:10,fontWeight:700,marginRight:8}}>{qi+1}</span>
-              {q.text}
+              {q.text}{q.required&&<span style={{color:"#dc2626"}}> *</span>}
             </div>
-            {q.type==="rating"&&(
-              <>
-                <div style={{fontSize:11,color:"var(--text2)",marginBottom:8}}>
-                  {lang==="en"?"Select score (1=poor, 10=excellent)":K("Pûanê xwe hilbijêre (1=xirab, 10=bêkêmasî)")}
-                </div>
-                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                  {[1,2,3,4,5,6,7,8,9,10].map(n=>{
-                    const sel = answers[q.id]===n;
-                    const btnColor = n<=3?"#c0392b":n<=6?"#c07800":"#1a7a4a";
-                    return(
-                      <button key={n} onClick={()=>{if(!submitted) setAnswers(p=>({...p,[q.id]:n}));}}
-                        style={{flex:"0 0 calc(20% - 5px)",height:40,borderRadius:10,
-                          border:`2px solid ${sel?btnColor:"var(--border2)"}`,
-                          background:sel?btnColor:"var(--bg2)",
-                          color:sel?"#fff":"var(--text)",fontSize:15,fontWeight:700,
-                          cursor:submitted?"default":"pointer",transition:"all .15s"}}>
-                        {n}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:"var(--text2)",marginTop:6}}>
-                  <span>😞 {lang==="en"?"Poor":K("Xirab")}</span>
-                  <span>😐 {lang==="en"?"Average":K("Navîn")}</span>
-                  <span>😊 {lang==="en"?"Excellent":K("Bêkêmasî")}</span>
-                </div>
-                {answers[q.id]&&<div style={{marginTop:6,textAlign:"center",fontSize:12,fontWeight:700,color:answers[q.id]<=3?"#c0392b":answers[q.id]<=6?"#c07800":"#1a7a4a"}}>{answers[q.id]}/10</div>}
-              </>
-            )}
-            {q.type==="text"&&(
-              <textarea
-                value={answers[q.id]||""}
-                onChange={e=>setAnswers(p=>({...p,[q.id]:e.target.value}))}
-                disabled={submitted}
-                style={{...inputStyle,minHeight:70,resize:"vertical",fontSize:12}}
-                placeholder={lang==="en"?"Write your answer...":K("Bersiva xwe binivîse...")}/>
-            )}
-            {q.type==="choice"&&(
-              <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                {q.choices?.map(ch=>(
-                  <button key={ch} onClick={()=>{if(!submitted) setAnswers(p=>({...p,[q.id]:ch}));}}
-                    style={{padding:"10px 14px",borderRadius:10,fontSize:12,fontWeight:answers[q.id]===ch?700:400,
-                      background:answers[q.id]===ch?a.bg:"var(--bg2)",
-                      color:"var(--text)",
-                      border:`1.5px solid ${answers[q.id]===ch?a.color:"var(--border)"}`,
-                      cursor:submitted?"default":"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:10}}>
-                    <span style={{width:16,height:16,borderRadius:"50%",border:`2px solid ${answers[q.id]===ch?a.color:"var(--border2)"}`,
-                      background:answers[q.id]===ch?"#0f2f38":"transparent",flexShrink:0}}/>
-                    {ch}
-                  </button>
-                ))}
-              </div>
-            )}
+            <SurveyQuestionInput q={q} value={answers[q.id]} onChange={v=>setAnswers(p=>({...p,[q.id]:v}))} disabled={submitted}/>
           </div>
         ))}
 
