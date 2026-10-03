@@ -10,7 +10,8 @@
 | 6. Öğrenci / veli kendi sınıfının paylaşımlarını görür | Öğrenci · Veli | **🏫 Sınıfım** · Bugün + Duyurular |
 | 7. Alan bazlı veya genel duyuru | Yönetici · Öğrenci İşleri | Duyurular (alan seçimi) |
 | 8. Raporlar — **alan · sınıf · öğretmen · öğrenci** filtreli | Yönetici · Öğrenci İşleri | Rapor → Liste |
-| 9. Anketler — hedef: alan + **sınıf** + **sınıf öğretmeni**; sonuçlar alan/sınıf/öğretmen/öğrenci filtreli | Yönetici · Öğrenci İşleri | Ankêt |
+| 9. Anketler — **Anket Stüdyosu**: şablonla başla, soru türleri (5'li katılım, 1–10 puan, tek/çoklu seçim, evet/hayır, yazılı), zorunlu soru, önizleme, son gün, anonim; hedef: alan + sınıf + sınıf öğretmeni / öğretmenler / **Çocuk Akademisi velileri**; sonuçlar grafikli, katılım oranı, CSV/PDF, alan/sınıf/öğretmen/öğrenci filtreli | Yönetici · Öğrenci İşleri | Ankêt (🎓 · 👩‍🏫 · 🎼) |
+| 9b. **Çocuk Akademisi raporu** — çocuk/aile/kardeşli aile, sınıf + sınıf öğretmeni, alan dağılımı, başvurular, devam (7/30/90/365 gün), CSV | Yönetici · Öğrenci İşleri | Rapor → 🎼 Akademiya Zarokan |
 | 10. Kardeşler | Öğrenci İşleri | Çocuk Akademisi → Dêûbav "➕ Kardeş" · çocuk kartında 👨‍👧 "listeden kardeş eşleştir" · başvuru kabulünde otomatik öneri |
 
 ## Kısıtlar (değişmedi + yeni)
@@ -21,4 +22,5 @@
 
 ## Veriler
 - `classes/{alan}_{seviye}`, `kidClasses/L{seviye}`: `teacherNos`, `teacherNames`
+- `kidSurveys` (veli anketi) · `kidSurveyResponses/{anket}_{veliNo}` (aile başına bir yanıt; veli yalnız kendi adına yazar, yanıtları yalnız Öğrenci İşleri/Yönetici okur)
 - `classPosts`, `kidClassPosts`: `classId, type (duyuru|odev|belge), title, body, due, files[], teacherNo, teacherName`
