@@ -7809,6 +7809,142 @@ function MyClassesCard({coll,teacherNo,members,byArea,areaLabel,lang}){
     </div>);
 }
 
+// ══════════════════════════════════════════════════════════════════════
+//  SINIF PAYLAŞIMLARI — öğretmen kendi sınıflarına duyuru / ödev / belge gönderir
+//   classPosts/{id}: {classId, area, level, type:"duyuru"|"odev"|"belge", title, body,
+//                     due, files:[{name,url}], teacherNo, teacherName, createdAt}
+//   • Öğretmen YALNIZCA sınıf öğretmeni olduğu sınıfa yazabilir (firestore.rules kontrol eder)
+//   • Öğrenci kendi sınıfının (alan + sınıf) paylaşımlarını görür
+//   • Dosyalar: görsel sıkıştırılır, PDF ≤ 600 KB (belge sınırı 1 MB)
+// ══════════════════════════════════════════════════════════════════════
+const POST_TYPES=[["duyuru","📢"],["odev","📝"],["belge","📎"]];
+function postTypeLabel(k){ const L={duyuru:["Ragihandin","Announcement"],odev:["Erka malê","Homework"],belge:["Belge","Document"]}[k]||["",""]; return RL()==="en"?L[1]:K(L[0]); }
+async function readPostFiles(fileList,toast,W2){
+  const out=[]; let total=0;
+  for(const f of Array.from(fileList||[]).slice(0,4)){
+    const url=await new Promise(res=>{ const r=new FileReader(); r.onload=e=>res(e.target.result); r.onerror=()=>res(null); r.readAsDataURL(f); });
+    if(!url) continue;
+    let data=url;
+    if(/^image\//.test(f.type)) data=await compressImage(url,1400,1400,0.75);
+    else if(f.type==="application/pdf"){ if(f.size>600000){ toast("⚠ "+f.name+" — "+W2("PDF pir mezin e (herî zêde 600 KB)","PDF too large (max 600 KB)")); continue; } }
+    else { toast("⚠ "+f.name+" — "+W2("Tenê wêne an PDF","Images or PDF only")); continue; }
+    if(total+data.length>880000){ toast("⚠ "+W2("Pel pir mezin in — kêmtir pel hilbijêre","Files too large — choose fewer")); break; }
+    total+=data.length; out.push({name:f.name.slice(0,80),url:data});
+  }
+  return out;
+}
+function PostCard({p,lang,onDelete,showClass,classLabel}){
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const ic=(POST_TYPES.find(x=>x[0]===p.type)||["","📢"])[1];
+  const when=p.createdAt&&p.createdAt.toDate?p.createdAt.toDate():(p.createdAt?new Date(p.createdAt):null);
+  const late=p.type==="odev"&&p.due&&p.due<new Date().toISOString().slice(0,10);
+  return(
+    <div style={{background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,padding:12,marginBottom:10}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+        <span style={{fontSize:11,fontWeight:800,padding:"2px 8px",borderRadius:8,background:p.type==="odev"?"rgba(251,133,0,.14)":p.type==="belge"?"rgba(44,107,116,.14)":"rgba(15,47,56,.10)",color:"var(--text)"}}>{ic} {postTypeLabel(p.type)}</span>
+        {showClass&&<span style={{fontSize:11,color:"var(--text2)"}}>🏫 {classLabel(p)}</span>}
+        <span style={{fontSize:11,color:"var(--text2)",marginLeft:"auto"}}>{when?when.toLocaleDateString(lang==="en"?"en-GB":"tr-TR"):""}</span>
+        {onDelete&&<button aria-label="🗑" onClick={()=>onDelete(p)} style={{border:"none",background:"var(--bg2)",borderRadius:8,padding:"4px 8px",cursor:"pointer"}}>🗑</button>}
+      </div>
+      <div style={{fontWeight:800,color:"var(--text)",marginTop:6}}>{p.title}</div>
+      {p.body&&<div style={{fontSize:13,color:"var(--text)",whiteSpace:"pre-wrap",marginTop:4,lineHeight:1.6}}>{p.body}</div>}
+      {p.type==="odev"&&p.due&&<div style={{fontSize:12,fontWeight:700,marginTop:6,color:late?"#dc2626":"#b45309"}}>⏰ {W2("Dawî","Due")}: {p.due}</div>}
+      {(p.files||[]).length>0&&<div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>
+        {p.files.map((f,i)=>{ const h=safeHref(f.url); return h?<a key={i} href={h} download={f.name} target="_blank" rel="noopener noreferrer" style={{fontSize:12,fontWeight:700,padding:"6px 10px",borderRadius:8,background:"var(--bg2)",border:"1px solid var(--border2)",color:"var(--text)",textDecoration:"none"}}>⬇ {f.name}</a>:null; })}
+      </div>}
+      <div style={{fontSize:11,color:"var(--text2)",marginTop:6}}>👩‍🏫 {p.teacherName||""}</div>
+    </div>);
+}
+// mode: "teacher" (gönder + kendi gönderdikleri) | "student" (kendi sınıfı)
+function ClassPostsPanel({mode,teacher,student,lang,toast}){
+  const F=window.__FB;
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const live=!!(F&&F.isConfigured());
+  const docs=useClassDocs("classes",live);
+  const me=teacher?String(teacher.no):"";
+  const mine=docs.filter(d=>(d.teacherNos||[]).map(String).includes(me)).sort((a,b)=>String(a.area||"").localeCompare(String(b.area||""))||((a.level||0)-(b.level||0)));
+  const myCid=student?classDocId(true,student.area,student.classLevel||1):"";
+  const myCls=docs.find(d=>d.id===myCid);
+  const [posts,setPosts]=useState([]);
+  const [type,setType]=useState("duyuru");
+  const [sel,setSel]=useState({});
+  const [title,setTitle]=useState(""); const [body,setBody]=useState(""); const [due,setDue]=useState("");
+  const [files,setFiles]=useState([]); const [busy,setBusy]=useState(false);
+  const [tf,setTf]=useState("all");
+  const fileRef=useRef(null);
+  useEffect(()=>{
+    if(!live) return; let u=()=>{};
+    try{
+      const q=mode==="teacher"?F.query(F.collection(F.db,"classPosts"),F.where("teacherNo","==",me)):F.query(F.collection(F.db,"classPosts"),F.where("classId","==",myCid));
+      u=F.onSnapshot(q,s=>setPosts(s.docs.map(d=>({...d.data(),fireId:d.id})).sort((a,b)=>((b.createdAt&&b.createdAt.seconds)||9e9)-((a.createdAt&&a.createdAt.seconds)||9e9))),e=>console.warn("[classPosts]",e&&e.code));
+    }catch(_){}
+    return ()=>{ try{u();}catch(_){} };
+  },[live,mode,me,myCid]);
+  const clsLabel=d=>areaName(d.area,lang)+" · "+classTitle(d.level);
+  const inp={width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:14,boxSizing:"border-box",fontFamily:"inherit",minHeight:42};
+  const chip=on=>({padding:"7px 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",border:"1.5px solid "+(on?"#0f2f38":"var(--border2)"),background:on?"#0f2f38":"var(--surface)",color:on?"#fff":"var(--text)"});
+  async function send(){
+    const targets=mine.filter(d=>sel[d.id]);
+    if(!targets.length){ toast("⚠ "+W2("Sinifekê hilbijêre","Choose a class")); return; }
+    if(!title.trim()){ toast("⚠ "+W2("Sernav pêwîst e","Title required")); return; }
+    if(busy) return; setBusy(true);
+    try{
+      for(const d of targets){
+        await F.addDoc(F.collection(F.db,"classPosts"),{classId:d.id,area:d.area||"genel",level:+d.level||1,type,title:title.trim().slice(0,140),body:body.trim().slice(0,3000),
+          due:type==="odev"?(due||""):"",files,teacherNo:me,teacherName:teacher.name||"",createdAt:F.serverTimestamp()});
+      }
+      toast("✅ "+W2("Ji sinifê re hate şandin","Sent to class")+" ("+targets.length+")");
+      setTitle(""); setBody(""); setDue(""); setFiles([]); if(fileRef.current) fileRef.current.value="";
+    }catch(e){ toast("❌ "+(/permission/i.test(String(e&&e.code))?W2("Tenê ji sinifên xwe re dikarî bişînî","You can only post to your own classes"):(e.code||e.message))); }
+    setBusy(false);
+  }
+  async function del(p){
+    if(!window.confirm(W2("Were jêbirin?","Delete?"))) return;
+    try{ await F.deleteDoc(F.doc(F.db,"classPosts",p.fireId)); }catch(e){ toast("❌ "+(e.code||e.message)); }
+  }
+  if(!live) return <Card><div style={{fontSize:13,color:"var(--text2)"}}>{W2("Firebase girêdayî nîne.","Firebase is not connected.")}</div></Card>;
+  const shown=posts.filter(p=>tf==="all"||p.type===tf);
+  const filterRow=(
+    <div style={{display:"flex",gap:6,flexWrap:"wrap",margin:"4px 0 10px"}}>
+      <button onClick={()=>setTf("all")} style={chip(tf==="all")}>{W2("Hemû","All")}</button>
+      {POST_TYPES.map(([k,ic])=><button key={k} onClick={()=>setTf(k)} style={chip(tf===k)}>{ic} {postTypeLabel(k)}</button>)}
+    </div>);
+  if(mode==="student") return(
+    <div>
+      <div style={{background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,padding:12,marginBottom:10}}>
+        <div style={{fontWeight:800,color:"var(--text)"}}>🏫 {areaName(student.area,lang)} · {classTitle(student.classLevel||1)}</div>
+        <div style={{fontSize:12,color:"var(--text2)",marginTop:3}}>👩‍🏫 {W2("Mamosteyê sinifê","Class teacher")}: {((myCls&&myCls.teacherNames)||[]).filter(Boolean).join(", ")||"—"}</div>
+      </div>
+      {filterRow}
+      {shown.length===0&&<div style={{textAlign:"center",padding:28,fontSize:13,color:"var(--text2)"}}>{W2("Hîn tiştek nehatiye şandin.","Nothing posted yet.")}</div>}
+      {shown.map(p=><PostCard key={p.fireId} p={p} lang={lang}/>)}
+    </div>);
+  return(
+    <div>
+      {mine.length===0?(
+        <Card><div style={{fontSize:13,color:"var(--text2)",lineHeight:1.6}}>🏫 {W2("Tu hîn ne mamosteyê sinifekê yî. Karûbarên Xwendekaran te li sinifekê bi cih dike (Sînif).","You are not a class teacher yet. Student Affairs assigns you to a class (Classes).")}</div></Card>
+      ):(
+      <div style={{background:"var(--surface)",border:"2px solid var(--accent)",borderRadius:12,padding:12,marginBottom:12}}>
+        <div style={{fontWeight:800,color:"var(--text)",marginBottom:8}}>📤 {W2("Ji sinifa xwe re bişîne","Send to your class")}</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>{POST_TYPES.map(([k,ic])=><button key={k} onClick={()=>setType(k)} style={chip(type===k)}>{ic} {postTypeLabel(k)}</button>)}</div>
+        <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",margin:"6px 0 4px"}}>🏫 {W2("Sinif","Class")}</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>{mine.map(d=><button key={d.id} onClick={()=>setSel(x=>({...x,[d.id]:!x[d.id]}))} style={chip(!!sel[d.id])}>{sel[d.id]?"✓ ":""}{clsLabel(d)}</button>)}</div>
+        <input style={inp} value={title} maxLength={140} onChange={e=>setTitle(e.target.value)} placeholder={W2("Sernav","Title")}/>
+        <textarea style={{...inp,minHeight:90,marginTop:8,resize:"vertical"}} value={body} maxLength={3000} onChange={e=>setBody(e.target.value)} placeholder={W2("Nivîs (vebijarkî)","Text (optional)")}/>
+        {type==="odev"&&<div style={{marginTop:8}}><div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:4}}>⏰ {W2("Roja dawî","Due date")}</div><input type="date" style={inp} value={due} onChange={e=>setDue(e.target.value)}/></div>}
+        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginTop:8}}>
+          <button onClick={()=>fileRef.current&&fileRef.current.click()} style={{...chip(false),borderStyle:"dashed"}}>📎 {W2("Pel zêde bike (wêne/PDF)","Attach file (image/PDF)")}</button>
+          {files.map((f,i)=><span key={i} style={{fontSize:12,color:"var(--text)"}}>📄 {f.name} <button onClick={()=>setFiles(x=>x.filter((_,j)=>j!==i))} style={{border:"none",background:"none",cursor:"pointer"}}>✕</button></span>)}
+          <input ref={fileRef} type="file" multiple accept="image/*,application/pdf" style={{display:"none"}} onChange={async e=>{ const add=await readPostFiles(e.target.files,toast,W2); setFiles(x=>[...x,...add].slice(0,4)); e.target.value=""; }}/>
+        </div>
+        <button disabled={busy} onClick={send} style={{marginTop:10,width:"100%",padding:"12px",borderRadius:10,border:"none",background:"#16a34a",color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer"}}>{busy?"⏳":"📤 "+W2("Bişîne","Send")}</button>
+      </div>)}
+      <div style={{fontWeight:800,color:"var(--text)",margin:"6px 0"}}>📋 {W2("Yên min şandî","Sent by me")} ({posts.length})</div>
+      {filterRow}
+      {shown.map(p=><PostCard key={p.fireId} p={p} lang={lang} onDelete={del} showClass classLabel={clsLabel}/>)}
+    </div>);
+}
+
 function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   const PRESS=mode==="press";
   const Z=(ku,en)=>lang==="en"?en:K(ku);
@@ -7839,6 +7975,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   const [form,setForm]=useState(null);           // açık ekleme/düzenleme formu {type, id?, data}
   const [gq,setGq]=useState("");                 // veli arama
   const [appG,setAppG]=useState({});             // başvuru kabulü: hangi veliye bağlanacak {appId: veliNo|"new"}
+  const [sibPick,setSibPick]=useState(null);     // kardeş eşleştirme: {kidId, q, other}
   const [sForm,setSForm]=useState({day:1,start:"15:00",end:"16:00",title:"",area:"",teacherNo:"",room:""});
   const [aForm,setAForm]=useState({title:"",body:""});
   const today=new Date().toISOString().slice(0,10);
@@ -8065,6 +8202,16 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
     if(!F.serverUserMgmt){ try{ const s=await F.getDoc(F.doc(F.db,"kidSecrets",no)); old=s.exists()?s.data().pass:null; }catch(_){} }
     try{ await F.deleteAuthUser(no,role,old); }catch(_){}
     await F.deleteDoc(F.doc(F.db,"kidSecrets",no)).catch(()=>{});
+  }
+  // Kardeş eşleştir: iki ailenin velileri birleşir → her iki veli de tüm kardeşleri görür
+  async function linkSiblings(a,b){
+    const gs=[...new Set([...(a.guardianNos||[]),...(b.guardianNos||[])])];
+    const fam=kids.filter(k=>k.fireId===a.fireId||k.fireId===b.fireId||(k.guardianNos||[]).some(g=>gs.includes(g)));
+    if(!window.confirm(Z("Van zarokan wek xwişk û bira girê bide? Hemû dêûbav dê hemû zarokan bibînin:","Link these children as siblings? All parents will see all children:")+"\n"+fam.map(k=>"• "+k.name).join("\n"))) return;
+    try{
+      for(const k of fam) await F.updateDoc(F.doc(F.db,"kids",k.fireId),{guardianNos:gs,updatedAt:F.serverTimestamp()});
+      toast("✅ "+Z("Xwişk û bira hatin girêdan","Siblings linked")); setSibPick(null);
+    }catch(e){ err(e); }
   }
   async function delKid(k){
     if(!window.confirm(Z("Tomara zarokê were jêbirin?","Delete this child's record?"))) return;
@@ -8431,12 +8578,28 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
                 <div style={{...small,marginTop:4}}>{k.consentPhoto?"📷 ✔":"📷 ✖"} · {k.consentShare?"🌐 ✔":"🌐 ✖"}{k.health?" · 🩺 "+k.health:""}{(k.pickups||[]).length?" · 🚸 "+k.pickups.join(", "):""}</div>
               </div>
               <div style={{display:"flex",gap:6,flexShrink:0}}>
+                <button title={Z("Xwişk/bira girê bide (ji lîsteyê)","Link a sibling (from the list)")} onClick={()=>setSibPick(sibPick&&sibPick.kidId===k.fireId?null:{kidId:k.fireId,q:"",other:""})} style={{...ghost,padding:"6px 10px"}}>👨‍👧</button>
                 <button title={Z("Kartê çap bike","Print card")} onClick={()=>issueAndPrintCards("kid",[k],lang,toast,{areaLabel})} style={{...ghost,padding:"6px 10px"}}>🪪</button>
                 {k.cardToken&&<button title={Z("Karta winda: ya nû çêke","Lost card: issue new")} onClick={()=>{ if(window.confirm(Z("Karteke NÛ were çêkirin? Karta kevn êdî naxebite.","Issue a NEW card? The old card will stop working."))) issueAndPrintCards("kid",[k],lang,toast,{renew:true,areaLabel}); }} style={{...ghost,padding:"6px 10px"}}>♻️</button>}
                 <button onClick={()=>setForm({type:"kid",id:k.fireId,orig:k,data:{photo:k.photo||"",kidName:k.name,kidDob:k.dob,area:k.area,school:k.school,teacherNo:k.teacherNo,classLevel:k.classLevel||"",health:k.health,consentPhoto:k.consentPhoto,consentShare:k.consentShare,pickupsText:(k.pickups||[]).join("\n")}})} style={{...ghost,padding:"6px 10px"}}>✏️</button>
                 <button onClick={()=>delKid(k)} style={{...ghost,padding:"6px 10px"}}>🗑</button>
               </div>
             </div>
+            {sibPick&&sibPick.kidId===k.fireId&&(()=>{const sib=siblingsOf(k).map(o=>o.fireId);
+              const q=(sibPick.q||"").trim().toLocaleLowerCase();
+              const cand=kids.filter(o=>o.fireId!==k.fireId&&!sib.includes(o.fireId)&&(!q||(o.name||"").toLocaleLowerCase().includes(q)||String(o.no).includes(q)||(o.guardianNos||[]).some(g=>{const gg=guardOf(g);return gg&&((gg.name||"").toLocaleLowerCase().includes(q)||String(gg.phone||"").replace(/\D/g,"").includes(q.replace(/\D/g,"")||"#"));})));
+              return(<div style={{marginTop:10,padding:10,borderRadius:10,background:"var(--bg2)",border:"1px solid var(--border2)"}}>
+                <div style={{fontWeight:700,color:"var(--text)",fontSize:13}}>👨‍👧 {Z("Xwişk/bira ji lîsteyê girê bide","Link a sibling from the list")}</div>
+                <input style={{...inp,marginTop:6}} value={sibPick.q} onChange={e=>{const v=e.target.value;setSibPick(x=>({...x,q:v}));}} placeholder={"🔎 "+Z("Navê zarokê, jimare an dêûbav","Child name, number or parent")}/>
+                <select aria-label={Z("Xwişk/bira","Sibling")} style={{...inp,marginTop:6}} value={sibPick.other} onChange={e=>{const v=e.target.value;setSibPick(x=>({...x,other:v}));}}>
+                  <option value="">—</option>{cand.slice(0,80).map(o=><option key={o.fireId} value={o.fireId}>{o.name} · #{o.no} · 👤 {(o.guardianNos||[]).map(g=>(guardOf(g)||{}).name||g).join(", ")}</option>)}
+                </select>
+                <div style={{...small,marginTop:6}}>{Z("Dêûbavên her du zarokan dê bibin yek: her dêûbav hemû xwişk û birayan di sepana xwe de dibîne.","Both children's parents are merged: each parent sees all siblings in their app.")}</div>
+                <div style={{display:"flex",gap:8,marginTop:8}}>
+                  <button disabled={!sibPick.other} onClick={()=>{const o=kids.find(x=>x.fireId===sibPick.other); if(o) linkSiblings(k,o);}} style={btn("#16a34a")}>🔗 {Z("Girê bide","Link")}</button>
+                  <button onClick={()=>setSibPick(null)} style={ghost}>{Z("Betal","Cancel")}</button>
+                </div>
+              </div>);})()}
           </div>))}
       </div>)}
 
@@ -11147,9 +11310,22 @@ function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
   const [showReport,setShowReport]=useState(false);
   const [reportTab,setReportTab]=useState("config"); // config | preview
 
-  const filteredStudents = selectedArea==="all"
-    ? students
-    : students.filter(s=>s.area===selectedArea);
+  // Ek filtreler: sınıf · sınıf öğretmeni · tek öğrenci
+  const clsDocs=useClassDocs("classes");
+  const [lvlF,setLvlF]=useState("all");
+  const [teachF,setTeachF]=useState("all");
+  const [stuF,setStuF]=useState("all");
+  const [stuQ,setStuQ]=useState("");
+  const plainTeachers=(teachers||[]).filter(t2=>t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate);
+  const teachObj=teachF==="all"?null:plainTeachers.find(t2=>String(t2.no)===String(teachF));
+  const teachCls=teachObj?new Set(clsDocs.filter(d=>(d.teacherNos||[]).map(String).includes(String(teachObj.no))).map(d=>d.id)):null;
+  const filteredStudents = students
+    .filter(s=>selectedArea==="all"||s.area===selectedArea)
+    .filter(s=>lvlF==="all"||String(s.classLevel||1)===String(lvlF))
+    // Öğretmen: sınıf öğretmeni olduğu sınıfların öğrencileri (sınıfı yoksa kendi alanının öğrencileri)
+    .filter(s=>!teachObj||(teachCls.size?teachCls.has(classDocId(true,s.area,s.classLevel||1)):(teachObj.area==="genel"||s.area===teachObj.area)))
+    .filter(s=>stuF==="all"||String(s.fireId||s.id)===String(stuF));
+  const filterNote=[lvlF!=="all"?classTitle(+lvlF):"",teachObj?"👩‍🏫 "+teachObj.name:"",stuF!=="all"?"🎓 "+((students.find(s=>String(s.fireId||s.id)===String(stuF))||{}).name||""):""].filter(Boolean).join(" · ");
 
   const reportDate = new Date().toLocaleDateString(lang==="en"?"en-GB":"ku",{year:"numeric",month:"long",day:"numeric"});
 
@@ -11159,7 +11335,7 @@ function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
     const areaInfo = selectedArea==="all"
       ? {name:W("Hemû Qadan","All Fields"), icon:"🏫", color:"#0f2f38", bg:"rgba(15,47,56,0.08)"}
       : AREA_MAP[selectedArea];
-    const areaLabel = selectedArea==="all" ? (lang==="en"?"All Fields":K("Hemû Qadan")) : areaName(selectedArea,lang);
+    const areaLabel = (selectedArea==="all" ? (lang==="en"?"All Fields":K("Hemû Qadan")) : areaName(selectedArea,lang))+(filterNote?" · "+H(filterNote):"");
 
     const rows = filteredStudents.map(s=>{
       const st = getStudentStats(s.id);
@@ -11327,7 +11503,7 @@ ${`</html>`}`;
   // Survey data for report
   const allResponses = loadSurveyResponses();
   const allQuestions = loadSurveyQuestions();
-  const filteredTeachers = selectedArea==="all" ? teachers.filter(t2=>!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate) : teachers.filter(t2=>t2.area===selectedArea&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate);
+  const filteredTeachers = teachObj ? [teachObj] : selectedArea==="all" ? teachers.filter(t2=>!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate) : teachers.filter(t2=>t2.area===selectedArea&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate);
 
   // Survey target helpers
   const surveyStudents = surveyTarget==="all_students" ? students
@@ -11504,6 +11680,27 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
             </button>
           ))}
         </div>
+      </Card>
+
+      {/* Sınıf · öğretmen · öğrenci filtreleri */}
+      <Card style={{marginBottom:10}}>
+        <div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:10}}>🔎 {lang==="en"?"Class · Teacher · Student":K("Sinif · Mamoste · Xwendekar")}</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8}}>
+          <select aria-label={lang==="en"?"Class":K("Sînif")} value={lvlF} onChange={e=>setLvlF(e.target.value)} style={{padding:"9px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:13}}>
+            <option value="all">🏫 {lang==="en"?"All classes":K("Hemû sinif")}</option>
+            {CLASS_LEVELS.map(l=><option key={l} value={l}>{classTitle(l)}</option>)}
+          </select>
+          <select aria-label={lang==="en"?"Teacher":K("Mamoste")} value={teachF} onChange={e=>setTeachF(e.target.value)} style={{padding:"9px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:13}}>
+            <option value="all">👩‍🏫 {lang==="en"?"All teachers":K("Hemû mamoste")}</option>
+            {plainTeachers.slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"")).map(t2=><option key={t2.no} value={t2.no}>{t2.name}</option>)}
+          </select>
+          <input value={stuQ} onChange={e=>setStuQ(e.target.value)} placeholder={"🔎 "+(lang==="en"?"Student name/no":K("Nav/jimareya xwendekar"))} style={{padding:"9px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:13}}/>
+          <select aria-label={lang==="en"?"Student":K("Xwendekar")} value={stuF} onChange={e=>setStuF(e.target.value)} style={{padding:"9px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:13}}>
+            <option value="all">🎓 {lang==="en"?"All students":K("Hemû xwendekar")}</option>
+            {students.filter(s=>!stuQ.trim()||(s.name||"").toLocaleLowerCase().includes(stuQ.trim().toLocaleLowerCase())||String(s.no||"").includes(stuQ.trim())).slice(0,100).map(s=><option key={s.fireId||s.id} value={s.fireId||s.id}>{s.name} · {s.no}</option>)}
+          </select>
+        </div>
+        {(lvlF!=="all"||teachF!=="all"||stuF!=="all")&&<button onClick={()=>{setLvlF("all");setTeachF("all");setStuF("all");setStuQ("");}} style={{marginTop:8,padding:"6px 12px",borderRadius:20,fontSize:11,border:"1px solid var(--border2)",background:"var(--surface)",color:"var(--text)",cursor:"pointer"}}>✕ {lang==="en"?"Clear filters":K("Fîlteran paqij bike")}</button>}
       </Card>
 
       {/* Summary Preview */}
@@ -11867,6 +12064,22 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
   }
   const [studentResponses, setStudentResponses] = useState(loadSSR);
   const [sResAreaFilter, setSResAreaFilter] = useState("all");
+  // Sonuç filtreleri: alan · sınıf · sınıf öğretmeni · öğrenci
+  const [sResLvl,setSResLvl]=useState("all");
+  const [sResTeach,setSResTeach]=useState("all");
+  const [sResStu,setSResStu]=useState("");
+  const svClsDocs=useClassDocs("classes");
+  const svTeachers=(teachers||[]).filter(t2=>t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate);
+  const respPass=r=>{
+    const st=(students||[]).find(x=>String(x.no)===String(r.studentNo))||{};
+    const area=r.studentArea||st.area, lvl=st.classLevel||1;
+    if(sResAreaFilter!=="all"&&area!==sResAreaFilter) return false;
+    if(sResLvl!=="all"&&String(lvl)!==String(sResLvl)) return false;
+    if(sResTeach!=="all"){ const d=svClsDocs.find(x=>x.id===classDocId(true,area,lvl)); if(!d||!(d.teacherNos||[]).map(String).includes(String(sResTeach))) return false; }
+    const q=sResStu.trim().toLocaleLowerCase();
+    if(q&&!(String(r.studentName||st.name||"").toLocaleLowerCase().includes(q)||String(r.studentNo||"").includes(q))) return false;
+    return true;
+  };
   const [selectedSurvey, setSelectedSurvey] = useState(null);
   const [viewMode, setViewMode] = useState("list"); // list | create | results
 
@@ -11875,6 +12088,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
   const [surveyForm, setSurveyForm] = useState({
     title:"", desc:"",
     targetType:"all", targetAreas:[], // all | area
+    targetLevels:[], targetTeacherNo:"",   // isteğe bağlı: yalnızca bu sınıflar / bu sınıf öğretmeninin sınıfları
     resultType:"percent", // percent | points | qa | mixed
     pointMax:100,
     allowDocs:false,
@@ -11983,7 +12197,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
 
   /* ── STUDENT SURVEY CRUD ── */
   function startCreateSurvey(){
-    setSurveyForm({title:"",desc:"",targetType:"all",targetAreas:[],resultType:"percent",pointMax:100,allowDocs:false,questions:[]});
+    setSurveyForm({title:"",desc:"",targetType:"all",targetAreas:[],targetLevels:[],targetTeacherNo:"",resultType:"percent",pointMax:100,allowDocs:false,questions:[]});
     setEditingSurveyId("new");
     setNewQ({text:"",type:"rating",choices:["",""]});
     setDocFile(null);
@@ -11995,6 +12209,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
       title:sv.title||"",desc:sv.desc||"",
       targetType:sv.targetType||"all",
       targetAreas:sv.targetAreas||[],
+      targetLevels:sv.targetLevels||[], targetTeacherNo:sv.targetTeacherNo||"",
       resultType:sv.resultType||"percent",
       pointMax:sv.pointMax||100,
       allowDocs:sv.allowDocs||false,
@@ -12036,6 +12251,8 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
       desc:surveyForm.desc.trim(),
       targetType:surveyForm.targetType,
       targetAreas:surveyForm.targetAreas,
+      targetLevels:(surveyForm.targetType==="all"||surveyForm.targetType==="area")?(surveyForm.targetLevels||[]):[],
+      targetTeacherNo:(surveyForm.targetType==="all"||surveyForm.targetType==="area")?(surveyForm.targetTeacherNo||""):"",
       resultType:surveyForm.resultType,
       pointMax:surveyForm.pointMax,
       allowDocs:surveyForm.allowDocs,
@@ -12412,6 +12629,22 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
                 </div>
               </div>
             )}
+            {(surveyForm.targetType==="all"||surveyForm.targetType==="area")&&(
+              <div style={{marginTop:14}}>
+                <div style={{fontSize:11.5,fontWeight:700,color:"var(--text2)",marginBottom:8,textTransform:"uppercase",letterSpacing:"0.06em"}}>🏫 {lang==="en"?"Classes (optional — empty = all)":K("Sinif (vebijarkî — vala = hemû)")}</div>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {CLASS_LEVELS.map(l=>{const on=(surveyForm.targetLevels||[]).includes(l);return(
+                    <button key={l} onClick={()=>setSurveyForm(f=>({...f,targetLevels:on?(f.targetLevels||[]).filter(x=>x!==l):[...(f.targetLevels||[]),l]}))}
+                      style={{padding:"7px 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",border:"1.5px solid "+(on?"#0f2f38":"var(--border2)"),background:on?"#0f2f38":"var(--surface)",color:on?"#fff":"var(--text)"}}>{on?"✓ ":""}{classTitle(l)}</button>);})}
+                </div>
+                <div style={{fontSize:11.5,fontWeight:700,color:"var(--text2)",margin:"12px 0 6px",textTransform:"uppercase",letterSpacing:"0.06em"}}>👩‍🏫 {lang==="en"?"Class teacher (optional)":K("Mamosteyê sinifê (vebijarkî)")}</div>
+                <select aria-label={lang==="en"?"Class teacher":K("Mamosteyê sinifê")} value={surveyForm.targetTeacherNo||""} onChange={e=>{const v=e.target.value;setSurveyForm(f=>({...f,targetTeacherNo:v}));}} style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:13}}>
+                  <option value="">— {lang==="en"?"All":K("Hemû")}</option>
+                  {svTeachers.map(t2=><option key={t2.no} value={t2.no}>{t2.name}</option>)}
+                </select>
+                <div style={{fontSize:10.5,color:"var(--text2)",marginTop:6,lineHeight:1.5}}>{lang==="en"?"Only students in the classes of this teacher see the survey.":K("Tenê xwendekarên di sinifên vî mamosteyî de ankêtê dibînin.")}</div>
+              </div>
+            )}
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             <button onClick={()=>setStep(1)} style={{padding:"13px",background:"var(--bg2)",color:"var(--text)",border:"0.5px solid var(--border2)",borderRadius:12,fontSize:13,fontWeight:600,cursor:"pointer"}}>← {lang==="en"?"Back":K("Vegere")}</button>
@@ -12765,6 +12998,21 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
   /* ────── STUDENT SURVEY RESULTS ────── */
   const surveyResults = (
     <div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:6,marginBottom:12}}>
+        <select aria-label={lang==="en"?"Field":K("Qad")} value={sResAreaFilter} onChange={e=>setSResAreaFilter(e.target.value)} style={{padding:"8px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:12}}>
+          <option value="all">🎭 {lang==="en"?"All fields":K("Hemû qad")}</option>
+          {AREAS.filter(a2=>a2.key!=="genel").map(a2=><option key={a2.key} value={a2.key}>{areaName(a2.key,lang)}</option>)}
+        </select>
+        <select aria-label={lang==="en"?"Class":K("Sînif")} value={sResLvl} onChange={e=>setSResLvl(e.target.value)} style={{padding:"8px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:12}}>
+          <option value="all">🏫 {lang==="en"?"All classes":K("Hemû sinif")}</option>
+          {CLASS_LEVELS.map(l=><option key={l} value={l}>{classTitle(l)}</option>)}
+        </select>
+        <select aria-label={lang==="en"?"Teacher":K("Mamoste")} value={sResTeach} onChange={e=>setSResTeach(e.target.value)} style={{padding:"8px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:12}}>
+          <option value="all">👩‍🏫 {lang==="en"?"All teachers":K("Hemû mamoste")}</option>
+          {svTeachers.map(t2=><option key={t2.no} value={t2.no}>{t2.name}</option>)}
+        </select>
+        <input value={sResStu} onChange={e=>setSResStu(e.target.value)} placeholder={"🔎 "+(lang==="en"?"Student name/no":K("Nav/jimareya xwendekar"))} style={{padding:"8px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:12}}/>
+      </div>
       {selectedSurvey&&(
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
           <button onClick={()=>{setSelectedSurvey(null);setViewMode("list");}}
@@ -12779,7 +13027,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
 
       {studentSurveys.filter(sv=>!selectedSurvey||(String(sv.id)===String(selectedSurvey.id)||sv.fireId===selectedSurvey.fireId)).map(sv=>{
         const svId=sv.id||sv.fireId;
-        const allResps=studentResponses.filter(r=>String(r.surveyId)===String(svId)||String(r.surveyId)===String(sv.fireId));
+        const allResps=studentResponses.filter(r=>(String(r.surveyId)===String(svId)||String(r.surveyId)===String(sv.fireId))&&respPass(r));
         const rtc=RT_CONFIG[sv.resultType]||RT_CONFIG.percent;
         if(selectedSurvey&&String(sv.id)!==String(selectedSurvey.id)&&sv.fireId!==selectedSurvey.fireId) return null;
         return(
@@ -14032,6 +14280,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     {key:"announce",icon:"📢",label:t.announcement||"Ragihandin",badge:teacherAnnUnread},
     {key:"messages",icon:"💬",label:lang==="en"?"Messages":K("Peyam"),badge:msgUnreadCount},
     {key:"students",icon:"🎓",label:lang==="en"?"Students":K("Xwendekar")},
+    {key:"myclass",icon:"🏫",label:lang==="en"?"My Class":K("Sinifa Min")},
     {key:"scanner",icon:"📷",label:t.qrScan},
     {key:"evaluation",icon:"📝",label:lang==="en"?"Evaluation":K("Nirxandin"),badge:surveyActive?1:0},
     {key:"profile",icon:"👤",label:t.profile},
@@ -14571,6 +14820,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
         {view==="messages"&&(
           <TeacherMessagesPanel teacher={teacher} myStudents={myStudents} aColor="#0f2f38" lang={lang} t={t} toast={toast}/>
         )}
+        {view==="myclass"&&<ClassPostsPanel mode="teacher" teacher={teacher} lang={lang} toast={toast}/>}
         {view==="students"&&(
           <>
             {/* Student management */}
@@ -15184,6 +15434,7 @@ function StudentSurveyView({student, a, lang, toast, mode}) {
     return()=>{unsub();unsubR();};
   },[student.id]);
 
+  const svCls=useClassDocs("classes",mode!=="teacher");
   const visibleSurveys = surveys.filter(sv=>{
     if(!sv.active) return false;
     if(mode==="teacher"){
@@ -15192,7 +15443,10 @@ function StudentSurveyView({student, a, lang, toast, mode}) {
       return false;
     }
     if(sv.targetType==="teachers"||sv.targetType==="teachers_area") return false; // öğretmenlere özel — öğrencilere gösterme
-    if(sv.targetType==="area") return (sv.targetAreas||[]).includes(student.area);
+    if(sv.targetType==="area"&&!(sv.targetAreas||[]).includes(student.area)) return false;
+    // İsteğe bağlı sınıf / sınıf öğretmeni hedefi
+    if((sv.targetLevels||[]).length&&!(sv.targetLevels||[]).map(Number).includes(+(student.classLevel||1))) return false;
+    if(sv.targetTeacherNo){ const d=svCls.find(x=>x.id===classDocId(true,student.area,student.classLevel||1)); if(!d||!(d.teacherNos||[]).map(String).includes(String(sv.targetTeacherNo))) return false; }
     return true;
   });
 
@@ -15668,6 +15922,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
     {key:"home",   icon:"🏠", label:t.home},
     {key:"checkin",icon:"🎓", label:lang==="en"?"Class Entry":K("Têketina Dersê")},
     {key:"announce",icon:"📢", label:lang==="en"?"Announcements":t.announcements, badge:unreadCount},
+    {key:"myclass", icon:"🏫", label:lang==="en"?"My Class":K("Sinifa Min")},
     {key:"messages",icon:"💬", label:lang==="en"?"Messages":K("Peyam"), badge:studentMsgUnread},
     {key:"schedule",icon:"📅", label:t.schedule},
     {key:"surveys", icon:"📋", label:lang==="en"?"Surveys":K("Ankêt")},
@@ -15945,6 +16200,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
 
 
                 {/* ── DUYURULAR ── */}
+        {view==="myclass"&&<ClassPostsPanel mode="student" student={student} lang={lang} toast={toast}/>}
         {view==="announce"&&(
           <>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>

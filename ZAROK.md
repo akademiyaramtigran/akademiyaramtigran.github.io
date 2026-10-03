@@ -42,10 +42,16 @@ Veli /zarok/app/ → giriş ──► Bugün · Program · Devam · Duyurular ·
   - Çocuk eklerken **Mevcut veli** → ad / telefon / numarayla arama
   - Başvuru kabulünde aynı **telefon** (son 10 hane; `+90 555…` = `0555…`) veya **e-posta** ile kayıtlı veli
     otomatik önerilir (⭐); istenirse başka veli ya da yeni hesap seçilir
+  - Çocuk kartında **👨‍👧** → ayrı kaydedilmiş bir çocuğu listeden **kardeş olarak eşleştir**: iki ailenin
+    velileri birleşir, her veli tüm kardeşleri kendi uygulamasında görür
   - Çocuk kartında "Kardeşler" satırı görünür
 - **Sınıflar (1., 2., … 6.):** çocuğun sınıfı `kids.classLevel`; **Sınıf** sekmesinde sınıflar listelenir,
   çocuğun sınıfı listeden değiştirilir, her sınıfa bir veya birkaç **sınıf öğretmeni** atanır (`kidClasses/L<seviye>`).
   Öğretmen uygulamasında **🏫 Sınıfım** ve sınıf filtreleri; veli uygulamasında çocuğun sınıfı ve sınıf öğretmeni
+- **Sınıf paylaşımları:** sınıf öğretmeni uygulamanın **Duyurular** sekmesinden kendi sınıfına
+  **📢 duyuru / 📝 ödev (son gün) / 📎 belge** (görsel/PDF) gönderir (`kidClassPosts`). Veli, çocuğunun sınıfına
+  gelenleri **Bugün** ve **Duyurular** ekranında görür. Kurallar: öğretmen yalnızca sınıf öğretmeni olduğu sınıfa,
+  kendi adıyla yazabilir
 - **Öğretmen kaydı:** otomatik numara (7YYYYnnn) + otomatik şifre + e-posta; düzenle / 🔑 şifre yenile / sil
 - **Veliler:** düzenle / 🔑 şifre yenile / sil (bağlı çocuk yoksa)
 - **Site haberleri ve arşiv:** 4 dilde başlık/metin, en fazla 4 fotoğraf, YouTube bağlantısı
