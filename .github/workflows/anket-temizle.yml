@@ -1,0 +1,43 @@
+# Tüm anket verilerini siler (anketler + yanıtlar; akademi + Çocuk Akademisi + haftalık ders değerlendirme yanıtları).
+# Elle çalıştırılır: GitHub → Actions → "Anket verilerini sil" → Run workflow → onay kutusuna SİL yazın.
+# Haftalık değerlendirme SORU şablonu ve anket ayarları silinmez.
+name: Anket verilerini sil
+
+on:
+  workflow_dispatch:
+    inputs:
+      onay:
+        description: "Onay: büyük harflerle SİL yazın (geri alınamaz)"
+        required: true
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-deploy
+  cancel-in-progress: false
+
+jobs:
+  sil:
+    if: ${{ inputs.onay == 'SİL' || inputs.onay == 'SIL' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Anket koleksiyonlarını sil
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then echo "::error::FIREBASE_SERVICE_ACCOUNT sırrı yok"; exit 1; fi
+          KEY="$RUNNER_TEMP/sa.json"; printf '%s' "$SA" > "$KEY"
+          export GOOGLE_APPLICATION_CREDENTIALS="$KEY"
+          for c in studentSurveys studentSurveyResponses kidSurveys kidSurveyResponses surveyResponses; do
+            echo "🗑 $c"
+            npx --yes firebase-tools@13 firestore:delete "$c" --recursive --force --project aram2026-a9fd7 \
+              || echo "::warning::$c silinemedi (boş olabilir)"
+          done
+          rm -f "$KEY"
+          echo "✅ Anket verileri silindi"

@@ -58,15 +58,19 @@ exports.aatUser = onCall(async (req) => {
 
   if (action === "create" || action === "setPassword") {
     if (typeof password !== "string" || password.length < 6) throw new HttpsError("invalid-argument", "Şifre en az 6 karakter");
-    try {
-      const u = await auth.getUserByEmail(email);
-      await auth.updateUser(u.uid, { password, disabled: false });
-      return { ok: true, uid: u.uid, email, existed: true };
-    } catch (e) {
-      if (e.code !== "auth/user-not-found") throw new HttpsError("internal", e.message);
-      const u = await auth.createUser({ email, password });
-      return { ok: true, uid: u.uid, email, existed: false };
+    let u = null;
+    try { u = await auth.getUserByEmail(email); }
+    catch (e) { if (e.code !== "auth/user-not-found") throw new HttpsError("internal", e.message); }
+    // "create" mevcut bir hesabın şifresini ASLA değiştirmez (yanlışlıkla başkasının hesabını
+    // ele geçirmeyi önler) → istemci sıradaki boş numaraya geçer. Şifre yenileme yalnızca "setPassword".
+    if (action === "create") {
+      if (u) throw new HttpsError("already-exists", "email-already-in-use");
+      const n = await auth.createUser({ email, password });
+      return { ok: true, uid: n.uid, email, existed: false };
     }
+    if (u) { await auth.updateUser(u.uid, { password, disabled: false }); return { ok: true, uid: u.uid, email, existed: true }; }
+    const n = await auth.createUser({ email, password });
+    return { ok: true, uid: n.uid, email, existed: false };
   }
 
   if (action === "delete") {

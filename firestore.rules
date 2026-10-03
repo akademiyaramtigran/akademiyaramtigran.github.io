@@ -366,17 +366,24 @@ service cloud.firestore {
     match /kidSchedule/{id}      { allow read: if kidStaff() || isGuardian(); allow write: if isRegistrar(); }
     // Sınıflar (1., 2., …): çocuğun sınıfı kids.classLevel; sınıf öğretmeni burada (doc id = L<seviye>)
     match /kidClasses/{id}       { allow read: if kidStaff() || isGuardian(); allow write: if isRegistrar(); }
-    // Veli anketleri: öğrenci işleri/yönetici oluşturur; veli okur ve ailesi adına BİR kez (güncelleyerek) yanıtlar
+    // Çocuk Akademisi anketleri: öğrenci işleri/yönetici oluşturur (hedef: "guardians" veliler | "kidteachers" öğretmenler).
+    // Veli / çocuk öğretmeni yalnızca KENDİ adına ve kendisine yönelik aktif ankete BİR kez (güncelleyerek) yanıt verir.
     match /kidSurveys/{id} { allow read: if kidStaff() || isGuardian(); allow write: if isRegistrar(); }
+    function kidSurveyTarget(sid) { return get(/databases/$(database)/documents/kidSurveys/$(sid)).data; }
     match /kidSurveyResponses/{id} {
-      allow read: if isRegistrar() || (isGuardian() && resource.data.guardianNo == prefix());
-      allow create, update: if isGuardian()
+      allow read: if isRegistrar() || (authed() && resource.data.no == prefix());
+      allow create, update: if authed()
         && id == request.resource.data.surveyId + '_' + prefix()
-        && request.resource.data.guardianNo == prefix()
-        && request.resource.data.keys().hasOnly(['surveyId','guardianNo','guardianName','kidLevels','answers','submittedAt'])
+        && request.resource.data.no == prefix()
+        && request.resource.data.keys().hasOnly(['surveyId','role','no','name','areas','answers','submittedAt'])
         && request.resource.data.answers is map && request.resource.data.answers.size() <= 60
+        && (!('areas' in request.resource.data) || (request.resource.data.areas is list && request.resource.data.areas.size() <= 10))
         && exists(/databases/$(database)/documents/kidSurveys/$(request.resource.data.surveyId))
-        && get(/databases/$(database)/documents/kidSurveys/$(request.resource.data.surveyId)).data.active == true;
+        && kidSurveyTarget(request.resource.data.surveyId).active == true
+        && ((request.resource.data.role == 'guardian' && isGuardian()
+              && kidSurveyTarget(request.resource.data.surveyId).targetType == 'guardians')
+            || (request.resource.data.role == 'teacher' && (isKidTeacher() || (isStaff() && exists(dbPath('idx_kidstaff'))))
+              && kidSurveyTarget(request.resource.data.surveyId).targetType == 'kidteachers'));
       allow delete: if isRegistrar();
     }
     match /kidClassPosts/{id} {
