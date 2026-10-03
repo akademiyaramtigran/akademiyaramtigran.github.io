@@ -29,13 +29,13 @@ try{
     --navy:#0f2f38; --navy-2:#1c4a55; --navy-3:#2c6b74;
     --hero-grad:linear-gradient(160deg,#0f2f38 0%,#1c4a55 55%,#2c6b74 100%);
     --gold:#e7c77b; --gold-2:#9c7d33; --rm:#1c4a55;
-    --paper:#FFFFFF; --paper-2:#F6F8FB; --hero-soft:linear-gradient(160deg,#F6F0E4 0%,#EEF2EF 60%,#E6EFF0 100%); --surface:#FFFFFF;
+    --paper:#FFFFFF; --paper-2:#F6F8FB; --hero-soft:linear-gradient(180deg,#F6F0E4 0%,#EEF2EF 60%,#E6EFF0 100%); --soft-up:linear-gradient(180deg,#E6EFF0 0%,#EEF2EF 40%,#F6F0E4 100%); --bar:#F7F2E8; --surface:#FFFFFF;
     --ink:#0f2f38; --body:#33415C; --muted:#69748C;
     --line:rgba(15,47,56,.12); --card-shadow:0 8px 26px rgba(15,47,56,.08);
   }
   @media (prefers-color-scheme: dark){
     :root{
-      --paper:#0F1826; --paper-2:#121D2E; --hero-soft:var(--paper); --surface:#18233A;
+      --paper:#0F1826; --paper-2:#121D2E; --hero-soft:var(--paper); --soft-up:var(--paper); --bar:var(--paper); --surface:#18233A;
       --ink:#EEF1F8; --body:#C6CFE0; --muted:#8E9BB5;
       --line:rgba(238,241,248,.12); --card-shadow:0 10px 30px rgba(0,0,0,.4);
       --gold-2:#e7c77b; --rm:#7fd0c0;
@@ -101,6 +101,10 @@ try{
   section{padding:68px 0}
   section.alt{background:var(--paper-2)}
   .hero{background:var(--hero-soft)}
+  /* Tüm bölümler: krem ↔ açık petrol yumuşak geçiş (sırayla ters, dikişsiz) */
+  #nuce,#derbare{background:var(--soft-up)}
+  #qad,#serledan{background:var(--hero-soft)}
+  .topbar{background:var(--bar)!important}
   .sec-head{display:flex;align-items:baseline;gap:16px;margin-bottom:28px}
   .sec-eyebrow{
     color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.26em;text-transform:uppercase;
@@ -395,7 +399,7 @@ try{
   /* news card area badge */
   .news-area-badge{display:inline-block;margin-bottom:9px;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:3px 9px;border-radius:3px;background:transparent;border:1px solid var(--line);color:var(--navy)}
 
-  footer{background:var(--hero-grad);color:rgba(234,240,248,.75);margin-top:24px}
+  footer{background:var(--hero-grad);color:rgba(234,240,248,.75);margin-top:0}
   footer .wrap{display:grid;grid-template-columns:1.4fr 1fr;gap:32px;padding-top:56px;padding-bottom:30px}
   footer h4{color:#fff;font-size:12.5px;letter-spacing:.2em;text-transform:uppercase;margin:0 0 14px}
   footer p,footer a{font-size:14px;color:rgba(234,240,248,.75);text-decoration:none;margin:0 0 8px;display:block}
