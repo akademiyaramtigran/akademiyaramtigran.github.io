@@ -11195,7 +11195,7 @@ function makeSurveyResultsPdf(sv, allResps, lang, byName){
       const opts=q.type==="yesno"?["yes","no"]:(q.choices||[]);
       return {q, kind:"opts", n:vals.length, rows:opts.map(o=>[q.type==="yesno"?(o==="yes"?YESNO()[0]:YESNO()[1]):o, vals.filter(v=>Array.isArray(v)?v.includes(o):v===o).length])};
     }
-    const texts=rs.map(r=>({name:sv.anonymous?"":(r.studentName||r.guardianName||""),area:sv.anonymous?"":r.studentArea,val:r.answers?.[q.id]})).filter(x=>x.val!=null&&String(x.val).trim()!=="");
+    const texts=rs.map(r=>({name:sv.anonymous?"":(r.studentName||r.name||""),area:sv.anonymous?"":r.studentArea,val:r.answers?.[q.id]})).filter(x=>x.val!=null&&String(x.val).trim()!=="");
     return {q, kind:"text", n:texts.length, texts};
   });
   const W=(ku,en)=>lang==="en"?en:K(ku);
@@ -11257,8 +11257,9 @@ function AdminSurveyResultsReport({lang,toast,byName}){
   function csvOf(sv){
     const rs=respsOf(sv);
     const fmt=(q,v)=>v==null?"":Array.isArray(v)?v.join(" | "):q.type==="yesno"?(v==="yes"?YESNO()[0]:YESNO()[1]):q.type==="likert"?(LIKERT()[v-1]||v):v;
-    const rows=[[sv._kid?(lang==="en"?"Parent":K("Dêûbav")):(lang==="en"?"Student":K("Xwendekar")),sv._kid?(lang==="en"?"Class":K("Sinif")):(lang==="en"?"Field":K("Qad")),...(sv.questions||[]).map(q=>q.text)]];
-    rs.forEach(r=>rows.push([sv.anonymous?"":(r.studentName||r.guardianName||""),sv._kid?(r.kidLevels||[]).map(l=>classTitle(l)).join(", "):(areaName(r.studentArea,lang)||""),...(sv.questions||[]).map(q=>fmt(q,r.answers?.[q.id]))]));
+    const rows=[[sv._kid?(sv.targetType==="kidteachers"?(lang==="en"?"Teacher":K("Mamoste")):(lang==="en"?"Parent":K("Dêûbav"))):(lang==="en"?"Student":K("Xwendekar")),(lang==="en"?"Field":K("Qad")),...(sv.questions||[]).map(q=>q.text)]];
+    const zA=a=>{ const z=ZAROK_AREA_NAMES[a]; return z?(lang==="en"?z[1]:K(z[0])):a; };
+    rs.forEach(r=>rows.push([sv.anonymous?"":(r.studentName||r.name||""),sv._kid?(r.areas||[]).map(zA).join(", "):(areaName(r.studentArea,lang)||""),...(sv.questions||[]).map(q=>fmt(q,r.answers?.[q.id]))]));
     downloadCSV("anket-"+String(sv.title).replace(/[^A-Za-z0-9]+/g,"_").slice(0,40)+".csv",rows);
     logReportArchive({type:"csv",label:"CSV: "+sv.title,by:byName||""});
     toast("⬇ CSV");
@@ -12063,6 +12064,8 @@ const SURVEY_TEMPLATES=[
   {k:"veli",ic:"👨‍👩‍👧",aud:"guardians",t:["Razîbûna dêûbavan","Parent satisfaction"],qs:[
     ["likert","Zarokê min bi kêfxweşî tê dersê."],["likert","Ez ji pêşketina zarokê xwe razî me."],["likert","Agahdarî (ragihandin, peyam) têrê dike."],
     ["likert","Ewlehî û teslîmkirina zarokan baş e."],["yesno","Hûn ê akademiyê ji kesên din re pêşniyar bikin?"],["text","Pêşniyarên we",false]]},
+  {k:"zmamoste",ic:"👩‍🏫",aud:"kidteachers",t:["Nêrîna mamosteyên zarokan","Children's teachers feedback"],qs:[
+    ["likert","Amûr û dersxane ji bo zarokan guncav in."],["likert","Hejmara zarokan di sinifê de maqûl e."],["likert","Têkiliya bi dêûbavan re baş e."],["text","Pêşniyarên te",false]]},
   {k:"tercih",ic:"🗓",aud:"guardians",t:["Bijartina çalakiyê","Activity preference"],qs:[
     ["multi","Hûn kîjan çalakiyan ji bo zarokê xwe dixwazin?",true,["Konser","Şanoya zarokan","Kargeh","Gera derve"]],
     ["choice","Kîjan roj ji we re guncav e?",true,["Şemî","Yekşem","Roja hefteyê"]],["text","Ramanên we",false]]},
@@ -12120,17 +12123,14 @@ function SurveyStudio({mode,initial,teachers,lang,toast,onSave,onCancel}){
   const init=initial||{};
   const [title,setTitle]=useState(init.title||"");
   const [desc,setDesc]=useState(init.desc||"");
-  const [aud,setAud]=useState(kids?"guardians":(init.targetType==="teachers"||init.targetType==="teachers_area"?"teachers":"students"));
+  const [aud,setAud]=useState(kids?(init.targetType==="kidteachers"?"kidteachers":"guardians"):(init.targetType==="teachers"||init.targetType==="teachers_area"?"teachers":"students"));
   const [areas,setAreas]=useState(init.targetAreas||[]);
-  const [levels,setLevels]=useState(init.targetLevels||[]);
-  const [tno,setTno]=useState(init.targetTeacherNo||"");
   const [endDate,setEndDate]=useState(init.endDate||"");
   const [anon,setAnon]=useState(!!init.anonymous);
   const [qs,setQs]=useState(()=>(init.questions||[]).map(q=>({...q,required:q.required!==false})));
   const [preview,setPreview]=useState(false);
   const [pv,setPv]=useState({});
-  const plainT=(teachers||[]).filter(t2=>t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate);
-  const lvls=kids?KID_CLASS_LEVELS:CLASS_LEVELS;
+  const areaList=kids?ZAROK_AREAS.map(a=>({key:a,icon:"",label:(lang==="en"?(ZAROK_AREA_NAMES[a]||[a,a])[1]:K((ZAROK_AREA_NAMES[a]||[a])[0]))})):AREAS.filter(a2=>a2.key!=="genel").map(a2=>({key:a2.key,icon:a2.icon,label:areaName(a2.key,lang)}));
   const card={background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:14,padding:14,marginBottom:12};
   const h={fontSize:12,fontWeight:800,color:"var(--text2)",letterSpacing:".06em",textTransform:"uppercase",marginBottom:8};
   const inp={width:"100%",padding:"11px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:14,fontFamily:"inherit",boxSizing:"border-box"};
@@ -12140,7 +12140,7 @@ function SurveyStudio({mode,initial,teachers,lang,toast,onSave,onCancel}){
   const move=(i,d)=>setQs(a=>{ const b=[...a]; const j=i+d; if(j<0||j>=b.length) return a; [b[i],b[j]]=[b[j],b[i]]; return b; });
   function useTemplate(tp){
     if(qs.length&&!window.confirm(W2("Pirsên heyî dê bên guhertin. Bidomîne?","Current questions will be replaced. Continue?"))) return;
-    setTitle(W2(tp.t[0],tp.t[1])); if(!kids) setAud(tp.aud==="teachers"?"teachers":"students");
+    setTitle(W2(tp.t[0],tp.t[1])); if(!kids) setAud(tp.aud==="teachers"?"teachers":"students"); else setAud(tp.aud==="kidteachers"?"kidteachers":"guardians");
     setQs(tp.qs.map(([ty,tx,req,ch])=>newSQ(ty,lang==="en"?tx:K(tx),req,(ch||[]).map(c=>lang==="en"?c:K(c)))));
     toast("✓ "+W2(tp.t[0],tp.t[1]));
   }
@@ -12150,9 +12150,9 @@ function SurveyStudio({mode,initial,teachers,lang,toast,onSave,onCancel}){
     if(!clean.length){ toast("⚠ "+W2("Herî kêm 1 pirsek lazim e","At least 1 question required")); return null; }
     const bad=clean.findIndex(q=>(q.type==="choice"||q.type==="multi")&&q.choices.length<2);
     if(bad>=0){ toast("⚠ "+(bad+1)+". "+W2("pirs: herî kêm 2 bijare","question: at least 2 options")); return null; }
-    const targetType=kids?"guardians":aud==="teachers"?(areas.length?"teachers_area":"teachers"):(areas.length?"area":"all");
-    return {title:title.trim(),desc:desc.trim(),targetType,targetAreas:kids?[]:areas,targetLevels:aud==="teachers"?[]:levels,
-      targetTeacherNo:aud==="students"?tno:"",endDate,anonymous:anon,questions:clean,resultType:"mixed",active};
+    // Hedef: alan filtresi (boş = hepsi) + kitle (öğrenci/öğretmen · veli/çocuk öğretmeni)
+    const targetType=kids?aud:aud==="teachers"?(areas.length?"teachers_area":"teachers"):(areas.length?"area":"all");
+    return {title:title.trim(),desc:desc.trim(),targetType,targetAreas:areas,targetLevels:[],targetTeacherNo:"",endDate,anonymous:anon,questions:clean,resultType:"mixed",active};
   }
   const save=active=>{ const sv=build(active); if(sv) onSave(sv); };
   if(preview) return(
@@ -12175,7 +12175,7 @@ function SurveyStudio({mode,initial,teachers,lang,toast,onSave,onCancel}){
       <div style={card}>
         <div style={h}>① {W2("Bi şablonê dest pê bike (vebijarkî)","Start from a template (optional)")}</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:8}}>
-          {SURVEY_TEMPLATES.filter(tp=>kids?tp.aud==="guardians":tp.aud!=="guardians").map(tp=>(
+          {SURVEY_TEMPLATES.filter(tp=>kids?(tp.aud==="guardians"||tp.aud==="kidteachers"):(tp.aud==="students"||tp.aud==="teachers")).map(tp=>(
             <button key={tp.k} onClick={()=>useTemplate(tp)} style={{textAlign:"left",padding:"10px 12px",borderRadius:12,border:"1px solid var(--border2)",background:"var(--bg2)",cursor:"pointer",color:"var(--text)"}}>
               <div style={{fontSize:20}}>{tp.ic}</div>
               <div style={{fontSize:12.5,fontWeight:800,marginTop:4}}>{W2(tp.t[0],tp.t[1])}</div>
@@ -12192,24 +12192,22 @@ function SurveyStudio({mode,initial,teachers,lang,toast,onSave,onCancel}){
       {/* 3 · Hedef */}
       <div style={card}>
         <div style={h}>③ {W2("Kî dê bersiv bide?","Who will answer?")}</div>
-        {kids?<div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:8}}>👨‍👩‍👧 {W2("Dêûbavên Akademiya Zarokan","Children's Academy parents")}</div>:(
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
-          <button onClick={()=>setAud("students")} style={chip(aud==="students")}>🎓 {W2("Xwendekar","Students")}</button>
-          <button onClick={()=>{setAud("teachers");setLevels([]);setTno("");}} style={chip(aud==="teachers")}>👩‍🏫 {W2("Mamoste","Teachers")}</button>
-        </div>)}
-        {!kids&&<>
-          <div style={{fontSize:11.5,color:"var(--text2)",margin:"4px 0 6px"}}>🎭 {W2("Qad (vala = hemû)","Fields (empty = all)")}</div>
-          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-            {AREAS.filter(a2=>a2.key!=="genel").map(a2=>{ const on=areas.includes(a2.key); return <button key={a2.key} onClick={()=>setAreas(x=>on?x.filter(y=>y!==a2.key):[...x,a2.key])} style={chip(on)}>{a2.icon} {areaName(a2.key,lang)}</button>; })}
-          </div></>}
-        {aud!=="teachers"&&<>
-          <div style={{fontSize:11.5,color:"var(--text2)",margin:"10px 0 6px"}}>🏫 {W2("Sinif (vala = hemû)","Classes (empty = all)")}</div>
-          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-            {lvls.map(l=>{ const on=levels.includes(l); return <button key={l} onClick={()=>setLevels(x=>on?x.filter(y=>y!==l):[...x,l])} style={chip(on)}>{classTitle(l)}</button>; })}
-          </div></>}
-        {aud==="students"&&<>
-          <div style={{fontSize:11.5,color:"var(--text2)",margin:"10px 0 6px"}}>👩‍🏫 {W2("Tenê sinifên vî mamosteyî (vebijarkî)","Only this teacher's classes (optional)")}</div>
-          <select style={inp} value={tno} onChange={e=>setTno(e.target.value)}><option value="">— {W2("Hemû","All")}</option>{plainT.map(t2=><option key={t2.no} value={t2.no}>{t2.name}</option>)}</select></>}
+          {kids?<>
+            <button onClick={()=>setAud("guardians")} style={chip(aud==="guardians")}>👨‍👩‍👧 {W2("Hemû dêûbav","All parents")}</button>
+            <button onClick={()=>setAud("kidteachers")} style={chip(aud==="kidteachers")}>👩‍🏫 {W2("Hemû mamoste","All teachers")}</button>
+          </>:<>
+            <button onClick={()=>setAud("students")} style={chip(aud==="students")}>🎓 {W2("Hemû xwendekar","All students")}</button>
+            <button onClick={()=>setAud("teachers")} style={chip(aud==="teachers")}>👩‍🏫 {W2("Hemû mamoste","All teachers")}</button>
+          </>}
+        </div>
+        <div style={{fontSize:11.5,color:"var(--text2)",margin:"4px 0 6px"}}>🎭 {W2("Qad (vala = hemû)","Fields (empty = all)")}</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {areaList.map(a2=>{ const on=areas.includes(a2.key); return <button key={a2.key} onClick={()=>setAreas(x=>on?x.filter(y=>y!==a2.key):[...x,a2.key])} style={chip(on)}>{a2.icon?a2.icon+" ":""}{a2.label}</button>; })}
+        </div>
+        <div style={{fontSize:11,color:"var(--text2)",marginTop:8}}>{kids
+          ?(aud==="guardians"?W2("Dêûbavên zarokên di qadên bijartî de bersiv didin.","Parents of children in the selected fields answer."):W2("Mamosteyên qadên bijartî bersiv didin.","Teachers of the selected fields answer."))
+          :(aud==="students"?W2("Xwendekarên qadên bijartî bersiv didin.","Students of the selected fields answer."):W2("Mamosteyên qadên bijartî bersiv didin.","Teachers of the selected fields answer."))}</div>
       </div>
       {/* 4 · Sorular */}
       <div style={card}>
@@ -12273,7 +12271,7 @@ function SurveyStats({survey,resps,lang,expected,whoLabel}){
     const qs=survey.questions||[];
     const fmt=(q,v)=>v==null?"":Array.isArray(v)?v.join(" | "):q.type==="yesno"?(v==="yes"?YESNO()[0]:YESNO()[1]):q.type==="likert"?(LIKERT()[v-1]||v):v;
     const rows=[[...(survey.anonymous?[]:[W2("Nav","Name")]),W2("Dem","Time"),...qs.map((q,i)=>(i+1)+". "+q.text)]];
-    resps.forEach(r=>rows.push([...(survey.anonymous?[]:[r.studentName||r.guardianName||r.teacherName||""]),r.submittedAt||"",...qs.map(q=>fmt(q,r.answers&&r.answers[q.id]))]));
+    resps.forEach(r=>rows.push([...(survey.anonymous?[]:[r.studentName||r.name||""]),r.submittedAt||"",...qs.map(q=>fmt(q,r.answers&&r.answers[q.id]))]));
     downloadCSV("anket-"+String(survey.title||"").replace(/[^\wçğıöşüÇĞİÖŞÜ]+/g,"-").slice(0,40)+".csv",rows);
   }
   const part=expected?Math.round(resps.length/expected*100):null;
@@ -12316,17 +12314,22 @@ function SurveyStats({survey,resps,lang,expected,whoLabel}){
 function KidSurveysPanel({lang,toast}){
   const F=window.__FB; const live=!!(F&&F.isConfigured());
   const W2=(ku,en)=>lang==="en"?en:K(ku);
-  const [list,setList]=useState([]); const [resps,setResps]=useState([]); const [kids,setKids]=useState([]);
-  const [view,setView]=useState("list"); const [edit,setEdit]=useState(null); const [lvlF,setLvlF]=useState("all");
+  const [list,setList]=useState([]); const [resps,setResps]=useState([]); const [kids,setKids]=useState([]); const [kteach,setKteach]=useState([]);
+  const [view,setView]=useState("list"); const [edit,setEdit]=useState(null); const [areaF,setAreaF]=useState("all");
   useEffect(()=>{
     if(!live) return; const subs=[];
     const L=(c,set)=>{ try{ subs.push(F.onSnapshot(F.collection(F.db,c),s=>set(s.docs.map(d=>({...d.data(),fireId:d.id}))),e=>console.warn("[kidSurveys]",e&&e.code))); }catch(_){} };
-    L("kidSurveys",v=>setList(v.sort((a,b)=>String(b.createdAtIso||"").localeCompare(String(a.createdAtIso||""))))); L("kidSurveyResponses",setResps); L("kids",setKids);
+    L("kidSurveys",v=>setList(v.sort((a,b)=>String(b.createdAtIso||"").localeCompare(String(a.createdAtIso||""))))); L("kidSurveyResponses",setResps); L("kids",setKids); L("kidTeachers",setKteach);
     return ()=>subs.forEach(u=>{ try{u();}catch(_){} });
   },[live]);
   const today=new Date().toISOString().slice(0,10);
   const status=sv=>!sv.active?["⏸",W2("Reşnivîs / rawestiyayî","Draft / paused"),"#64748b"]:(sv.endDate&&sv.endDate<today)?["⌛",W2("Dem qediya","Closed"),"#b45309"]:["🟢",W2("Çalak","Live"),"#15803d"];
-  const famOf=sv=>{ const g=new Set(); kids.filter(k=>!(sv.targetLevels||[]).length||(sv.targetLevels||[]).map(Number).includes(+k.classLevel)).forEach(k=>(k.guardianNos||[]).forEach(x=>g.add(x))); return g.size; };
+  // Hedef kitle sayısı: veliler (seçili alanlardaki çocukların aileleri) · çocuk öğretmenleri (seçili alanlar; alanı boş öğretmen hepsine dahil)
+  const inA=(sv,a)=>!(sv.targetAreas||[]).length||(sv.targetAreas||[]).includes(a);
+  const isT=sv=>sv.targetType==="kidteachers";
+  const famOf=sv=>{ if(isT(sv)) return kteach.filter(t=>!t.area||inA(sv,t.area)).length; const g=new Set(); kids.filter(k=>inA(sv,k.area)).forEach(k=>(k.guardianNos||[]).forEach(x=>g.add(x))); return g.size; };
+  const aName=a=>{ const z=ZAROK_AREA_NAMES[a]; return z?(lang==="en"?z[1]:K(z[0])):a; };
+  const who=sv=>isT(sv)?W2("mamoste","teachers"):W2("malbat","families");
   const rOf=sv=>resps.filter(r=>r.surveyId===sv.fireId);
   async function save(sv){
     try{
@@ -12338,24 +12341,24 @@ function KidSurveysPanel({lang,toast}){
   if(!live) return <div style={{fontSize:13,color:"var(--text2)"}}>{W2("Firebase girêdayî nîne.","Firebase is not connected.")}</div>;
   if(view==="studio") return <SurveyStudio mode="kids" initial={edit} lang={lang} toast={toast} onSave={save} onCancel={()=>{setView("list");setEdit(null);}}/>;
   if(view==="results"&&edit){
-    const rs=rOf(edit).filter(r=>lvlF==="all"||(r.kidLevels||[]).map(Number).includes(+lvlF));
+    const rs=rOf(edit).filter(r=>areaF==="all"||(r.areas||[]).includes(areaF));
     return(<div>
       <button onClick={()=>{setView("list");setEdit(null);}} style={{padding:"7px 14px",fontSize:12,background:"var(--bg2)",border:"1px solid var(--border2)",borderRadius:10,cursor:"pointer",color:"var(--text)",fontWeight:600,marginBottom:10}}>← {W2("Vegere","Back")}</button>
       <div style={{background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:14,padding:14}}>
         <div style={{fontSize:15,fontWeight:800,color:"var(--text)"}}>{edit.title}</div>
         <div style={{display:"flex",gap:8,alignItems:"center",margin:"8px 0 12px",flexWrap:"wrap"}}>
-          <select aria-label={W2("Sînif","Class")} value={lvlF} onChange={e=>setLvlF(e.target.value)} style={{padding:"8px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:12}}>
-            <option value="all">🏫 {W2("Hemû sinif","All classes")}</option>{KID_CLASS_LEVELS.map(l=><option key={l} value={l}>{classTitle(l)}</option>)}
+          <select aria-label={W2("Qad","Field")} value={areaF} onChange={e=>setAreaF(e.target.value)} style={{padding:"8px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:12}}>
+            <option value="all">🎭 {W2("Hemû qad","All fields")}</option>{ZAROK_AREAS.map(a=><option key={a} value={a}>{aName(a)}</option>)}
           </select>
         </div>
-        <SurveyStats survey={edit} resps={rs} lang={lang} expected={lvlF==="all"?famOf(edit):null} whoLabel={W2("malbat","families")}/>
+        <SurveyStats survey={edit} resps={rs} lang={lang} expected={areaF==="all"?famOf(edit):null} whoLabel={who(edit)}/>
       </div>
     </div>);
   }
   return(
     <div>
-      <button onClick={()=>{setEdit(null);setView("studio");}} style={{width:"100%",padding:13,borderRadius:12,border:"none",background:"#0f2f38",color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer",marginBottom:12}}>✨ {W2("Ankêta nû ji bo dêûbavan","New parent survey")}</button>
-      <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>{W2("Dêûbav ankêtê di sepana Akademiya Zarokan de (Ragihandin) dibînin û bersiv didin. Her malbat carekê bersiv dide.","Parents see and answer the survey in the Children's Academy app (Announcements). Each family answers once.")}</div>
+      <button onClick={()=>{setEdit(null);setView("studio");}} style={{width:"100%",padding:13,borderRadius:12,border:"none",background:"#0f2f38",color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer",marginBottom:12}}>✨ {W2("Ankêta nû (dêûbav / mamoste)","New survey (parents / teachers)")}</button>
+      <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>{W2("Dêûbav û mamosteyên Akademiya Zarokan ankêtê di sepana xwe de (Ragihandin) dibînin û bersiv didin. Her malbat / mamoste carekê bersiv dide.","Children's Academy parents and teachers see and answer the survey in their app (Announcements). Each family / teacher answers once.")}</div>
       {list.length===0&&<div style={{textAlign:"center",padding:28,color:"var(--text2)",fontSize:13}}>📭 {W2("Hîn ankêt tune","No surveys yet")}</div>}
       {list.map(sv=>{ const [ic,lb,col]=status(sv); const n=rOf(sv).length, ex=famOf(sv); return(
         <div key={sv.fireId} style={{background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:14,padding:12,marginBottom:10}}>
@@ -12363,13 +12366,13 @@ function KidSurveysPanel({lang,toast}){
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontWeight:800,color:"var(--text)"}}>{sv.title}</div>
               <div style={{fontSize:11,color:"var(--text2)",marginTop:3}}>
-                <span style={{color:col,fontWeight:700}}>{ic} {lb}</span> · {(sv.questions||[]).length} {W2("pirs","questions")} · 🏫 {(sv.targetLevels||[]).length?(sv.targetLevels.map(l=>classTitle(l)).join(", ")):W2("Hemû sinif","All classes")}{sv.endDate?" · ⏰ "+sv.endDate:""}{sv.anonymous?" · 🕶":""}
+                <span style={{color:col,fontWeight:700}}>{ic} {lb}</span> · {isT(sv)?"👩‍🏫 "+W2("Mamoste","Teachers"):"👨‍👩‍👧 "+W2("Dêûbav","Parents")} · 🎭 {(sv.targetAreas||[]).length?sv.targetAreas.map(aName).join(", "):W2("Hemû qad","All fields")} · {(sv.questions||[]).length} {W2("pirs","questions")}{sv.endDate?" · ⏰ "+sv.endDate:""}{sv.anonymous?" · 🕶":""}
               </div>
-              <div style={{fontSize:11.5,color:"var(--text)",marginTop:4,fontWeight:700}}>📝 {n} / {ex} {W2("malbat","families")}</div>
+              <div style={{fontSize:11.5,color:"var(--text)",marginTop:4,fontWeight:700}}>📝 {n} / {ex} {who(sv)}</div>
             </div>
           </div>
           <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
-            <button onClick={()=>{setEdit(sv);setLvlF("all");setView("results");}} style={{padding:"7px 11px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12,cursor:"pointer"}}>📊 {W2("Encam","Results")}</button>
+            <button onClick={()=>{setEdit(sv);setAreaF("all");setView("results");}} style={{padding:"7px 11px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12,cursor:"pointer"}}>📊 {W2("Encam","Results")}</button>
             <button onClick={()=>{setEdit(sv);setView("studio");}} style={{padding:"7px 11px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12,cursor:"pointer"}}>✏️</button>
             <button onClick={()=>F.updateDoc(F.doc(F.db,"kidSurveys",sv.fireId),{active:!sv.active}).catch(e=>toast("❌ "+e.code))} style={{padding:"7px 11px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12,cursor:"pointer"}}>{sv.active?"⏸ "+W2("Rawestîne","Pause"):"▶ "+W2("Biweşîne","Publish")}</button>
             <button onClick={()=>{ if(window.confirm(W2("Ankêt were jêbirin?","Delete survey?"))) F.deleteDoc(F.doc(F.db,"kidSurveys",sv.fireId)).catch(e=>toast("❌ "+e.code)); }} style={{padding:"7px 11px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"#dc2626",fontWeight:700,fontSize:12,cursor:"pointer"}}>🗑</button>
@@ -12513,17 +12516,12 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
   const [studentResponses, setStudentResponses] = useState(loadSSR);
   const [sResAreaFilter, setSResAreaFilter] = useState("all");
   // Sonuç filtreleri: alan · sınıf · sınıf öğretmeni · öğrenci
-  const [sResLvl,setSResLvl]=useState("all");
-  const [sResTeach,setSResTeach]=useState("all");
   const [sResStu,setSResStu]=useState("");
-  const svClsDocs=useClassDocs("classes");
   const svTeachers=(teachers||[]).filter(t2=>t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate);
   const respPass=r=>{
     const st=(students||[]).find(x=>String(x.no)===String(r.studentNo))||{};
-    const area=r.studentArea||st.area, lvl=st.classLevel||1;
+    const area=r.studentArea||st.area;
     if(sResAreaFilter!=="all"&&area!==sResAreaFilter) return false;
-    if(sResLvl!=="all"&&String(lvl)!==String(sResLvl)) return false;
-    if(sResTeach!=="all"){ const d=svClsDocs.find(x=>x.id===classDocId(true,area,lvl)); if(!d||!(d.teacherNos||[]).map(String).includes(String(sResTeach))) return false; }
     const q=sResStu.trim().toLocaleLowerCase();
     if(q&&!(String(r.studentName||st.name||"").toLocaleLowerCase().includes(q)||String(r.studentNo||"").includes(q))) return false;
     return true;
@@ -12571,7 +12569,8 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
     try{
       unsub2=window.__FB.onSnapshot(window.__FB.collection(window.__FB.db,"studentSurveys"),snap=>{
         const d=snap.docs.map(x=>({...x.data(),fireId:x.id}));
-        if(d.length>0){setStudentSurveys(d);try{localStorage.setItem(STUDENT_SURVEYS_KEY,JSON.stringify(d));}catch{}}
+        // Boş olsa da eşitle: silinen anketler yerel önbellekten geri yazılmasın
+        if(!snap.metadata||!snap.metadata.fromCache||d.length>0){setStudentSurveys(d);try{localStorage.setItem(STUDENT_SURVEYS_KEY,JSON.stringify(d));}catch{}}
       });
       unsub3=window.__FB.onSnapshot(window.__FB.collection(window.__FB.db,"studentSurveyResponses"),snap=>{
         const d=snap.docs.map(x=>x.data());
@@ -12657,7 +12656,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
   }
   const expectedFor=sv=>{
     if(sv.targetType==="teachers"||sv.targetType==="teachers_area") return (teachers||[]).filter(t2=>t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate&&(sv.targetType==="teachers"||(sv.targetAreas||[]).includes(t2.area))).length;
-    return (students||[]).filter(st=>!st.isAdmin&&(sv.targetType!=="area"||(sv.targetAreas||[]).includes(st.area))&&(!(sv.targetLevels||[]).length||(sv.targetLevels||[]).map(Number).includes(+(st.classLevel||1)))).length;
+    return (students||[]).filter(st=>!st.isAdmin&&(sv.targetType!=="area"||(sv.targetAreas||[]).includes(st.area))).length;
   };
   function startCreateSurvey(){
     setStudio({});
@@ -13467,14 +13466,6 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
         <select aria-label={lang==="en"?"Field":K("Qad")} value={sResAreaFilter} onChange={e=>setSResAreaFilter(e.target.value)} style={{padding:"8px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:12}}>
           <option value="all">🎭 {lang==="en"?"All fields":K("Hemû qad")}</option>
           {AREAS.filter(a2=>a2.key!=="genel").map(a2=><option key={a2.key} value={a2.key}>{areaName(a2.key,lang)}</option>)}
-        </select>
-        <select aria-label={lang==="en"?"Class":K("Sînif")} value={sResLvl} onChange={e=>setSResLvl(e.target.value)} style={{padding:"8px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:12}}>
-          <option value="all">🏫 {lang==="en"?"All classes":K("Hemû sinif")}</option>
-          {CLASS_LEVELS.map(l=><option key={l} value={l}>{classTitle(l)}</option>)}
-        </select>
-        <select aria-label={lang==="en"?"Teacher":K("Mamoste")} value={sResTeach} onChange={e=>setSResTeach(e.target.value)} style={{padding:"8px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:12}}>
-          <option value="all">👩‍🏫 {lang==="en"?"All teachers":K("Hemû mamoste")}</option>
-          {svTeachers.map(t2=><option key={t2.no} value={t2.no}>{t2.name}</option>)}
         </select>
         <input value={sResStu} onChange={e=>setSResStu(e.target.value)} placeholder={"🔎 "+(lang==="en"?"Student name/no":K("Nav/jimareya xwendekar"))} style={{padding:"8px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:12}}/>
       </div>

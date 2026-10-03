@@ -46,6 +46,9 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await put('guardians/' + G, { no: G, name: 'Nûrê Aram', phone: '0555 1' });
   await put('kids/K1', { no: '8' + YR + '501', name: 'Dilan Aram', area: 'drama', classLevel: 1, guardianNos: [G] });
   await signUp(G + '@veli.aat', 'Veli12345');
+  const KT = '7' + YR + '501';
+  await put('idx_kidstaff/' + KT, { no: KT }); await put('kidTeachers/' + KT, { no: KT, name: 'Mamoste Berfîn', area: 'drama' });
+  await signUp(KT + '@zmamoste.aat', 'Kid12345');
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
   const errs = [];
@@ -114,13 +117,23 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   // 4) Çocuk Akademisi veli anketi
   await p.evaluate(() => window.scrollTo(0, 0)); await p.waitForTimeout(300);
   await p.evaluate(() => [...document.querySelectorAll('button')].filter(x => x.textContent.trim() === '🎼 Akademiya Zarokan' && x.offsetParent).pop().click()); await p.waitForTimeout(800);
-  await btn(p, 'Ankêta nû ji bo dêûbavan'); await p.waitForTimeout(500);
+  await btn(p, 'Ankêta nû (dêûbav'); await p.waitForTimeout(500);
+  const k1 = await txt(p);
+  ok('Çocuk anketi: hedef veliler/öğretmenler + alan (sınıf yok)', k1.includes('Hemû dêûbav') && k1.includes('Hemû mamoste') && k1.includes('Drama') && !/\b1\. Sînif\b/.test(k1));
   await btn(p, 'Razîbûna dêûbavan'); await p.waitForTimeout(300);
+  await btn(p, 'Drama', true); await p.waitForTimeout(200);
   await btn(p, '🚀 Biweşîne'); await p.waitForTimeout(800);
   await p.waitForTimeout(1500);
   const ks = await list('kidSurveys');
-  ok('Veli anketi yayınlandı', ks.length === 1 && ks[0].fields.active.booleanValue === true);
+  ok('Veli anketi yayınlandı (Drama alanı)', ks.length === 1 && ks[0].fields.active.booleanValue === true && ks[0].fields.targetType.stringValue === 'guardians' && JSON.stringify(ks[0].fields.targetAreas).includes('drama'));
   const kid = ks[0].name.split('/').pop();
+  // Öğretmen anketi
+  await btn(p, 'Ankêta nû (dêûbav'); await p.waitForTimeout(500);
+  await btn(p, 'Nêrîna mamosteyên zarokan'); await p.waitForTimeout(300);
+  await btn(p, '🚀 Biweşîne'); await p.waitForTimeout(2000);
+  const ks2 = await list('kidSurveys');
+  const tsv = ks2.find(d => d.fields.targetType.stringValue === 'kidteachers');
+  ok('Çocuk öğretmenleri anketi yayınlandı', !!tsv);
 
   // 5) Veli uygulaması: bekleyen anket → yanıtla
   const vc = await mk(390); const vp = await vc.newPage(); vp.on('pageerror', e => errs.push('veli: ' + e.message));
@@ -135,7 +148,21 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await shot(vp, 'veli-anket.png');
   await vp.evaluate(() => [...document.querySelectorAll('button.btn')].find(b => b.textContent.includes('Bişîne')).click()); await vp.waitForTimeout(2000);
   const kr = await list('kidSurveyResponses');
-  ok('Veli yanıtı kaydedildi (aile adına, sınıf bilgisiyle)', kr.length === 1 && kr[0].name.endsWith('/' + kid + '_' + G) && JSON.stringify(kr[0].fields.answers).includes('"yes"'));
+  ok('Veli yanıtı kaydedildi (aile adına, alan bilgisiyle)', kr.length === 1 && kr[0].name.endsWith('/' + kid + '_' + G) && kr[0].fields.role.stringValue === 'guardian' && JSON.stringify(kr[0].fields.areas).includes('drama') && JSON.stringify(kr[0].fields.answers).includes('"yes"'));
+  ok('Veli öğretmen anketini görmez', !(await txt(vp)).includes('Nêrîna mamosteyên zarokan'));
+  // Çocuk öğretmeni yanıtlar
+  const tc = await mk(390); const tp = await tc.newPage(); tp.on('pageerror', e => errs.push('kidteacher: ' + e.message));
+  await tp.goto('http://localhost:8765/zarok/app/?emu=1'); await tp.waitForSelector('#l-no', { timeout: 20000 });
+  await tp.click('.roles button:nth-child(2)'); await tp.fill('#l-no', KT); await tp.fill('#l-pw', 'Kid12345'); await tp.click('.login .btn');
+  await tp.waitForSelector('.nav', { timeout: 20000 }); await tp.waitForTimeout(1500);
+  await tp.click('.nav button:nth-child(4)'); await tp.waitForTimeout(600);
+  const t5 = await txt(tp);
+  ok('Çocuk öğretmeni kendi anketini görür, veli anketini görmez', t5.includes('Nêrîna mamosteyên zarokan') && !t5.includes('Razîbûna dêûbavan'));
+  await tp.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Bersiv bide').click()); await tp.waitForTimeout(500);
+  for (let i = 0; i < 3; i++) { await tp.evaluate(i => { const bs = [...document.querySelectorAll('.chipb')].filter(b => b.textContent.trim().endsWith('4 · Razî me')); bs[i].click(); }, i); await tp.waitForTimeout(150); }
+  await tp.evaluate(() => [...document.querySelectorAll('button.btn')].find(b => b.textContent.includes('Bişîne')).click()); await tp.waitForTimeout(2000);
+  const kr2 = (await list('kidSurveyResponses')).find(d => d.fields.role && d.fields.role.stringValue === 'teacher');
+  ok('Çocuk öğretmeni yanıtı kaydedildi', !!kr2 && kr2.name.endsWith('_' + KT));
   ok('Yanıttan sonra anket "yanıtlandı" görünür', (await txt(vp)).includes('Bersiv hat dayîn'));
 
   // 6) Öğrenci işleri: veli anketi sonuçları + Çocuk Akademisi raporu

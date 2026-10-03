@@ -1239,7 +1239,17 @@ window.AAT_TX={"ku":{},"zza":{},"tr":{"Destûr tune — qeyda idx_staff a vê he
 "Çalakî bi giştî çawa bû?":"Etkinlik genel olarak nasıldı?",
 "Şablonek hilbijêre an li jêr cureyekî pirsê zêde bike.":"Bir şablon seçin ya da aşağıdan bir soru türü ekleyin.",
 "Şanoya zarokan":"Çocuk tiyatrosu",
-"Bêalî":"Kararsızım"}};
+"Bêalî":"Kararsızım",
+"Hemû dêûbav":"Tüm veliler",
+"Ankêta nû (dêûbav / mamoste)":"Yeni anket (veli / öğretmen)",
+"Dêûbav û mamosteyên Akademiya Zarokan ankêtê di sepana xwe de (Ragihandin) dibînin û bersiv didin. Her malbat / mamoste carekê bersiv dide.":"Çocuk Akademisi velileri ve öğretmenleri anketi kendi uygulamalarında (Duyurular) görür ve yanıtlar. Her aile / öğretmen bir kez yanıtlar.",
+"Dêûbavên zarokên di qadên bijartî de bersiv didin.":"Seçili alanlardaki çocukların velileri yanıtlar.",
+"Mamosteyên qadên bijartî bersiv didin.":"Seçili alanların öğretmenleri yanıtlar.",
+"Xwendekarên qadên bijartî bersiv didin.":"Seçili alanların öğrencileri yanıtlar.",
+"Nêrîna mamosteyên zarokan":"Çocuk öğretmenleri görüşü",
+"Amûr û dersxane ji bo zarokan guncav in.":"Araç gereç ve derslikler çocuklar için uygun.",
+"Hejmara zarokan di sinifê de maqûl e.":"Sınıftaki çocuk sayısı makul.",
+"Têkiliya bi dêûbavan re baş e.":"Velilerle iletişim iyi."}};
 window.AAT_SITE={"ku":{},"zza":{}};
 window.AAT_SITE_AREA={"ku":{},"zza":{}};
 window.AAT_ZAROK={"ku":{},"zza":{}};

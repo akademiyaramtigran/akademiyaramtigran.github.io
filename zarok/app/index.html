@@ -285,7 +285,7 @@ async function onSignedIn(u) {
   listen(collection(FB.db, "kidClasses"), v => { S.cls = v; });
   listen(query(collection(FB.db, "kidClassPosts"), orderBy("createdAt", "desc"), limit(60)), v => { S.cposts = v; });
   listen(query(collection(FB.db, "kidSurveys"), where("active", "==", true)), v => { S.ksv = v; });
-  listen(query(collection(FB.db, "kidSurveyResponses"), where("guardianNo", "==", no)), v => { S.kresp = v; });
+  listen(query(collection(FB.db, "kidSurveyResponses"), where("no", "==", no)), v => { S.kresp = v; });
   listen(query(collection(FB.db, "kidAnnouncements"), orderBy("createdAt", "desc"), limit(30)), v => { S.anns = v; });
   listen(query(collection(FB.db, "kidMessages"), where("guardianNo", "==", no)), v => { S.msgs = v.sort((a, b) => tsMs(a.createdAt) - tsMs(b.createdAt)); });
   S.phase = "home"; render();
@@ -301,7 +301,7 @@ async function onTeacherSignedIn(u) {
     // Hem çocuk öğretmeni hem akademi öğretmeni için kidTeachers/<no> kaydı gerekir
     // (akademi öğretmeni, Öğrenci İşleri tarafından çocuk akademisine bağlanmış olmalı)
     const d = await getDoc(doc(FB.db, "kidTeachers", no)); if (!d.exists()) throw { code: "permission-denied" }; name = d.data().name || "";
-    S.teacher = { no, name, kind: kidT ? "kid" : "academy" };
+    S.teacher = { no, name, area: d.data().area || "", kind: kidT ? "kid" : "academy" };
   } catch (e) {
     await FB.au.signOut(FB.auth); S.phase = "login"; S.err = e.code === "unavailable" ? "errNet" : "errNotTeacher"; render(); return;
   }
@@ -311,6 +311,8 @@ async function onTeacherSignedIn(u) {
   listen(collection(FB.db, "guardians"), v => { S.guards = v; });
   listen(collection(FB.db, "kidClasses"), v => { S.cls = v; });
   listen(query(collection(FB.db, "kidClassPosts"), where("teacherNo", "==", no)), v => { S.cposts = v.sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt)); });
+  listen(query(collection(FB.db, "kidSurveys"), where("active", "==", true)), v => { S.ksv = v; });
+  listen(query(collection(FB.db, "kidSurveyResponses"), where("no", "==", no)), v => { S.kresp = v; });
   listen(query(collection(FB.db, "kidAttendance"), where("date", "==", todayStr())), v => { S.att = v.sort((a, b) => (b.time || "").localeCompare(a.time || "")); });
   listen(collection(FB.db, "kidSchedule"), v => { S.sched = v; });
   listen(query(collection(FB.db, "kidAnnouncements"), orderBy("createdAt", "desc"), limit(30)), v => { S.anns = v; });
@@ -413,8 +415,12 @@ async function readFiles(list) {
   return out;
 }
 // ── Veli anketleri ──
-const myLevels = () => [...new Set(S.kids.map(k => +k.classLevel).filter(Boolean))];
-const survFor = () => S.ksv.filter(sv => !(sv.endDate && sv.endDate < todayStr()) && (!(sv.targetLevels || []).length || (sv.targetLevels || []).map(Number).some(l => myLevels().includes(l))));
+// Hedef: veli anketi ("guardians") → çocuklarının alanı · öğretmen anketi ("kidteachers") → öğretmenin alanı (boş = hepsi)
+const isTeacherMode = () => S.mode === "teacher";
+const myAreas = () => isTeacherMode() ? [(S.teacher && S.teacher.area) || ""].filter(Boolean) : [...new Set(S.kids.map(k => k.area).filter(Boolean))];
+const survFor = () => S.ksv.filter(sv => !(sv.endDate && sv.endDate < todayStr())
+  && (isTeacherMode() ? sv.targetType === "kidteachers" : sv.targetType !== "kidteachers")
+  && (!(sv.targetAreas || []).length || (isTeacherMode() && !(S.teacher && S.teacher.area)) || (sv.targetAreas || []).some(a => myAreas().includes(a))));
 const survResp = sv => S.kresp.find(r => r.surveyId === sv.id);
 const survPending = () => survFor().filter(sv => !survResp(sv));
 function survInput(q, A) {
@@ -436,7 +442,8 @@ function viewSurvey(sv) {
     if (miss.length) { toast("⚠ " + T("survReq") + ": " + miss.join(", ")); return; }
     const { doc, setDoc } = FB.fs;
     try {
-      await setDoc(doc(FB.db, "kidSurveyResponses", sv.id + "_" + S.guardian.no), { surveyId: sv.id, guardianNo: S.guardian.no, guardianName: sv.anonymous ? "" : (S.guardian.name || ""), kidLevels: myLevels(), answers: A, submittedAt: new Date().toISOString() });
+      const me = isTeacherMode() ? S.teacher : S.guardian;
+      await setDoc(doc(FB.db, "kidSurveyResponses", sv.id + "_" + me.no), { surveyId: sv.id, role: isTeacherMode() ? "teacher" : "guardian", no: me.no, name: sv.anonymous ? "" : (me.name || ""), areas: myAreas(), answers: A, submittedAt: new Date().toISOString() });
       S.survOpen = null; toast("✅ " + T("survThanks")); vib(); render();
     } catch (e) { toast("❌ " + (e.code || e.message)); }
   };
@@ -705,11 +712,13 @@ function classComposer() {
     S.cposts.slice(0, 20).map(p => postCard(p, () => { if (confirm(T("delQ"))) tWrite("cpdel", p.id).catch(e => toast("❌ " + e.code)); })));
 }
 function viewTAnn() {
+  if (S.survOpen) { const sv = S.ksv.find(x => x.id === S.survOpen); if (sv) return viewSurvey(sv); S.survOpen = null; }
   const ti = h("input", { class: "in", id: "t-ann-t", placeholder: T("annTitlePh"), value: S.drafts.at || "", oninput: e => S.drafts.at = e.target.value });
   const bo = h("textarea", { class: "in", id: "t-ann-b", rows: 3, placeholder: T("annBodyPh"), oninput: e => S.drafts.ab = e.target.value }); bo.value = S.drafts.ab || "";
   const send = () => { const a = ti.value.trim(), b = bo.value.trim(); if (!a || !b) { toast(T("needText")); return; }
     tWrite("ann", a, b).then(() => { S.drafts.at = S.drafts.ab = ""; toast(T("annSent")); render(); }).catch(e => toast("❌ " + e.code)); };
   return h("div", null,
+    survCards(),
     classComposer(),
     h("div", { class: "card" }, ti, h("div", { style: "height:8px" }), bo, h("button", { class: "btn", style: "margin-top:10px", onclick: send }, T("sendAnn"))),
     S.anns.length ? S.anns.map(a => h("div", { class: "card" }, h("div", { class: "h" }, "📢 " + (a.title || "")), h("div", { style: "white-space:pre-wrap" }, a.body || ""),
@@ -741,7 +750,7 @@ function nav() {
   const unreadMsg = S.msgs.filter(m => m.from === "staff" && tsMs(m.createdAt) > S.lastMsgSeen).length;
   const tUnread = S.msgs.filter(m => m.from === "guardian" && !m.read).length;
   const items = S.mode === "teacher"
-    ? [["att", "✅", T("tabAtt")], ["kids", "🎓", T("tabKids")], ["sched", "📅", T("tabSched")], ["ann", "📢", T("tabAnn")], ["msg", "💬", T("tabMsg"), tUnread]]
+    ? [["att", "✅", T("tabAtt")], ["kids", "🎓", T("tabKids")], ["sched", "📅", T("tabSched")], ["ann", "📢", T("tabAnn"), S.tab !== "ann" && survPending().length ? "•" : 0], ["msg", "💬", T("tabMsg"), tUnread]]
     : [["today", "🏠", T("tabToday")], ["sched", "📅", T("tabSched")], ["att", "✅", T("tabAtt")], ["ann", "📢", T("tabAnn"), unreadAnn ? "•" : 0], ["msg", "💬", T("tabMsg"), S.tab !== "msg" ? unreadMsg : 0]];
   return h("nav", { class: "nav" }, h("div", { class: "in2" }, items.map(([k, e, lb, badge]) =>
     h("button", { class: S.tab === k ? "on" : "", "aria-current": S.tab === k ? "page" : null, onclick: () => { S.tab = k; S.thread = null; render(); window.scrollTo(0, 0); } },
