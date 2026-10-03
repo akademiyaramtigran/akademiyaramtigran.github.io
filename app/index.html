@@ -139,7 +139,7 @@
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.googleapis.com;
   font-src 'self' https://fonts.gstatic.com https://*.gstatic.com data:;
   img-src 'self' blob: data: https:;
-  connect-src 'self' blob: data: http://127.0.0.1:9099 http://127.0.0.1:8080 ws://127.0.0.1:8080
+  connect-src 'self' blob: data: http://127.0.0.1:9099 http://127.0.0.1:8080 ws://127.0.0.1:8080 http://127.0.0.1:5001
     https://*.googleapis.com
     https://*.google.com
     https://*.gstatic.com
@@ -284,11 +284,21 @@
   // Cloud Functions yayınlanınca true yapın (bkz. FUNCTIONS.md). true iken:
   //  • kullanıcı oluşturma / şifre belirleme / silme sunucuda yapılır (eski şifre gerekmez)
   //  • düz metin şifre (_plainPass) Firestore'a YAZILMAZ, mevcutlar ilk kayıtta silinir
-  const USE_CLOUD_FUNCTIONS = false;
+  const USE_CLOUD_FUNCTIONS = true;
+  let _userFn = null;
   async function callUserFn(data) {
-    const m = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js");
-    const fn = m.httpsCallable(m.getFunctions(app, "europe-west1"), "aatUser");
-    return (await fn(data)).data;
+    if (!_userFn) {
+      const m = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js");
+      const fns = m.getFunctions(app, "europe-west1");
+      if (EMU) m.connectFunctionsEmulator(fns, "127.0.0.1", 5001);
+      _userFn = m.httpsCallable(fns, "aatUser");
+    }
+    try { return (await _userFn(data)).data; }
+    catch (e) {
+      // Sunucu "zaten var" derse tarayıcı akışıyla aynı kodu ver → çağıran sıradaki numaraya geçer
+      if (e && e.code === "functions/already-exists") throw Object.assign(new Error("email-already-in-use"), { code: "auth/email-already-in-use" });
+      throw e;
+    }
   }
 
   // ── İkinci Firebase instance — kullanıcı oluştururken admin oturumu kapanmaz ──

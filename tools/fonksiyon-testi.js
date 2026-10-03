@@ -23,6 +23,8 @@ const { getFunctions, connectFunctionsEmulator, httpsCallable } = require('fireb
   const S=mk('s');await t('Öğrenci yeni şifreyle girer',signInWithEmailAndPassword(S.au,'10202601@ogrenci.aat','Abc12345').then(u=>({data:u.user.email})),true);
   await t('Yönetici eski şifre OLMADAN şifre değiştirir',A.fn({action:'setPassword',no:'10202601',role:'student',password:'Yeni9999'}),true);
   const S2=mk('s2');await t('Öğrenci YENİ şifreyle girer',signInWithEmailAndPassword(S2.au,'10202601@ogrenci.aat','Yeni9999').then(u=>({data:'ok'})),true);
+  await t('Var olan hesabı "oluştur" şifresini DEĞİŞTİREMEZ (already-exists)',A.fn({action:'create',no:'10202601',role:'student',password:'Ele12345'}),false);
+  const S4=mk('s4');await t('Öğrenci şifresi değişmedi',signInWithEmailAndPassword(S4.au,'10202601@ogrenci.aat','Yeni9999').then(u=>({data:'ok'})),true);
   await t('Yönetici veli hesabı oluşturur',A.fn({action:'create',no:'92026001',role:'guardian',password:'Veli1234'}),true);
   await t('Öğretmen fonksiyonu ÇAĞIRAMAZ',T.fn({action:'delete',no:'10202601',role:'student'}),false);
   await t('Basın başkasının şifresini DEĞİŞTİREMEZ',PR.fn({action:'setPassword',no:'98202601',role:'teacher',password:'Hack1234'}),false);
