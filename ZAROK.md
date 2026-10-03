@@ -36,6 +36,16 @@ Veli /zarok/app/ → giriş ──► Bugün · Program · Devam · Duyurular ·
 **Öğrenci İşleri** sekmeleri: Serlêdan · Zarok · Dêûbav · Mamoste · Amadebûn · Bername · Ragihandin · Peyam
 **Basın** sekmeleri: Nûçeyên Malperê · Arşîv (çocuk sitesi)
 - **Çocuk kaydı:** başvurudan tek tıkla veya elle; yeni veli hesabı ya da mevcut veliye bağlama; öğretmen atama
+- **Kardeşler (aynı veli):** bir ailenin tüm çocukları **tek veli hesabına** bağlanır; veli aynı numara/şifreyle
+  hepsini görür (uygulamada çocuk seçici). Üç yol:
+  - **Dêûbav** sekmesi → velinin satırında **➕ Kardeş** → form o veliyle açılır, yeni hesap/şifre üretilmez
+  - Çocuk eklerken **Mevcut veli** → ad / telefon / numarayla arama
+  - Başvuru kabulünde aynı **telefon** (son 10 hane; `+90 555…` = `0555…`) veya **e-posta** ile kayıtlı veli
+    otomatik önerilir (⭐); istenirse başka veli ya da yeni hesap seçilir
+  - Çocuk kartında "Kardeşler" satırı görünür
+- **Sınıflar (1., 2., … 6.):** çocuğun sınıfı `kids.classLevel`; **Sınıf** sekmesinde sınıflar listelenir,
+  çocuğun sınıfı listeden değiştirilir, her sınıfa bir veya birkaç **sınıf öğretmeni** atanır (`kidClasses/L<seviye>`).
+  Öğretmen uygulamasında **🏫 Sınıfım** ve sınıf filtreleri; veli uygulamasında çocuğun sınıfı ve sınıf öğretmeni
 - **Öğretmen kaydı:** otomatik numara (7YYYYnnn) + otomatik şifre + e-posta; düzenle / 🔑 şifre yenile / sil
 - **Veliler:** düzenle / 🔑 şifre yenile / sil (bağlı çocuk yoksa)
 - **Site haberleri ve arşiv:** 4 dilde başlık/metin, en fazla 4 fotoğraf, YouTube bağlantısı
@@ -65,8 +75,8 @@ Veli /zarok/app/ → giriş ──► Bugün · Program · Devam · Duyurular ·
   mesajlarını görür; yetişkin öğrenci verisine hiç erişemez
 - Veli çocuk kaydında yalnızca `pickups`, `consentPhoto`, `consentShare`, `health` alanlarını değiştirebilir
 - Başvuru formu yalnızca dönem açıkken, KVKK onayıyla ve sınırlı alanlarla yazılabilir
-- Emülatörde test edildi: `tools/kural-testi.js` (166 senaryo) ve `tools/e2e/` (veli, öğrenci işleri,
-  yönetim + basın + öğretmen; 78 adım)
+- Emülatörde test edildi: `tools/kural-testi.js` (182 senaryo) ve `tools/e2e/` (veli, öğrenci işleri,
+  yönetim + basın + öğretmen, kardeş + sınıf)
 
 ## Kendi alan adına taşıma (zarok.aramtigran.org)
 ```bash

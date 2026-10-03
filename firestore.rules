@@ -194,6 +194,8 @@ service cloud.firestore {
     // ── Ortak koleksiyonlar — okuma: giriş yapmış herkes ───────────────
     // (öğrenci paneli program/duyuru/anket/QR okur; yazma personel)
     match /schedule/{id}          { allow read: if member(); allow write: if isStaff(); }
+    // Sınıflar: öğrencinin sınıfı students.classLevel; sınıf öğretmeni burada (doc id = <alan>_<seviye>)
+    match /classes/{id}           { allow read: if member(); allow write: if isRegistrar(); }
     match /announcements/{id}     { allow read: if member(); allow write: if isStaff(); }
     match /studentSurveys/{id}    { allow read: if member(); allow write: if isStaff(); }
     match /studentStats/{id}      { allow read: if isStaff(); allow write: if isStaff(); }
@@ -346,6 +348,8 @@ service cloud.firestore {
     }
 
     match /kidSchedule/{id}      { allow read: if kidStaff() || isGuardian(); allow write: if isRegistrar(); }
+    // Sınıflar (1., 2., …): çocuğun sınıfı kids.classLevel; sınıf öğretmeni burada (doc id = L<seviye>)
+    match /kidClasses/{id}       { allow read: if kidStaff() || isGuardian(); allow write: if isRegistrar(); }
     match /kidAnnouncements/{id} { allow read: if kidStaff() || isGuardian(); allow write: if kidStaff(); }
 
     // Veli ↔ akademi mesajları
