@@ -196,6 +196,22 @@ service cloud.firestore {
     match /schedule/{id}          { allow read: if member(); allow write: if isStaff(); }
     // Sınıflar: öğrencinin sınıfı students.classLevel; sınıf öğretmeni burada (doc id = <alan>_<seviye>)
     match /classes/{id}           { allow read: if member(); allow write: if isRegistrar(); }
+    // Sınıf paylaşımları (duyuru/ödev/belge): öğretmen YALNIZCA sınıf öğretmeni olduğu sınıfa, kendi adıyla yazar
+    function clsDoc(c, id) { return /databases/$(database)/documents/$(c)/$(id); }
+    function classPostOk(c) {
+      return request.resource.data.teacherNo == prefix()
+        && request.resource.data.classId is string
+        && exists(clsDoc(c, request.resource.data.classId))
+        && prefix() in get(clsDoc(c, request.resource.data.classId)).data.get('teacherNos', [])
+        && request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 140
+        && request.resource.data.type in ['duyuru', 'odev', 'belge'];
+    }
+    match /classPosts/{id} {
+      allow read: if member();
+      allow create: if isRegistrar() || (isStaff() && classPostOk('classes'));
+      allow update: if isRegistrar();
+      allow delete: if isRegistrar() || (isStaff() && resource.data.teacherNo == prefix());
+    }
     match /announcements/{id}     { allow read: if member(); allow write: if isStaff(); }
     match /studentSurveys/{id}    { allow read: if member(); allow write: if isStaff(); }
     match /studentStats/{id}      { allow read: if isStaff(); allow write: if isStaff(); }
@@ -350,6 +366,12 @@ service cloud.firestore {
     match /kidSchedule/{id}      { allow read: if kidStaff() || isGuardian(); allow write: if isRegistrar(); }
     // Sınıflar (1., 2., …): çocuğun sınıfı kids.classLevel; sınıf öğretmeni burada (doc id = L<seviye>)
     match /kidClasses/{id}       { allow read: if kidStaff() || isGuardian(); allow write: if isRegistrar(); }
+    match /kidClassPosts/{id} {
+      allow read: if kidStaff() || isGuardian();
+      allow create: if isRegistrar() || (kidStaff() && classPostOk('kidClasses'));
+      allow update: if isRegistrar();
+      allow delete: if isRegistrar() || (kidStaff() && resource.data.teacherNo == prefix());
+    }
     match /kidAnnouncements/{id} { allow read: if kidStaff() || isGuardian(); allow write: if kidStaff(); }
 
     // Veli ↔ akademi mesajları

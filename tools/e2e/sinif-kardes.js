@@ -52,6 +52,10 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await put('kidTeachers/' + KT, { no: KT, name: 'Mamoste Berfîn' });
   await signUp(KT + '@zmamoste.aat', 'Kid12345');
   await put('config/zarok', { open: true });
+  // Ayrı kaydedilmiş başka bir aile (sonradan kardeş olarak eşleştirilecek)
+  await put('idx_guardians/9' + YR + '777', { no: '9' + YR + '777' });
+  await put('guardians/9' + YR + '777', { no: '9' + YR + '777', name: 'Bavê Aram', phone: '0532 000 00 01' });
+  await put('kids/K9', { no: '8' + YR + '777', name: 'Azad Aram', area: 'drama', guardianNos: ['9' + YR + '777'], classLevel: 2 });
   await put('kidApplications/KA9', { kidName: 'Zîlan Aram', kidDob: '2019-01-05', area: 'drama', guardianName: 'Nûrê Aram', relation: 'dayik', phone: '+90 555 444 55 66', consentKvkk: true, consentPhoto: false, consentShare: false, status: 'new', dateStr: '2026-10-01', createdAt: new Date() });
 
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
@@ -90,7 +94,8 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   // ── 2) Veliler → "➕ Xwişk/bira": kardeş aynı hesaba ──
   await clickText(p, '👨‍👩‍👧 Dêûbav'); await p.waitForTimeout(500);
   ok('Veliler sekmesinde kardeş ekleme düğmesi', (await txt(p)).includes('Xwişk/bira'));
-  await clickText(p, '➕ Xwişk/bira'); await p.waitForTimeout(500);
+  await p.evaluate(() => { const row = [...document.querySelectorAll('div')].filter(d => d.textContent.includes('Nûrê Aram') && [...d.querySelectorAll('button')].some(b => b.textContent.includes('➕ Xwişk/bira'))).pop();
+    [...row.querySelectorAll('button')].find(b => b.textContent.includes('➕ Xwişk/bira')).click(); }); await p.waitForTimeout(500);
   const f2 = await txt(p);
   ok('Kardeş formu mevcut veliyle açılır (yeni hesap yok uyarısı)', f2.includes('Zarokên vê dêûbavê') && f2.includes('Dilan Aram'));
   await p.locator('label:has-text("Nav û paşnavê zarokê") + input').fill('Serhat Aram');
@@ -102,7 +107,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await clickText(p, 'Baş e'); await p.waitForTimeout(300);
   let ks = await kidsOf(gno);
   ok('İki çocuk aynı veli numarasına bağlı', ks.length === 2, ks.length + ' çocuk');
-  ok('Yeni veli hesabı açılmadı', (await list('guardians')).length === 1);
+  ok('Yeni veli hesabı açılmadı', (await list('guardians')).length === 2);
 
   // ── 3) Başvuru: aynı telefon → kardeş olarak önerilir, kabulde aynı veliye bağlanır ──
   await clickText(p, '📋 Serlêdan'); await p.waitForTimeout(500);
@@ -112,7 +117,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await clickText(p, '✅ Qebûl û Tescîl');
   await p.waitForSelector('text=Zarok hate tomarkirin', { timeout: 20000 });
   ks = await kidsOf(gno);
-  ok('Başvurudan gelen kardeş aynı veliye bağlandı', ks.length === 3 && (await list('guardians')).length === 1, ks.length + ' çocuk');
+  ok('Başvurudan gelen kardeş aynı veliye bağlandı', ks.length === 3 && (await list('guardians')).length === 2, ks.length + ' çocuk');
   await clickText(p, 'Baş e'); await p.waitForTimeout(300);
   await clickText(p, '🎓 Zarok'); await p.waitForTimeout(500);
   ok('Çocuk listesinde kardeşler ve sınıf görünür', /Xwişk û bira: .*Serhat Aram/.test(await txt(p)) && (await txt(p)).includes('1. Sînif'));
@@ -146,12 +151,35 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   const M1 = await getDocF('classes/muzik_1');
   ok('Ana akademi: Müzik 1. sınıfa sınıf öğretmeni atanır', M1.fields && JSON.stringify(M1.fields.teacherNos).includes('50202601'));
 
-  // ── 6) Veli uygulaması: 3 çocuk, sınıf + sınıf öğretmeni ──
+  // ── 5b) Kardeş eşleştir: ayrı kaydedilmiş çocuk listeden bağlanır ──
+  await topTab(p, 'Akademiya Zarokan'); await p.waitForTimeout(1500);
+  await clickText(p, '🎓 Zarok'); await p.waitForTimeout(500);
+  await p.evaluate(() => { const card = [...document.querySelectorAll('div')].filter(d => d.textContent.includes('Dilan Aram') && [...d.querySelectorAll('button')].some(b => b.textContent.trim() === '👨‍👧')).pop();
+    [...card.querySelectorAll('button')].find(b => b.textContent.trim() === '👨‍👧').click(); });
+  await p.waitForTimeout(400);
+  await p.locator('input[placeholder*="Navê zarokê, jimare"]').fill('Azad');
+  await p.selectOption('select[aria-label="Xwişk û bira"], select[aria-label="Xwişk/bira"]', { index: 1 });
+  await clickText(p, '🔗 Girê bide'); await p.waitForTimeout(2500);
+  const az = (await list('kids')).find(d => d.fields.name.stringValue === 'Azad Aram');
+  const fam = await kidsOf('9' + YR + '777');
+  ok('Kardeş eşleştir: ayrı aile birleşir (4 çocuk, iki veli)', JSON.stringify(az.fields.guardianNos).includes(gno) && fam.length === 4, fam.length + ' çocuk');
+
+  // ── 5c) Rapor: öğretmen filtresi (sınıf öğretmeninin sınıfları) ──
+  await p.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.trim().endsWith('Rapor') && x.textContent.trim().length < 12).find(x => { const r = x.getBoundingClientRect(); return r.top > 60 && r.top < 240; }); b.scrollIntoView(); b.click(); });
+  await p.waitForTimeout(1500);
+  await clickText(p, 'Lîste').catch(() => {}); await p.waitForTimeout(600);
+  const before = await p.evaluate(() => { const c = [...document.querySelectorAll('div')].find(d => /Kurte/.test(d.textContent) && d.children.length > 1); return c ? c.innerText : ''; });
+  await p.selectOption('select[aria-label="Mamoste"]', '50202601'); await p.waitForTimeout(600);
+  const r5 = await txt(p);
+  ok('Rapor: öğretmen filtresi yalnızca sınıfının öğrencilerini sayar', r5.includes('Rojîn Aram') && !/Baran Şêx/.test(r5.split('Kurte')[1] || ''), (before.match(/\d+/) || [''])[0] + ' → filtreli');
+
+  // ── 6) Veli uygulaması: 4 çocuk, sınıf + sınıf öğretmeni ──
   const vc = await mk(390); const vp = await vc.newPage(); vp.on('pageerror', e => errs.push('veli: ' + e.message));
   await vp.goto('http://localhost:8765/zarok/app/?emu=1'); await vp.waitForSelector('#l-no', { timeout: 20000 });
   await vp.click('.roles button:nth-child(1)'); await vp.fill('#l-no', gno); await vp.fill('#l-pw', gpass); await vp.click('.login .btn');
   await vp.waitForSelector('.status', { timeout: 20000 }); await vp.waitForTimeout(1500);
-  ok('Veli tek hesapla 3 kardeşi görür', (await vp.locator('.kidchip').count()) === 3);
+  ok('Veli tek hesapla tüm kardeşleri görür (eşleştirilen dahil)', (await vp.locator('.kidchip').count()) === 4, (await vp.locator('.kidchip').count()) + ' çocuk');
+  await vp.evaluate(() => [...document.querySelectorAll('.kidchip')].find(x => x.textContent.includes('Dilan')).click()); await vp.waitForTimeout(500);
   const v6 = await txt(vp);
   ok('Velide çocuğun sınıfı ve sınıf öğretmeni', v6.includes('1. Sînif') && v6.includes('Mamoste Berfîn'), v6.split('\n').find(l => l.includes('Sînif')));
 
@@ -163,6 +191,20 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await tp.evaluate(() => [...document.querySelectorAll('.chipb')].find(x => x.textContent.includes('Sinifa min')).click()); await tp.waitForTimeout(500);
   const t7 = await txt(tp);
   ok('Öğretmen "Sinifa min" → yalnızca kendi sınıfının çocukları', t7.includes('Dilan Aram') && t7.includes('Zîlan Aram') && !t7.includes('Serhat Aram'));
+  // Sınıfa ödev gönder → velide görünür
+  await tp.click('.nav button:nth-child(4)'); await tp.waitForTimeout(600);
+  ok('Çocuk öğretmeni: "Ji sinifa xwe re bişîne" kartı', (await txt(tp)).includes('Ji sinifa xwe re bişîne'));
+  await tp.evaluate(() => [...document.querySelectorAll('.chipb')].find(x => x.textContent.includes('Erka malê')).click()); await tp.waitForTimeout(200);
+  await tp.evaluate(() => [...document.querySelectorAll('.chipb')].find(x => x.textContent.trim() === '1. Sînif').click()); await tp.waitForTimeout(200);
+  await tp.fill('#cp-t', 'Stranê dubare bikin'); await tp.fill('#cp-b', 'Rûpel 3'); await tp.fill('#cp-due', '2030-01-10');
+  await tp.evaluate(() => [...document.querySelectorAll('button.btn')].find(x => x.textContent.includes('Ji sinifa xwe re bişîne')).click()); await tp.waitForTimeout(2000);
+  const kcp = await list('kidClassPosts');
+  ok('Çocuk sınıf ödevi kaydedildi (1. sınıf)', kcp.some(d => d.fields.title.stringValue === 'Stranê dubare bikin' && d.fields.classId.stringValue === 'L1'));
+  await vp.bringToFront(); await vp.click('.nav button:nth-child(1)'); await vp.waitForTimeout(1500);
+  const vToday = await txt(vp);
+  await vp.click('.nav button:nth-child(4)'); await vp.waitForTimeout(800);
+  const vAnn = await txt(vp);
+  ok('Veli: çocuğun sınıf ödevi Bugün + Duyurular ekranında', vToday.includes('Stranê dubare bikin') && vAnn.includes('Stranê dubare bikin') && vAnn.includes('2030-01-10'));
 
   // ── 8) Ana akademi öğretmeni: "Sinifên Min" ──
   const ac = await mk(430); const ap = await login(ac, '50202601', 'Tea12345');
@@ -173,11 +215,27 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await ap.waitForTimeout(500);
   const t8 = await txt(ap);
   ok('Akademi öğretmeni "Sinifên Min" kartında sınıfını ve öğrencisini görür', t8.includes('Sinifên Min') && t8.includes('Rojîn Aram'));
+  // Sınıfına ödev + belge gönder
+  await ap.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('Sinifa Min') && x.offsetParent).pop(); b.click(); });
+  await ap.waitForTimeout(1200);
+  await ap.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.includes('Erka malê') && x.offsetParent).click());
+  await ap.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.includes('1. Sînif') && x.offsetParent).click());
+  await ap.locator('input[placeholder="Sernav"]').fill('Gama Do major');
+  await ap.locator('textarea[placeholder^="Nivîs"]').fill('Her roj 15 deqe');
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAIAAAACUFjqAAAAEklEQVR4nGP4z8CAB+GTG8HSALfKY52fTcuYAAAAAElFTkSuQmCC', 'base64');
+  await ap.setInputFiles('input[type=file][accept="image/*,application/pdf"]', { name: 'nota.png', mimeType: 'image/png', buffer: png }); await ap.waitForTimeout(800);
+  await ap.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.includes('📤 Bişîne')).click()); await ap.waitForTimeout(2000);
+  const cps = await list('classPosts');
+  ok('Akademi öğretmeni kendi sınıfına ödev + dosya gönderir', cps.some(d => d.fields.title.stringValue === 'Gama Do major' && d.fields.classId.stringValue === 'muzik_1' && JSON.stringify(d.fields.files).includes('nota.png')));
 
   // ── 9) Öğrenci: sınıf öğretmeni adı profilde ──
   const sc = await mk(430); const sp = await login(sc, '20202601', 'Stu12345', 'Xwendekar');
   await sp.waitForTimeout(1500);
   ok('Öğrenci kendi sınıf öğretmenini görür', (await txt(sp)).includes('Mamoste Dilovan'));
+  await sp.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('Sinifa Min') && x.offsetParent).pop(); b.click(); });
+  await sp.waitForTimeout(1500);
+  const s9 = await txt(sp);
+  ok('Öğrenci "Sinifa Min": ödev, dosya ve sınıf öğretmeni', s9.includes('Gama Do major') && s9.includes('nota.png') && s9.includes('Mamoste Dilovan'));
 
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   await b.close();
