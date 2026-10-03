@@ -56,6 +56,13 @@ jobs:
           KEY="$RUNNER_TEMP/sa.json"
           printf '%s' "$SA" > "$KEY"
           export GOOGLE_APPLICATION_CREDENTIALS="$KEY"
+          # Firebase, Blaze planını Cloud Billing API ile doğrular; bu API kendiliğinden açılmaz.
+          # Hizmet hesabında Editor rolü olduğundan burada açılır (zaten açıksa hiçbir şey olmaz).
+          if command -v gcloud >/dev/null 2>&1; then
+            gcloud auth activate-service-account --key-file="$KEY" --quiet
+            gcloud services enable cloudbilling.googleapis.com --project aram2026-a9fd7 --quiet \
+              || echo "::warning::Cloud Billing API açılamadı — Console'dan elle açın"
+          fi
           case "$HEDEF" in
             kurallar)  ONLY="firestore:rules,storage" ;;
             fonksiyon) ONLY="functions" ;;
