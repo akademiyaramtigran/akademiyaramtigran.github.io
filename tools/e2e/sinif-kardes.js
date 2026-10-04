@@ -1,5 +1,6 @@
 // Uçtan uca test — çalıştırma: tools/README.md → "E2E"
-// E2E: Kardeşler (aynı veliye bağlama) + sınıf sistemi (çocuk + ana akademi, sınıf öğretmeni)
+// E2E: Kardeşler (aynı veliye bağlama) + sınıf sistemi (çocuk akademisi seviyeleri + ana akademi alan sınıfı, sınıf öğretmeni)
+//      Ana akademinin genel sınıf / ders programı / atölye akışları: sinif-atolye.js
 const { chromium } = require('playwright-core');
 const fs = require('fs');
 const FBV = require('firebase/package.json').version;
@@ -43,9 +44,9 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await put('teachers/T50', { no: '50202601', name: 'Mamoste Dilovan', area: 'muzik' });
   await signUp('50202601@ogretmen.aat', 'Tea12345');
   await put('idx_students/20202601', { no: '20202601' });
-  await put('students/S1', { no: '20202601', name: 'Rojîn Aram', area: 'muzik', classLevel: 1, fireId: 'S1' });
+  await put('students/S1', { no: '20202601', name: 'Rojîn Aram', area: 'muzik', fireId: 'S1' });
   await put('idx_students/20202602', { no: '20202602' });
-  await put('students/S2', { no: '20202602', name: 'Baran Şêx', area: 'muzik', classLevel: 2, fireId: 'S2' });
+  await put('students/S2', { no: '20202602', name: 'Baran Şêx', area: 'muzik', fireId: 'S2' });
   await signUp('20202601@ogrenci.aat', 'Stu12345');
   const KT = '7' + YR + '901';
   await put('idx_kidstaff/' + KT, { no: KT });
@@ -139,17 +140,19 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   ok('Çocuk 1. sınıfına sınıf öğretmeni atanır', L1.fields && JSON.stringify(L1.fields.teacherNos).includes(KT) && JSON.stringify(L1.fields.teacherNames).includes('Mamoste Berfîn'));
   ok('Sınıf kartında öğretmen ve 2 çocuk', /1\. Sînif \(2 zarok\)/.test(await txt(p)) && (await txt(p)).includes('👩‍🏫 Mamoste Berfîn'));
 
-  // ── 5) Ana akademi: Sınıf bölümü — alan + sınıf grupları, sınıf öğretmeni ──
-  await p.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.trim().endsWith('Sînif') && x.textContent.trim().length < 12).find(x => { const r = x.getBoundingClientRect(); return r.top > 60 && r.top < 240; }); b.scrollIntoView(); b.click(); }); await p.waitForTimeout(1500);
+  // ── 5) Ana akademi: Müzik alanında sınıf oluştur (öğrenci seç + sınıf öğretmeni) ──
+  await topTab(p, 'Sinif û Atolye'); await p.waitForTimeout(1500);
   const s5 = await txt(p);
-  ok('Ana akademi sınıfları alan + sınıfa göre gruplanır', /1\. Sînif \(1 xwendekar\)/.test(s5) && /2\. Sînif \(1 xwendekar\)/.test(s5));
-  await p.evaluate(() => { const card = [...document.querySelectorAll('div')].filter(d => /1\. Sînif \(1 xwendekar\)/.test(d.textContent) && d.querySelector('button')).pop();
-    [...card.querySelectorAll('button')].find(x => x.textContent.includes('Mamosteyê sinifê')).click(); });
-  await p.waitForTimeout(400);
+  ok('Ana akademi: sınıfsız öğrenciler listelenir', s5.includes('Bê sinif') && s5.includes('Rojîn Aram') && s5.includes('Baran Şêx'));
+  await clickText(p, '➕ Sinifa nû'); await p.waitForTimeout(400);
+  await p.locator('input[aria-label="Navê sinifê"]').fill('1. Sînif');
   await p.locator('label', { hasText: 'Mamoste Dilovan' }).locator('input[type=checkbox]').check();
+  await p.locator('label', { hasText: 'Rojîn Aram' }).locator('input[type=checkbox]').check();
   await clickText(p, '💾 Tomar bike'); await p.waitForTimeout(1500);
-  const M1 = await getDocF('classes/muzik_1');
-  ok('Ana akademi: Müzik 1. sınıfa sınıf öğretmeni atanır', M1.fields && JSON.stringify(M1.fields.teacherNos).includes('50202601'));
+  const M1 = (await list('classes')).find(d => d.fields.name && d.fields.name.stringValue === '1. Sînif');
+  const M1id = M1 ? M1.name.split('/').pop() : '';
+  ok('Ana akademi: Müzik · 1. Sınıf oluşturuldu (öğrenci + sınıf öğretmeni)', M1 && M1.fields.kind.stringValue === 'area' && M1.fields.area.stringValue === 'muzik'
+    && JSON.stringify(M1.fields.studentNos).includes('20202601') && !JSON.stringify(M1.fields.studentNos).includes('20202602') && JSON.stringify(M1.fields.teacherNos).includes('50202601'));
 
   // ── 5b) Kardeş eşleştir: ayrı kaydedilmiş çocuk listeden bağlanır ──
   await topTab(p, 'Akademiya Zarokan'); await p.waitForTimeout(1500);
@@ -219,14 +222,14 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await ap.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('Sinifa Min') && x.offsetParent).pop(); b.click(); });
   await ap.waitForTimeout(1200);
   await ap.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.includes('Erka malê') && x.offsetParent).click());
-  await ap.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.includes('1. Sînif') && x.offsetParent).click());
+  await ap.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.includes('Muzîk · 1. Sînif') && x.offsetParent).click());
   await ap.locator('input[placeholder="Sernav"]').fill('Gama Do major');
   await ap.locator('textarea[placeholder^="Nivîs"]').fill('Her roj 15 deqe');
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAIAAAACUFjqAAAAEklEQVR4nGP4z8CAB+GTG8HSALfKY52fTcuYAAAAAElFTkSuQmCC', 'base64');
   await ap.setInputFiles('input[type=file][accept="image/*,application/pdf"]', { name: 'nota.png', mimeType: 'image/png', buffer: png }); await ap.waitForTimeout(800);
   await ap.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.includes('📤 Bişîne')).click()); await ap.waitForTimeout(2000);
   const cps = await list('classPosts');
-  ok('Akademi öğretmeni kendi sınıfına ödev + dosya gönderir', cps.some(d => d.fields.title.stringValue === 'Gama Do major' && d.fields.classId.stringValue === 'muzik_1' && JSON.stringify(d.fields.files).includes('nota.png')));
+  ok('Akademi öğretmeni kendi sınıfına ödev + dosya gönderir', cps.some(d => d.fields.title.stringValue === 'Gama Do major' && d.fields.classId.stringValue === M1id && JSON.stringify(d.fields.files).includes('nota.png')));
 
   // ── 9) Öğrenci: sınıf öğretmeni adı profilde ──
   const sc = await mk(430); const sp = await login(sc, '20202601', 'Stu12345', 'Xwendekar');

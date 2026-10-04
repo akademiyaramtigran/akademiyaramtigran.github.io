@@ -28,16 +28,14 @@ firebase login
 cd functions && npm install && cd ..
 firebase deploy --only functions
 ```
-Sonra `app/index.html` içinde:
-```js
-const USE_CLOUD_FUNCTIONS = true;
-```
-commit + push. (Kapalıyken uygulama eski yöntemle çalışmaya devam eder.)
+Uygulama **yalnızca sunucu modunda** çalışır (eski tarayıcı yolu — ikinci oturum, `kidSecrets` şifre kasası — kaldırıldı).
+Fonksiyon yayında değilse kullanıcı oluşturma / şifre belirleme / silme hata verir.
+Eski sürümden kalan düz metin şifre kopyalarını silmek için: GitHub → Actions → **Eski şifre kopyalarını sil** → `SİL`.
 
 ## İsteğe bağlı — son adım
 Fonksiyon açıldıktan sonra Firebase Console → Authentication → Settings → User actions →
 **"Enable create (sign-up)"** kapatılabilir: artık kimse istemciden hesap açamaz.
-(Kapatmadan önce `USE_CLOUD_FUNCTIONS = true` sürümünün yayında olduğundan emin olun.)
+(Fonksiyonun yayında olduğundan emin olun.)
 
 ## Kurallar da buradan yayınlanabilir
 ```bash

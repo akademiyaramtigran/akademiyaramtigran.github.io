@@ -304,9 +304,6 @@ service cloud.firestore {
     match /idx_guardians/{no} { allow read: if isStaff() || (authed() && prefix() == no); allow write: if isRegistrar(); }
     match /idx_kidstaff/{no}  { allow read: if isStaff() || (authed() && prefix() == no); allow write: if isRegistrar(); }
 
-    // Geçici şifre kasası (Cloud Functions açılana kadar şifre yenileme/silme için) — yalnızca öğrenci işleri + yönetici
-    match /kidSecrets/{no} { allow read, write: if isRegistrar(); }
-
     // Çocuk akademisi öğretmen kayıtları (doc id = öğretmen no)
     match /kidTeachers/{no} {
       allow read:  if kidStaff();
