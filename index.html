@@ -1069,7 +1069,9 @@ function renderApply(cfg, templates){
   const inRange=(!cfg.startDate||today>=cfg.startDate)&&(!cfg.endDate||today<=cfg.endDate);
   if(!cfg.open||!inRange){
     const d=document.createElement('div'); d.className='empty';
-    d.textContent = cfg.note ? cfg.note : ST('ap_closed');
+    // Kapalıyken her zaman ziyaretçinin dilinde durum mesajı (not tek dilde yazıldığı ve
+    // "başladı" gibi açık döneme ait olabileceği için burada gösterilmez — açıkken formun üstünde çıkar)
+    d.textContent = ST('ap_closed');
     applyRoot.appendChild(d); return;
   }
 

@@ -8,7 +8,10 @@
  * AAT_ZAROK     : Akademiya Zarokan veli uygulaması (anahtar = zarok/app sözlük anahtarı)
  * AAT_ZAROK_SITE: Akademiya Zarokan tanıtım/başvuru sayfası
  * Elle düzenlemeyin; rapor JSON'larını tools/dil-entegre.js ile birleştirin. */
-window.AAT_TX={"ku":{},"zza":{},"tr":{"Kartên xwendekaran çap bike":"Öğrenci kartlarını yazdır",
+window.AAT_TX={"ku":{},"zza":{},"tr":{"Navê dersê pêwîst e":"Ders adı gerekli",
+"Navê dersê":"Ders adı",
+"Hemû zarokên qadê (bê sinif)":"Alanın tüm çocukları (sınıfsız)",
+"Kartên xwendekaran çap bike":"Öğrenci kartlarını yazdır",
 "Qad · Tescîl · Bername":"Alan · Kayıt · Program",
 "Qadekê veke: xwendekar û mamoste tescîl bike, bernameya dersan birêve bibe. Dersên hevpar di bin “Hemû Xwendekar” de ne.":"Bir alanı açın: öğrenci ve öğretmen kaydedin, ders programını yönetin. Ortak dersler “Tüm Öğrenciler” altındadır.",
 "Hemû qad (bê sinif)":"Tüm alan (sınıfsız)",
