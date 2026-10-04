@@ -156,7 +156,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await tp.goto('http://localhost:8765/zarok/app/?emu=1'); await tp.waitForSelector('#l-no', { timeout: 20000 });
   await tp.click('.roles button:nth-child(2)'); await tp.fill('#l-no', KT); await tp.fill('#l-pw', 'Kid12345'); await tp.click('.login .btn');
   await tp.waitForSelector('.nav', { timeout: 20000 }); await tp.waitForTimeout(1500);
-  await tp.click('.nav button:nth-child(4)'); await tp.waitForTimeout(600);
+  await tp.evaluate(e => [...document.querySelectorAll('.nav button')].find(b => b.textContent.includes(e)).click(), '📝'); await tp.waitForTimeout(600);
   const t5 = await txt(tp);
   ok('Çocuk öğretmeni kendi anketini görür, veli anketini görmez', t5.includes('Nêrîna mamosteyên zarokan') && !t5.includes('Razîbûna dêûbavan'));
   await tp.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Bersiv bide').click()); await tp.waitForTimeout(500);

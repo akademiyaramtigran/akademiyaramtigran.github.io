@@ -163,6 +163,35 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   ok('Öğretmen: Sinifên Min (alan + genel, kapanan atölye yok)', t8.includes('Sinifên Min') && t8.includes('Muzîk · 1. Sînif') && t8.includes('🌐 Koro') && !t8.includes('Atolyeya Deng'), t8.split('\n').filter(l => /Sinif|Koro|Atolye|Sînif/.test(l)).join(' / '));
   ok('Öğretmenin öğrenci listesi sınıflarından (başka alandan Jîyan var, sınıfsız Baran yok)', t8.includes('Jîyan Roj') && t8.includes('Rojîn Aram') && !t8.includes('Baran Şêx'));
 
+  // ── 9) Öğretmen elle yoklama (QR sorununda yedek) ──
+  // Bugünün dersi: sınıfı 1. Sînif (yalnız Rojîn). Elle "geç" işaretle → kaydet → yeniden açınca
+  // işaret yüklü → QR aç/kapat: okutmayan ama elle işaretlenen öğrenci "yok"a düşmez.
+  const KUD = ['Yekşem', 'Dûşem', 'Sêşem', 'Çarşem', 'Pêncşem', 'Înî', 'Şemî'][new Date().getDay()];
+  await put('schedule/MAN1', { id: 'MAN1', name: 'Teorî', day: KUD, start: '00:00', end: '23:59', area: 'muzik', lessonType: 'main',
+    classId: Aid, teacherNo: '50202601', teacher: 'Mamoste Dilovan' });
+  const tm = await login(await mk(430), '50202601', 'Tea12345');
+  const goAtt = async () => { await tm.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('📋') && x.offsetParent && x.textContent.trim().length < 20); b[b.length - 1].click(); }); await tm.waitForTimeout(1500); };
+  const pickLs = () => tm.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.includes('Teorî') && x.textContent.includes('📅')); b && b.click(); });
+  await goAtt(); await pickLs(); await tm.waitForTimeout(800);
+  const rowBtn = (cls) => tm.evaluate(c => { const row = [...document.querySelectorAll('div')].filter(d => d.textContent.includes('Rojîn Aram') && d.querySelectorAll('.att-btn').length === 3).pop();
+    const bs = [...row.querySelectorAll('.att-btn')]; if (c) { bs[1].click(); return true; } return bs[1].classList.contains('late'); }, cls);
+  await rowBtn(true); await tm.waitForTimeout(300);
+  await tm.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => /^(Tomar bike|Kaydet|Tomar)$/.test(x.textContent.trim())) ; b.click(); });
+  await tm.waitForTimeout(2000);
+  let MA = await getDocF('attendance/MAN1-' + TODAY);
+  ok('Öğretmen elle yoklama kaydetti (geç)', MA.fields && MA.fields.records.mapValue.fields.S1.stringValue === 'late', JSON.stringify(MA.fields && MA.fields.records));
+  await tm.reload(); await tm.waitForTimeout(7000); await goAtt(); await pickLs(); await tm.waitForTimeout(1500);
+  ok('Yeniden açınca kaydedilen elle yoklama yüklü', await rowBtn(false));
+  // QR'ı bu ders için aç ve kimse okutmadan kapat: elle "geç" işaretli öğrenci korunur
+  await tm.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('🏠') && x.offsetParent && x.textContent.trim().length < 12); b[b.length - 1].click(); });
+  await tm.waitForTimeout(1000);
+  await tm.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.includes('📷') && x.textContent.includes('QR') && x.offsetParent && !x.closest('nav') && x.getBoundingClientRect().left >= 0); b.click(); });
+  await tm.waitForTimeout(2000);
+  const qrOpen = (await txt(tm)).includes('QR ya Nû');
+  await tm.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.trim() === '✕ Bigire'); b.click(); });
+  await tm.waitForTimeout(2500);
+  MA = await getDocF('attendance/MAN1-' + TODAY);
+  ok('QR kapanınca elle işaretlenen öğrenci "yok"a düşmez', qrOpen && MA.fields.records.mapValue.fields.S1.stringValue === 'late', 'qr=' + qrOpen + ' ' + JSON.stringify(MA.fields.records));
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   await b.close();
   const bad = out.filter(l => l.startsWith('❌')).length;
