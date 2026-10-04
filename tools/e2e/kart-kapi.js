@@ -71,7 +71,8 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
 
   // 1) Öğrenci işleri kartı çıkarır + basar
   const rc = await mk(); const rp = await login(rc, '98202601', 'Reg12345');
-  await topTab(rp, 'Tescîl'); await rp.waitForTimeout(1500);
+  await topTab(rp, 'Qad · Tescîl'); await rp.waitForTimeout(1200);
+  await rp.evaluate(() => [...document.querySelectorAll('.area-card')].find(x => x.textContent.includes('Hemû Xwendekar')).click()); await rp.waitForTimeout(1200);
   const [pop] = await Promise.all([rc.waitForEvent('page'), rp.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.trim() === '🪪' && x.offsetParent); b.click(); })]);
   await pop.waitForFunction(() => document.querySelector('.card.back img'), null, { timeout: 20000 }).catch(() => {});
   await pop.waitForTimeout(1200);

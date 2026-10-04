@@ -149,8 +149,9 @@ async function routes(ctx) {
   // Yetişkin öğrenci: sıradaki numarada önceki denemeden kalmış sahipsiz giriş hesabı varsa
   // kayıt yarım kalmamalı ve mükerrer belge oluşmamalı → sıradaki numaraya geçilir.
   await signUp('10202601@ogrenci.aat', 'Hayalet123');
-  await clickText(p, 'Tescîl', true); await p.waitForTimeout(800);
-  await clickText(p, '🎓 Xwendekar Tescîl Bike'); await p.waitForTimeout(600);
+  await clickText(p, 'Qad · Tescîl', true); await p.waitForTimeout(800);
+  await p.evaluate(() => [...document.querySelectorAll('.area-card')].find(x => /S[iî]nema/.test(x.textContent)).click()); await p.waitForTimeout(800);
+  await clickText(p, 'Xwendekar Tescîl Bike'); await p.waitForTimeout(600);
   await p.locator('.sheet-shell input:not([type=file])').first().fill('Test Xwendekar');
   await p.evaluate(() => { const b = [...document.querySelectorAll('.sheet-shell button')].filter(x => x.textContent.includes('Xwendekar Tescîl Bike') && x.offsetParent).pop(); b.click(); });
   await p.waitForTimeout(6000);
