@@ -821,16 +821,17 @@ input,select,textarea{font-family:inherit;}
   display:flex;flex-direction:column;box-shadow:8px 0 40px rgba(8,14,24,.35);
   border-right:1px solid var(--border)}
 .sm.open{transform:translateX(0)}
-.sm-head{background:var(--hero-grad);padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 18px;flex-shrink:0;color:#fff}
+.sm-head{background:linear-gradient(180deg,#F7F2E8 0%,#F3EEE3 100%);border-bottom:1px solid var(--border);padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 18px;flex-shrink:0;color:var(--text)}
+html.theme-dark .sm-head{background:var(--surface2)}
 .sm-brand{display:flex;align-items:center;gap:8px;margin-bottom:16px}
 .sm-brand img{border-radius:6px;background:#fff;padding:2px}
-.sm-brand span{flex:1;min-width:0;font-size:9.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#e7c77b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sm-x{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);color:rgba(255,255,255,.85);width:30px;height:30px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sm-brand span{flex:1;min-width:0;font-size:9.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#9c7d33;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sm-x{background:var(--bg1);border:1px solid var(--border2);color:var(--text2);width:30px;height:30px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .sm-user{display:flex;align-items:center;gap:12px}
-.sm-av{width:48px;height:48px;border-radius:50%;flex-shrink:0;object-fit:cover;background:rgba(255,255,255,.12);border:2px solid #e7c77b;color:#e7c77b;
+.sm-av{width:48px;height:48px;border-radius:50%;flex-shrink:0;object-fit:cover;background:var(--bg1);border:2px solid #b8923f;color:#0f2f38;
   display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:17px;letter-spacing:.04em}
-.sm-head .sm-nm{color:#fff;font-family:var(--serif);font-size:17px;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sm-head .sm-rl{color:rgba(255,255,255,.66);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;margin-top:4px;font-weight:700;
+.sm-head .sm-nm{color:var(--text);font-family:var(--serif);font-size:17px;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sm-head .sm-rl{color:var(--text2);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;margin-top:4px;font-weight:700;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sm-items{flex:1;overflow-y:auto;padding:12px 0 calc(env(safe-area-inset-bottom,0px) + 14px)}
 .sm-it{display:flex;align-items:center;gap:12px;width:100%;padding:9px 16px 9px 13px;margin-bottom:0;letter-spacing:.01em;
@@ -885,6 +886,22 @@ html.theme-dark .admin-header .tab-btn{color:rgba(255,255,255,0.62)}
 .sm-sep{margin:10px 0}
 input,select,textarea{border-radius:5px!important}
 button{letter-spacing:.01em}
+
+/* ══ ÜST PANELLER — sitenin logo bandıyla aynı krem (petrol yazı, altın vurgu) ══ */
+.ph,.student-hero,.admin-header{background:linear-gradient(180deg,#F7F2E8 0%,#F1EBDF 100%)!important;border-bottom:1px solid var(--border)!important;
+  box-shadow:0 4px 14px rgba(15,47,56,.06)!important;color:var(--text)}
+html.theme-dark .ph,html.theme-dark .student-hero,html.theme-dark .admin-header{background:var(--surface2)!important}
+:is(.ph,.student-hero,.admin-header) [style*="color: rgb(255, 255, 255)"]{color:var(--text)!important}
+:is(.ph,.student-hero,.admin-header) [style*="color: rgba(255, 255, 255"],:is(.ph,.student-hero,.admin-header) [style*="color: rgb(255, 180, 180)"]{color:var(--text2)!important}
+:is(.ph,.student-hero,.admin-header) [style*="background: rgba(255, 255, 255"]{background:var(--bg1)!important}
+:is(.ph,.student-hero,.admin-header) [style*="solid rgba(255, 255, 255"]{border-color:var(--border2)!important}
+:is(.ph,.student-hero,.admin-header) [style*="border-bottom: 2px solid rgba(255, 255, 255, 0.95)"]{border-bottom-color:#b8923f!important;color:var(--accent)!important}
+:is(.ph,.student-hero,.admin-header) .sm-burger{background:var(--bg1);border:1px solid var(--border2);color:var(--text)}
+:is(.ph,.student-hero,.admin-header) .glass-pill{background:var(--bg1)!important;border:1px solid var(--border2)!important;color:var(--text)!important}
+.admin-header .tab-bar{border-bottom-color:var(--border)!important}
+.admin-header .tab-btn{color:var(--text2)!important}
+.admin-header .tab-btn.active{color:var(--accent)!important;border-bottom-color:#b8923f!important}
+.student-hero::before,.student-hero::after{background:rgba(184,146,63,.05)!important}
 
 /* ══ DÜĞMELER — site ile uyumlu sade çizgi simgeler ══ */
 button:has(> .ico-solo){background:transparent!important;border:1px solid var(--border2)!important;color:var(--text2)!important;border-radius:9px!important;
@@ -3558,7 +3575,7 @@ function Avatar({name,color,size=36,photo,onDark}){
   const ini=name?name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase():"??";
   const c=color||"#0f2f38";
   const st=onDark
-    ? {background:"rgba(255,255,255,.10)",border:"2px solid #e7c77b",color:"#e7c77b"}
+    ? {background:"var(--bg1)",border:"2px solid #b8923f",color:"#0f2f38"}
     : {background:"color-mix(in srgb, "+c+" 14%, var(--bg1))",border:"1.5px solid color-mix(in srgb, "+c+" 45%, transparent)",color:"color-mix(in srgb, "+c+" 80%, #0f2f38)"};
   return(
     <div style={{width:size,height:size,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--serif)",fontSize:size*0.36,letterSpacing:".03em",flexShrink:0,boxSizing:"border-box",...st}}>
@@ -6750,7 +6767,7 @@ function SideMenu({open,onClose,items,activeKey,onSelect,user,roleLabel,extraIte
 /* ─── SPECIAL PANEL HEADER (Çapemenî / Karûbar — ortak üst panel) ────────── */
 function SpecialPanelHeader({user,icon,roleLabel,lang,onLogout,siteLink,onMenu,tabs,activeKey,onTab}){
   return(
-    <div style={{background:"var(--hero-grad)",padding:"calc(env(safe-area-inset-top,0px) + 18px) 16px 14px",borderRadius:"0 0 22px 22px",boxShadow:"0 6px 24px rgba(15,47,56,0.25)"}}>
+    <div className="ph" style={{padding:"calc(env(safe-area-inset-top,0px) + 18px) 16px 14px",borderRadius:"0 0 22px 22px"}}>
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}>
         {onMenu&&<button className="sm-burger" onClick={onMenu} aria-label="Menu">☰</button>}
         {user.photo
@@ -7526,7 +7543,7 @@ function ClassStudio({cfg,lang,t,toast}){
         </div>
       </div>
       {legacy.length>0&&(
-        <div style={{...box,border:"1.5px dashed #fb8500"}}>
+        <div style={{...box,border:"1.5px dashed #c9a24f"}}>
           <div style={{fontWeight:800,color:"var(--text)"}}>♻ {W2("Sinifên rêza kevn","Old-style classes")} ({legacy.length})</div>
           <div style={{...small,margin:"4px 0 8px"}}>{W2("Ev sinif hîn li gorî asta xwendekar in. Veguherîne da ku xwendekar bibin endamên sinifê.","These classes still use the student's level. Convert them so students become class members.")}</div>
           <button disabled={busy} onClick={convertLegacy} style={btn("#b45309")}>♻ {W2("Veguherîne","Convert")}</button>
@@ -7541,7 +7558,7 @@ function ClassStudio({cfg,lang,t,toast}){
         </div>
         {form&&form.kind==="area"&&renderForm()}
         {noClass.length>0&&(
-          <div style={{...box,border:"1.5px dashed #fb8500"}}>
+          <div style={{...box,border:"1.5px dashed #c9a24f"}}>
             <div style={{fontWeight:800,color:"var(--text)"}}>⚠ {W2("Bê sinif","No class")} <span style={small}>({noClass.length})</span></div>
             <div style={{...small,marginTop:4,lineHeight:1.7}}>{noClass.map(s=>s.name).join(" · ")}</div>
           </div>)}
@@ -8411,7 +8428,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
             {ZAROK_AREAS.map(a=><option key={a} value={a}>{areaLabel(a)}</option>)}
           </select>
           <span style={small}>{kids.length} {Z("zarok","children")}</span>
-          {kidsF.length>0&&<button onClick={()=>issueAndPrintCards("kid",kidsF,lang,toast,{areaLabel})} style={btn("#fb8500")}>🪪 {Z("Kartan çap bike","Print cards")} ({kidsF.length})</button>}
+          {kidsF.length>0&&<button onClick={()=>issueAndPrintCards("kid",kidsF,lang,toast,{areaLabel})} style={btn("#0f2f38","#e7c77b")}>🪪 {Z("Kartan çap bike","Print cards")} ({kidsF.length})</button>}
         </div>
         {form&&form.type==="kid"&&(
           <div style={{...box,border:"2px solid var(--accent)"}}>
@@ -13797,7 +13814,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
           {icon:"↩",label:t.logout||"Derkeve",onClick:onLogout,danger:true},
         ]}/>
       {/* Teacher Header — professional strip */}
-      <div style={{background:"#0f2f38",
+      <div className="ph" style={{
         padding:"10px 14px",flexShrink:0,display:"flex",alignItems:"center",gap:10}}>
         <button className="sm-burger" onClick={()=>setMenuOpen(true)} aria-label="Menu">☰</button>
         <Avatar name={teacher.name} color={a.color} size={40} photo={teacher.photo} onDark/>
