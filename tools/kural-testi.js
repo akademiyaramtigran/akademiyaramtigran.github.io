@@ -93,6 +93,11 @@ const { ref, uploadString, getBytes } = require('firebase/storage');
   await t('Öğrenci KENDİ yoklamasını yazar (QR)', setDoc(doc(student, 'attendance/s1_x'), { sessionId: 's1', studentNo: '10202601' }), true);
   await t('Öğrenci BAŞKASI adına yoklama yazamaz', setDoc(doc(student, 'attendance/s1_y'), { sessionId: 's1', studentNo: '10202602' }), false);
   await t('Öğrenci yoklama SİLEMEZ', deleteDoc(doc(student, 'attendance/s1_x')), false);
+  // Bir telefon, bir derste tek öğrenci: cihaz kaydını ilk yazan sahiplenir
+  const student2 = as('10202602@ogrenci.aat');
+  await t('Öğrenci derste telefonunu sahiplenir', setDoc(doc(student, 'attendance/s1_d_DEV1'), { sessionId: 's1', studentNo: '10202601', deviceClaim: true }, { merge: true }), true);
+  await t('Aynı öğrenci aynı telefondan tekrar okutabilir', setDoc(doc(student, 'attendance/s1_d_DEV1'), { sessionId: 's1', studentNo: '10202601', deviceClaim: true }, { merge: true }), true);
+  await t('Başka öğrenci AYNI telefonla aynı derse yoklama veremez', setDoc(doc(student2, 'attendance/s1_d_DEV1'), { sessionId: 's1', studentNo: '10202602', deviceClaim: true }, { merge: true }), false);
   await t('Öğrenci program YAZAMAZ', addDoc(collection(student, 'schedule'), { x: 1 }), false);
   await t('Öğrenci roller YAZAMAZ', setDoc(doc(student, 'roles/uid-10202601@ogrenci.aat'), { role: 'teacher' }), false);
   // Zarok (veli)

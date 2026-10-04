@@ -385,14 +385,11 @@ try{
   .drawer-nav a::after{content:"\203A";margin-left:auto;color:var(--muted);font-size:18px;font-weight:400;line-height:1;opacity:.7}
   .drawer-nav a:hover,.drawer-nav a:active{background:var(--paper-2)}
   .drawer-nav .dr-ic{width:32px;height:32px;border-radius:9px;background:var(--paper-2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;filter:saturate(.75)}
-  .drawer-nav a.drawer-login{margin:12px 16px 4px;border:none;border-radius:10px;background:#0f2f38;color:#fff;font-weight:700;justify-content:center;padding:13px 16px}
+  .drawer-nav a.drawer-login{margin:14px 16px 4px;border:1px solid rgba(156,125,51,.45);border-radius:10px;background:rgba(184,146,63,.12);color:#7a5d1f;font-weight:700;justify-content:center;padding:12px 16px}
+  .drawer-nav a.drawer-login:hover{background:rgba(184,146,63,.2)}
+  @media (prefers-color-scheme:dark){ .drawer-nav a.drawer-login{color:#e7c77b;border-color:rgba(231,199,123,.4)} }
   .drawer-nav a.drawer-login::after{content:none}
   .drawer-nav a.drawer-login .dr-ic{display:none}
-  .drawer-sec{padding:18px 22px 8px;font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);border-top:1px solid var(--line);margin-top:6px}
-  .drawer-areas{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 18px 26px}
-  .drawer-area{display:flex;align-items:center;justify-content:center;padding:11px 10px;border:1px solid var(--line);border-radius:10px;background:transparent;cursor:pointer;font-size:13.5px;font-weight:500;letter-spacing:.01em;color:var(--ink);text-align:center;font-family:inherit}
-  .drawer-area.active{border-color:var(--navy);background:var(--navy);color:#fff}
-  .drawer-area-all{grid-column:1/-1;justify-content:center}
   /* area cards clickable */
   .area{cursor:pointer;font:inherit;text-align:left;width:100%}
   .area.active{border-color:var(--navy);box-shadow:0 0 0 2px var(--navy) inset}
@@ -460,16 +457,6 @@ try{
     <a href="/zarok/"><span class="dr-ic" aria-hidden="true">🎼</span><span data-i18n="zarok_link">Akademiya Zarokan</span></a>
     <a href="/app/" rel="nofollow" class="drawer-login"><span class="dr-ic" aria-hidden="true">🔑</span><span data-i18n="nav_login">Têketina Sîstemê</span></a>
   </nav>
-  <div class="drawer-sec" data-i18n="filter">Parzûna Qadê</div>
-  <div class="drawer-areas">
-    <button class="drawer-area" data-area="muzik"><span data-areakey="muzik">Muzîk</span></button>
-    <button class="drawer-area" data-area="tiyatro"><span data-areakey="tiyatro">Şano</span></button>
-    <button class="drawer-area" data-area="sinema"><span data-areakey="sinema">Sînema</span></button>
-    <button class="drawer-area" data-area="dans"><span data-areakey="dans">Dans</span></button>
-    <button class="drawer-area" data-area="edebiyat"><span data-areakey="edebiyat">Wêje</span></button>
-    <button class="drawer-area" data-area="wenesazi"><span data-areakey="wenesazi">Wênesazî</span></button>
-    <button class="drawer-area drawer-area-all" data-area=""><span data-i18n="all">Hemû</span></button>
-  </div>
 </aside>
 
 <!-- ══ HERO ══ -->
@@ -1251,7 +1238,6 @@ function applyNewsFilter(){
     filterChip.textContent = areaLabel(newsArea) + "  \u2715";
   } else { filterChip.style.display = "none"; }
   document.querySelectorAll('.area').forEach(el=>el.classList.toggle('active', el.dataset.area===newsArea));
-  document.querySelectorAll('.drawer-area').forEach(el=>el.classList.toggle('active', (el.dataset.area||null)===newsArea));
 }
 function setNewsArea(key){
   newsArea = key || null;
@@ -1271,7 +1257,6 @@ document.getElementById('hb-open').addEventListener('click', openDrawer);
 document.getElementById('hb-close').addEventListener('click', closeDrawer);
 drawerBd.addEventListener('click', closeDrawer);
 document.querySelectorAll('.drawer-nav a[data-close]').forEach(a=>a.addEventListener('click', closeDrawer));
-document.querySelectorAll('.drawer-area').forEach(el=>{ el.addEventListener('click', ()=>{ setNewsArea(el.dataset.area||null); closeDrawer(); }); });
 
 (async () => {
   try {
