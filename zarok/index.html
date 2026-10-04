@@ -163,6 +163,27 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:14px 26px;justify-content:space-bet
 footer a{font-weight:600;text-decoration:none}
 footer .flogo{display:inline-flex;align-items:center;gap:8px}
 footer .flogo img{height:26px;width:auto}
+/* Menü paneli — ana site ve uygulamalardaki yan menüyle aynı dil */
+.hb{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:9px 6px 9px 0;flex-shrink:0}
+.hb span{display:block;width:23px;height:2.5px;background:var(--ink);border-radius:2px}
+@media (max-width:1100px){ .hb{display:flex} }
+.dr-bd{position:fixed;inset:0;background:rgba(8,14,24,.45);opacity:0;visibility:hidden;transition:.22s;z-index:60}
+.dr-bd.show{opacity:1;visibility:visible}
+.dr{position:fixed;top:0;left:0;bottom:0;width:84%;max-width:320px;background:var(--bg);z-index:61;transform:translateX(-102%);transition:transform .28s cubic-bezier(.32,.72,.28,1);box-shadow:8px 0 40px rgba(8,14,24,.35);display:flex;flex-direction:column;overflow-y:auto}
+.dr.show{transform:translateX(0)}
+.dr-head{background:linear-gradient(160deg,#0f2f38 0%,#1c4a55 55%,#2c6b74 100%);color:#fff;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 18px}
+.dr-brand{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.dr-brand img{border-radius:6px;background:#fff;padding:2px;width:22px;height:22px;object-fit:contain}
+.dr-brand span{flex:1;min-width:0;font-size:9.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#e7c77b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dr-x{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);color:rgba(255,255,255,.85);width:30px;height:30px;border-radius:9px;cursor:pointer;font-size:14px;line-height:1;flex-shrink:0}
+.dr-title{font-family:"Playfair Display",Georgia,serif;font-size:21px;color:#fff}
+.dr-nav{display:flex;flex-direction:column;padding:10px 0}
+.dr-nav a{display:flex;align-items:center;gap:12px;padding:9px 16px 9px 13px;font-size:15.5px;font-weight:500;color:var(--ink);text-decoration:none;border-left:3px solid transparent}
+.dr-nav a::after{content:"\203A";margin-left:auto;color:var(--muted);font-size:18px;opacity:.7}
+.dr-nav a:hover,.dr-nav a:active{background:var(--soft)}
+.dr-ic{width:32px;height:32px;border-radius:9px;background:var(--soft);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;filter:saturate(.75)}
+.dr-nav a.dr-login{margin:12px 16px 4px;border:none;border-radius:10px;background:#0f2f38;color:#fff;font-weight:700;justify-content:center;padding:13px 16px}
+.dr-nav a.dr-login::after{content:none}
 @media (max-width:1100px){ .hnav{display:none} }
 @media (max-width:900px){
   .hero .grid,.formwrap,.about{grid-template-columns:1fr}
@@ -198,6 +219,7 @@ footer .flogo img{height:26px;width:auto}
 <div class="topline"><div class="wrap"><span data-t="topL">Ji sala 2010an ve · Konservatuara Aram Tîgran</span><a href="../" data-t="mainSite">Konservatuara Aram Tîgran →</a></div></div>
 <header>
   <div class="wrap">
+    <button class="hb" id="hb-open" aria-label="Menû" aria-expanded="false" aria-controls="dr"><span></span><span></span><span></span></button>
     <a class="brandlink" href="#top" aria-label="Akademiya Zarokan — Konservatuara Aram Tîgran">
       <picture><source srcset="app/icons/akademi-mesale-koyu.png" media="(prefers-color-scheme: dark)"/><img class="mesale" src="app/icons/akademi-mesale.png" alt="" width="29" height="46"/></picture>
       <span class="brand"><b data-t="title">Akademiya Zarokan</b><span data-t="sub">Konservatuara Aram Tîgran</span></span>
@@ -207,6 +229,28 @@ footer .flogo img{height:26px;width:auto}
     <a class="btn sm" href="app/"><span aria-hidden="true">🔑</span><span class="login-t" data-t="login">Têketina Dêûbav</span></a>
   </div>
 </header>
+
+<div class="dr-bd" id="dr-bd"></div>
+<aside class="dr" id="dr" aria-hidden="true">
+  <div class="dr-head">
+    <div class="dr-brand"><img src="app/icons/akademi-mesale.png" alt=""/><span data-t="sub">Konservatuara Aram Tîgran</span><button class="dr-x" id="dr-x" aria-label="✕">✕</button></div>
+    <div class="dr-title" data-t="title">Akademiya Zarokan</div>
+  </div>
+  <nav class="dr-nav">
+    <a href="#qad" data-close><span class="dr-ic" aria-hidden="true">🎼</span><span data-t="navDepts">Ders</span></a>
+    <a href="#nuce" data-close><span class="dr-ic" aria-hidden="true">📰</span><span data-t="navNews">Nûçe</span></a>
+    <a href="#derbare" data-close><span class="dr-ic" aria-hidden="true">🏛</span><span data-t="navHistory">Dîrok</span></a>
+    <a href="#serledan" data-close><span class="dr-ic" aria-hidden="true">📝</span><span data-t="navApply">Serlêdan</span></a>
+    <a href="../"><span class="dr-ic" aria-hidden="true">🎭</span><span data-t="backAcademy">Konservatuara Aram Tîgran</span></a>
+    <a href="app/" class="dr-login"><span data-t="login">Têketina Dêûbav</span></a>
+  </nav>
+</aside>
+<script>(function(){var d=document.getElementById('dr'),bd=document.getElementById('dr-bd'),o=document.getElementById('hb-open');
+function op(){d.classList.add('show');bd.classList.add('show');d.setAttribute('aria-hidden','false');o.setAttribute('aria-expanded','true');}
+function cl(){d.classList.remove('show');bd.classList.remove('show');d.setAttribute('aria-hidden','true');o.setAttribute('aria-expanded','false');}
+o.addEventListener('click',op);document.getElementById('dr-x').addEventListener('click',cl);bd.addEventListener('click',cl);
+document.addEventListener('keydown',function(e){if(e.key==='Escape')cl();});
+d.querySelectorAll('a[data-close]').forEach(function(a){a.addEventListener('click',cl);});})();</script>
 
 <main id="top">
   <section class="hero" style="padding:0">

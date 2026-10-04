@@ -365,19 +365,29 @@ try{
   }
   .drawer-bd{position:fixed;inset:0;background:rgba(10,15,25,.5);opacity:0;visibility:hidden;transition:.25s;z-index:60}
   .drawer-bd.show{opacity:1;visibility:visible}
-  .drawer{position:fixed;top:0;right:0;bottom:0;width:82%;max-width:320px;background:var(--paper);z-index:61;transform:translateX(100%);transition:transform .28s ease;box-shadow:-8px 0 34px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow-y:auto}
+  /* Menü paneli — uygulama içi yan menüyle aynı dil (petrol başlık, amblem, simgeli maddeler, altın vurgu) */
+  .drawer{position:fixed;top:0;left:0;bottom:0;width:84%;max-width:320px;background:var(--paper);z-index:61;transform:translateX(-102%);transition:transform .28s cubic-bezier(.32,.72,.28,1);box-shadow:8px 0 40px rgba(8,14,24,.35);display:flex;flex-direction:column;overflow-y:auto}
   .drawer.show{transform:translateX(0)}
-  .drawer-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--line)}
-  .drawer-title{font-weight:800;font-size:14px;color:var(--ink);letter-spacing:.16em}
-  .drawer-close{background:none;border:none;font-size:20px;color:var(--muted);cursor:pointer;padding:4px 8px;line-height:1}
-  .drawer-nav{display:flex;flex-direction:column;padding:6px 0}
-  .drawer-nav a{display:flex;align-items:center;justify-content:space-between;padding:15px 24px;font-size:15px;font-weight:600;letter-spacing:.01em;color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line)}
-  .drawer-nav a::after{content:"\203A";color:var(--muted);font-size:18px;font-weight:400;line-height:1}
-  .drawer-nav a.drawer-login{color:var(--gold-2);font-weight:800}
-  .drawer-nav a:active{background:var(--paper-2)}
-  .drawer-sec{padding:18px 22px 8px;font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+  .drawer-head{background:linear-gradient(160deg,#0f2f38 0%,#1c4a55 55%,#2c6b74 100%);color:#fff;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 18px;flex-shrink:0}
+  .dr-brand{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+  .dr-brand img{border-radius:6px;background:#fff;padding:2px;width:22px;height:22px;object-fit:contain}
+  .dr-brand span{flex:1;min-width:0;font-size:9.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#e7c77b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .drawer-close{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);color:rgba(255,255,255,.85);width:30px;height:30px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;flex-shrink:0}
+  .dr-sub{display:flex;align-items:center;gap:10px}
+  .drawer-title{font-family:Georgia,"Times New Roman",serif;font-size:19px;color:#fff;letter-spacing:.02em;font-weight:400}
+  .drawer-head .lang-sel{background-color:rgba(255,255,255,.10);border-color:rgba(255,255,255,.22);color:#fff;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23fff'/%3E%3C/svg%3E")}
+  .drawer-head .lang-sel option{color:#0f2f38}
+  .drawer-nav{display:flex;flex-direction:column;padding:10px 0}
+  .drawer-nav a{display:flex;align-items:center;gap:12px;padding:9px 16px 9px 13px;font-size:15px;font-weight:500;letter-spacing:.01em;color:var(--ink);text-decoration:none;border-left:3px solid transparent;transition:background .15s}
+  .drawer-nav a::after{content:"\203A";margin-left:auto;color:var(--muted);font-size:18px;font-weight:400;line-height:1;opacity:.7}
+  .drawer-nav a:hover,.drawer-nav a:active{background:var(--paper-2)}
+  .drawer-nav .dr-ic{width:32px;height:32px;border-radius:9px;background:var(--paper-2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;filter:saturate(.75)}
+  .drawer-nav a.drawer-login{margin:12px 16px 4px;border:none;border-radius:10px;background:#0f2f38;color:#fff;font-weight:700;justify-content:center;padding:13px 16px}
+  .drawer-nav a.drawer-login::after{content:none}
+  .drawer-nav a.drawer-login .dr-ic{display:none}
+  .drawer-sec{padding:18px 22px 8px;font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);border-top:1px solid var(--line);margin-top:6px}
   .drawer-areas{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 18px 26px}
-  .drawer-area{display:flex;align-items:center;justify-content:center;padding:12px 10px;border:1px solid var(--line);border-radius:4px;background:transparent;cursor:pointer;font-size:13.5px;font-weight:500;letter-spacing:.01em;color:var(--ink);text-align:center;font-family:inherit}
+  .drawer-area{display:flex;align-items:center;justify-content:center;padding:11px 10px;border:1px solid var(--line);border-radius:10px;background:transparent;cursor:pointer;font-size:13.5px;font-weight:500;letter-spacing:.01em;color:var(--ink);text-align:center;font-family:inherit}
   .drawer-area.active{border-color:var(--navy);background:var(--navy);color:#fff}
   .drawer-area-all{grid-column:1/-1;justify-content:center}
   /* area cards clickable */
@@ -434,19 +444,18 @@ try{
 <div class="drawer-bd" id="drawer-bd"></div>
 <aside class="drawer" id="drawer" aria-hidden="true">
   <div class="drawer-head">
-    <span class="drawer-title" data-i18n="menu">MENÛ</span>
-    <div class="lang-wrap lang-wrap-drawer"><select class="lang-sel" aria-label="Ziman / Language"><option value="ku">Kurmancî</option><option value="zza">Zazakî</option><option value="tr">Türkçe</option></select></div>
-    <button class="drawer-close" id="hb-close" aria-label="Bigire">✕</button>
+    <div class="dr-brand"><img src="app/icons/akademi-mesale.png" alt=""/><span data-i18n="brand_u">KONSERVATUARA ARAM TÎGRAN</span><button class="drawer-close" id="hb-close" aria-label="Bigire">✕</button></div>
+    <div class="dr-sub"><span class="drawer-title" data-i18n="menu">MENÛ</span><div class="lang-wrap lang-wrap-drawer"><select class="lang-sel" aria-label="Ziman / Language"><option value="ku">Kurmancî</option><option value="zza">Zazakî</option><option value="tr">Türkçe</option></select></div></div>
   </div>
   <nav class="drawer-nav">
-    <a href="#top" data-close><span data-i18n="home">Serûpel</span></a>
-    <a href="#nuce" data-close><span data-i18n="nav_news">Nûçe</span></a>
-    <a href="#video" data-close><span data-i18n="nav_video">Vîdyo</span></a>
-    <a href="#qad" data-close><span data-i18n="nav_areas">Qadên Hunerê</span></a>
-    <a href="#derbare" data-close><span data-i18n="about_us">Derbarê Me</span></a>
-    <a href="#serledan" data-close><span data-i18n="nav_apply">Serlêdan</span></a>
-    <a href="/zarok/"><span data-i18n="zarok_link">Akademiya Zarokan</span></a>
-    <a href="/app/" rel="nofollow" class="drawer-login"><span data-i18n="nav_login">Têketina Sîstemê</span></a>
+    <a href="#top" data-close><span class="dr-ic" aria-hidden="true">🏠</span><span data-i18n="home">Serûpel</span></a>
+    <a href="#nuce" data-close><span class="dr-ic" aria-hidden="true">📰</span><span data-i18n="nav_news">Nûçe</span></a>
+    <a href="#video" data-close><span class="dr-ic" aria-hidden="true">🎬</span><span data-i18n="nav_video">Vîdyo</span></a>
+    <a href="#qad" data-close><span class="dr-ic" aria-hidden="true">🎭</span><span data-i18n="nav_areas">Qadên Hunerê</span></a>
+    <a href="#derbare" data-close><span class="dr-ic" aria-hidden="true">🏛</span><span data-i18n="about_us">Derbarê Me</span></a>
+    <a href="#serledan" data-close><span class="dr-ic" aria-hidden="true">📝</span><span data-i18n="nav_apply">Serlêdan</span></a>
+    <a href="/zarok/"><span class="dr-ic" aria-hidden="true">🎼</span><span data-i18n="zarok_link">Akademiya Zarokan</span></a>
+    <a href="/app/" rel="nofollow" class="drawer-login"><span class="dr-ic" aria-hidden="true">🔑</span><span data-i18n="nav_login">Têketina Sîstemê</span></a>
   </nav>
   <div class="drawer-sec" data-i18n="filter">Parzûna Qadê</div>
   <div class="drawer-areas">

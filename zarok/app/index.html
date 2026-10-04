@@ -46,6 +46,12 @@ button{cursor:pointer}
 .top{border-bottom:1px solid var(--line);background:var(--card)}
 .top .t1{font-weight:700;font-size:18px;line-height:1.15}
 .top .t2{font-size:13px;color:var(--muted);font-weight:600}
+/* Üst panel — ana uygulama ve sitedeki menü başlığıyla aynı: petrol zemin, amblem, altın vurgu */
+.top{background:linear-gradient(160deg,#0f2f38 0%,#1c4a55 55%,#2c6b74 100%);border-bottom:none;color:#fff;border-radius:0 0 18px 18px;box-shadow:0 6px 20px rgba(15,47,56,.22);padding-bottom:14px;margin-bottom:12px}
+.top .logo{height:38px;width:38px;object-fit:contain;background:#fff;border-radius:10px;padding:4px;box-sizing:border-box}
+.top .t1{font-family:"Playfair Display",Georgia,serif;font-weight:400;color:#fff;font-size:19px}
+.top .t2{color:#e7c77b;font-size:12px;letter-spacing:.06em}
+.top .iconbtn{margin-left:auto;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.22);color:#fff;border-radius:10px}
 .iconbtn{margin-left:auto;width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-size:19px}
 .kids{display:flex;gap:8px;overflow-x:auto;padding:4px 16px 10px;scrollbar-width:none}
 .kidchip{display:flex;align-items:center;gap:8px;padding:6px 14px 6px 6px;border-radius:999px;border:1px solid var(--line);background:var(--card);font-weight:700;white-space:nowrap}
@@ -77,7 +83,7 @@ label.lb{display:block;font-weight:700;font-size:13.5px;margin:12px 0 6px}
 .nav .in2{display:flex;gap:4px;max-width:560px;width:100%}
 .nav button{flex:1;border:none;background:none;border-radius:10px;padding:6px 2px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11.5px;font-weight:800;color:var(--muted);min-height:56px;position:relative}
 .nav button .e{font-size:21px}
-.nav button.on{background:var(--soft);color:var(--ink);box-shadow:inset 0 -2px 0 var(--gold)}
+.nav button.on{background:none;color:var(--ink);box-shadow:inset 0 2px 0 var(--ink);border-radius:0}
 .dot{position:absolute;top:4px;right:calc(50% - 20px);background:var(--bad);color:#fff;border-radius:9px;font-size:10.5px;padding:0 5px;min-width:17px}
 .bubble{max-width:82%;padding:10px 13px;border-radius:18px;margin:6px 0;white-space:pre-wrap;font-size:15px}
 .bubble.me{background:var(--brand);color:#fff;margin-left:auto;border-bottom-right-radius:6px}
@@ -481,9 +487,9 @@ function kidStatus(k) {
 function header() {
   return [
     h("div", { class: "top" },
-      h("picture", null, h("source", { srcset: "icons/akademi-mesale-koyu.png", media: "(prefers-color-scheme: dark)" }), h("img", { class: "logo", src: "icons/akademi-mesale.png", alt: "" })),
+      h("img", { class: "logo", src: "icons/akademi-mesale.png", alt: "" }),
       h("div", null, h("div", { class: "t1" }, T("appTitle")), h("div", { class: "t2" }, S.mode === "teacher" ? "👩‍🏫 " + T("teacherHello", (S.teacher && S.teacher.name) || "") : T("hello", (S.guardian && S.guardian.name || "").split(" ")[0]))),
-      h("button", { class: "iconbtn", "aria-label": T("settings"), onclick: () => { S.sheet = "settings"; render(); } }, "⚙️")),
+      h("button", { class: "iconbtn", "aria-label": T("settings"), onclick: () => { S.sheet = "settings"; render(); } }, "⚙\uFE0E")),
     S.mode !== "teacher" && S.kids.length > 1 ? h("div", { class: "kids" }, S.kids.map((k, i) => {
       const [em, col] = areaEm(k.area);
       return h("button", { class: "kidchip" + (i === S.kidIdx ? " on" : ""), onclick: () => { S.kidIdx = i; render(); } },
