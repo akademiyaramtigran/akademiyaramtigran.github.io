@@ -86,7 +86,7 @@ belgenin başındaki açığı geri getirir.
 ## Kalan riskler (sunucu tarafı gerektirir)
 
 1. **Düz metin şifreler (`_plainPass`)** — çözüm hazır: `functions/` + `FUNCTIONS.md`
-   (yayınlanıp `USE_CLOUD_FUNCTIONS = true` yapılınca artık yazılmaz).
+   (sunucu modu açık: artık yazılmaz; eski kopyalar Actions → **Eski şifre kopyalarını sil** ile temizlenir).
 2. **Herkese açık hesap açma (sign-up)** Firebase'de hâlâ açık (uygulama kullanıcıyı
    istemciden oluşturduğu için). v4 kuralları bunu zararsız kılar; Cloud Functions'a
    geçince Console → Authentication → Settings → User actions → **"Enable create (sign-up)"

@@ -1,0 +1,61 @@
+# Sunucu modundan (Cloud Functions) önce Firestore'a yazılmış düz metin şifreleri temizler:
+#   • kidSecrets koleksiyonu (Çocuk Akademisi şifre kasası) tamamen silinir
+#   • students / teachers belgelerindeki _plainPass alanı kaldırılır
+# Giriş hesapları ve şifreler DEĞİŞMEZ; yalnızca veritabanındaki düz kopyalar silinir.
+# Elle çalıştırılır: GitHub → Actions → "Eski şifre kopyalarını sil" → Run workflow → SİL yazın.
+name: Eski şifre kopyalarını sil
+
+on:
+  workflow_dispatch:
+    inputs:
+      onay:
+        description: "Onay: büyük harflerle SİL yazın"
+        required: true
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-deploy
+  cancel-in-progress: false
+
+jobs:
+  temizle:
+    if: ${{ inputs.onay == 'SİL' || inputs.onay == 'SIL' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Düz metin şifreleri temizle
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then echo "::error::FIREBASE_SERVICE_ACCOUNT sırrı yok"; exit 1; fi
+          KEY="$RUNNER_TEMP/sa.json"; printf '%s' "$SA" > "$KEY"
+          export GOOGLE_APPLICATION_CREDENTIALS="$KEY"
+          mkdir -p "$RUNNER_TEMP/t" && cd "$RUNNER_TEMP/t"
+          npm init -y >/dev/null && npm i --silent firebase-admin@12 >/dev/null
+          cat > temizle.js <<'EOF'
+          const admin = require("firebase-admin");
+          admin.initializeApp({ projectId: "aram2026-a9fd7" });
+          const db = admin.firestore();
+          (async () => {
+            const ks = await db.collection("kidSecrets").get();
+            for (const d of ks.docs) await d.ref.delete();
+            console.log("🗑 kidSecrets: " + ks.size + " belge silindi");
+            for (const c of ["students", "teachers"]) {
+              const snap = await db.collection(c).get();
+              let n = 0;
+              for (const d of snap.docs) {
+                if (d.get("_plainPass") !== undefined) { await d.ref.update({ _plainPass: admin.firestore.FieldValue.delete() }); n++; }
+              }
+              console.log("🧹 " + c + ": " + n + " belgeden _plainPass kaldırıldı");
+            }
+          })().catch(e => { console.error(e); process.exit(1); });
+          EOF
+          node temizle.js
+          rm -f "$KEY"
+          echo "✅ Bitti"

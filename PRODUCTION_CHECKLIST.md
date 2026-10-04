@@ -59,7 +59,7 @@ _Depolama/plan satın alma kalemleri isteğiniz üzerine bu rapora dahil edilmed
 
 | Önem | Risk | Önerilen çözüm |
 |---|---|---|
-| 🟠 | Düz metin şifreler — **kod hazır, yayın bekliyor**. | `firebase deploy --only functions` → `USE_CLOUD_FUNCTIONS = true` (`FUNCTIONS.md`). |
+| ✅ | Düz metin şifreler — sunucu modu açık, artık yazılmıyor. | Eski kopyalar: Actions → **Eski şifre kopyalarını sil** (`SİL`). |
 | 🟠 | Herkese açık **hesap açma** hâlâ açık (zararsız hâle getirildi ama kaynak tüketir). | Fonksiyon açıldıktan sonra Authentication → Settings → *Enable create (sign-up)* kapatılır. |
 | 🟡 | Cihaz kilidi ve 5 deneme kilidi yalnızca **istemci tarafında** (atlatılabilir). Firebase'in kendi kaba kuvvet koruması var. | Önemli değil; App Check ile birlikte yeterli. |
 

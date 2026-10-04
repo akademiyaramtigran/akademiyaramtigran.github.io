@@ -231,7 +231,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getFirestore, connectFirestoreEmulator, collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, query, orderBy, where, limit } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  import { getAuth, connectAuthEmulator, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, createUserWithEmailAndPassword, updatePassword, updateEmail, deleteUser, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getAuth, connectAuthEmulator, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
 
   // ── Güvenlik kuralları: depodaki firestore.rules / storage.rules (v4) geçerlidir.
@@ -280,11 +280,9 @@
   const EMU = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).has("emu");
   if (EMU) { connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true }); connectFirestoreEmulator(db, "127.0.0.1", 8080); }
 
-  // ── Sunucu tarafı kullanıcı yönetimi (functions/index.js → aatUser) ──
-  // Cloud Functions yayınlanınca true yapın (bkz. FUNCTIONS.md). true iken:
+  // ── Sunucu tarafı kullanıcı yönetimi (functions/index.js → aatUser, bkz. FUNCTIONS.md) ──
   //  • kullanıcı oluşturma / şifre belirleme / silme sunucuda yapılır (eski şifre gerekmez)
-  //  • düz metin şifre (_plainPass) Firestore'a YAZILMAZ, mevcutlar ilk kayıtta silinir
-  const USE_CLOUD_FUNCTIONS = true;
+  //  • düz metin şifre (_plainPass) Firestore'a YAZILMAZ (yalnızca o oturumda personele gösterilir)
   let _userFn = null;
   async function callUserFn(data) {
     if (!_userFn) {
@@ -299,17 +297,6 @@
       if (e && e.code === "functions/already-exists") throw Object.assign(new Error("email-already-in-use"), { code: "auth/email-already-in-use" });
       throw e;
     }
-  }
-
-  // ── İkinci Firebase instance — kullanıcı oluştururken admin oturumu kapanmaz ──
-  // Bu yöntem sayesinde öğretmen/öğrenci eklendiğinde admin olarak kalmaya devam edersiniz.
-  let _secondaryApp = null;
-  function getSecondaryAuth() {
-    if (!_secondaryApp) {
-      _secondaryApp = initializeApp(firebaseConfig, "secondary");
-      if (EMU) connectAuthEmulator(getAuth(_secondaryApp), "http://127.0.0.1:9099", { disableWarnings: true });
-    }
-    return getAuth(_secondaryApp);
   }
 
   // ── Okul numarasından Auth email üret ──────────────────────────────────────
@@ -440,14 +427,13 @@
     db, auth,
     ADMIN_EMAIL,
     idxPut, idxDel, syncMemberIndex,
-    serverUserMgmt: USE_CLOUD_FUNCTIONS,
     uploadNewsMedia,
     collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
     onSnapshot, serverTimestamp, query, orderBy, where, limit,
     // Auth fonksiyonlarını dışa aç
     signInWithEmailAndPassword, signOut, onAuthStateChanged,
-    sendPasswordResetEmail, createUserWithEmailAndPassword,
-    updatePassword, updateEmail, EmailAuthProvider, reauthenticateWithCredential,
+    sendPasswordResetEmail,
+    updatePassword, EmailAuthProvider, reauthenticateWithCredential,
     noToEmail,
     // deleteDoc ve doc referansları (fbDelete için)
     deleteDoc: (ref) => deleteDoc(ref),
@@ -458,28 +444,10 @@
     // password: plain text şifre
     // role:     "teacher" | "student" | "admin"
     async createAuthUser(no, password, role) {
-      const email = noToEmail(no, role);
-      if (USE_CLOUD_FUNCTIONS) {
-        const r = await callUserFn({ action: "create", no, role, password });
-        try { await setDoc(doc(db, "roles", r.uid), { email: r.email, no, role, createdAt: serverTimestamp() }); } catch(_) {}
-        return { uid: r.uid, email: r.email };
-      }
-      const secondaryAuth = getSecondaryAuth();
-      try {
-        const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
-        const uid = cred.user.uid;
-        await signOut(secondaryAuth);
-        try {
-          await setDoc(doc(db, "roles", uid), { email, no, role, createdAt: serverTimestamp() });
-        } catch(rolesErr) {
-        }
-        return { uid, email };
-      } catch(e) {
-        try { await signOut(secondaryAuth); } catch(_) {}
-        throw e;
-      }
+      const r = await callUserFn({ action: "create", no, role, password });
+      try { await setDoc(doc(db, "roles", r.uid), { email: r.email, no, role, createdAt: serverTimestamp() }); } catch(_) {}
+      return { uid: r.uid, email: r.email };
     },
-
     // Yeni hesap: giriş hesabını Firestore kaydından ÖNCE aç. Numarada önceki bir denemeden
     // kalmış sahipsiz hesap varsa ("email-already-in-use") sıradaki adaya geç → kayıt yarım kalmaz,
     // mükerrer kayıt oluşmaz. Dönen numara kullanılmalıdır.
@@ -494,68 +462,16 @@
     // Kullanıcı silinince Firebase Auth hesabını da sil.
     // (Aksi halde aynı numara yeniden eklendiğinde Auth'ta ESKİ şifreli
     //  "hayalet hesap" kalır ve giriş "email-already-in-use" ile patlar.)
-    async deleteAuthUser(no, role, plainPass) {
-      if (USE_CLOUD_FUNCTIONS) {
-        try { const r = await callUserFn({ action: "delete", no, role }); return { ok: true, email: r.email }; }
-        catch(e) { return { ok:false, reason:(e.code||e.message||"error"), email: noToEmail(no, role) }; }
-      }
-      if(!plainPass) return { ok:false, reason:"no-password" };
-      const email = noToEmail(no, role);
-      const secAuth = getSecondaryAuth();
-      try {
-        const cred = await signInWithEmailAndPassword(secAuth, email, plainPass);
-        const uid = cred.user.uid;
-        try { await deleteDoc(doc(db, "roles", uid)); } catch(_) {}
-        await deleteUser(cred.user);
-        return { ok:true, email };
-      } catch(e) {
-        try { await signOut(secAuth); } catch(_) {}
-        return { ok:false, reason:(e.code||e.message||"error"), email };
-      }
+    async deleteAuthUser(no, role) {
+      try { const r = await callUserFn({ action: "delete", no, role }); return { ok: true, email: r.email }; }
+      catch(e) { return { ok:false, reason:(e.code||e.message||"error"), email: noToEmail(no, role) }; }
     },
-
-    // Şifre sıfırlama: Admin yeni şifre üretir → Auth güncellenir
-    // Strateji: 1) createUserWithEmailAndPassword dene (yeni kullanıcı)
-    //            2) "already-in-use" ise → secondary ile login + updatePassword
-    //            3) Login başarısız → kullanıcı zaten var, Firestore hash güncellendi
-    async forceResetPassword(no, role, oldPlainPassIfKnown, newPlainPass) {
-      const email = noToEmail(no, role);
-      if (USE_CLOUD_FUNCTIONS) {
-        try { const r = await callUserFn({ action: "setPassword", no, role, password: newPlainPass }); return { uid: r.uid, email: r.email }; }
-        catch(e) { return null; }
-      }
-      const secAuth = getSecondaryAuth();
-      try {
-        // Strateji A: Yeni kullanıcı oluştur (henüz Auth'da yoksa)
-        try {
-          const newCred = await createUserWithEmailAndPassword(secAuth, email, newPlainPass);
-          await signOut(secAuth);
-          return { uid: newCred.user.uid, email };
-        } catch(createErr) {
-          if(createErr.code !== "auth/email-already-in-use") {
-            await signOut(secAuth).catch(()=>{});
-            throw createErr;
-          }
-        }
-        // Strateji B: Kullanıcı zaten var — eski şifreyle giriş yap → updatePassword
-        if(oldPlainPassIfKnown) {
-          try {
-            const loginCred = await signInWithEmailAndPassword(secAuth, email, oldPlainPassIfKnown);
-            await updatePassword(loginCred.user, newPlainPass);
-            await signOut(secAuth);
-            return { uid: loginCred.user.uid, email };
-          } catch(loginErr) {
-            await signOut(secAuth).catch(()=>{});
-          }
-        }
-        // Strateji C: Sadece Firestore hash güncellendi, Admin Firebase Console'dan manuel günceller
-        return null;
-      } catch(e) {
-        await signOut(secAuth).catch(()=>{});
-        return null;
-      }
+    // Şifre belirleme: personel yeni şifre üretir → sunucu Auth hesabını günceller (yoksa açar).
+    // Başarısızsa null döner (çağıran uyarı gösterir).
+    async forceResetPassword(no, role, _unused, newPlainPass) {
+      try { const r = await callUserFn({ action: "setPassword", no, role, password: newPlainPass }); return { uid: r.uid, email: r.email }; }
+      catch(e) { return null; }
     },
-
     // ── Firebase Auth şifresini güncelle (giriş yapan kullanıcı kendi şifresini değiştirir) ──
     async updateAuthPassword(currentPassword, newPassword) {
       const user = auth.currentUser;
@@ -566,22 +482,11 @@
       await updatePassword(user, newPassword);
     },
 
-    // ── Admin olarak başka kullanıcının şifresini güncelle (secondary auth ile) ──
-    // Firestore'daki hash de güncellenir ayrıca
-    async adminUpdateAuthPassword(no, role, newPassword) {
-      const email = noToEmail(no, role);
-      // Secondary auth ile giriş yap (eski şifre bilinmiyorsa olmaz — sadece hash güncellenir)
-      // Not: Admin SDK olmadan başkasının şifresini güncelleme mümkün değil (tarayıcıdan)
-      // Bunun yerine Firestore'daki hash'i güncelle, kullanıcı bir sonraki girişte yeni şifreyi kullanır
-    },
-
     // ── CRUD helpers ──
     async saveStudent(s) {
       const hasPhoto = !!(s.photo);
-      // _plainPass: personelin ürettiği şifrelerin düz hali — panelde
-      // görüntüleme için kaydedilir. Kullanıcının KENDİ seçtiği şifre
-      // hiçbir zaman düz yazılmaz (kendi-değiştirme akışları "" gönderir).
-      const SKIP = new Set(["pass","_authEmail","docs","id","_authDone"].concat(USE_CLOUD_FUNCTIONS ? ["_plainPass"] : []));
+      // _plainPass (personelin ürettiği şifrenin düz hâli) yalnızca o oturumda gösterilir, Firestore'a yazılmaz.
+      const SKIP = new Set(["pass","_authEmail","docs","id","_authDone","_plainPass"]);
       const cleanData = {};
       for(const [k,v] of Object.entries(s)){
         if(SKIP.has(k)) continue;
@@ -606,7 +511,7 @@
     },
     async saveTeacher(tc) {
       const hasPhoto = !!(tc.photo);
-      const SKIP = new Set(["pass","_authEmail","docs","id","_authDone"].concat(USE_CLOUD_FUNCTIONS ? ["_plainPass"] : []));
+      const SKIP = new Set(["pass","_authEmail","docs","id","_authDone","_plainPass"]);
       const cleanData = {};
       for(const [k,v] of Object.entries(tc)){
         if(SKIP.has(k)) continue;
@@ -775,40 +680,6 @@
       });
     },
 
-    // Admin: kullanıcının Firebase Auth e-postasını gerçek e-posta ile güncelle
-    async linkRealEmail(no, role, plainPass, realEmail) {
-      const fakeEmail = noToEmail(no, role);
-      const secondaryAuth2 = getSecondaryAuth();
-      try {
-        // Secondary auth ile giriş yap
-        const cred = await signInWithEmailAndPassword(secondaryAuth2, fakeEmail, plainPass);
-        // Gerçek e-postayı güncelle
-        await updateEmail(cred.user, realEmail);
-        await signOut(secondaryAuth2);
-        return true;
-      } catch(e) {
-        try { await signOut(secondaryAuth2); } catch(_) {}
-        throw e;
-      }
-    },
-
-    // Admin: yeni şifre üret ve Firebase Auth'a kaydet
-    async adminResetPassword(no, role, newPlainPass) {
-      const fakeEmail = noToEmail(no, role);
-      const secondaryAuth3 = getSecondaryAuth();
-      try {
-        const cred = await signInWithEmailAndPassword(secondaryAuth3, fakeEmail, newPlainPass);
-        await signOut(secondaryAuth3);
-        return true;
-      } catch(e) {
-        try { await signOut(secondaryAuth3); } catch(_) {}
-        // Kullanıcı yoksa oluştur
-        if(e.code === "auth/invalid-credential" || e.code === "auth/user-not-found") {
-          return false; // Şifre yanlış demek, createAuthUser ile yeniden oluştur
-        }
-        throw e;
-      }
-    },
     onAuthState(cb) {
       return onAuthStateChanged(auth, cb);
     },
@@ -1647,15 +1518,6 @@ async function sendCredsEmail(name, email, no, pass){
     { to_email:email, to_name:name||"", password:pass, student_no:no });
 }
 
-function checkPasswordStrength(pass) {
-  if (!pass || pass.length < 8)
-    return { ok: false, msg: RL()==="en"?"Min 8 characters":K("Herî kêm 8 tîp") };
-  if (!/[A-Z]/.test(pass))
-    return { ok: false, msg: RL()==="en"?"Uppercase letter required":K("Tîpa mezin lazim e") };
-  if (!/[0-9]/.test(pass))
-    return { ok: false, msg: RL()==="en"?"Number required":K("Hejmar lazim e") };
-  return { ok: true, msg: "" };
-}
 const _loginAttempts = {};
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 10 * 60 * 1000;
@@ -1675,11 +1537,6 @@ function remainingLockoutSeconds(uid) {
   if (!_loginAttempts[uid] || !_loginAttempts[uid].length) return 0;
   const oldest = Math.min(..._loginAttempts[uid]);
   return Math.max(0, Math.ceil((LOCKOUT_MS - (Date.now() - oldest)) / 1000));
-}
-
-/* ─── FIREBASE HOOK ─────────────────────────────────────────────────────── */
-function useFirebase() {
-  return typeof window.__FB !== "undefined" ? window.__FB : null;
 }
 
 // Firebase bağlantı durumu banner'ı — sadece gerçekten bağlı değilse göster
@@ -1745,15 +1602,6 @@ async function fbSave(type, data) {
           throw new Error("Auth hatasi: " + code);
         }
       }
-      // Gerçek e-posta varsa Firebase Auth'a da bağla (şifre sıfırlama için)
-      if (data.email && data.email.includes("@")) {
-        try {
-          await window.__FB.linkRealEmail(data.no, "student", data._plainPass, data.email);
-        } catch(linkErr) {
-          // Sessizce geç — sahte e-posta ile giriş yine de çalışır
-          console.warn("[fbSave] Real email link failed:", linkErr.message);
-        }
-      }
     }
     return fireId;
   }
@@ -1780,14 +1628,6 @@ async function fbSave(type, data) {
           }
         } else {
           throw new Error("Auth hatasi: " + code);
-        }
-      }
-      // Gerçek e-posta varsa Firebase Auth'a da bağla
-      if (data.email && data.email.includes("@")) {
-        try {
-          await window.__FB.linkRealEmail(data.no, role, data._plainPass, data.email);
-        } catch(linkErr) {
-          console.warn("[fbSave] Real email link failed:", linkErr.message);
         }
       }
     }
@@ -1922,29 +1762,9 @@ function sanitizeText(str) {
     .trim()
     .slice(0, 500);                        // max length guard
 }
-function sanitizeEmail(str) {
-  if (!str) return "";
-  return String(str).trim().toLowerCase().slice(0, 200);
-}
 function sanitizePhone(str) {
   if (!str) return "";
   return String(str).replace(/[^\d\s+\-()]/g, "").trim().slice(0, 20);
-}
-
-/* ── Debounce & Throttle ── */
-function debounce(fn, ms = 300) {
-  let timer;
-  return function(...args) {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn.apply(this, args), ms);
-  };
-}
-function throttle(fn, ms = 200) {
-  let last = 0;
-  return function(...args) {
-    const now = Date.now();
-    if (now - last >= ms) { last = now; fn.apply(this, args); }
-  };
 }
 
 /* ── Haptic Feedback ── */
@@ -1954,31 +1774,8 @@ function haptic(pattern = [10]) {
   }
 }
 const hapticLight  = () => haptic([8]);
-const hapticMedium = () => haptic([15]);
-const hapticHeavy  = () => haptic([30]);
 const hapticError  = () => haptic([40, 30, 40]);
 const hapticSuccess= () => haptic([10, 20, 10]);
-
-/* ── Number Localization ── */
-function fmtNumber(n, lang) {
-  try {
-    const locale = lang==="en"?"en-US":"ku";
-    return new Intl.NumberFormat(locale).format(n);
-  } catch { return String(n); }
-}
-function fmtPercent(n, lang) {
-  try {
-    const locale = lang==="en"?"en-US":"ku";
-    return new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 1 }).format(n / 100);
-  } catch { return n + "%"; }
-}
-function fmtDate(dateStr, lang) {
-  if (!dateStr) return "—";
-  try {
-    const locale = lang==="en"?"en-GB":"ku";
-    return new Date(dateStr).toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" });
-  } catch { return dateStr; }
-}
 
 /* ── Share API ── */
 async function shareContent({ title, text, url }) {
@@ -2086,64 +1883,6 @@ function usePanelNav(initialView) {
   return [view, setView];
 }
 
-/* ── Pull-to-Refresh Hook ── */
-function usePullToRefresh(onRefresh, containerRef) {
-  const startY = useRef(0);
-  const pulling = useRef(false);
-  const [pullDist, setPullDist] = useState(0);
-  const THRESHOLD = 72;
-
-  useEffect(() => {
-    const el = containerRef?.current;
-    if (!el) return;
-
-    function onTouchStart(e) {
-      if (el.scrollTop > 0) return;
-      startY.current = e.touches[0].clientY;
-      pulling.current = true;
-    }
-    function onTouchMove(e) {
-      if (!pulling.current) return;
-      const dist = Math.max(0, Math.min(THRESHOLD * 1.5, e.touches[0].clientY - startY.current));
-      if (dist > 0) { setPullDist(dist); }
-    }
-    function onTouchEnd() {
-      if (pullDist >= THRESHOLD) {
-        hapticMedium();
-        onRefresh && onRefresh();
-      }
-      setPullDist(0);
-      pulling.current = false;
-    }
-
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchmove",  onTouchMove,  { passive: true });
-    el.addEventListener("touchend",   onTouchEnd,   { passive: true });
-    return () => {
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchmove",  onTouchMove);
-      el.removeEventListener("touchend",   onTouchEnd);
-    };
-  }, [onRefresh, pullDist, containerRef]);
-
-  return pullDist;
-}
-
-/* ── Virtual List Hook (for large student/teacher lists) ── */
-function useVirtualList(items, itemHeight = 64, containerHeight = 500) {
-  const [scrollTop, setScrollTop] = useState(0);
-  const overscan = 5;
-  const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);
-  const visibleCount = Math.ceil(containerHeight / itemHeight) + overscan * 2;
-  const endIndex = Math.min(items.length - 1, startIndex + visibleCount);
-  const visibleItems = items.slice(startIndex, endIndex + 1).map((item, i) => ({
-    item, index: startIndex + i, offsetTop: (startIndex + i) * itemHeight
-  }));
-  const totalHeight = items.length * itemHeight;
-  const onScroll = useCallback(throttle(e => setScrollTop(e.target.scrollTop), 16), []);
-  return { visibleItems, totalHeight, onScroll };
-}
-
 /* ── Firebase Offline Persistence enabler ── */
 async function enableFirestoreOffline() {
 
@@ -2159,36 +1898,6 @@ async function enableFirestoreOffline() {
     } else if (e.code === "unimplemented") {
     }
   }
-}
-
-/* ── Firebase Storage helper ── */
-async function fbUploadPhoto(file, path) {
-  // Storage requires firebase-storage module — check if available
-  try {
-    const storageModule = await import(
-      "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js"
-    ).catch(() => null);
-    if (!storageModule) return null;
-    
-    const { getStorage, ref, uploadBytes, getDownloadURL } = storageModule;
-    const storage = getStorage();
-    const storageRef = ref(storage, path);
-    const snapshot = await uploadBytes(storageRef, file);
-    const url = await getDownloadURL(snapshot.ref);
-    return url;
-  } catch(e) {
-    return null;
-  }
-}
-
-/* ── ARIA helpers ── */
-function ariaLabel(role, label) {
-  return { role, "aria-label": label };
-}
-function ariaButton(label, pressed) {
-  const props = { role: "button", "aria-label": label, tabIndex: 0 };
-  if (pressed !== undefined) props["aria-pressed"] = pressed;
-  return props;
 }
 
 /* ── Screen Reader Live Region ── */
@@ -2218,21 +1927,6 @@ async function fbSaveAttendance(lessonId, teacherId, date, records){
   } catch(e){ console.warn("Attendance save error:", e); return null; }
 }
 
-async function fbLoadAttendance(lessonId, date){
-
-  if(!window.__FB||!window.__FB.isConfigured()){
-    try{
-      const key = `aat-att-${lessonId}-${date}`;
-      const raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw).records : null;
-    }catch{return null;}
-  }
-  try{
-    const ref = window.__FB.doc(window.__FB.db, "attendance", `${lessonId}-${date}`);
-    const snap = await window.__FB.getDoc(ref);
-    return snap.exists() ? snap.data().records : null;
-  }catch(e){ return null; }
-}
 
 /* ─── BIOMETRIC / DEVICE LOCK ────────────────────────────────────────────── */
 function useBiometric(){
@@ -2279,45 +1973,6 @@ const MemoAvatar = memo(function MemoAvatar({name,color,size,photo}){
   return <Avatar name={name} color={color} size={size} photo={photo}/>;
 });
 
-
-/* useMemo helper for filtered/sorted student lists */
-function useSortedStudents(students, area, sortKey = "name", lang = "ku") {
-  return useMemo(() => {
-    let list = area ? students.filter(s => s.area === area) : [...students];
-    list.sort((a, b) => {
-      const va = String(a[sortKey] || "");
-      const vb = String(b[sortKey] || "");
-      return va.localeCompare(vb, lang==="en"?"en":"ku", { sensitivity: "base" });
-    });
-    return list;
-  }, [students, area, sortKey, lang]);
-}
-
-/* useMemo for schedule filtering */
-function useFilteredSchedule(schedule, area) {
-  return useMemo(() => {
-    if (!area) return schedule;
-    return schedule.filter(ls => ls.area === area);
-  }, [schedule, area]);
-}
-
-/* ─── ABORT CONTROLLER FETCH ─────────────────────────────────────────────── */
-function useAbortableFetch() {
-  const abortRef = useRef(null);
-  const fetchWithAbort = useCallback(async (url, options = {}) => {
-    if (abortRef.current) abortRef.current.abort();
-    abortRef.current = new AbortController();
-    try {
-      const res = await fetch(url, { ...options, signal: abortRef.current.signal });
-      return res;
-    } catch(e) {
-      if (e.name === "AbortError") return null;
-      throw e;
-    }
-  }, []);
-  useEffect(() => () => { if (abortRef.current) abortRef.current.abort(); }, []);
-  return fetchWithAbort;
-}
 
 /* ─── IMAGE COMPRESSION ──────────────────────────────────────────────────── */
 function compressImage(dataUrl, maxW = 800, maxH = 800, quality = 0.82) {
@@ -2446,50 +2101,7 @@ function downloadIDCardPDF(node, student, lang, toast, orientation="portrait"){
   }).catch(err => { console.warn("ID card PDF export error:", err); toast && toast(_idCardMsg(lang,"fail")); });
 }
 
-/* ─── INTERSECTION OBSERVER HOOK ─────────────────────────────────────────── */
-function useVisible(ref, threshold = 0.15) {
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    if (!ref.current) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
-      { threshold }
-    );
-    obs.observe(ref.current);
-    return () => obs.disconnect();
-  }, [ref, threshold]);
-  return visible;
-}
-
-/* ─── LONG PRESS HOOK ────────────────────────────────────────────────────── */
-function useLongPress(callback, ms = 600) {
-  const timerRef = useRef(null);
-  const fired = useRef(false);
-  const start = useCallback((e) => {
-    fired.current = false;
-    timerRef.current = setTimeout(() => {
-      fired.current = true;
-      hapticMedium();
-      callback(e);
-    }, ms);
-  }, [callback, ms]);
-  const stop = useCallback(() => {
-    clearTimeout(timerRef.current);
-  }, []);
-  return {
-    onMouseDown: start, onMouseUp: stop, onMouseLeave: stop,
-    onTouchStart: start, onTouchEnd: stop, onTouchCancel: stop,
-  };
-}
-
 /* ─── SYSTEM HOOKS ───────────────────────────────────────────────────────── */
-function useWakeLock(){
-  const lockRef=useRef(null);
-  const acquire=useCallback(async()=>{try{if("wakeLock"in navigator)lockRef.current=await navigator.wakeLock.request("screen");}catch(e){}}, []);
-  const release=useCallback(async()=>{if(lockRef.current){await lockRef.current.release();lockRef.current=null;}}, []);
-  useEffect(()=>{const h=()=>{if(document.visibilityState==="hidden")release();};document.addEventListener("visibilitychange",h);return()=>document.removeEventListener("visibilitychange",h);},[release]);
-  return{acquire,release};
-}
 function useNetworkInfo(){
   const[info,setInfo]=useState(()=>{const c=navigator.connection||navigator.mozConnection||navigator.webkitConnection;return c?{type:c.effectiveType,downlink:c.downlink,saveData:c.saveData}:{type:"unknown"};});
   useEffect(()=>{const c=navigator.connection||navigator.mozConnection||navigator.webkitConnection;if(!c)return;const u=()=>setInfo({type:c.effectiveType,downlink:c.downlink,saveData:c.saveData});c.addEventListener("change",u);return()=>c.removeEventListener("change",u);},[]);
@@ -2504,33 +2116,6 @@ function useOrientation(){
   const[o,setO]=useState(()=>screen.orientation?screen.orientation.type:"portrait-primary");
   useEffect(()=>{const u=()=>setO(screen.orientation?screen.orientation.type:window.innerWidth>window.innerHeight?"landscape":"portrait");if(screen.orientation)screen.orientation.addEventListener("change",u);else window.addEventListener("orientationchange",u);return()=>{if(screen.orientation)screen.orientation.removeEventListener("change",u);else window.removeEventListener("orientationchange",u);};},[]);
   return o;
-}
-
-/* ─── BARCODE DETECTION API ──────────────────────────────────────────────── */
-async function detectBarcodeNative(imageData) {
-  if (!("BarcodeDetector" in window)) return null;
-  try {
-    const detector = new BarcodeDetector({ formats: ["qr_code"] });
-    const barcodes = await detector.detect(imageData);
-    return barcodes.length > 0 ? barcodes[0].rawValue : null;
-  } catch(e) { return null; }
-}
-const hasBarcodeDetector = () => "BarcodeDetector" in window;
-
-/* ─── LOCALE-AWARE SORT ──────────────────────────────────────────────────── */
-function localeSortBy(arr, key, lang) {
-  const locale = lang==="en"?"en-US":"ku";
-  return [...arr].sort((a, b) =>
-    String(a[key] || "").localeCompare(String(b[key] || ""), locale, { sensitivity: "base" })
-  );
-}
-
-/* ─── CURRENCY FORMAT ────────────────────────────────────────────────────── */
-function fmtCurrency(amount, lang, currency = "TRY") {
-  try {
-    const locale = lang==="en"?"en-US":"ku";
-    return new Intl.NumberFormat(locale, { style: "currency", currency, maximumFractionDigits: 0 }).format(amount);
-  } catch { return amount + " " + currency; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -2636,42 +2221,6 @@ async function resetDeviceForUser(userNo) {
   } catch(e) { console.warn("Device reset error:", e); return false; }
 }
 
-/* ─── OFFLINE DATA QUEUE ─────────────────────────────────────────────────── */
-const _offlineQueue=[];
-function enqueueOfflineAction(a){_offlineQueue.push({...a,queuedAt:Date.now()});try{localStorage.setItem("aat-offline-queue",JSON.stringify(_offlineQueue));}catch(e){}}
-async function flushOfflineQueue(){
-  if(!navigator.onLine||_offlineQueue.length===0)return;
-  const items=[..._offlineQueue];_offlineQueue.length=0;
-  for(const item of items){try{if(item.type==="saveAttendance")await fbSaveAttendance(item.lessonId,item.teacherId,item.date,item.records);else if(item.type==="saveStudent")await fbSave("student",item.data);else if(item.type==="saveTeacher")await fbSave("teacher",item.data);}catch(e){_offlineQueue.push(item);}}
-  try{localStorage.setItem("aat-offline-queue",JSON.stringify(_offlineQueue));}catch(e){}
-}
-window.addEventListener("online",()=>setTimeout(flushOfflineQueue,1000));
-try{const s=localStorage.getItem("aat-offline-queue");if(s){const items=JSON.parse(s);_offlineQueue.push(...items);}}catch(e){}
-
-/* ─── FIREBASE ANALYTICS STUB ───────────────────────────────────────────── */
-const _analytics = {
-  logEvent(n,p){},
-  pageView(p){}, login(m){}, scan(s){}, attendanceSave(c){}
-};
-/* ─── FIREBASE REMOTE CONFIG STUB ───────────────────────────────────────── */
-const _remoteConfig = {
-  defaults:{qr_session_duration_ms:600000,max_students_per_class:30,enable_biometric_login:false,maintenance_mode:false,app_min_version:"4.0"},
-  get(k){return this.defaults[k];},
-  async fetch(){}
-};
-window._remoteConfig = _remoteConfig;
-
-/* ─── FIREBASE CRASHLYTICS STUB ─────────────────────────────────────────── */
-const _crashlytics = {
-  recordError(e,c){},
-  setUserId(id){}
-};
-/* ─── FIREBASE PERFORMANCE STUB ─────────────────────────────────────────── */
-const _perf = {
-  startTrace(name){return {stop:()=>{},putAttribute:()=>{},putMetric:()=>{}};}
-};
-window._perf = _perf;
-
 /* ─── FIREBASE APP CHECK STUB ───────────────────────────────────────────── */
 const _appCheck={configured:false};
 window._appCheck=_appCheck;
@@ -2770,11 +2319,6 @@ function generateNonce(len = 16) {
 // Used in QR session tokens for replay-attack prevention
 window._csrfNonce = generateNonce();
 
-/* ─── MINIMAL STUBS (kullanılmayan API'ler) ──────────────────────────────── */
-async function verifyCDNIntegrity(){ return true; }
-function useGeolocation(){ return {pos:null,err:null}; }
-function useDeviceMotion(){ return {x:0,y:0,z:0}; }
-
 /* ─── RTL DIRECTION MANAGER ─────────────────────────────────────────────── */
 // Kurdî Kurmancî is LTR, but Arabic Kurmanji / Sorani is RTL
 // This allows future RTL language additions
@@ -2844,14 +2388,6 @@ function GDPRBanner({ lang, onAccept }) {
 
 
 /* ─── NATIVE APIs — REMAINING STUBS ────────────────────────────────────── */
-
-/* ── Minimal API stubs (ileriki özellikler) ──────────────────────────────── */
-async function requestPayment(){return null;}
-async function startScreenCapture(){return null;}
-function stopScreenCapture(s){if(s)s.getTracks().forEach(t=>t.stop());}
-async function pickContact(){return null;}
-const hasContactPicker=()=>false;
-function usePointerLock(){return {locked:false,lock:()=>{},unlock:()=>{}};}
 
 /* ─── AREAS ─────────────────────────────────────────────────────────────── */
 const AREAS = [
@@ -3648,23 +3184,6 @@ function AcademyLogo({size=48}){
   );
 }
 
-function KRGFlag({size=28}){
-  const rays=Array.from({length:21},(_,i)=>i*360/21);
-  return(
-    <svg width={size} height={size*2/3} viewBox="0 0 90 60" style={{borderRadius:3,display:"block"}}>
-      <rect width="90" height="20" fill="#EF2B2D"/>
-      <rect y="20" width="90" height="20" fill="#FFF"/>
-      <rect y="40" width="90" height="20" fill="#007A3D"/>
-      <circle cx="45" cy="30" r="11" fill="#e7c77b"/>
-      <circle cx="45" cy="30" r="8" fill="#EF2B2D"/>
-      <g fill="#e7c77b" transform="translate(45,30)">
-        {rays.map((r,i)=>(
-          <rect key={i} x="-1" y="-19" width="2" height="6" rx="1" transform={`rotate(${r})`}/>
-        ))}
-      </g>
-    </svg>
-  );
-}
 
 function QRPattern({no, size=160}){
   const seed=no?parseInt(no.replace(/\D/g,""))||12345:12345;
@@ -4621,7 +4140,6 @@ function AddStudentSheet({open,onClose,defaultArea,students,t,lang,toast,onSave}
   const [name,setName]=useState("");
   const [area,setArea]=useState(defaultArea||AREAS[0]?.key||"sinema");
   const [year,setYear]=useState("2026");
-  const [classLevel,setClassLevel]=useState(1); // Sınıf (1-4)
   const [burs,setBurs]=useState("");
   const [phone,setPhone]=useState("");
   const [dob,setDob]=useState("");
@@ -4680,7 +4198,6 @@ function AddStudentSheet({open,onClose,defaultArea,students,t,lang,toast,onSave}
     const hashed = await hashPassword(tempPass);
     const student={
       id:Date.now(), name:sanitizeText(snapName), area, no,
-      classLevel: classLevel||1,
       pass:hashed, passHash:hashed,
       burs:sanitizeText(snapBurs), phone:sanitizePhone(snapPhone),
       email:snapEmail.trim(),
@@ -4783,12 +4300,6 @@ function AddStudentSheet({open,onClose,defaultArea,students,t,lang,toast,onSave}
           </select>
         </FieldWrap>
       </div>
-
-      <FieldWrap label={lang==="en"?"Class":K("Sînif")}>
-        <select style={selectStyle} value={classLevel} onChange={e=>setClassLevel(parseInt(e.target.value))}>
-          {[1,2,3,4].map(c=>(<option key={c} value={c}>🎓 {c}. {lang==="en"?"Class":K("Sînif")}</option>))}
-        </select>
-      </FieldWrap>
 
       <FieldWrap label={t.scholarship||"Burs"}>
         <select style={selectStyle} value={burs} onChange={e=>setBurs(e.target.value)}>
@@ -5019,9 +4530,12 @@ function AddTeacherSheet({open,onClose,defaultArea,teachers,t,lang,toast,onSave,
   );
 }
 
-function AddLessonSheet({open,onClose,defaultArea,t,lang,toast,onSave,teachers}){
+function AddLessonSheet({open,onClose,defaultArea,defaultClassId,t,lang,toast,onSave,teachers}){
   const [lessonType,setLessonType]=useState("main"); // "main" | "extra"
   const [area,setArea]=useState(defaultArea||"sinema");
+  const [classId,setClassId]=useState(defaultClassId||""); // "" = sınıfsız (alanın bütün öğrencileri)
+  const clsDocs=useClassDocs("classes",!!open);
+  const clsOpts=lessonClassOptions(clsDocs,area);
   const [teacherNo,setTeacherNo]=useState(""); // "" = atanmamış (alan öğretmenleri görür)
   const [day,setDay]=useState("Dûşem");
   const [name,setName]=useState("");
@@ -5034,6 +4548,9 @@ function AddLessonSheet({open,onClose,defaultArea,t,lang,toast,onSave,teachers})
   const DAYS=["Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî","Yekşem"];
 
   useEffect(()=>{if(defaultArea) setArea(defaultArea);},[defaultArea]);
+  useEffect(()=>{setClassId(defaultClassId||"");},[defaultClassId]);
+  // Sınıf seçilince sınıf öğretmeni ön seçili gelir
+  useEffect(()=>{ const d=clsDocs.find(x=>x.id===classId); if(d&&!teacherNo&&(d.teacherNos||[]).length) setTeacherNo(String(d.teacherNos[0])); },[classId,clsDocs.length]);
 
   function addDate(){
     if(!dateInput) return;
@@ -5052,6 +4569,7 @@ function AddLessonSheet({open,onClose,defaultArea,t,lang,toast,onSave,teachers})
     const tcSel=(teachers||[]).find(x=>x.no===teacherNo);
     const ls={
       id:Date.now(),area,name:name.trim(),start,end,loc:loc||"—",
+      classId:clsOpts.some(d=>d.id===classId)?classId:null,
       lessonType, // "main" veya "extra"
       day: lessonType==="main" ? day : null,
       extraDates: lessonType==="extra" ? extraDates : null,
@@ -5091,15 +4609,22 @@ function AddLessonSheet({open,onClose,defaultArea,t,lang,toast,onSave,teachers})
       </div>
 
       <FieldWrap label={t.artField}>
-        <select style={selectStyle} value={area} onChange={e=>setArea(e.target.value)}>
+        <select style={selectStyle} value={area} onChange={e=>{setArea(e.target.value);setClassId("");}}>
           {AREAS.map(a=>(<option key={a.key} value={a.key}>{a.icon} {areaName(a.key,lang)}</option>))}
+        </select>
+      </FieldWrap>
+      {/* Sınıf: ders yalnızca bu sınıfın öğrencilerine görünür, yoklama listesi bu sınıftır */}
+      <FieldWrap label={"🏫 "+(lang==="en"?"Class":K("Sinif"))}>
+        <select style={selectStyle} value={classId} onChange={e=>setClassId(e.target.value)}>
+          <option value="">— {area==="genel"?(lang==="en"?"All students":K("Hemû xwendekar")):(lang==="en"?"Whole field (no class)":K("Hemû qad (bê sinif)"))}</option>
+          {clsOpts.map(d=>(<option key={d.id} value={d.id}>{d.name} ({(d.studentNos||[]).length})</option>))}
         </select>
       </FieldWrap>
       {/* Ders öğretmeni (isteğe bağlı) — atanırsa yalnızca o öğretmen görür */}
       <FieldWrap label={(lang==="en"?"Teacher (optional)":K("Mamosteyê Dersê (vebijarkî)"))}>
         <select style={selectStyle} value={teacherNo} onChange={e=>setTeacherNo(e.target.value)}>
           <option value="">— {lang==="en"?"Unassigned (all field teachers see it)":K("Ne diyar (hemû mamosteyên qadê dibînin)")}</option>
-          {(teachers||[]).filter(tc=>!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&(tc.area===area||tc.area==="genel")).map(tc=>(
+          {(teachers||[]).filter(tc=>!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&(area==="genel"||tc.area===area||tc.area==="genel")).map(tc=>(
             <option key={tc.no} value={tc.no}>👨‍🏫 {tc.name} ({tc.no})</option>
           ))}
         </select>
@@ -5214,7 +4739,6 @@ function DeviceResetBtn({no, lang, toast}){
 function EditStudentSheet({student,onClose,t,lang,toast,onSave}){
   const [name,setName]=useState(student.name||"");
   const [area,setArea]=useState(student.area||"sinema");
-  const [classLevel,setClassLevel]=useState(student.classLevel||1);
   const [phone,setPhone]=useState(student.phone||"");
   const [email,setEmail]=useState(student.email||"");
   const [dob,setDob]=useState(student.dob||"");
@@ -5248,7 +4772,7 @@ function EditStudentSheet({student,onClose,t,lang,toast,onSave}){
       try{ if(window.__FB&&window.__FB.isConfigured()){ const _fr=await window.__FB.forceResetPassword(student.no,"student",student._plainPass||null,pass); if(_fr===null) toast("⚠ "+(lang==="en"?"Firebase Auth password could NOT be updated. Fix: Firebase Console → Authentication → delete this account; it recreates on next login.":K("Şîfreya Firebase Auth NEHAT nûkirin. Çare: Firebase Console → Authentication → vî hesabî jê bibe; di têketina pêş de bixweber ji nû ve tê çêkirin.")), 12000); } }catch(e){}
       toast("🔑 "+(lang==="en"?"New password: ":K("Şîfreya nû: "))+pass, 9000);
     }
-    onSave({...student,name:name.trim(),area,classLevel,phone,email,dob,address,pass:newHash,passHash:newHash,_plainPass:newPlain,photo});
+    onSave({...student,name:name.trim(),area,phone,email,dob,address,pass:newHash,passHash:newHash,_plainPass:newPlain,photo});
   }
 
   const plainPassDisplay = student._plainPass || (student.pass && student.pass.length < 20 ? student.pass : null);
@@ -5268,11 +4792,6 @@ function EditStudentSheet({student,onClose,t,lang,toast,onSave}){
       <FieldWrap label={t.artField}>
         <select style={selectStyle} value={area} onChange={e=>setArea(e.target.value)}>
           {AREAS.map(a=>(<option key={a.key} value={a.key}>{a.icon} {areaName(a.key,lang)}</option>))}
-        </select>
-      </FieldWrap>
-      <FieldWrap label={lang==="en"?"Class":K("Sînif")}>
-        <select style={selectStyle} value={classLevel} onChange={e=>setClassLevel(parseInt(e.target.value))}>
-          {[1,2,3,4].map(c=>(<option key={c} value={c}>🎓 {c}. {lang==="en"?"Class":K("Sînif")}</option>))}
         </select>
       </FieldWrap>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
@@ -7641,7 +7160,7 @@ function docIsPdf(d, url){
    Ana akademideki ekleme mantığıyla aynı: otomatik numara + otomatik şifre,
    Firebase Auth hesabı, dizin kaydı, e-postayla giriş bilgisi.
    Numaralar: çocuk öğretmeni 7YYYYnnn · çocuk 8YYYYnnn · veli 9YYYYnnn
-   Veriler: kidApplications · kids · guardians · kidTeachers · kidSecrets
+   Veriler: kidApplications · kids · guardians · kidTeachers
             idx_guardians · idx_kidstaff · kidAttendance · kidSchedule
             kidAnnouncements · kidMessages · kidNews · kidArchive · config/zarok */
 const ZAROK_DAYS_KU=["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"];
@@ -7658,18 +7177,23 @@ function zarokNextNo(nos,prefix){
 // mode="manage": Öğrenci İşleri / Yönetici — başvuru, çocuk, veli, öğretmen, yoklama, program, duyuru, mesaj
 // mode="press" : Basın — çocuk sitesi haberleri + arşiv (ana akademideki görev ayrımıyla aynı)
 // ══════════════════════════════════════════════════════════════════════
-//  SINIFLAR — ana akademi + çocuk akademisi (aynı bileşen)
-//   • Kişinin sınıfı kendi kaydındaki classLevel alanıdır (1., 2., …)
-//     (ana akademide zaten vardı; dönem sonunda "sınıf yükseltme" ile artar)
-//   • Sınıf öğretmeni: classes/{alan}_{seviye} · kidClasses/L{seviye}
-//       {area?, level, teacherNos[], teacherNames[], updatedAt}
-//     teacherNames, öğretmen listesini okuyamayan öğrenci/veli de adı görsün diye saklanır.
-//   • Yazma: yalnızca öğrenci işleri + yönetici (firestore.rules)
+//  SINIFLAR
+//  ANA AKADEMİ — classes/{id}
+//    {kind, name, area, studentNos[], teacherNos[], teacherNames[], createdAt, updatedAt}
+//     kind "area"    : bir alanın öğrencilerinden oluşan sınıf (ör. Sinema · 1. Sınıf)
+//     kind "general" : tüm alanlardan seçilen öğrencilerle ortak sınıf (area:"genel")
+//     kind "workshop": tek seferlik atölye (area:"genel"), ek alanlar:
+//                      date, start, end, loc, guest (dışarıdan eğitmen), lessonId,
+//                      status "open"|"closed", attSaved, attSummary, closedAt
+//    • Ders programındaki ders classId ile sınıfa bağlanır: öğrenci yalnızca kendi
+//      sınıflarının derslerini görür, öğretmenin yoklama listesi o sınıftır.
+//    • Sınıfa bağlı olmayan ders eskisi gibi alanın bütün öğrencilerine açıktır.
+//    • teacherNames, öğretmen listesini okuyamayan öğrenci de adı görsün diye saklanır.
+//  ÇOCUK AKADEMİSİ — kidClasses/L{seviye}; çocuğun sınıfı kendi classLevel alanı.
+//  Yazma: yalnızca öğrenci işleri + yönetici (firestore.rules)
 // ══════════════════════════════════════════════════════════════════════
-const CLASS_LEVELS=[1,2,3,4];
 const KID_CLASS_LEVELS=[1,2,3,4,5,6];
 function classTitle(level){ return level+". "+(RL()==="en"?"Class":K("Sînif")); }
-function classDocId(byArea,area,level){ return byArea?(area||"genel")+"_"+level:"L"+level; }
 function useClassDocs(coll,enabled=true){
   const [list,setList]=useState([]);
   useEffect(()=>{
@@ -7680,16 +7204,367 @@ function useClassDocs(coll,enabled=true){
   },[coll,enabled]);
   return list;
 }
+function classLabel(d,lang){
+  if(!d) return "";
+  if(d.kind==="area") return areaName(d.area,lang)+" · "+(d.name||"");
+  if(d.kind==="workshop") return "🛠 "+(d.name||"")+(d.date?" · "+d.date:"");
+  return "🌐 "+(d.name||"");
+}
+function inClass(d,no){ return !!d&&(d.studentNos||[]).map(String).includes(String(no)); }
+// Öğrencinin açık sınıfları (alan + genel + açık atölye)
+function classesOfStudent(docs,no){ return (docs||[]).filter(d=>d.kind&&d.status!=="closed"&&inClass(d,no)); }
+// Dersin öğrenci listesi: sınıfa bağlıysa o sınıf; değilse dersin alanı (genel → herkes)
+function lessonRoster(ls,students,docs){
+  const all=(students||[]).filter(s=>!s.isAdmin);
+  if(ls&&ls.classId){ const d=(docs||[]).find(x=>x.id===ls.classId); return d?all.filter(s=>inClass(d,s.no)):[]; }
+  if(!ls||!ls.area||ls.area==="genel") return all;
+  return all.filter(s=>s.area===ls.area);
+}
+// Ders formlarında sınıf seçimi: alan dersi → o alanın sınıfları, genel ders → genel sınıflar
+function lessonClassOptions(docs,area){
+  return (docs||[]).filter(d=>area==="genel"?d.kind==="general":(d.kind==="area"&&d.area===area))
+    .sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
+}
 
-// Öğrenci İşleri: sınıfları gör, sınıf öğretmeni ata, kişinin sınıfını değiştir
-//  members: [{key,name,no,area,level}] · teachers: [{no,name,area}]
-function ClassBoard({coll,members,teachers,levels,byArea,areaLabel,lang,toast,onSetLevel}){
+// Öğrenci İşleri: alan sınıfları · genel sınıflar · atölyeler
+function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange}){
   const F=window.__FB;
   const W2=(ku,en)=>lang==="en"?en:K(ku);
-  const docs=useClassDocs(coll);
+  const docs=useClassDocs("classes");
+  const studs=(students||[]).filter(s=>!s.isAdmin);
+  const tlist=(teachers||[]).filter(t2=>t2.no&&!t2.isGate&&!t2.isPress&&!t2.isRegistrar);
+  const fieldAreas=AREAS.filter(a=>a.key!=="genel");
+  const [kind,setKind]=useState("area");
+  const [areaF,setAreaF]=useState(()=>{ const a=fieldAreas.find(x=>studs.some(s=>s.area===x.key)); return (a||fieldAreas[0]||{key:"sinema"}).key; });
+  const [open,setOpen]=useState(null);
+  const [form,setForm]=useState(null);       // {id?, kind, name, area, sel:{no:true}, tsel:{no:true}, date,start,end,loc,guest, pa, q}
+  const [attFor,setAttFor]=useState(null);   // atölye yoklaması: class id
+  const [att,setAtt]=useState({});
+  const [addLessonFor,setAddLessonFor]=useState(null);
+  const [editLesson,setEditLesson]=useState(null);
+  const [showClosed,setShowClosed]=useState(false);
+  const [busy,setBusy]=useState(false);
+  const box={background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,padding:12,marginBottom:10};
+  const small={fontSize:11.5,color:"var(--text2)"};
+  const inp={padding:"8px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:13,fontFamily:"inherit",minHeight:38,boxSizing:"border-box"};
+  const btn=(bg,fg)=>({padding:"8px 12px",borderRadius:10,border:"none",background:bg||"#0f2f38",color:fg||"#fff",fontSize:12.5,fontWeight:700,cursor:"pointer",minHeight:36});
+  const ghost=btn("var(--bg2)","var(--text)");
+  const chip=on=>({padding:"6px 11px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",border:"1.5px solid "+(on?"#0f2f38":"var(--border2)"),background:on?"#0f2f38":"var(--surface)",color:on?"#fff":"var(--text)"});
+  const tName=no=>((tlist.find(t2=>String(t2.no)===String(no))||{}).name)||"";
+  const stuByNo=no=>studs.find(s=>String(s.no)===String(no));
+  const errMsg=e=>/permission/i.test(String(e&&e.code))?W2("Destûr tune: qaîdeyên Firestore yên nû biweşînin","Permission denied: publish the latest firestore.rules"):((e&&(e.code||e.message))||"error");
+  const lessonsOf=id=>(schedule||[]).filter(l=>l.classId===id);
+  const DAYN=d=>(t&&t.days&&t.days[d])||d;
+
+  const areaClasses=docs.filter(d=>d.kind==="area"&&d.area===areaF).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
+  const generalClasses=docs.filter(d=>d.kind==="general").sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
+  const workshops=docs.filter(d=>d.kind==="workshop").sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
+  const legacy=docs.filter(d=>!d.kind&&d.level);
+  const areaStuds=studs.filter(s=>s.area===areaF).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+  const noClass=areaStuds.filter(s=>!docs.some(d=>d.kind==="area"&&d.area===areaF&&inClass(d,s.no)));
+
+  // Eski düzen (classes/{alan}_{seviye} + öğrencinin classLevel'ı) → yeni sınıf belgesi
+  async function convertLegacy(){
+    if(busy) return; setBusy(true);
+    try{
+      for(const d of legacy){
+        const ar=d.area||String(d.id).split("_")[0];
+        const nos=studs.filter(s=>s.area===ar&&(+s.classLevel||1)===(+d.level||1)).map(s=>String(s.no));
+        await F.setDoc(F.doc(F.db,"classes",d.id),{kind:"area",name:(+d.level||1)+". "+W2("Sînif","Class"),area:ar,studentNos:nos,updatedAt:F.serverTimestamp()},{merge:true});
+      }
+      toast("✅ "+W2("Sinif hatin veguhertin","Classes converted")+" ("+legacy.length+")");
+    }catch(e){ toast("❌ "+errMsg(e)); }
+    setBusy(false);
+  }
+
+  function newForm(k){
+    const today=new Date().toISOString().slice(0,10);
+    setForm({kind:k,name:"",area:k==="area"?areaF:"genel",sel:{},tsel:{},date:today,start:"14:00",end:"16:00",loc:"",guest:"",pa:"all",q:""});
+    setAttFor(null);
+  }
+  function editForm(d){
+    setForm({id:d.id,kind:d.kind,name:d.name||"",area:d.area||"genel",sel:Object.fromEntries((d.studentNos||[]).map(n=>[String(n),true])),
+      tsel:Object.fromEntries((d.teacherNos||[]).map(n=>[String(n),true])),date:d.date||"",start:d.start||"",end:d.end||"",loc:d.loc||"",guest:d.guest||"",
+      lessonId:d.lessonId||null,pa:"all",q:""});
+    setAttFor(null);
+  }
+
+  async function saveForm(){
+    const nm=form.name.trim();
+    if(!nm){ toast("⚠ "+W2("Navê sinifê pêwîst e","Class name required")); return; }
+    const isWs=form.kind==="workshop";
+    if(isWs&&!form.date){ toast("⚠ "+W2("Tarîx pêwîst e","Date required")); return; }
+    const nos=Object.keys(form.sel).filter(k=>form.sel[k]&&(form.kind!=="area"||(stuByNo(k)||{}).area===form.area));
+    const tnos=Object.keys(form.tsel).filter(k=>form.tsel[k]);
+    const old=docs.find(d=>d.id===form.id)||{};
+    const tnames=tnos.map(no=>tName(no)||(old.teacherNames||[])[(old.teacherNos||[]).map(String).indexOf(no)]||"");
+    if(busy) return; setBusy(true);
+    try{
+      const ref=form.id?F.doc(F.db,"classes",form.id):F.doc(F.collection(F.db,"classes"));
+      const data={kind:form.kind,name:nm.slice(0,80),area:form.kind==="area"?form.area:"genel",studentNos:nos,teacherNos:tnos,teacherNames:tnames,updatedAt:F.serverTimestamp()};
+      if(!form.id) data.createdAt=F.serverTimestamp();
+      if(isWs){
+        // Atölye kendi ek dersini (o günün programı) taşır → öğretmen QR/yoklama açabilir, öğrenci programında görür
+        const prev=(schedule||[]).find(l=>l.classId===ref.id)||null;
+        const ls={...(prev||{}),id:prev?prev.id:Date.now(),fireId:prev&&prev.fireId?prev.fireId:"ws_"+ref.id,classId:ref.id,area:"genel",name:nm.slice(0,80),
+          lessonType:"extra",day:null,extraDates:[form.date],start:form.start||"",end:form.end||"",loc:form.loc.trim()||"—",
+          teacherNo:tnos[0]||null,teacherName:tnames[0]||null,guestTeacher:form.guest.trim().slice(0,80)||null};
+        Object.assign(data,{date:form.date,start:form.start||"",end:form.end||"",loc:form.loc.trim().slice(0,80),guest:form.guest.trim().slice(0,80),lessonId:ls.id});
+        if(!form.id) data.status="open";
+        await F.setDoc(ref,data,{merge:true});
+        onDataChange(prev?"updateSchedule":"addSchedule",ls);
+      } else {
+        await F.setDoc(ref,data,{merge:true});
+      }
+      toast("✅ "+W2("Hate tomarkirin","Saved")+" · "+nm);
+      setForm(null); setOpen(ref.id);
+    }catch(e){ toast("❌ "+errMsg(e)); }
+    setBusy(false);
+  }
+
+  async function delClass(d){
+    const ls=lessonsOf(d.id);
+    const msg=W2("Sinif were jêbirin?","Delete this class?")+"\n"+classLabel(d,lang)+(ls.length?"\n"+ls.length+" "+W2("dersên girêdayî jî tên jêbirin.","linked lessons will also be deleted."):"");
+    if(!window.confirm(msg)) return;
+    try{
+      ls.forEach(l=>onDataChange("deleteSchedule",{id:l.id,fireId:l.fireId||null}));
+      await F.deleteDoc(F.doc(F.db,"classes",d.id));
+      toast("🗑 "+classLabel(d,lang)); if(open===d.id) setOpen(null);
+    }catch(e){ toast("❌ "+errMsg(e)); }
+  }
+
+  // ── Atölye yoklaması ──
+  const wsRoster=d=>studs.filter(s=>inClass(d,s.no)).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+  const attDocId=d=>String(d.lessonId)+"-"+d.date;
+  async function openAtt(d){
+    setForm(null);
+    if(attFor===d.id){ setAttFor(null); return; }
+    let rec={};
+    try{ const s=await F.getDoc(F.doc(F.db,"attendance",attDocId(d))); if(s.exists()) rec=s.data().records||{}; }catch(_){}
+    setAtt(rec); setAttFor(d.id); setOpen(d.id);
+  }
+  async function saveAtt(d,close){
+    const roster=wsRoster(d);
+    const records={}; roster.forEach(s=>{ records[s.id]=att[s.id]||"off"; });
+    const sum={on:0,late:0,off:0}; Object.values(records).forEach(v=>{ sum[v]=(sum[v]||0)+1; });
+    if(close&&!window.confirm(W2("Atolye were girtin? Piştî girtinê amadebûn nayê guhertin.","Close this workshop? Attendance can't be changed after closing.")+"\n✅ "+sum.on+"  ⏱ "+sum.late+"  ❌ "+sum.off)) return;
+    if(busy) return; setBusy(true);
+    try{
+      await F.setDoc(F.doc(F.db,"attendance",attDocId(d)),{lessonId:d.lessonId,lessonName:d.name||"",area:"genel",classId:d.id,date:d.date,
+        teacherId:(d.teacherNos||[])[0]||null,teacherName:(d.teacherNames||[])[0]||d.guest||null,records,updatedAt:F.serverTimestamp()},{merge:true});
+      const patch={attSaved:true,attSummary:sum,updatedAt:F.serverTimestamp()};
+      if(close){
+        patch.status="closed"; patch.closedAt=F.serverTimestamp();
+        // Devam istatistiği (öğretmen yoklamasıyla aynı ağırlık) + programdaki atölye dersi kaldırılır
+        roster.forEach(s=>{ const st=getStudentStats(s.id); const v=records[s.id]; updateStudentStats(s.id,{att:Math.round((st.att*17+(v==="on"?100:v==="late"?50:0))/18),late:st.late+(v==="late"?1:0)}); });
+        lessonsOf(d.id).forEach(l=>onDataChange("deleteSchedule",{id:l.id,fireId:l.fireId||null}));
+      }
+      await F.updateDoc(F.doc(F.db,"classes",d.id),patch);
+      toast(close?"🔒 "+W2("Atolye hate girtin","Workshop closed"):"✅ "+W2("Amadebûn hate tomarkirin","Attendance saved"));
+      if(close) setAttFor(null);
+    }catch(e){ toast("❌ "+errMsg(e)); }
+    setBusy(false);
+  }
+
+  // ── Form: sınıf oluştur / düzenle ──
+  function renderForm(){
+    const isWs=form.kind==="workshop", isArea=form.kind==="area";
+    const pool=(isArea?studs.filter(s=>s.area===form.area):studs)
+      .filter(s=>isArea||form.pa==="all"||s.area===form.pa)
+      .filter(s=>{ const q=form.q.trim().toLocaleLowerCase(); return !q||(s.name||"").toLocaleLowerCase().includes(q)||String(s.no||"").includes(q); })
+      .sort((a,b)=>(isArea?0:String(areaName(a.area,lang)).localeCompare(String(areaName(b.area,lang))))||(a.name||"").localeCompare(b.name||""));
+    const nSel=Object.keys(form.sel).filter(k=>form.sel[k]&&(!isArea||(stuByNo(k)||{}).area===form.area)).length;
+    const otherCls=s=>docs.filter(d=>d.id!==form.id&&d.kind===form.kind&&d.status!=="closed"&&inClass(d,s.no)).map(d=>d.name).join(", ");
+    const setAll=on=>setForm(f=>({...f,sel:{...f.sel,...Object.fromEntries(pool.map(s=>[String(s.no),on]))}}));
+    const tsorted=tlist.slice().sort((a,b)=>((isArea&&b.area===form.area)-(isArea&&a.area===form.area))||(a.name||"").localeCompare(b.name||""));
+    const title=form.id?W2("Sinif biguherîne","Edit class"):isWs?W2("Atolyeya nû","New workshop"):isArea?W2("Sinifa nû","New class")+" · "+areaName(form.area,lang):W2("Sinifa giştî ya nû","New general class");
+    return(
+      <div style={{...box,border:"2px solid var(--accent)"}}>
+        <div style={{fontWeight:800,color:"var(--text)",marginBottom:8}}>{isWs?"🛠":isArea?"🎨":"🌐"} {title}</div>
+        <input aria-label={W2("Navê sinifê","Class name")} style={{...inp,width:"100%"}} value={form.name} maxLength={80} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
+          placeholder={isWs?W2("ör. Atolyeya Tomarkirina Deng","e.g. Sound Recording Workshop"):isArea?W2("ör. 1. Sinif · Koma A","e.g. 1st Class · Group A"):W2("ör. Çanda Muzîkê ya Hevpar","e.g. Shared Music Culture")}/>
+        {isWs&&(<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:8,marginTop:8}}>
+          <label style={small}>📅 {W2("Tarîx","Date")}<input type="date" style={{...inp,width:"100%"}} value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/></label>
+          <label style={small}>🕐 {W2("Destpêk","Start")}<input type="time" style={{...inp,width:"100%"}} value={form.start} onChange={e=>setForm(f=>({...f,start:e.target.value}))}/></label>
+          <label style={small}>🕐 {W2("Dawî","End")}<input type="time" style={{...inp,width:"100%"}} value={form.end} onChange={e=>setForm(f=>({...f,end:e.target.value}))}/></label>
+          <label style={small}>📍 {W2("Cih","Place")}<input style={{...inp,width:"100%"}} value={form.loc} maxLength={80} onChange={e=>setForm(f=>({...f,loc:e.target.value}))}/></label>
+          <label style={{...small,gridColumn:"1/-1"}}>🎤 {W2("Perwerdekarê ji derve (vebijarkî)","Guest instructor (optional)")}<input style={{...inp,width:"100%"}} value={form.guest} maxLength={80} onChange={e=>setForm(f=>({...f,guest:e.target.value}))}/></label>
+        </div>)}
+        <div style={{fontSize:12,fontWeight:800,color:"var(--text)",margin:"12px 0 4px"}}>👩‍🏫 {isWs?W2("Mamosteyê berpirsiyar","Responsible teacher"):W2("Mamosteyê sinifê","Class teacher")}</div>
+        <div style={{maxHeight:170,overflowY:"auto",border:"1px solid var(--border2)",borderRadius:10,padding:"4px 8px"}}>
+          {tsorted.map(t2=>(
+            <label key={t2.no} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 2px",fontSize:13,color:"var(--text)",cursor:"pointer"}}>
+              <input type="checkbox" checked={!!form.tsel[String(t2.no)]} onChange={e=>{const v=e.target.checked;setForm(f=>({...f,tsel:{...f.tsel,[String(t2.no)]:v}}));}}/>
+              {t2.name} <span style={small}>#{t2.no}{t2.area?" · "+areaName(t2.area,lang):""}</span>
+            </label>))}
+          {tsorted.length===0&&<div style={small}>{W2("Hîn mamoste tune.","No teachers yet.")}</div>}
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:8,margin:"12px 0 4px",flexWrap:"wrap"}}>
+          <div style={{fontSize:12,fontWeight:800,color:"var(--text)",flex:1}}>🎓 {W2("Xwendekar","Students")} <span style={small}>({nSel} {W2("hate hilbijartin","selected")})</span></div>
+          <button onClick={()=>setAll(true)} style={{...ghost,minHeight:30,padding:"5px 10px",fontSize:11.5}}>☑ {W2("Yên xuya hilbijêre","Select shown")}</button>
+          <button onClick={()=>setAll(false)} style={{...ghost,minHeight:30,padding:"5px 10px",fontSize:11.5}}>☐ {W2("Rake","Clear")}</button>
+        </div>
+        {!isArea&&<div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:6}}>
+          <button onClick={()=>setForm(f=>({...f,pa:"all"}))} style={chip(form.pa==="all")}>{W2("Hemû qad","All fields")}</button>
+          {fieldAreas.filter(a=>studs.some(s=>s.area===a.key)).map(a=>{ const n=studs.filter(s=>s.area===a.key&&form.sel[String(s.no)]).length;
+            return <button key={a.key} onClick={()=>setForm(f=>({...f,pa:a.key}))} style={chip(form.pa===a.key)}>{a.icon} {areaName(a.key,lang)}{n?" ("+n+")":""}</button>; })}
+        </div>}
+        <input aria-label={W2("Bigere","Search")} style={{...inp,width:"100%",marginBottom:6}} value={form.q} onChange={e=>setForm(f=>({...f,q:e.target.value}))} placeholder={"🔎 "+W2("Nav an jimare bigere","Search name or number")}/>
+        <div style={{maxHeight:300,overflowY:"auto",border:"1px solid var(--border2)",borderRadius:10,padding:"4px 8px"}}>
+          {pool.map(s=>{ const oc=otherCls(s); return(
+            <label key={s.no} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 2px",fontSize:13,color:"var(--text)",cursor:"pointer"}}>
+              <input type="checkbox" checked={!!form.sel[String(s.no)]} onChange={e=>{const v=e.target.checked;setForm(f=>({...f,sel:{...f.sel,[String(s.no)]:v}}));}}/>
+              <span style={{flex:1,minWidth:0}}>{s.name} <span style={small}>#{s.no}{isArea?"":" · "+areaName(s.area,lang)}{oc?" · 🏫 "+oc:""}</span></span>
+            </label>); })}
+          {pool.length===0&&<div style={{...small,padding:8}}>{W2("Xwendekar tune.","No students.")}</div>}
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:10}}>
+          <button disabled={busy} onClick={saveForm} style={btn("#16a34a")}>💾 {W2("Tomar bike","Save")}</button>
+          <button onClick={()=>setForm(null)} style={ghost}>{W2("Betal","Cancel")}</button>
+        </div>
+      </div>);
+  }
+
+  function renderAtt(d){
+    const roster=wsRoster(d);
+    const cnt=v=>roster.filter(s=>att[s.id]===v).length;
+    return(
+      <div style={{marginTop:10,padding:10,borderRadius:10,background:"var(--bg2)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:6}}>
+          <div style={{fontWeight:800,color:"var(--text)",flex:1}}>📋 {W2("Amadebûn","Attendance")} · {d.date}</div>
+          <span style={small}>✅ {cnt("on")} · ⏱ {cnt("late")} · ❌ {cnt("off")}</span>
+          <button onClick={()=>setAtt(a=>({...a,...Object.fromEntries(roster.map(s=>[s.id,"on"]))}))} style={{...ghost,minHeight:30,padding:"5px 10px",fontSize:11.5}}>✅ {W2("Hemû hatin","All present")}</button>
+        </div>
+        {roster.map(s=>(
+          <div key={s.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderTop:"1px solid var(--border2)"}}>
+            <div style={{flex:1,minWidth:0,fontSize:13,color:"var(--text)"}}>{s.name} <span style={small}>#{s.no} · {areaName(s.area,lang)}</span></div>
+            {[["on","✓"],["late","⏱"],["off","✗"]].map(([v,ic])=>(
+              <button key={v} aria-label={v+" "+s.name} onClick={()=>setAtt(a=>({...a,[s.id]:v}))} className={"att-btn"+(att[s.id]===v?" "+v:"")}>{ic}</button>))}
+          </div>))}
+        {roster.length===0&&<div style={small}>{W2("Xwendekar tune.","No students.")}</div>}
+        <div style={{display:"flex",gap:8,marginTop:10,flexWrap:"wrap"}}>
+          <button disabled={busy} onClick={()=>saveAtt(d,false)} style={btn("#0f2f38")}>💾 {W2("Amadebûnê tomar bike","Save attendance")}</button>
+          <button disabled={busy} onClick={()=>saveAtt(d,true)} style={btn("#b45309")}>🔒 {W2("Tomar bike û atolyeyê bigire","Save & close workshop")}</button>
+        </div>
+      </div>);
+  }
+
+  function renderClass(d){
+    const isOpen=open===d.id, isWs=d.kind==="workshop", closed=d.status==="closed";
+    const ms=studs.filter(s=>inClass(d,s.no)).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+    const tns=(d.teacherNos||[]).map((no,i)=>tName(no)||(d.teacherNames||[])[i]||("#"+no));
+    const ls=lessonsOf(d.id);
+    return(
+      <div key={d.id} style={{...box,opacity:closed?.8:1}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+          <div onClick={()=>setOpen(isOpen?null:d.id)} style={{flex:1,minWidth:170,cursor:"pointer"}}>
+            <div style={{fontWeight:800,color:"var(--text)"}}>{isOpen?"▾":"▸"} {isWs?"🛠 ":d.kind==="general"?"🌐 ":""}{d.name} <span style={small}>({ms.length} {W2("xwendekar","students")})</span>
+              {isWs&&<span style={{marginLeft:6,fontSize:10.5,fontWeight:800,padding:"2px 8px",borderRadius:20,background:closed?"rgba(100,116,139,.15)":"rgba(22,163,74,.12)",color:closed?"var(--text2)":"#15803d"}}>{closed?"🔒 "+W2("Girtî","Closed"):"🟢 "+W2("Vekirî","Open")}</span>}</div>
+            <div style={{...small,marginTop:2}}>👩‍🏫 {tns.length?tns.join(", "):W2("Mamosteyê sinifê tune","No class teacher")}{isWs&&d.guest?" · 🎤 "+d.guest:""}</div>
+            {isWs?<div style={{...small,marginTop:2}}>📅 {d.date} · {d.start}–{d.end}{d.loc?" · 📍 "+d.loc:""}{d.attSummary?" · ✅ "+(d.attSummary.on||0)+" ⏱ "+(d.attSummary.late||0)+" ❌ "+(d.attSummary.off||0):""}</div>
+              :<div style={{...small,marginTop:2}}>📅 {ls.length} {W2("ders di bernameyê de","lessons in schedule")}</div>}
+          </div>
+          {!closed&&<button onClick={()=>editForm(d)} style={ghost}>✏️ {W2("Biguherîne","Edit")}</button>}
+          {isWs&&!closed&&<button onClick={()=>openAtt(d)} style={btn("#0f2f38")}>📋 {W2("Amadebûn","Attendance")}</button>}
+          <button aria-label={W2("Jê bibe","Delete")} onClick={()=>delClass(d)} style={{...ghost,color:"var(--red)"}}>🗑</button>
+        </div>
+        {isWs&&attFor===d.id&&renderAtt(d)}
+        {isOpen&&!isWs&&(
+          <div style={{marginTop:10,padding:10,borderRadius:10,background:"var(--bg2)"}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+              <div style={{fontWeight:800,color:"var(--text)",flex:1}}>📅 {W2("Bernameya dersan","Lesson schedule")}</div>
+              <button onClick={()=>setAddLessonFor(d)} style={btn("#16a34a")}>➕ {W2("Ders zêde bike","Add lesson")}</button>
+            </div>
+            {ls.length===0&&<div style={small}>{W2("Hîn ders nehatiye danîn.","No lessons yet.")}</div>}
+            {ls.slice().sort((a,b)=>String(a.day||"").localeCompare(String(b.day||""))||String(a.start||"").localeCompare(String(b.start||""))).map(l=>(
+              <div key={l.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderTop:"1px solid var(--border2)"}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{l.name}</div>
+                  <div style={small}>{l.lessonType==="extra"?(l.extraDates||[]).join(", "):DAYN(l.day)} · {l.start}–{l.end}{l.teacherName?" · 👨‍🏫 "+l.teacherName:" · ⚠ "+W2("mamoste tune","no teacher")}{l.loc&&l.loc!=="—"?" · 📍 "+l.loc:""}</div>
+                </div>
+                <button aria-label="✏️" onClick={()=>setEditLesson(l)} style={{...ghost,minHeight:30,padding:"4px 9px"}}>✏️</button>
+                <button aria-label="🗑" onClick={()=>{ if(window.confirm(W2("Ders bişimitîne?","Delete this lesson?")+" – "+l.name)) onDataChange("deleteSchedule",{id:l.id,fireId:l.fireId||null}); }} style={{...ghost,minHeight:30,padding:"4px 9px",color:"var(--red)"}}>🗑</button>
+              </div>))}
+          </div>)}
+        {isOpen&&(<div style={{marginTop:8}}>
+          {ms.length===0&&<div style={small}>{W2("Di vê sinifê de kes tune.","Nobody in this class.")}</div>}
+          {ms.map(s=>(
+            <div key={s.no} style={{fontSize:12.5,color:"var(--text)",padding:"4px 0",borderTop:"1px solid var(--border2)"}}>• {s.name} <span style={small}>#{s.no}{d.kind==="area"?"":" · "+areaName(s.area,lang)}</span></div>))}
+        </div>)}
+      </div>);
+  }
+
+  const openWs=workshops.filter(d=>d.status!=="closed"), closedWs=workshops.filter(d=>d.status==="closed");
+  return(
+    <div>
+      <div style={{...box,background:"var(--bg2)"}}>
+        <div style={{fontWeight:800,color:"var(--text)",marginBottom:4}}>🏫 {W2("Sinif, bername û atolye","Classes, schedule & workshops")}</div>
+        <div style={small}>{W2("Di her qadê de sinifên xwendekaran ava bike, mamosteyê sinifê diyar bike û bernameya dersan bide sinifê. Dersên ku hemû qad tê de ne, wekî sinifa giştî ava bike. Atolyeyên ji derve ji bo rojekê veke, amadebûnê binivîse û bigire.",
+          "Create student classes in each field, assign class teachers and give each class its lesson schedule. Lessons shared by all fields are general classes. Open one-off guest workshops, record attendance and close them.")}</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:10}}>
+          <button onClick={()=>{setKind("area");setForm(null);}} style={chip(kind==="area")}>🎨 {W2("Sinifên qadê","Field classes")}</button>
+          <button onClick={()=>{setKind("general");setForm(null);}} style={chip(kind==="general")}>🌐 {W2("Sinifên giştî","General classes")} ({generalClasses.length})</button>
+          <button onClick={()=>{setKind("workshop");setForm(null);}} style={chip(kind==="workshop")}>🛠 {W2("Atolye","Workshops")} ({openWs.length})</button>
+        </div>
+      </div>
+      {legacy.length>0&&(
+        <div style={{...box,border:"1.5px dashed #fb8500"}}>
+          <div style={{fontWeight:800,color:"var(--text)"}}>♻ {W2("Sinifên rêza kevn","Old-style classes")} ({legacy.length})</div>
+          <div style={{...small,margin:"4px 0 8px"}}>{W2("Ev sinif hîn li gorî asta xwendekar in. Veguherîne da ku xwendekar bibin endamên sinifê.","These classes still use the student's level. Convert them so students become class members.")}</div>
+          <button disabled={busy} onClick={convertLegacy} style={btn("#b45309")}>♻ {W2("Veguherîne","Convert")}</button>
+        </div>)}
+
+      {kind==="area"&&(<>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
+          <select aria-label={W2("Qad","Field")} style={{...inp,flex:1,minWidth:150}} value={areaF} onChange={e=>{setAreaF(e.target.value);setForm(null);}}>
+            {fieldAreas.map(a=><option key={a.key} value={a.key}>{a.icon} {areaName(a.key,lang)} ({studs.filter(s=>s.area===a.key).length})</option>)}
+          </select>
+          <button onClick={()=>newForm("area")} style={btn("#16a34a")}>➕ {W2("Sinifa nû","New class")}</button>
+        </div>
+        {form&&form.kind==="area"&&renderForm()}
+        {noClass.length>0&&(
+          <div style={{...box,border:"1.5px dashed #fb8500"}}>
+            <div style={{fontWeight:800,color:"var(--text)"}}>⚠ {W2("Bê sinif","No class")} <span style={small}>({noClass.length})</span></div>
+            <div style={{...small,marginTop:4,lineHeight:1.7}}>{noClass.map(s=>s.name).join(" · ")}</div>
+          </div>)}
+        {areaClasses.length===0&&!form&&<div style={{...small,textAlign:"center",padding:18}}>{W2("Di vê qadê de hîn sinif tune.","No classes in this field yet.")}</div>}
+        {areaClasses.map(renderClass)}
+      </>)}
+
+      {kind==="general"&&(<>
+        <button onClick={()=>newForm("general")} style={{...btn("#16a34a"),marginBottom:10}}>➕ {W2("Sinifa giştî ya nû","New general class")}</button>
+        {form&&form.kind==="general"&&renderForm()}
+        {generalClasses.length===0&&!form&&<div style={{...small,textAlign:"center",padding:18}}>{W2("Hîn sinifa giştî tune.","No general classes yet.")}</div>}
+        {generalClasses.map(renderClass)}
+      </>)}
+
+      {kind==="workshop"&&(<>
+        <button onClick={()=>newForm("workshop")} style={{...btn("#16a34a"),marginBottom:10}}>➕ {W2("Atolye veke","Open workshop")}</button>
+        {form&&form.kind==="workshop"&&renderForm()}
+        {openWs.length===0&&!form&&<div style={{...small,textAlign:"center",padding:18}}>{W2("Atolyeya vekirî tune.","No open workshops.")}</div>}
+        {openWs.map(renderClass)}
+        {closedWs.length>0&&(<>
+          <button onClick={()=>setShowClosed(v=>!v)} style={{...ghost,width:"100%",margin:"6px 0 10px"}}>{showClosed?"▾":"▸"} 🔒 {W2("Atolyeyên girtî","Closed workshops")} ({closedWs.length})</button>
+          {showClosed&&closedWs.map(renderClass)}
+        </>)}
+      </>)}
+
+      {addLessonFor&&<AddLessonSheet open={true} onClose={()=>setAddLessonFor(null)} defaultArea={addLessonFor.area||"genel"} defaultClassId={addLessonFor.id} teachers={teachers} t={t} lang={lang} toast={toast}
+        onSave={(ls)=>{onDataChange("addSchedule",ls);setAddLessonFor(null);}}/>}
+      {editLesson&&<EditLessonSheet lesson={editLesson} onClose={()=>setEditLesson(null)} teachers={teachers} t={t} lang={lang} toast={toast}
+        onSave={(u)=>{onDataChange("updateSchedule",u);setEditLesson(null);toast("✓ "+u.name);}}/>}
+    </div>);
+}
+
+// Çocuk akademisi: sınıf öğretmeni ata, çocuğun sınıfını değiştir (kidClasses/L{seviye})
+//  members: [{key,name,no,area,level}] · teachers: [{no,name,area}]
+function KidClassBoard({members,teachers,areaLabel,lang,toast,onSetLevel}){
+  const F=window.__FB;
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const docs=useClassDocs("kidClasses");
+  const levels=KID_CLASS_LEVELS;
   const [open,setOpen]=useState(null);
   const [edit,setEdit]=useState(null);      // {id, sel:{no:true}}
-  const [areaF,setAreaF]=useState("all");
   const [q,setQ]=useState("");
   const box={background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,padding:12,marginBottom:10};
   const small={fontSize:11.5,color:"var(--text2)"};
@@ -7697,21 +7572,18 @@ function ClassBoard({coll,members,teachers,levels,byArea,areaLabel,lang,toast,on
   const btn=(bg,fg)=>({padding:"8px 12px",borderRadius:10,border:"none",background:bg||"#0f2f38",color:fg||"#fff",fontSize:12.5,fontWeight:700,cursor:"pointer",minHeight:36});
   const ghost=btn("var(--bg2)","var(--text)");
   const lvlOf=m=>+m.level||0;
-  const areas=byArea?[...new Set(members.map(m=>m.area||"genel"))].sort((a,b)=>String(areaLabel(a)).localeCompare(String(areaLabel(b)))):[null];
   const docOf=id=>docs.find(d=>d.id===id)||{};
-  const groups=[];
-  areas.filter(ar=>!byArea||areaF==="all"||ar===areaF).forEach(ar=>levels.forEach(lv=>{
-    const id=classDocId(byArea,ar,lv), d=docOf(id);
-    const ms=members.filter(m=>(!byArea||(m.area||"genel")===ar)&&lvlOf(m)===lv).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
-    if(ms.length||(d.teacherNos||[]).length||!byArea) groups.push({id,area:ar,level:lv,ms,d});
-  }));
+  const groups=levels.map(lv=>{
+    const id="L"+lv, d=docOf(id);
+    return {id,level:lv,d,ms:members.filter(m=>lvlOf(m)===lv).sort((a,b)=>(a.name||"").localeCompare(b.name||""))};
+  });
   const unassigned=members.filter(m=>!levels.includes(lvlOf(m)));
   const tName=no=>((teachers.find(t=>t.no===no)||{}).name)||"";
   async function saveTeachers(g){
     const nos=Object.keys(edit.sel).filter(k=>edit.sel[k]);
     const names=nos.map(no=>tName(no)||(g.d.teacherNames||[])[(g.d.teacherNos||[]).indexOf(no)]||"");
     try{
-      await F.setDoc(F.doc(F.db,coll,g.id),{...(byArea?{area:g.area||"genel"}:{}),level:g.level,teacherNos:nos,teacherNames:names,updatedAt:F.serverTimestamp()},{merge:true});
+      await F.setDoc(F.doc(F.db,"kidClasses",g.id),{level:g.level,teacherNos:nos,teacherNames:names,updatedAt:F.serverTimestamp()},{merge:true});
       toast("✅ "+W2("Hate tomarkirin","Saved")); setEdit(null);
     }catch(e){ toast("❌ "+(/permission/i.test(String(e&&e.code))?W2("Destûr tune: qaîdeyên Firestore yên nû biweşînin","Permission denied: publish the latest firestore.rules"):(e.code||e.message))); }
   }
@@ -7724,7 +7596,7 @@ function ClassBoard({coll,members,teachers,levels,byArea,areaLabel,lang,toast,on
     <div key={m.key} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderTop:"1px solid var(--border2)"}}>
       <div style={{flex:1,minWidth:0}}>
         <div style={{fontSize:13,fontWeight:600,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</div>
-        <div style={small}>#{m.no}{byArea?"":(m.area?" · "+areaLabel(m.area):"")}</div>
+        <div style={small}>#{m.no}{m.area?" · "+areaLabel(m.area):""}</div>
       </div>
       {levelSel(m)}
     </div>);
@@ -7733,14 +7605,8 @@ function ClassBoard({coll,members,teachers,levels,byArea,areaLabel,lang,toast,on
     <div>
       <div style={{...box,background:"var(--bg2)"}}>
         <div style={{fontWeight:800,color:"var(--text)",marginBottom:4}}>🏫 {W2("Sînif û mamosteyên sinifê","Classes & class teachers")}</div>
-        <div style={small}>{byArea
-          ?W2("Xwendekar li gorî qad û sinifa xwe têne komkirin. Ji bo her sinifê mamosteyê sinifê diyar bike; sinifa xwendekarekî ji lîsteyê biguherîne.","Students are grouped by field and class. Assign class teachers to each class; change a student's class from the list.")
-          :W2("Zarok li gorî sinifa xwe têne komkirin. Ji bo her sinifê mamosteyê sinifê diyar bike; sinifa zarokekî ji lîsteyê biguherîne.","Children are grouped by class. Assign class teachers to each class; change a child's class from the list.")}</div>
+        <div style={small}>{W2("Zarok li gorî sinifa xwe têne komkirin. Ji bo her sinifê mamosteyê sinifê diyar bike; sinifa zarokekî ji lîsteyê biguherîne.","Children are grouped by class. Assign class teachers to each class; change a child's class from the list.")}</div>
         <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
-          {byArea&&<select style={inp} value={areaF} onChange={e=>setAreaF(e.target.value)}>
-            <option value="all">{W2("Hemû qad","All fields")}</option>
-            {areas.map(a=><option key={a} value={a}>{areaLabel(a)}</option>)}
-          </select>}
           <input style={{...inp,flex:1,minWidth:150}} value={q} onChange={e=>setQ(e.target.value)} placeholder={"🔎 "+W2("Nav an jimare bigere","Search name or number")}/>
         </div>
       </div>
@@ -7759,7 +7625,7 @@ function ClassBoard({coll,members,teachers,levels,byArea,areaLabel,lang,toast,on
         <div key={g.id} style={box}>
           <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
             <div onClick={()=>setOpen(isOpen?null:g.id)} style={{flex:1,minWidth:160,cursor:"pointer"}}>
-              <div style={{fontWeight:800,color:"var(--text)"}}>{isOpen?"▾":"▸"} {byArea?areaLabel(g.area)+" · ":""}{classTitle(g.level)} <span style={small}>({g.ms.length} {byArea?W2("xwendekar","students"):W2("zarok","children")})</span></div>
+              <div style={{fontWeight:800,color:"var(--text)"}}>{isOpen?"▾":"▸"} {classTitle(g.level)} <span style={small}>({g.ms.length} {W2("zarok","children")})</span></div>
               <div style={{...small,marginTop:2}}>👩‍🏫 {tns.length?tns.join(", "):W2("Mamosteyê sinifê tune","No class teacher")}</div>
             </div>
             <button onClick={()=>setEdit(isEdit?null:{id:g.id,sel:Object.fromEntries((g.d.teacherNos||[]).map(n=>[n,true]))})} style={ghost}>👩‍🏫 {W2("Mamosteyê sinifê","Class teacher")}</button>
@@ -7768,7 +7634,7 @@ function ClassBoard({coll,members,teachers,levels,byArea,areaLabel,lang,toast,on
             <div style={{marginTop:10,padding:10,borderRadius:10,background:"var(--bg2)"}}>
               <div style={{...small,marginBottom:6}}>{W2("Yek an çend mamoste hilbijêre:","Choose one or more teachers:")}</div>
               <div style={{maxHeight:240,overflowY:"auto"}}>
-                {teachers.slice().sort((a,b)=>((byArea&&b.area===g.area)-(byArea&&a.area===g.area))||(a.name||"").localeCompare(b.name||"")).map(t=>(
+                {teachers.slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"")).map(t=>(
                   <label key={t.no} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 2px",fontSize:13,color:"var(--text)",cursor:"pointer"}}>
                     <input type="checkbox" checked={!!edit.sel[t.no]} onChange={e=>{const v=e.target.checked;setEdit(x=>({...x,sel:{...x.sel,[t.no]:v}}));}}/>
                     {t.name} <span style={small}>#{t.no}{t.area?" · "+areaLabel(t.area):""}</span>
@@ -7788,33 +7654,27 @@ function ClassBoard({coll,members,teachers,levels,byArea,areaLabel,lang,toast,on
     </div>);
 }
 
-// Öğrenci: sınıf öğretmeninin adı (classes belgesindeki teacherNames)
-function ClassTeacherPill({coll,id}){
-  const d=useClassDocs(coll).find(x=>x.id===id);
-  const names=((d&&d.teacherNames)||[]).filter(Boolean);
-  if(!names.length) return null;
-  return <span className="glass-pill">👩‍🏫 {names.join(", ")}</span>;
-}
 // Öğretmen: "Sınıflarım" — sınıf öğretmeni olduğu sınıflar ve öğrencileri
-function MyClassesCard({coll,teacherNo,members,byArea,areaLabel,lang}){
+function MyClassesCard({teacherNo,students,lang}){
   const W2=(ku,en)=>lang==="en"?en:K(ku);
-  const docs=useClassDocs(coll,!!teacherNo);
+  const docs=useClassDocs("classes",!!teacherNo);
   const [open,setOpen]=useState(null);
-  const mine=docs.filter(d=>(d.teacherNos||[]).map(String).includes(String(teacherNo))).sort((a,b)=>(String(a.area||"").localeCompare(String(b.area||"")))||((a.level||0)-(b.level||0)));
+  const mine=docs.filter(d=>d.kind&&d.status!=="closed"&&(d.teacherNos||[]).map(String).includes(String(teacherNo)))
+    .sort((a,b)=>String(a.kind).localeCompare(String(b.kind))||String(a.area||"").localeCompare(String(b.area||""))||String(a.name||"").localeCompare(String(b.name||"")));
   if(!mine.length) return null;
   return(
     <div style={{background:"var(--surface)",borderRadius:12,padding:"11px 14px",marginBottom:12,border:"1px solid rgba(15,23,42,.08)"}}>
       <div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:6}}>🏫 {W2("Sinifên Min","My Classes")}</div>
       {mine.map(d=>{
-        const ms=members.filter(m=>(!byArea||(m.area||"genel")===(d.area||"genel"))&&(+m.level||0)===(+d.level||0)).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+        const ms=(students||[]).filter(s=>!s.isAdmin&&inClass(d,s.no)).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
         const isOpen=open===d.id;
         return(
           <div key={d.id} style={{borderTop:"1px solid var(--border2)",padding:"7px 0"}}>
             <div onClick={()=>setOpen(isOpen?null:d.id)} style={{display:"flex",justifyContent:"space-between",gap:8,cursor:"pointer",fontSize:12.5,color:"var(--text)",fontWeight:600}}>
-              <span>{isOpen?"▾":"▸"} {byArea?areaLabel(d.area)+" · ":""}{classTitle(d.level)}</span>
+              <span>{isOpen?"▾":"▸"} {classLabel(d,lang)}</span>
               <span style={{fontSize:11,color:"var(--text2)"}}>{ms.length} {W2("xwendekar","students")}</span>
             </div>
-            {isOpen&&<div style={{marginTop:6,fontSize:12,color:"var(--text2)",lineHeight:1.7}}>{ms.map(m=><div key={m.key}>• {m.name} <span style={{fontFamily:"monospace"}}>#{m.no}</span></div>)}</div>}
+            {isOpen&&<div style={{marginTop:6,fontSize:12,color:"var(--text2)",lineHeight:1.7}}>{ms.map(m=><div key={m.no}>• {m.name} <span style={{fontFamily:"monospace"}}>#{m.no}</span>{d.kind!=="area"?" · "+areaName(m.area,lang):""}</div>)}</div>}
           </div>);})}
     </div>);
 }
@@ -7872,9 +7732,10 @@ function ClassPostsPanel({mode,teacher,student,lang,toast}){
   const live=!!(F&&F.isConfigured());
   const docs=useClassDocs("classes",live);
   const me=teacher?String(teacher.no):"";
-  const mine=docs.filter(d=>(d.teacherNos||[]).map(String).includes(me)).sort((a,b)=>String(a.area||"").localeCompare(String(b.area||""))||((a.level||0)-(b.level||0)));
-  const myCid=student?classDocId(true,student.area,student.classLevel||1):"";
-  const myCls=docs.find(d=>d.id===myCid);
+  const mine=docs.filter(d=>d.kind&&d.status!=="closed"&&(d.teacherNos||[]).map(String).includes(me)).sort((a,b)=>String(a.kind).localeCompare(String(b.kind))||String(a.area||"").localeCompare(String(b.area||""))||String(a.name||"").localeCompare(String(b.name||"")));
+  const myClasses=student?classesOfStudent(docs,student.no):[];
+  const myCids=myClasses.map(d=>d.id).sort().slice(0,30);
+  const cidKey=myCids.join(",");
   const [posts,setPosts]=useState([]);
   const [type,setType]=useState("duyuru");
   const [sel,setSel]=useState({});
@@ -7885,12 +7746,13 @@ function ClassPostsPanel({mode,teacher,student,lang,toast}){
   useEffect(()=>{
     if(!live) return; let u=()=>{};
     try{
-      const q=mode==="teacher"?F.query(F.collection(F.db,"classPosts"),F.where("teacherNo","==",me)):F.query(F.collection(F.db,"classPosts"),F.where("classId","==",myCid));
+      if(mode!=="teacher"&&!myCids.length){ setPosts([]); return; }
+      const q=mode==="teacher"?F.query(F.collection(F.db,"classPosts"),F.where("teacherNo","==",me)):F.query(F.collection(F.db,"classPosts"),F.where("classId","in",myCids));
       u=F.onSnapshot(q,s=>setPosts(s.docs.map(d=>({...d.data(),fireId:d.id})).sort((a,b)=>((b.createdAt&&b.createdAt.seconds)||9e9)-((a.createdAt&&a.createdAt.seconds)||9e9))),e=>console.warn("[classPosts]",e&&e.code));
     }catch(_){}
     return ()=>{ try{u();}catch(_){} };
-  },[live,mode,me,myCid]);
-  const clsLabel=d=>areaName(d.area,lang)+" · "+classTitle(d.level);
+  },[live,mode,me,cidKey]);
+  const clsLabel=p=>{ const d=docs.find(x=>x.id===p.classId)||p; return classLabel(d,lang)||p.className||""; };
   const inp={width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:14,boxSizing:"border-box",fontFamily:"inherit",minHeight:42};
   const chip=on=>({padding:"7px 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",border:"1.5px solid "+(on?"#0f2f38":"var(--border2)"),background:on?"#0f2f38":"var(--surface)",color:on?"#fff":"var(--text)"});
   async function send(){
@@ -7900,7 +7762,7 @@ function ClassPostsPanel({mode,teacher,student,lang,toast}){
     if(busy) return; setBusy(true);
     try{
       for(const d of targets){
-        await F.addDoc(F.collection(F.db,"classPosts"),{classId:d.id,area:d.area||"genel",level:+d.level||1,type,title:title.trim().slice(0,140),body:body.trim().slice(0,3000),
+        await F.addDoc(F.collection(F.db,"classPosts"),{classId:d.id,area:d.area||"genel",className:String(d.name||"").slice(0,80),type,title:title.trim().slice(0,140),body:body.trim().slice(0,3000),
           due:type==="odev"?(due||""):"",files,teacherNo:me,teacherName:teacher.name||"",createdAt:F.serverTimestamp()});
       }
       toast("✅ "+W2("Ji sinifê re hate şandin","Sent to class")+" ("+targets.length+")");
@@ -7921,13 +7783,15 @@ function ClassPostsPanel({mode,teacher,student,lang,toast}){
     </div>);
   if(mode==="student") return(
     <div>
-      <div style={{background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,padding:12,marginBottom:10}}>
-        <div style={{fontWeight:800,color:"var(--text)"}}>🏫 {areaName(student.area,lang)} · {classTitle(student.classLevel||1)}</div>
-        <div style={{fontSize:12,color:"var(--text2)",marginTop:3}}>👩‍🏫 {W2("Mamosteyê sinifê","Class teacher")}: {((myCls&&myCls.teacherNames)||[]).filter(Boolean).join(", ")||"—"}</div>
-      </div>
+      {myClasses.length===0&&<div style={{background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,padding:12,marginBottom:10,fontSize:13,color:"var(--text2)"}}>🏫 {W2("Tu hîn di sinifekê de nînî.","You are not in a class yet.")}</div>}
+      {myClasses.map(d=>(
+      <div key={d.id} style={{background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,padding:12,marginBottom:10}}>
+        <div style={{fontWeight:800,color:"var(--text)"}}>🏫 {classLabel(d,lang)}</div>
+        <div style={{fontSize:12,color:"var(--text2)",marginTop:3}}>👩‍🏫 {W2("Mamosteyê sinifê","Class teacher")}: {(d.teacherNames||[]).filter(Boolean).join(", ")||"—"}</div>
+      </div>))}
       {filterRow}
       {shown.length===0&&<div style={{textAlign:"center",padding:28,fontSize:13,color:"var(--text2)"}}>{W2("Hîn tiştek nehatiye şandin.","Nothing posted yet.")}</div>}
-      {shown.map(p=><PostCard key={p.fireId} p={p} lang={lang}/>)}
+      {shown.map(p=><PostCard key={p.fireId} p={p} lang={lang} showClass={myClasses.length>1} classLabel={clsLabel}/>)}
     </div>);
   return(
     <div>
@@ -7938,7 +7802,7 @@ function ClassPostsPanel({mode,teacher,student,lang,toast}){
         <div style={{fontWeight:800,color:"var(--text)",marginBottom:8}}>📤 {W2("Ji sinifa xwe re bişîne","Send to your class")}</div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>{POST_TYPES.map(([k,ic])=><button key={k} onClick={()=>setType(k)} style={chip(type===k)}>{ic} {postTypeLabel(k)}</button>)}</div>
         <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",margin:"6px 0 4px"}}>🏫 {W2("Sinif","Class")}</div>
-        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>{mine.map(d=><button key={d.id} onClick={()=>setSel(x=>({...x,[d.id]:!x[d.id]}))} style={chip(!!sel[d.id])}>{sel[d.id]?"✓ ":""}{clsLabel(d)}</button>)}</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>{mine.map(d=><button key={d.id} onClick={()=>setSel(x=>({...x,[d.id]:!x[d.id]}))} style={chip(!!sel[d.id])}>{sel[d.id]?"✓ ":""}{classLabel(d,lang)}</button>)}</div>
         <input style={inp} value={title} maxLength={140} onChange={e=>setTitle(e.target.value)} placeholder={W2("Sernav","Title")}/>
         <textarea style={{...inp,minHeight:90,marginTop:8,resize:"vertical"}} value={body} maxLength={3000} onChange={e=>setBody(e.target.value)} placeholder={W2("Nivîs (vebijarkî)","Text (optional)")}/>
         {type==="odev"&&<div style={{marginTop:8}}><div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:4}}>⏰ {W2("Roja dawî","Due date")}</div><input type="date" style={inp} value={due} onChange={e=>setDue(e.target.value)}/></div>}
@@ -8069,9 +7933,8 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
 
   // ── hesap yardımcıları (ana akademi mantığı) ──
   // Yeni hesap: sıradaki boş numarayı bulur. Önceki yarım kalmış bir denemeden
-  // Firebase Auth'ta aynı e-posta ("email-already-in-use") kalmışsa: şifre kasasında
-  // eski şifresi varsa hesap devralınır, yoksa o numara atlanıp bir sonrakine geçilir.
-  // Şifre kasası Auth'tan ÖNCE yazılır → kural/yetki sorunu hesap açılmadan yakalanır.
+  // Hesap sunucuda açılır. Numarada eski bir giriş hesabı kalmışsa ("email-already-in-use")
+  // o numara atlanır, bir sonrakine geçilir → mükerrer/yarım kayıt oluşmaz.
   async function makeAccount(nos,prefix,role){
     const taken=new Set((nos||[]).map(String));
     const first=parseInt(zarokNextNo(nos,prefix).slice(prefix.length),10);
@@ -8079,17 +7942,8 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
       const no=prefix+String(first+i).padStart(3,"0");
       if(taken.has(no)) continue;
       const pass=genAutoPassword();
-      let old=null;
-      if(!F.serverUserMgmt){
-        try{ const s=await F.getDoc(F.doc(F.db,"kidSecrets",no)); if(s.exists()) old=s.data().pass||null; }catch(_){}
-        await F.setDoc(F.doc(F.db,"kidSecrets",no),{no,role,pass,updatedAt:F.serverTimestamp()});
-      }
       try{ await F.createAuthUser(no,pass,role); return {no,pass}; }
-      catch(e){
-        if(e.code!=="auth/email-already-in-use") throw e;
-        if(old){ const r=await F.forceResetPassword(no,role,old,pass); if(r) return {no,pass}; }
-        if(!F.serverUserMgmt){ try{ await F.setDoc(F.doc(F.db,"kidSecrets",no),{no,role,pass:old||"",orphan:true,updatedAt:F.serverTimestamp()}); }catch(_){} }
-      }
+      catch(e){ if(e.code!=="auth/email-already-in-use") throw e; }
     }
     throw Object.assign(new Error("no-free-number"),{code:"aat/no-free-number"});
   }
@@ -8191,27 +8045,21 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
     try{ await F.updateDoc(F.doc(F.db,"guardians",form.id),{name:(d.name||"").trim(),phone:d.phone||"",phone2:d.phone2||"",email:(d.email||"").trim(),relation:d.relation||"",updatedAt:F.serverTimestamp()});
       toast(Z("✅ Hate tomarkirin","✅ Saved")); setForm(null); }catch(e){ err(e); }
   }
-  // Şifre yenile: Cloud Functions açıksa eski şifre gerekmez; değilse kidSecrets'taki son şifre kullanılır
+  // Şifre yenile: sunucu yeni şifreyi doğrudan yazar (eski şifre gerekmez)
   async function resetPass(no,role,name,email){
     if(!window.confirm(Z("Şîfreyeke nû were çêkirin?","Generate a new password?"))) return;
     setBusy(true);
     try{
       const pass=genAutoPassword();
-      let old=null;
-      if(!F.serverUserMgmt){ try{ const s=await F.getDoc(F.doc(F.db,"kidSecrets",no)); old=s.exists()?s.data().pass:null; }catch(_){} }
-      const r=await F.forceResetPassword(no,role,old,pass);
+      const r=await F.forceResetPassword(no,role,null,pass);
       if(!r){ toast(Z("⚠ Şîfre nehat guhertin — Cloud Functions veke (FUNCTIONS.md)","⚠ Could not change password — enable Cloud Functions (FUNCTIONS.md)"),7000); setBusy(false); return; }
-      if(!F.serverUserMgmt) await F.setDoc(F.doc(F.db,"kidSecrets",no),{no,role,pass,updatedAt:F.serverTimestamp()});
       const mailed=await mailCreds(name,email,no,pass);
       setCreds({title:Z("Şîfreya nû","New password"),no,name,pass,mailed,teacher:role==="kidteacher"});
     }catch(e){ err(e); }
     setBusy(false);
   }
   async function removeAccount(no,role){
-    let old=null;
-    if(!F.serverUserMgmt){ try{ const s=await F.getDoc(F.doc(F.db,"kidSecrets",no)); old=s.exists()?s.data().pass:null; }catch(_){} }
-    try{ await F.deleteAuthUser(no,role,old); }catch(_){}
-    await F.deleteDoc(F.doc(F.db,"kidSecrets",no)).catch(()=>{});
+    try{ await F.deleteAuthUser(no,role); }catch(_){}
   }
   // Kardeş eşleştir: iki ailenin velileri birleşir → her iki veli de tüm kardeşleri görür
   async function linkSiblings(a,b){
@@ -8613,7 +8461,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
           </div>))}
       </div>)}
 
-      {tab==="classes"&&<ClassBoard coll="kidClasses" byArea={false} levels={KID_CLASS_LEVELS} areaLabel={areaLabel} lang={lang} toast={toast}
+      {tab==="classes"&&<KidClassBoard areaLabel={areaLabel} lang={lang} toast={toast}
         members={kids.map(k=>({key:k.fireId,name:k.name,no:k.no,area:k.area,level:k.classLevel||0}))}
         teachers={kteach.map(t=>({no:t.no,name:t.name,area:t.area}))}
         onSetLevel={(m,l)=>F.updateDoc(F.doc(F.db,"kids",m.key),{classLevel:l,updatedAt:F.serverTimestamp()}).catch(err)}/>}
@@ -8792,7 +8640,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
     {key:"serledan",icon:"📋",label:lang==="en"?"Applications":K("Serlêdan")},
     {key:"tescil",icon:"🎓",label:lang==="en"?"Registration":K("Tescîl (Xwendekar/Mamoste)")},
     {key:"qad",icon:"🎭",label:lang==="en"?"Art Fields":K("Qadên Hunerê")},
-    {key:"sinif",icon:"🏫",label:lang==="en"?"Classes":K("Sînif")},
+    {key:"sinif",icon:"🏫",label:lang==="en"?"Classes & Workshops":K("Sinif û Atolye")},
     {key:"bername",icon:"📅",label:lang==="en"?"Schedule & Terms":K("Bername û Demsal")},
     {key:"anket",icon:"📊",label:lang==="en"?"Surveys":K("Ankêt")},
     {key:"rapor",icon:"📄",label:lang==="en"?"Reports":K("Rapor")},
@@ -8943,7 +8791,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
     let no;
     try{ no=await reserveNo(cands,"student",pass); }catch(e){ toast("❌ "+reserveErrText(e,lang),8000); return; }
     const hashed=await hashPassword(pass);
-    const student={id:Date.now(),name:sanitizeText(app.name),area,no,classLevel:1,pass:hashed,passHash:hashed,
+    const student={id:Date.now(),name:sanitizeText(app.name),area,no,pass:hashed,passHash:hashed,
       phone:app.phone||"",dob:app.dob||"",address:"",email:app.email||"",photo:null,_plainPass:pass,_authDone:true};
     onDataChange&&onDataChange("addStudent",student);
     await setStatus(app,"accepted",{studentNo:no});
@@ -9058,10 +8906,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
           <AdminSurveyPanel lang={lang} t={t||T.ku} schedule={schedule||[]} teachers={teachers||[]} students={students||[]} toast={toast}/>
         )}
         {section==="zarok"&&<ZarokAdminPanel lang={lang} toast={toast} user={user}/>}
-        {section==="sinif"&&<ClassBoard coll="classes" byArea={true} levels={CLASS_LEVELS} areaLabel={a=>areaName(a,lang)} lang={lang} toast={toast}
-          members={(students||[]).filter(s2=>!s2.isAdmin).map(s2=>({key:s2.fireId||String(s2.id),name:s2.name,no:s2.no,area:s2.area,level:s2.classLevel||1,ref:s2}))}
-          teachers={(teachers||[]).filter(t2=>t2.no&&!t2.isGate&&!t2.isPress&&!t2.isRegistrar).map(t2=>({no:String(t2.no),name:t2.name,area:t2.area}))}
-          onSetLevel={(m,l)=>onDataChange("updateStudent",{...m.ref,classLevel:l})}/>}
+        {section==="sinif"&&<AcademyClassBoard students={students||[]} teachers={teachers||[]} schedule={schedule||[]} lang={lang} t={t||T.ku} toast={toast} onDataChange={onDataChange}/>}
         {section==="rapor"&&(
           <AdminReportCenter students={students||[]} teachers={teachers||[]} schedule={schedule||[]} lang={lang} t={t||T.ku} toast={toast} byName={user.name}/>
         )}
@@ -9099,7 +8944,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
                   <Avatar name={st.name} color={AREA_MAP[st.area]?.color||"#0f2f38"} size={36} photo={st.photo}/>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:13,fontWeight:700,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{st.name}</div>
-                    <div style={{fontSize:10,color:"var(--text2)",fontFamily:"monospace"}}>{st.no} · {areaName(st.area,lang)} · {(st.classLevel||1)}. {lang==="en"?"Class":K("Sînif")}</div>
+                    <div style={{fontSize:10,color:"var(--text2)",fontFamily:"monospace"}}>{st.no} · {areaName(st.area,lang)}</div>
                     {showPass&&(
                       <div style={{marginTop:5,display:"flex",alignItems:"center",gap:6}}>
                         <span style={{fontSize:11.5,fontFamily:"monospace",fontWeight:800,letterSpacing:"0.06em",
@@ -9719,6 +9564,10 @@ function StatsDetailModal({type,students,teachers,schedule,onClose,t,lang,toast,
 /* ─── EDIT LESSON SHEET ─────────────────────────────────────────────────── */
 function EditLessonSheet({lesson,onClose,t,lang,toast,onSave,teachers}){
   const [name,setName]=useState(lesson.name);
+  const [classId,setClassId]=useState(lesson.classId||"");
+  const clsDocs=useClassDocs("classes");
+  const clsOpts=lessonClassOptions(clsDocs,lesson.area);
+  const wsLesson=!!(lesson.classId&&clsDocs.some(d=>d.id===lesson.classId&&d.kind==="workshop"));
   const [teacherNo,setTeacherNo]=useState(lesson.teacherNo||"");
   const [day,setDay]=useState(lesson.day||"Dûşem");
   const [start,setStart]=useState(lesson.start);
@@ -9740,6 +9589,7 @@ function EditLessonSheet({lesson,onClose,t,lang,toast,onSave,teachers}){
     if(!name.trim()){toast("⚠ "+t.lessonName);return;}
     const tcSel=(teachers||[]).find(x=>x.no===teacherNo);
     onSave({...lesson,name,day:lessonType==="main"?day:null,start,end,loc,
+      classId:wsLesson?lesson.classId:(classId&&clsOpts.some(d=>d.id===classId)?classId:null),
       extraDates:lessonType==="extra"?extraDates:null,lessonType,
       teacherNo:teacherNo||null,teacherName:tcSel?tcSel.name:(teacherNo?lesson.teacherName:null)});
   }
@@ -9755,11 +9605,18 @@ function EditLessonSheet({lesson,onClose,t,lang,toast,onSave,teachers}){
 
       <FieldWrap label={t.lessonName}><input style={inputStyle} value={name} onChange={e=>setName(e.target.value)}/></FieldWrap>
 
+      {!wsLesson&&<FieldWrap label={"🏫 "+(lang==="en"?"Class":K("Sinif"))}>
+        <select style={selectStyle} value={classId} onChange={e=>setClassId(e.target.value)}>
+          <option value="">— {lesson.area==="genel"?(lang==="en"?"All students":K("Hemû xwendekar")):(lang==="en"?"Whole field (no class)":K("Hemû qad (bê sinif)"))}</option>
+          {clsOpts.map(d=>(<option key={d.id} value={d.id}>{d.name} ({(d.studentNos||[]).length})</option>))}
+        </select>
+      </FieldWrap>}
+
       {/* Ders öğretmeni (isteğe bağlı) */}
       <FieldWrap label={(lang==="en"?"Teacher (optional)":K("Mamosteyê Dersê (vebijarkî)"))}>
         <select style={selectStyle} value={teacherNo} onChange={e=>setTeacherNo(e.target.value)}>
           <option value="">— {lang==="en"?"Unassigned (all field teachers see it)":K("Ne diyar (hemû mamosteyên qadê dibînin)")}</option>
-          {(teachers||[]).filter(tc=>!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&(tc.area===lesson.area||tc.area==="genel")).map(tc=>(
+          {(teachers||[]).filter(tc=>!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&(lesson.area==="genel"||tc.area===lesson.area||tc.area==="genel")).map(tc=>(
             <option key={tc.no} value={tc.no}>👨‍🏫 {tc.name} ({tc.no})</option>
           ))}
         </select>
@@ -9855,6 +9712,7 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
   const DAYS = ["Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî","Yekşem"];
   // ── Dönemler (Demsal) ──
   const terms=useTerms();
+  const clsDocs=useClassDocs("classes");
   const [viewTerm,setViewTerm]=useState("all");   // "all" | termId
   const [showTerms,setShowTerms]=useState(false);
   const [tLabel,setTLabel]=useState("");
@@ -9890,27 +9748,6 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
     saveTerms({list:(terms.list||[]).filter(x=>x.id!==id),activeId:terms.activeId===id?null:terms.activeId});
     if(viewTerm===id) setViewTerm("all");
   }
-  // ── Dönem kapanışı: onaylanan öğrenciler bir üst sınıfa geçer ──
-  const [promoteTerm,setPromoteTerm]=useState(null);
-  const [promoteSel,setPromoteSel]=useState({});
-  function openPromote(tm){
-    setPromoteTerm(tm);
-    setPromoteSel(Object.fromEntries((students||[]).map(st=>[st.id,true])));
-  }
-  function doPromote(){
-    const chosen=(students||[]).filter(st=>promoteSel[st.id]);
-    let n=0;
-    for(const st of chosen){
-      const cur=st.classLevel||1;
-      if(cur>=4) continue;
-      onDataChange("updateStudent",{...st,classLevel:cur+1});
-      n++;
-    }
-    toast("🎓 "+n+" "+(lang==="en"?"students promoted":K("xwendekar derbasî sinifa jorîn bûn")));
-    logReportArchive({type:"donem",label:(lang==="en"?"Term closed: ":K("Demsal girtî: "))+promoteTerm.label+" ("+promoteTerm.start+" → "+promoteTerm.end+") · "+n+" xwendekar"});
-    setPromoteTerm(null);
-  }
-
   function deleteLesson(ls) {
     const msg=(lang==="en"?"Delete this lesson?":K("Ders bişimitîne?"))+" – "+ls.name;
     if(!window.confirm(msg)) return;
@@ -9943,6 +9780,8 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
             {isExtra&&<span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:"rgba(234,88,12,0.10)",color:"#ea580c",fontWeight:700,border:"1px solid rgba(234,88,12,0.2)"}}>
               {t.extraBadge}
             </span>}
+            {ls.classId&&(()=>{const cd=clsDocs.find(x=>x.id===ls.classId);
+              return cd?<span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:"rgba(15,47,56,0.08)",color:"var(--text)",fontWeight:700}}>🏫 {cd.name}</span>:null;})()}
             {ls.term&&(()=>{const tm=(terms.list||[]).find(x=>x.id===ls.term);
               return tm?<span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:"var(--accent-dim)",color:"var(--accent)",fontWeight:700}}>📆 {tm.label}</span>:null;})()}
             {ls.teacherName
@@ -10034,8 +9873,6 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
                 {terms.activeId===tm.id
                   ? <span style={{fontSize:10,fontWeight:700,padding:"3px 9px",borderRadius:99,background:"rgba(22,163,74,0.12)",color:"#16a34a"}}>✓ {TL("active")}</span>
                   : <button onClick={()=>saveTerms({activeId:tm.id})} style={{fontSize:10,fontWeight:700,padding:"4px 9px",borderRadius:8,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",cursor:"pointer"}}>{TL("setActive")}</button>}
-                <button onClick={()=>openPromote(tm)} title={lang==="en"?"Close term — promote classes":K("Demsalê bigire — sinifan derbas bike")}
-                  style={{fontSize:11,padding:"4px 8px",borderRadius:8,border:"0.5px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",cursor:"pointer"}}>🎓</button>
                 <button onClick={()=>delTerm(tm.id)} style={{fontSize:11,padding:"4px 8px",borderRadius:8,border:"0.5px solid var(--red)",background:"var(--red-bg)",color:"var(--red)",cursor:"pointer"}}>🗑</button>
               </div>
             ))}
@@ -10211,45 +10048,12 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
         <EditLessonSheet lesson={editingLesson} onClose={()=>setEditingLesson(null)} teachers={teachers} t={t} lang={lang} toast={toast}
           onSave={(u)=>{onDataChange("updateSchedule",u);setEditingLesson(null);toast("✓ "+u.name);}}/>
       )}
-      {promoteTerm&&(
-        <Sheet open={true} onClose={()=>setPromoteTerm(null)} title={"🎓 "+promoteTerm.label+" — "+(lang==="en"?"Promote Classes":K("Derbasbûna Sinifê"))}>
-          <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:12,lineHeight:1.6}}>
-            {lang==="en"?"Approved students move up one class (1st → 2nd). Uncheck those who repeat.":K("Xwendekarên pejirandî sinifekê derbas dibin (1. → 2.). Yên dubare dikin, îşaretê rake.")}
-          </div>
-          <div style={{maxHeight:340,overflowY:"auto",marginBottom:12}}>
-            {(students||[]).map(st=>{
-              const cur=st.classLevel||1;
-              const on=!!promoteSel[st.id];
-              return(
-                <div key={st.id} onClick={()=>setPromoteSel(pv=>({...pv,[st.id]:!pv[st.id]}))}
-                  style={{display:"flex",alignItems:"center",gap:10,padding:"9px 10px",marginBottom:4,borderRadius:10,cursor:"pointer",
-                    background:on?"rgba(22,163,74,0.07)":"var(--bg2)",border:"1px solid "+(on?"rgba(22,163,74,0.35)":"var(--border2)")}}>
-                  <span style={{fontSize:15}}>{on?"✅":"⬜"}</span>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:12.5,fontWeight:700,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{st.name}</div>
-                    <div style={{fontSize:10,color:"var(--text2)",fontFamily:"monospace"}}>{st.no} · {areaName(st.area,lang)}</div>
-                  </div>
-                  <span style={{fontSize:10.5,fontWeight:800,padding:"3px 9px",borderRadius:99,
-                    background:cur>=4?"var(--bg2)":"rgba(15,47,56,0.08)",color:cur>=4?"var(--text2)":"var(--accent)"}}>
-                    {cur>=4 ? (cur+". "+(lang==="en"?"Class":K("Sînif"))) : (on ? cur+". → "+(cur+1)+"." : cur+". "+(lang==="en"?"Class":K("Sînif")))}
-                  </span>
-                </div>
-              );
-            })}
-            {(students||[]).length===0&&<div style={{fontSize:12,color:"var(--text2)",textAlign:"center",padding:"14px 0"}}>—</div>}
-          </div>
-          <PrimaryBtn onClick={doPromote} icon="🎓">
-            {lang==="en"?"Promote selected":K("Yên bijartî derbas bike")} ({Object.values(promoteSel).filter(Boolean).length})
-          </PrimaryBtn>
-        </Sheet>
-      )}
     </div>
   );
 }
 
 /* ─── ADMIN PANEL ───────────────────────────────────────────────────────── */
 function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDataChange,onSettings,dark,onThemeToggle}){
-  const [activeArea,setActiveArea]=useState(null);
   const [tab,setTab]=usePanelNav("announcements");
   const [statsModal,setStatsModal]=useState(null);
   const [showProfileEdit,setShowProfileEdit]=useState(false);
@@ -10572,7 +10376,6 @@ function statHasData(st){ return !!st && ((st.totalLessons||0)>0 || (st.att||0)>
 function attColorOf(st){ return statHasData(st) ? pctColor(st.att) : "#94a3b8"; }
 function attTextOf(st,lang){ return statHasData(st) ? (st.att+"%") : "—"; }
 function pctBg(v)    { return "#ffffff"; }
-function pctLabel(v,lang){ return v>=80?(lang==="en"?"Good":K("Baş")):v>=50?(lang==="en"?"Average":K("Navîn")):(lang==="en"?"Low":K("Kêm")); }
 
 /* ─── ALERTS STORAGE ─────────────────────────────────────────────────────── */
 const ALERTS_KEY = "aat-alerts";
@@ -10587,15 +10390,6 @@ function saveAlerts(arr) {
       window.__FB.setDoc(window.__FB.doc(window.__FB.db,"config","alerts"),{list:arr,updatedAt:window.__FB.serverTimestamp()},{merge:true}).catch(()=>{});
     }catch(_){}
   }
-}
-async function loadAlertsFromFirebase(){
-
-  if(!window.__FB||!window.__FB.isConfigured()) return null;
-  try{
-    const snap=await window.__FB.getDoc(window.__FB.doc(window.__FB.db,"config","alerts"));
-    if(snap.exists()&&Array.isArray(snap.data().list)) return snap.data().list;
-  }catch(_){}
-  return null;
 }
 function generateAlerts(students, schedule) {
   // Survey responses < 50 → uyarı
@@ -10783,7 +10577,6 @@ function AdminWeeklyReportPanel({students, teachers, schedule, lang, toast}) {
     : (lang==="en"?"Evaluation Report":K("Raporta Nirxandinê"));
 
   const filteredStudents = selectedArea==="all" ? students : students.filter(s=>s.area===selectedArea);
-  const filteredSchedule = selectedArea==="all" ? schedule : schedule.filter(l=>l.area===selectedArea);
 
   // ── Geçmişe dönük devam: seçili tarih aralığındaki yoklama kayıtlarından ──
   // records:{öğrenciId:"on"|"late"|"off"}; % = (on+late)/toplam.
@@ -11238,7 +11031,7 @@ function makeSurveyResultsPdf(sv, allResps, lang, byName){
 
 /* ─── ANKET SONUÇ RAPORLARI — yayınlanan her anketin sonucu PDF/CSV ──────── */
 function AdminSurveyResultsReport({lang,toast,byName}){
-  const [surveys,setSurveys]=useState(()=>{try{return JSON.parse(localStorage.getItem("aat-student-surveys")||"[]");}catch(e){return[];}});
+  const [surveys,setSurveys]=useState(loadSS);
   const [resps,setResps]=useState(()=>{try{return JSON.parse(localStorage.getItem("aat-student-survey-responses")||"[]");}catch(e){return[];}});
   useEffect(()=>{
     if(!window.__FB||!window.__FB.isConfigured()) return;
@@ -11336,34 +11129,31 @@ function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
   const [selectedArea,setSelectedArea]=useState("all");
   const [reportType,setReportType]=useState("attendance"); // attendance | full | survey | teachers
   const [surveyTarget,setSurveyTarget]=useState("all_students"); // all_students | all_teachers | area_students | area_teachers
-  const [showReport,setShowReport]=useState(false);
-  const [reportTab,setReportTab]=useState("config"); // config | preview
+ // config | preview
 
   // Ek filtreler: sınıf · sınıf öğretmeni · tek öğrenci
   const clsDocs=useClassDocs("classes");
-  const [lvlF,setLvlF]=useState("all");
+  const [clsF,setClsF]=useState("all");
   const [teachF,setTeachF]=useState("all");
   const [stuF,setStuF]=useState("all");
   const [stuQ,setStuQ]=useState("");
   const plainTeachers=(teachers||[]).filter(t2=>t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate);
   const teachObj=teachF==="all"?null:plainTeachers.find(t2=>String(t2.no)===String(teachF));
-  const teachCls=teachObj?new Set(clsDocs.filter(d=>(d.teacherNos||[]).map(String).includes(String(teachObj.no))).map(d=>d.id)):null;
+  const teachCls=teachObj?clsDocs.filter(d=>d.kind&&(d.teacherNos||[]).map(String).includes(String(teachObj.no))):null;
+  const clsObj=clsF==="all"?null:clsDocs.find(d=>d.id===clsF);
   const filteredStudents = students
     .filter(s=>selectedArea==="all"||s.area===selectedArea)
-    .filter(s=>lvlF==="all"||String(s.classLevel||1)===String(lvlF))
+    .filter(s=>!clsObj||inClass(clsObj,s.no))
     // Öğretmen: sınıf öğretmeni olduğu sınıfların öğrencileri (sınıfı yoksa kendi alanının öğrencileri)
-    .filter(s=>!teachObj||(teachCls.size?teachCls.has(classDocId(true,s.area,s.classLevel||1)):(teachObj.area==="genel"||s.area===teachObj.area)))
+    .filter(s=>!teachObj||(teachCls.length?teachCls.some(d=>inClass(d,s.no)):(teachObj.area==="genel"||s.area===teachObj.area)))
     .filter(s=>stuF==="all"||String(s.fireId||s.id)===String(stuF));
-  const filterNote=[lvlF!=="all"?classTitle(+lvlF):"",teachObj?"👩‍🏫 "+teachObj.name:"",stuF!=="all"?"🎓 "+((students.find(s=>String(s.fireId||s.id)===String(stuF))||{}).name||""):""].filter(Boolean).join(" · ");
+  const filterNote=[clsObj?"🏫 "+classLabel(clsObj,lang):"",teachObj?"👩‍🏫 "+teachObj.name:"",stuF!=="all"?"🎓 "+((students.find(s=>String(s.fireId||s.id)===String(stuF))||{}).name||""):""].filter(Boolean).join(" · ");
 
   const reportDate = new Date().toLocaleDateString(lang==="en"?"en-GB":"ku",{year:"numeric",month:"long",day:"numeric"});
 
   function generateReportHTML(){
     const W=(ku,en)=>lang==="en"?en:K(ku);
     const H=x=>String(x==null?"":x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-    const areaInfo = selectedArea==="all"
-      ? {name:W("Hemû Qadan","All Fields"), icon:"🏫", color:"#0f2f38", bg:"rgba(15,47,56,0.08)"}
-      : AREA_MAP[selectedArea];
     const areaLabel = (selectedArea==="all" ? (lang==="en"?"All Fields":K("Hemû Qadan")) : areaName(selectedArea,lang))+(filterNote?" · "+H(filterNote):"");
 
     const rows = filteredStudents.map(s=>{
@@ -11510,16 +11300,13 @@ ${`</html>`}`;
     const rows=[[W2("Xwendekar","Student"),"No",W2("Qad","Field"),W2("Sînif","Class"),W2("Amadebûn","Attendance")+" %",W2("Tunebûn (roj)","Absent (days)"),W2("Dereng","Late")]];
     filteredStudents.forEach(st2=>{
       const d=getStudentStats(st2.id);
-      rows.push([st2.name,st2.no,areaName(st2.area,lang),(st2.classLevel||1),statHasData(d)?d.att:"",d.absent||0,d.late||0]);
+      rows.push([st2.name,st2.no,areaName(st2.area,lang),classesOfStudent(clsDocs,st2.no).map(d=>d.name).join(" | "),statHasData(d)?d.att:"",d.absent||0,d.late||0]);
     });
     downloadCSV("rapor-"+(selectedArea==="all"?"hemu":selectedArea)+"-"+new Date().toISOString().slice(0,10)+".csv",rows);
     logReportArchive({type:"csv",label:"CSV · "+(selectedArea==="all"?W2("Hemû qad","All fields"):areaName(selectedArea,lang))});
     toast("⬇ CSV");
   }
 
-  const areaInfo = selectedArea==="all"
-    ? {color:"#0f2f38",bg:"rgba(15,47,56,0.08)",text:"#0f2f38",icon:"🏫"}
-    : AREA_MAP[selectedArea];
 
   // Sadece yoklama verisi olan öğrencileri (totalLessons>0) ortalama/risk hesabına kat;
   // veri yoksa %0 ve "herkes riskte" gibi yanıltıcı/kötü görünüm oluşmasın.
@@ -11535,14 +11322,8 @@ ${`</html>`}`;
   const filteredTeachers = teachObj ? [teachObj] : selectedArea==="all" ? teachers.filter(t2=>!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate) : teachers.filter(t2=>t2.area===selectedArea&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate);
 
   // Survey target helpers
-  const surveyStudents = surveyTarget==="all_students" ? students
-    : surveyTarget==="all_teachers" ? [] // teachers don't fill student survey
-    : surveyTarget==="area_students" ? filteredStudents
-    : []; // area_teachers = handled separately
+ // area_teachers = handled separately
 
-  const surveyTeachers = surveyTarget==="all_teachers" ? teachers.filter(t2=>!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate)
-    : surveyTarget==="area_teachers" ? filteredTeachers
-    : [];
 
   // Survey responses for selected scope
   const scopedResponses = allResponses.filter(r=>{
@@ -11715,9 +11496,9 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
       <Card style={{marginBottom:10}}>
         <div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:10}}>🔎 {lang==="en"?"Class · Teacher · Student":K("Sinif · Mamoste · Xwendekar")}</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8}}>
-          <select aria-label={lang==="en"?"Class":K("Sînif")} value={lvlF} onChange={e=>setLvlF(e.target.value)} style={{padding:"9px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:13}}>
+          <select aria-label={lang==="en"?"Class":K("Sînif")} value={clsF} onChange={e=>setClsF(e.target.value)} style={{padding:"9px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:13}}>
             <option value="all">🏫 {lang==="en"?"All classes":K("Hemû sinif")}</option>
-            {CLASS_LEVELS.map(l=><option key={l} value={l}>{classTitle(l)}</option>)}
+            {clsDocs.filter(d=>d.kind&&(selectedArea==="all"||d.area===selectedArea||d.area==="genel")).sort((a,b)=>classLabel(a,lang).localeCompare(classLabel(b,lang))).map(d=><option key={d.id} value={d.id}>{classLabel(d,lang)}</option>)}
           </select>
           <select aria-label={lang==="en"?"Teacher":K("Mamoste")} value={teachF} onChange={e=>setTeachF(e.target.value)} style={{padding:"9px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:13}}>
             <option value="all">👩‍🏫 {lang==="en"?"All teachers":K("Hemû mamoste")}</option>
@@ -11729,7 +11510,7 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
             {students.filter(s=>!stuQ.trim()||(s.name||"").toLocaleLowerCase().includes(stuQ.trim().toLocaleLowerCase())||String(s.no||"").includes(stuQ.trim())).slice(0,100).map(s=><option key={s.fireId||s.id} value={s.fireId||s.id}>{s.name} · {s.no}</option>)}
           </select>
         </div>
-        {(lvlF!=="all"||teachF!=="all"||stuF!=="all")&&<button onClick={()=>{setLvlF("all");setTeachF("all");setStuF("all");setStuQ("");}} style={{marginTop:8,padding:"6px 12px",borderRadius:20,fontSize:11,border:"1px solid var(--border2)",background:"var(--surface)",color:"var(--text)",cursor:"pointer"}}>✕ {lang==="en"?"Clear filters":K("Fîlteran paqij bike")}</button>}
+        {(clsF!=="all"||teachF!=="all"||stuF!=="all")&&<button onClick={()=>{setClsF("all");setTeachF("all");setStuF("all");setStuQ("");}} style={{marginTop:8,padding:"6px 12px",borderRadius:20,fontSize:11,border:"1px solid var(--border2)",background:"var(--surface)",color:"var(--text)",cursor:"pointer"}}>✕ {lang==="en"?"Clear filters":K("Fîlteran paqij bike")}</button>}
       </Card>
 
       {/* Summary Preview */}
@@ -11963,9 +11744,6 @@ function saveSurveyResponse(resp) {
     try { window.__FB.setDoc(window.__FB.doc(window.__FB.db,"surveyResponses",`${resp.teacherId}_${resp.week}_${resp.lessonId}`),{...resp,savedAt:window.__FB.serverTimestamp()},{merge:true}); } catch {}
   }
 }
-function getDefaultQuestions() {
-  return []; // Sistem soruları yok — yönetici kendi sorularını ekler
-}
 /* ─── DÖNEMLER (Demsal / sezonluk ders programı) ────────────────────────── */
 // config/terms → {list:[{id,label,start,end}], activeId}
 let _termsCache={list:[],activeId:null};
@@ -12162,7 +11940,7 @@ function SurveyStudio({mode,initial,teachers,lang,toast,onSave,onCancel}){
     if(bad>=0){ toast("⚠ "+(bad+1)+". "+W2("pirs: herî kêm 2 bijare","question: at least 2 options")); return null; }
     // Hedef: alan filtresi (boş = hepsi) + kitle (öğrenci/öğretmen · veli/çocuk öğretmeni)
     const targetType=kids?aud:aud==="teachers"?(areas.length?"teachers_area":"teachers"):(areas.length?"area":"all");
-    return {title:title.trim(),desc:desc.trim(),targetType,targetAreas:areas,targetLevels:[],targetTeacherNo:"",endDate,anonymous:anon,questions:clean,resultType:"mixed",active};
+    return {title:title.trim(),desc:desc.trim(),targetType,targetAreas:areas,endDate,anonymous:anon,questions:clean,resultType:"mixed",active};
   }
   const save=active=>{ const sv=build(active); if(sv) onSave(sv); };
   if(preview) return(
@@ -12472,6 +12250,12 @@ function KidAcademyReport({lang,toast}){
     </div>);
 }
 
+// Öğrenci anketleri + yanıtları için yerel önbellek (çevrimdışı açılış)
+const STUDENT_SURVEYS_KEY = "aat-student-surveys";
+const STUDENT_SURVEY_RESPONSES_KEY = "aat-student-survey-responses";
+function loadSS(){ try{const r=localStorage.getItem(STUDENT_SURVEYS_KEY);return r?JSON.parse(r):[]}catch{return[];} }
+function loadSSR(){ try{const r=localStorage.getItem(STUDENT_SURVEY_RESPONSES_KEY);return r?JSON.parse(r):[]}catch{return[];} }
+
 function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
   const [mainTab, setMainTab] = useState("student"); // teacher | student
 
@@ -12486,9 +12270,6 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
   const [surveyActive, setSurveyActive] = useState(true);
 
   /* ─── ÖĞRENCİ ANKETİ ─── */
-  const STUDENT_SURVEYS_KEY = "aat-student-surveys";
-  const STUDENT_SURVEY_RESPONSES_KEY = "aat-student-survey-responses";
-  function loadSS(){ try{const r=localStorage.getItem(STUDENT_SURVEYS_KEY);return r?JSON.parse(r):[]}catch{return[];} }
   function saveSS(arr){
     try{localStorage.setItem(STUDENT_SURVEYS_KEY,JSON.stringify(arr));}catch{}
 
@@ -12499,30 +12280,9 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
       });
     }
   }
-  function loadSSR(){ try{const r=localStorage.getItem(STUDENT_SURVEY_RESPONSES_KEY);return r?JSON.parse(r):[]}catch{return[];} }
   const [studentSurveys, setStudentSurveys] = useState(loadSS);
   // ── ⚡ Bilez Ankêt (hızlı anket) ──
-  const [qsTitle,setQsTitle]=useState("");
-  const [qsAreas,setQsAreas]=useState([]); // boş = hemû xwendekar
-  const [qsQuestions,setQsQuestions]=useState([{text:"",type:"rating"}]);
-  function qsToggleArea(k){ setQsAreas(p=>p.includes(k)?p.filter(x=>x!==k):[...p,k]); }
-  function qsCreate(){
-    const qs=qsQuestions.map(q=>({...q,text:q.text.trim()})).filter(q=>q.text);
-    if(!qsTitle.trim()){ toast(lang==="en"?"⚠ Title required":K("⚠ Sernav pêwîst e")); return; }
-    if(!qs.length){ toast(lang==="en"?"⚠ Add at least 1 question":K("⚠ Herî kêm 1 pirs zêde bike")); return; }
-    const now=new Date();
-    const sv={
-      id:Date.now(), title:qsTitle.trim(), desc:"",
-      targetType:qsAreas.length?"area":"all", targetAreas:qsAreas,
-      resultType:"percent", pointMax:100, allowDocs:false, docTemplate:null,
-      questions:qs.map((q,i)=>({id:"q"+Date.now()+"_"+i,text:q.text,type:q.type})),
-      active:true, createdAt:now.toISOString(), updatedAt:now.toISOString()
-    };
-    const updated=[...studentSurveys,sv];
-    setStudentSurveys(updated); saveSS(updated);
-    setQsTitle(""); setQsAreas([]); setQsQuestions([{text:"",type:"rating"}]);
-    toast("✅ "+sv.title+" — "+(lang==="en"?"live!":K("çalak e!")));
-  }
+ // boş = hemû xwendekar
   const [studentResponses, setStudentResponses] = useState(loadSSR);
   const [sResAreaFilter, setSResAreaFilter] = useState("all");
   // Sonuç filtreleri: alan · sınıf · sınıf öğretmeni · öğrenci
@@ -12539,29 +12299,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
   const [selectedSurvey, setSelectedSurvey] = useState(null);
   const [viewMode, setViewMode] = useState("list"); // list | create | results
 
-  /* ─── YENİ ADIMLI ANKET OLUŞTURUCU ─── */
-  const [step, setStep] = useState(1); // 1=temel, 2=hedef, 3=sonuç tipi, 4=sorular, 5=belge
-  const [surveyForm, setSurveyForm] = useState({
-    title:"", desc:"",
-    targetType:"all", targetAreas:[], // all | area
-    targetLevels:[], targetTeacherNo:"",   // isteğe bağlı: yalnızca bu sınıflar / bu sınıf öğretmeninin sınıfları
-    resultType:"percent", // percent | points | qa | mixed
-    pointMax:100,
-    allowDocs:false,
-    questions:[],
-  });
-  const [editingSurveyId, setEditingSurveyId] = useState(null);
-  const [newQ, setNewQ] = useState({text:"",type:"rating",choices:["",""]});
-  const [docFile, setDocFile] = useState(null); // belge ek dosya
-  const docRef = useRef();
 
-  const toggleArea = area => setTargetAreas(p => p.includes(area)?p.filter(x=>x!==area):[...p,area]);
-  const toggleSurveyArea = area => setSurveyForm(f=>({
-    ...f,
-    targetAreas: f.targetAreas.includes(area)
-      ? f.targetAreas.filter(x=>x!==area)
-      : [...f.targetAreas, area]
-  }));
 
   function saveConfig(){
 
@@ -12670,81 +12408,14 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
   };
   function startCreateSurvey(){
     setStudio({});
-    setSurveyForm({title:"",desc:"",targetType:"all",targetAreas:[],targetLevels:[],targetTeacherNo:"",resultType:"percent",pointMax:100,allowDocs:false,questions:[]});
-    setEditingSurveyId("new");
-    setNewQ({text:"",type:"rating",choices:["",""]});
-    setDocFile(null);
-    setStep(1);
     setViewMode("create");
   }
   function startEditSurvey(sv){
     setStudio(sv);
-    setSurveyForm({
-      title:sv.title||"",desc:sv.desc||"",
-      targetType:sv.targetType||"all",
-      targetAreas:sv.targetAreas||[],
-      targetLevels:sv.targetLevels||[], targetTeacherNo:sv.targetTeacherNo||"",
-      resultType:sv.resultType||"percent",
-      pointMax:sv.pointMax||100,
-      allowDocs:sv.allowDocs||false,
-      questions:sv.questions||[]
-    });
-    setEditingSurveyId(sv.id||sv.fireId);
-    setNewQ({text:"",type:"rating",choices:["",""]});
-    setDocFile(null);
-    setStep(1);
     setViewMode("create");
   }
 
-  function addQToSurvey(){
-    if(!newQ.text.trim()){toast("⚠ "+L("qText"));return;}
-    const qType = surveyForm.resultType==="percent"?"rating"
-      : surveyForm.resultType==="points"?"rating"
-      : surveyForm.resultType==="qa"?"text"
-      : newQ.type;
-    const q={
-      id:"sq"+Date.now(),
-      text:newQ.text.trim(),
-      type:qType,
-      choices:qType==="choice"?newQ.choices.filter(c=>c.trim()):[],
-      points:surveyForm.resultType==="points"?(parseInt(newQ.points)||10):undefined
-    };
-    setSurveyForm(f=>({...f,questions:[...f.questions,q]}));
-    setNewQ({text:"",type:qType,choices:["",""],points:10});
-    toast("✓ "+(lang==="en"?"Question added":K("Pirsê hate zêdekirin")));
-  }
-  function removeQFromSurvey(id){ setSurveyForm(f=>({...f,questions:f.questions.filter(q=>q.id!==id)})); }
 
-  function saveSurvey(){
-    if(!surveyForm.title.trim()){toast("⚠ "+L("surveyTitle"));return;}
-    if(surveyForm.questions.length===0){toast("⚠ "+(lang==="en"?"At least 1 question required":K("Herî kêm 1 pirsek lazim e")));return;}
-    const now=new Date();
-    const sv={
-      id: editingSurveyId==="new"?Date.now():editingSurveyId,
-      title:surveyForm.title.trim(),
-      desc:surveyForm.desc.trim(),
-      targetType:surveyForm.targetType,
-      targetAreas:surveyForm.targetAreas,
-      targetLevels:(surveyForm.targetType==="all"||surveyForm.targetType==="area")?(surveyForm.targetLevels||[]):[],
-      targetTeacherNo:(surveyForm.targetType==="all"||surveyForm.targetType==="area")?(surveyForm.targetTeacherNo||""):"",
-      resultType:surveyForm.resultType,
-      pointMax:surveyForm.pointMax,
-      allowDocs:surveyForm.allowDocs,
-      docTemplate:docFile||null,
-      questions:surveyForm.questions,
-      active:true,
-      createdAt:now.toISOString(),
-      updatedAt:now.toISOString()
-    };
-    const updated = editingSurveyId==="new"
-      ? [...studentSurveys, sv]
-      : studentSurveys.map(x=>(String(x.id)===String(sv.id)||x.fireId===sv.id)?{...x,...sv}:x);
-    setStudentSurveys(updated);
-    saveSS(updated);
-    toast("✅ "+sv.title);
-    setViewMode("list");
-    setEditingSurveyId(null);
-  }
 
   function deleteSurvey(id){
     const gone=studentSurveys.find(x=>String(x.id)===String(id)||x.fireId===String(id));
@@ -12782,46 +12453,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
   };
 
   /* ── STEP COMPONENT ── */
-  const STEPS=[
-    {n:1,icon:"📋",label:L("step1")},
-    {n:2,icon:"🎯",label:L("step2")},
-    {n:3,icon:"📊",label:L("step3")},
-    {n:4,icon:"❓",label:L("step4")},
-    {n:5,icon:"📎",label:L("step5")},
-  ];
 
-  function StepBar(){
-    return(
-      <div style={{display:"flex",alignItems:"center",marginBottom:20,padding:"0 4px"}}>
-        {STEPS.map((s,i)=>(
-          <React.Fragment key={s.n}>
-            <div onClick={()=>step>s.n&&setStep(s.n)}
-              style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,flex:1,cursor:step>s.n?"pointer":"default"}}>
-              <div style={{width:32,height:32,borderRadius:"50%",
-                background:step===s.n?"linear-gradient(135deg,#0f2f38,#0f2f38)":step>s.n?"#15803d":"var(--bg2)",
-                color:step>=s.n?"#fff":"#94a3b8",
-                display:"flex",alignItems:"center",justifyContent:"center",
-                fontSize:step>s.n?14:13,fontWeight:700,
-                boxShadow:step===s.n?"0 4px 14px rgba(15,47,56,0.35)":"none",
-                transition:"all .2s"}}>
-                {step>s.n?"✓":s.icon}
-              </div>
-              <div style={{fontSize:8.5,fontWeight:step===s.n?700:400,
-                color:step===s.n?"var(--accent)":step>s.n?"#15803d":"#94a3b8",
-                textAlign:"center",lineHeight:1.2,maxWidth:48}}>
-                {s.label}
-              </div>
-            </div>
-            {i<STEPS.length-1&&(
-              <div style={{height:2,flex:0.5,margin:"0 2px",marginBottom:18,
-                background:step>s.n?"linear-gradient(90deg,#15803d,#22c55e)":"var(--bg2)",
-                borderRadius:1,transition:"background .3s"}}/>
-            )}
-          </React.Fragment>
-        ))}
-      </div>
-    );
-  }
 
   /* ────── TEACHER SURVEY TAB ────── */
   const teacherTab = (
@@ -12994,396 +12626,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
   );
 
   /* ────── STUDENT SURVEY: WIZARD STEPS ────── */
-  const rtConf = RT_CONFIG[surveyForm.resultType]||RT_CONFIG.percent;
 
-  const surveyCreateWizard = (
-    <div>
-      {/* Back button */}
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
-        <button onClick={()=>setViewMode("list")}
-          style={{padding:"8px 14px",fontSize:12,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:10,cursor:"pointer",color:"var(--text)",fontWeight:600}}>
-          ← {lang==="en"?"Back":K("Vegere")}
-        </button>
-        <div style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>
-          {editingSurveyId==="new"?"✨ "+L("newSurvey"):"✏️ "+L("edit")}
-        </div>
-      </div>
-
-      <StepBar/>
-
-      {/* ── STEP 1: Temel Bilgiler ── */}
-      {step===1&&(
-        <div style={{animation:"fadeIn .2s ease"}}>
-          <div style={{background:"var(--surface)",borderRadius:16,padding:"18px",border:"1px solid var(--border)",marginBottom:12}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
-              <div style={{width:40,height:40,borderRadius:12,background:"#0f2f38",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>📋</div>
-              <div>
-                <div style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>{lang==="en"?"Survey Info":K("Ankêta Agahî")}</div>
-                <div style={{fontSize:11,color:"var(--text2)"}}>{lang==="en"?"Enter survey title and description":K("Sernav û danasîna ankêtê binivîse")}</div>
-              </div>
-            </div>
-            <div style={{marginBottom:14}}>
-              <label style={{fontSize:11.5,color:"var(--text2)",fontWeight:600,display:"block",marginBottom:6}}>{L("surveyTitle")} *</label>
-              <input style={inputStyle} value={surveyForm.title}
-                onChange={e=>setSurveyForm(f=>({...f,title:e.target.value}))}
-                placeholder={lang==="en"?"E.g. Monthly class satisfaction survey":K("Mînak: Ders Nirxandina Mehane")}/>
-            </div>
-            <div>
-              <label style={{fontSize:11.5,color:"var(--text2)",fontWeight:600,display:"block",marginBottom:6}}>{L("surveyDesc")}</label>
-              <textarea style={{...inputStyle,minHeight:70,resize:"vertical"}}
-                value={surveyForm.desc}
-                onChange={e=>setSurveyForm(f=>({...f,desc:e.target.value}))}
-                placeholder={lang==="en"?"A brief description for students...":K("Danasînek kurt ji bo xwendekaran...")}/>
-            </div>
-          </div>
-          <button onClick={()=>{ if(!surveyForm.title.trim()){toast("⚠ "+L("surveyTitle"));return;} setStep(2); }}
-            style={{width:"100%",padding:"14px",background:"#0f2f38",color:"#fff",border:"none",borderRadius:14,fontSize:14,fontWeight:700,cursor:"pointer",boxShadow:"0 4px 18px rgba(15,47,56,0.28)"}}>
-            {L("next")}
-          </button>
-        </div>
-      )}
-
-      {/* ── STEP 2: Hedef ── */}
-      {step===2&&(
-        <div style={{animation:"fadeIn .2s ease"}}>
-          <div style={{background:"var(--surface)",borderRadius:16,padding:"18px",border:"1px solid var(--border)",marginBottom:12}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
-              <div style={{width:40,height:40,borderRadius:12,background:"#0f2f38",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>🎯</div>
-              <div>
-                <div style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>{L("target")}</div>
-                <div style={{fontSize:11,color:"var(--text2)"}}>{lang==="en"?"Who should fill this survey?":K("Bu ankêtê kê tije bikin?")}</div>
-              </div>
-            </div>
-
-            {/* Target type selector */}
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
-              {[
-                {k:"all",icon:"🌍",label:lang==="en"?"All Students":K("Hemû Xwendekar"),desc:lang==="en"?"All conservatory students":K("Hemû xwendekarên konservatuarê")},
-                {k:"area",icon:"🏫",label:lang==="en"?"Selected Fields":K("Qadên Bijartî"),desc:lang==="en"?"Only selected fields":K("Tenê qadên bijartî")},
-                {k:"teachers",icon:"👨‍🏫",label:lang==="en"?"All Teachers":K("Hemû Mamoste"),desc:lang==="en"?"All conservatory teachers":K("Hemû mamosteyên konservatuarê")},
-                {k:"teachers_area",icon:"🏫👨‍🏫",label:lang==="en"?"Teachers (Field)":K("Mamoste (Qad)"),desc:lang==="en"?"Teachers of selected fields":K("Tenê qadên bijartî mamosteyên")},
-              ].map(opt=>(
-                <div key={opt.k} onClick={()=>setSurveyForm(f=>({...f,targetType:opt.k,targetAreas:[]}))}
-                  style={{padding:"14px",borderRadius:12,cursor:"pointer",
-                    border:`2px solid ${surveyForm.targetType===opt.k?"#0f2f38":"var(--border)"}`,
-                    background:surveyForm.targetType===opt.k?"linear-gradient(135deg,rgba(15,47,56,0.06),rgba(15,47,56,0.04))":"#fff",
-                    transition:"all .15s"}}>
-                  <div style={{fontSize:24,marginBottom:6}}>{opt.icon}</div>
-                  <div style={{fontSize:12,fontWeight:700,color:surveyForm.targetType===opt.k?"var(--accent)":"var(--text)",marginBottom:3}}>{opt.label}</div>
-                  <div style={{fontSize:10,color:"var(--text2)",lineHeight:1.4}}>{opt.desc}</div>
-                  {surveyForm.targetType===opt.k&&(
-                    <div style={{marginTop:8,width:20,height:20,borderRadius:"50%",background:"#0f2f38",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#fff",fontWeight:700}}>✓</div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {/* Area selector */}
-            {(surveyForm.targetType==="area"||surveyForm.targetType==="teachers_area")&&(
-              <div>
-                <div style={{fontSize:11.5,fontWeight:700,color:"var(--text2)",marginBottom:10,textTransform:"uppercase",letterSpacing:"0.06em"}}>{lang==="en"?"Select fields":K("Qadan hilbijêre")}</div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                  {AREAS.filter(a=>a.key!=="genel").map(a=>{
-                    const sel=surveyForm.targetAreas.includes(a.key);
-                    const am=AREA_MAP[a.key];
-                    return(
-                    <div key={a.key} onClick={()=>toggleSurveyArea(a.key)}
-                      style={{padding:"10px 12px",borderRadius:10,cursor:"pointer",
-                        border:`1.5px solid ${sel?am.color:"var(--border)"}`,
-                        background:sel?am.bg:"#fff",transition:"all .12s",
-                        display:"flex",alignItems:"center",gap:8}}>
-                      <span style={{fontSize:18}}>{a.icon}</span>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontSize:11,fontWeight:600,color:sel?am.color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{areaName(a.key,lang)}</div>
-                      </div>
-                      {sel&&<div style={{width:16,height:16,borderRadius:"50%",background:am.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontWeight:700,flexShrink:0}}>✓</div>}
-                    </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-            {(surveyForm.targetType==="all"||surveyForm.targetType==="area")&&(
-              <div style={{marginTop:14}}>
-                <div style={{fontSize:11.5,fontWeight:700,color:"var(--text2)",marginBottom:8,textTransform:"uppercase",letterSpacing:"0.06em"}}>🏫 {lang==="en"?"Classes (optional — empty = all)":K("Sinif (vebijarkî — vala = hemû)")}</div>
-                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                  {CLASS_LEVELS.map(l=>{const on=(surveyForm.targetLevels||[]).includes(l);return(
-                    <button key={l} onClick={()=>setSurveyForm(f=>({...f,targetLevels:on?(f.targetLevels||[]).filter(x=>x!==l):[...(f.targetLevels||[]),l]}))}
-                      style={{padding:"7px 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",border:"1.5px solid "+(on?"#0f2f38":"var(--border2)"),background:on?"#0f2f38":"var(--surface)",color:on?"#fff":"var(--text)"}}>{on?"✓ ":""}{classTitle(l)}</button>);})}
-                </div>
-                <div style={{fontSize:11.5,fontWeight:700,color:"var(--text2)",margin:"12px 0 6px",textTransform:"uppercase",letterSpacing:"0.06em"}}>👩‍🏫 {lang==="en"?"Class teacher (optional)":K("Mamosteyê sinifê (vebijarkî)")}</div>
-                <select aria-label={lang==="en"?"Class teacher":K("Mamosteyê sinifê")} value={surveyForm.targetTeacherNo||""} onChange={e=>{const v=e.target.value;setSurveyForm(f=>({...f,targetTeacherNo:v}));}} style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:13}}>
-                  <option value="">— {lang==="en"?"All":K("Hemû")}</option>
-                  {svTeachers.map(t2=><option key={t2.no} value={t2.no}>{t2.name}</option>)}
-                </select>
-                <div style={{fontSize:10.5,color:"var(--text2)",marginTop:6,lineHeight:1.5}}>{lang==="en"?"Only students in the classes of this teacher see the survey.":K("Tenê xwendekarên di sinifên vî mamosteyî de ankêtê dibînin.")}</div>
-              </div>
-            )}
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-            <button onClick={()=>setStep(1)} style={{padding:"13px",background:"var(--bg2)",color:"var(--text)",border:"0.5px solid var(--border2)",borderRadius:12,fontSize:13,fontWeight:600,cursor:"pointer"}}>← {lang==="en"?"Back":K("Vegere")}</button>
-            <button onClick={()=>{
-              if((surveyForm.targetType==="area"||surveyForm.targetType==="teachers_area")&&surveyForm.targetAreas.length===0){toast("⚠ "+(lang==="en"?"Select at least 1 field":K("Herî kêm 1 qad hilbijêre")));return;}
-              setStep(3);
-            }} style={{padding:"13px",background:"#0f2f38",color:"#fff",border:"none",borderRadius:12,fontSize:13,fontWeight:700,cursor:"pointer",boxShadow:"0 4px 14px rgba(15,47,56,0.25)"}}>
-              {L("next")}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── STEP 3: Sonuç Tipi ── */}
-      {step===3&&(
-        <div style={{animation:"fadeIn .2s ease"}}>
-          <div style={{background:"var(--surface)",borderRadius:16,padding:"18px",border:"1px solid var(--border)",marginBottom:12}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
-              <div style={{width:40,height:40,borderRadius:12,background:"#0f2f38",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>📊</div>
-              <div>
-                <div style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>{L("step3")}</div>
-                <div style={{fontSize:11,color:"var(--text2)"}}>{lang==="en"?"How should survey results be shown?":K("Encamên ankêtê çawa nîşan bide?")}</div>
-              </div>
-            </div>
-
-            <div style={{display:"flex",flexDirection:"column",gap:10}}>
-              {Object.entries(RT_CONFIG).map(([k,rc])=>{
-                const sel=surveyForm.resultType===k;
-                return(
-                <div key={k} onClick={()=>setSurveyForm(f=>({...f,resultType:k}))}
-                  style={{padding:"14px",borderRadius:12,cursor:"pointer",
-                    border:`2px solid ${sel?rc.color:"var(--border)"}`,
-                    background:sel?rc.bg:"#fff",transition:"all .15s",
-                    display:"flex",alignItems:"flex-start",gap:12}}>
-                  <div style={{width:40,height:40,borderRadius:10,background:sel?rc.color:"var(--bg2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0,transition:"all .15s"}}>
-                    {rc.icon}
-                  </div>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:13,fontWeight:700,color:sel?rc.color:"var(--text)",marginBottom:3}}>{rc.label[lang]||rc.label.ku}</div>
-                    <div style={{fontSize:11,color:sel?rc.color+"cc":"var(--text2)",lineHeight:1.5}}>{rc.hint[lang]||rc.hint.ku}</div>
-                    {k==="points"&&sel&&(
-                      <div style={{marginTop:10}}>
-                        <label style={{fontSize:10.5,fontWeight:600,color:"var(--text2)",display:"block",marginBottom:5}}>{lang==="en"?"Points per question":K("Her pirsê max pûan")}</label>
-                        <input type="number" min="1" max="1000" style={{...inputStyle,width:100}}
-                          value={surveyForm.pointMax}
-                          onChange={e=>setSurveyForm(f=>({...f,pointMax:parseInt(e.target.value)||10}))}/>
-                      </div>
-                    )}
-                  </div>
-                  {sel&&<div style={{width:22,height:22,borderRadius:"50%",background:rc.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"#fff",fontWeight:700,flexShrink:0}}>✓</div>}
-                </div>
-                );
-              })}
-            </div>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-            <button onClick={()=>setStep(2)} style={{padding:"13px",background:"var(--bg2)",color:"var(--text)",border:"0.5px solid var(--border2)",borderRadius:12,fontSize:13,fontWeight:600,cursor:"pointer"}}>← {lang==="en"?"Back":K("Vegere")}</button>
-            <button onClick={()=>setStep(4)} style={{padding:"13px",background:"#0f2f38",color:"#fff",border:"none",borderRadius:12,fontSize:13,fontWeight:700,cursor:"pointer",boxShadow:"0 4px 14px rgba(15,47,56,0.25)"}}>
-              {L("next")}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── STEP 4: Sorular ── */}
-      {step===4&&(
-        <div style={{animation:"fadeIn .2s ease"}}>
-          {/* Mevcut sorular */}
-          {surveyForm.questions.length>0&&(
-            <div style={{marginBottom:14}}>
-              <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:8,textTransform:"uppercase",letterSpacing:"0.06em"}}>
-                ✅ {lang==="en"?"Added Questions":K("Pirsên Hatine Zêdekirin")} ({surveyForm.questions.length})
-              </div>
-              {surveyForm.questions.map((q,qi)=>(
-                <div key={q.id} style={{background:"var(--surface)",borderRadius:12,padding:"11px 14px",marginBottom:6,border:"1px solid var(--border)",display:"flex",alignItems:"center",gap:10}}>
-                  <div style={{width:24,height:24,borderRadius:"50%",background:"#0f2f38",color:"#fff",fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{qi+1}</div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:12,fontWeight:600,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{q.text}</div>
-                    <div style={{display:"flex",gap:5,marginTop:3,alignItems:"center"}}>
-                      <span style={{fontSize:9,padding:"1px 6px",borderRadius:5,background:rtConf.bg,color:rtConf.color,fontWeight:700}}>
-                        {rtConf.icon} {q.type==="rating"?(lang==="en"?"Rating":K("Pûan")):q.type==="text"?(lang==="en"?"Text":K("Nivîs")):"MC"}
-                        {q.points?` (${q.points}pt)`:""}
-                      </span>
-                      {q.choices?.length>0&&<span style={{fontSize:9,color:"var(--text2)"}}>{q.choices.join(" · ")}</span>}
-                    </div>
-                  </div>
-                  <button onClick={()=>removeQFromSurvey(q.id)} style={{width:26,height:26,borderRadius:6,background:"var(--red-bg)",border:"none",cursor:"pointer",color:"var(--red)",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>✕</button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Yeni soru formu */}
-          <div style={{background:"var(--surface)",borderRadius:16,padding:"16px",border:`2px dashed ${rtConf.color}44`,marginBottom:12}}>
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
-              <div style={{width:36,height:36,borderRadius:10,background:rtConf.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>{rtConf.icon}</div>
-              <div>
-                <div style={{fontSize:12,fontWeight:700,color:"var(--text)"}}>➕ {L("addQLabel")}</div>
-                <div style={{fontSize:10,color:rtConf.color,fontWeight:600}}>{rtConf.label[lang]||rtConf.label.ku}</div>
-              </div>
-            </div>
-
-            {/* Soru tipi — sadece mixed modda göster */}
-            {surveyForm.resultType==="mixed"&&(
-              <div style={{display:"flex",gap:6,marginBottom:12}}>
-                {[{k:"rating",icon:"📊",lbl:lang==="en"?"Rating":K("Pûan")},
-                  {k:"text",icon:"✍️",lbl:lang==="en"?"Text":K("Nivîs")},
-                  {k:"choice",icon:"🔘",lbl:lang==="en"?"Choice":K("Vebijark")}].map(opt=>(
-                  <button key={opt.k} onClick={()=>setNewQ(p=>({...p,type:opt.k}))}
-                    style={{flex:1,padding:"8px 4px",borderRadius:10,fontSize:10,fontWeight:700,cursor:"pointer",
-                      background:newQ.type===opt.k?"linear-gradient(135deg,#0f2f38,#0f2f38)":"var(--bg2)",
-                      color:newQ.type===opt.k?"#fff":"var(--text2)",border:"none",
-                      display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                    <span style={{fontSize:16}}>{opt.icon}</span> {opt.lbl}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <input style={inputStyle} value={newQ.text}
-              onChange={e=>setNewQ(p=>({...p,text:e.target.value}))}
-              placeholder={lang==="en"?"Type your question...":K("Pirsa xwe binivîse...")}
-              onKeyDown={e=>e.key==="Enter"&&addQToSurvey()}/>
-
-            {/* Puan mod: points per question */}
-            {surveyForm.resultType==="points"&&(
-              <div style={{marginTop:8,display:"flex",alignItems:"center",gap:8}}>
-                <label style={{fontSize:11,color:"var(--text2)",fontWeight:600,whiteSpace:"nowrap"}}>{lang==="en"?"Points for this Q":K("Vê pirsê pûan")}</label>
-                <input type="number" min="1" max="1000" style={{...inputStyle,width:90,padding:"8px 10px"}}
-                  value={newQ.points||10} onChange={e=>setNewQ(p=>({...p,points:parseInt(e.target.value)||10}))}/>
-              </div>
-            )}
-
-            {/* MC choices */}
-            {(newQ.type==="choice"||(surveyForm.resultType==="percent"&&false))&&(
-              <div style={{marginTop:10}}>
-                <div style={{fontSize:11,fontWeight:600,color:"var(--text2)",marginBottom:6}}>🔘 {L("choices")}</div>
-                {newQ.choices.map((c,ci)=>(
-                  <div key={ci} style={{display:"flex",gap:6,marginBottom:6}}>
-                    <input style={{...inputStyle,flex:1,padding:"9px 11px"}} value={c}
-                      onChange={e=>{const nc=[...newQ.choices];nc[ci]=e.target.value;setNewQ(p=>({...p,choices:nc}));}}
-                      placeholder={`${ci+1}. ${lang==="en"?"Option":K("Vebijark")}...`}/>
-                    {ci>=2&&<button onClick={()=>setNewQ(p=>({...p,choices:p.choices.filter((_,i)=>i!==ci)}))} style={{padding:"4px 9px",background:"var(--red-bg)",border:"none",borderRadius:8,cursor:"pointer",color:"var(--red)"}}>✕</button>}
-                  </div>
-                ))}
-                {newQ.choices.length<6&&(
-                  <button onClick={()=>setNewQ(p=>({...p,choices:[...p.choices,""]}))}
-                    style={{fontSize:11,padding:"6px 12px",background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:8,cursor:"pointer",color:"var(--text)"}}>
-                    + {lang==="en"?"Add option":K("Zêde bike")}
-                  </button>
-                )}
-              </div>
-            )}
-
-            <button onClick={addQToSurvey}
-              style={{width:"100%",marginTop:12,padding:"12px",background:`linear-gradient(135deg,${rtConf.color}dd,${rtConf.color})`,color:"#fff",border:"none",borderRadius:12,fontSize:13,fontWeight:700,cursor:"pointer",boxShadow:`0 4px 14px ${rtConf.color}44`}}>
-              ➕ {lang==="en"?"Add Question":K("Pirsê Zêde Bike")}
-            </button>
-          </div>
-
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-            <button onClick={()=>setStep(3)} style={{padding:"13px",background:"var(--bg2)",color:"var(--text)",border:"0.5px solid var(--border2)",borderRadius:12,fontSize:13,fontWeight:600,cursor:"pointer"}}>← {lang==="en"?"Back":K("Vegere")}</button>
-            <button onClick={()=>{
-              if(surveyForm.questions.length===0){toast("⚠ "+(lang==="en"?"At least 1 question required":K("Herî kêm 1 pirsek lazim e")));return;}
-              setStep(5);
-            }} style={{padding:"13px",background:"#0f2f38",color:"#fff",border:"none",borderRadius:12,fontSize:13,fontWeight:700,cursor:"pointer",boxShadow:"0 4px 14px rgba(15,47,56,0.25)"}}>
-              {L("next")}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── STEP 5: Belge ── */}
-      {step===5&&(
-        <div style={{animation:"fadeIn .2s ease"}}>
-          <div style={{background:"var(--surface)",borderRadius:16,padding:"18px",border:"1px solid var(--border)",marginBottom:12}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
-              <div style={{width:40,height:40,borderRadius:12,background:"#0f2f38",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>📎</div>
-              <div>
-                <div style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>{lang==="en"?"Document & Image":K("Belge & Wêne")}</div>
-                <div style={{fontSize:11,color:"var(--text2)"}}>{lang==="en"?"Can students upload a document or image?":K("Xwendekarên dikarin wêne an belge bar bikin?")}</div>
-              </div>
-            </div>
-
-            {/* Allow docs toggle */}
-            <div onClick={()=>setSurveyForm(f=>({...f,allowDocs:!f.allowDocs}))}
-              style={{display:"flex",alignItems:"center",gap:14,padding:"14px",borderRadius:12,cursor:"pointer",
-                border:`2px solid ${surveyForm.allowDocs?"#0f2f38":"var(--border)"}`,
-                background:surveyForm.allowDocs?"rgba(15,47,56,0.06)":"var(--bg2)",marginBottom:14,transition:"all .15s"}}>
-              <div style={{width:48,height:28,borderRadius:14,
-                background:surveyForm.allowDocs?"linear-gradient(135deg,#0f2f38,#0f2f38)":"#cbd5e1",
-                position:"relative",flexShrink:0,transition:"background .2s"}}>
-                <div style={{position:"absolute",top:4,
-                  left:surveyForm.allowDocs?20:4,
-                  width:20,height:20,borderRadius:"50%",background:"var(--surface)",
-                  boxShadow:"0 1px 4px rgba(0,0,0,.25)",transition:"left .2s"}}/>
-              </div>
-              <div style={{flex:1}}>
-                <div style={{fontSize:13,fontWeight:700,color:surveyForm.allowDocs?"var(--accent)":"var(--text)"}}>{L("docOpt")}</div>
-                <div style={{fontSize:11,color:"var(--text2)",marginTop:2}}>{surveyForm.allowDocs?(lang==="en"?"Yes, students can upload a file":K("Erê, xwendekar dikare dosya bar bike")):(lang==="en"?"No, questions only":K("Na, tenê pirsên"))}</div>
-              </div>
-            </div>
-
-            {/* Admin template file */}
-            <div>
-              <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:8}}>{lang==="en"?"Document template (optional)":K("Şablona Belgeyê (vebijarkî)")}</div>
-              <div style={{fontSize:11,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>
-                {lang==="en"?"Students download, fill, and upload — this is the template file they receive":K("Xwendekarên dixwazin tije bikin û bar bikin — ev belge wekî nimûne an şablona tê şandin")}</div>
-              <button onClick={()=>docRef.current.click()}
-                style={{width:"100%",padding:"12px",borderRadius:12,border:"2px dashed var(--border2)",
-                  background:"var(--bg2)",cursor:"pointer",
-                  display:"flex",alignItems:"center",justifyContent:"center",gap:8,
-                  color:"var(--text2)",fontSize:12,fontWeight:500}}>
-                <span style={{fontSize:18}}>📤</span>
-                {docFile?docFile.name:(lang==="en"?"Upload template (PDF, Word...)":K("Belge bar bike (PDF, Word...)"))}
-              </button>
-              <input ref={docRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,image/*"
-                style={{display:"none"}}
-                onChange={e=>{
-                  const f=e.target.files[0]; if(!f) return;
-                  const reader=new FileReader();
-                  reader.onload=ev=>setDocFile({name:f.name,size:(f.size/1024).toFixed(0)+"KB",url:ev.target.result});
-                  reader.readAsDataURL(f);
-                  e.target.value="";
-                }}/>
-              {docFile&&(
-                <div style={{marginTop:8,display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:"rgba(21,128,61,0.08)",borderRadius:8,border:"1px solid rgba(21,128,61,0.2)"}}>
-                  <span style={{fontSize:16}}>📄</span>
-                  <span style={{flex:1,fontSize:12,color:"var(--text)",fontWeight:600}}>{docFile.name}</span>
-                  <span style={{fontSize:10,color:"var(--text2)"}}>{docFile.size}</span>
-                  <button onClick={()=>setDocFile(null)} style={{background:"none",border:"none",color:"var(--red)",cursor:"pointer",fontSize:14}}>✕</button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Summary card */}
-          <div style={{background:"#0f2f38",borderRadius:16,padding:"16px",marginBottom:14}}>
-            <div style={{fontSize:12,fontWeight:700,color:"rgba(255,255,255,.7)",marginBottom:10,textTransform:"uppercase",letterSpacing:"0.06em"}}>📋 {lang==="en"?"Survey Summary":K("Kurtasiya Ankêtê")}</div>
-            {[
-              {icon:"📝",label:lang==="en"?"Title":K("Sernav"),val:surveyForm.title},
-              {icon:"🎯",label:lang==="en"?"Target":K("Armanc"),val:surveyForm.targetType==="all"?(lang==="en"?"All Students":K("Hemû Xwendekar")):surveyForm.targetType==="teachers"?(lang==="en"?"👨‍🏫 All Teachers":K("👨‍🏫 Hemû Mamoste")):surveyForm.targetType==="teachers_area"?("👨‍🏫 "+surveyForm.targetAreas.map(a=>AREA_MAP[a]?.icon).join(" ")):surveyForm.targetAreas.map(a=>AREA_MAP[a]?.icon).join(" ")},
-              {icon:rtConf.icon,label:lang==="en"?"Result Type":K("Encam Cureyê"),val:rtConf.label[lang]||rtConf.label.ku},
-              {icon:"❓",label:lang==="en"?"Questions":K("Pirsên Hejmara"),val:surveyForm.questions.length+" "+(lang==="en"?"questions":K("pirsên"))},
-              {icon:"📎",label:lang==="en"?"Documents":K("Belge"),val:surveyForm.allowDocs?(lang==="en"?"Allowed":K("Destûr heye")):(lang==="en"?"Not allowed":K("Nayê destûrkirin"))},
-            ].map((row,i)=>(
-              <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",borderBottom:i<4?"1px solid rgba(255,255,255,.1)":"none"}}>
-                <span style={{fontSize:14,width:20,textAlign:"center"}}>{row.icon}</span>
-                <span style={{fontSize:11,color:"rgba(255,255,255,.6)",minWidth:80}}>{row.label}</span>
-                <span style={{fontSize:12,fontWeight:700,color:"#fff",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{row.val}</span>
-              </div>
-            ))}
-          </div>
-
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-            <button onClick={()=>setStep(4)} style={{padding:"13px",background:"var(--bg2)",color:"var(--text)",border:"0.5px solid var(--border2)",borderRadius:12,fontSize:13,fontWeight:600,cursor:"pointer"}}>← {lang==="en"?"Back":K("Vegere")}</button>
-            <button onClick={saveSurvey}
-              style={{padding:"13px",background:"#0f2f38",color:"#fff",border:"none",borderRadius:12,fontSize:13,fontWeight:700,cursor:"pointer",boxShadow:"0 4px 14px rgba(21,128,61,0.30)"}}>
-              ✅ {lang==="en"?"Save Survey":K("Ankêtê Tomar Bike")}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
 
   /* ────── STUDENT SURVEY LIST ────── */
   const surveyList = (
@@ -14223,9 +13466,8 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
   schedule=(schedule||[]).filter(l=>lessonInActiveTerm(l,_terms));
   const [view,setView]=usePanelNav("home");
   const [menuOpen,setMenuOpen]=useState(false);
-  const [scanResult,setScanResult]=useState(null);
   const [attendance,setAttendance]=useState({});
-  const [scannedId,setScannedId]=useState(null);
+  const [attLsId,setAttLsId]=useState(null);   // elle yoklama: seçili bugünkü ders
   const [activeQRSession,setActiveQRSession]=useState(null);
   const _qrPrinted=useRef(false); // bu oturumda QR çıktısı alındı mı?
   const [lessonLogs,setLessonLogs]=useState([]);
@@ -14276,11 +13518,19 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
   },[teacher.area]);
 
   const a=AREA_MAP[teacher.area]||AREA_MAP["genel"]||{color:"#16a34a",bg:"rgba(22,163,74,0.08)",icon:"👨‍🏫",name:{ku:"",en:"",desc:{ku:"",en:""}}};
-  // Genel alan öğretmeni tüm öğrencileri görür
-  const myStudents = teacher.area === "genel"
-    ? students.filter(s=>!s.isAdmin)
-    : students.filter(s=>s.area===teacher.area);
   const mySchedule = schedule.filter(s=>lessonForTeacher(s,teacher));
+  // Öğrencilerim: verdiğim derslerin sınıfları + sınıf öğretmeni olduğum sınıflar.
+  // Hiç dersi/sınıfı yoksa eskisi gibi kendi alanının öğrencileri (genel → herkes).
+  const clsDocs=useClassDocs("classes");
+  const rosterOf=ls=>lessonRoster(ls,students,clsDocs);
+  const myStudents=(()=>{
+    const m=new Map();
+    mySchedule.forEach(ls=>rosterOf(ls).forEach(s=>m.set(s.id,s)));
+    clsDocs.filter(d=>d.kind&&d.status!=="closed"&&(d.teacherNos||[]).map(String).includes(String(teacher.no)))
+      .forEach(d=>students.forEach(s=>{ if(!s.isAdmin&&inClass(d,s.no)) m.set(s.id,s); }));
+    if(m.size) return [...m.values()].sort((x,y)=>(x.name||"").localeCompare(y.name||""));
+    return teacher.area==="genel"?students.filter(s=>!s.isAdmin):students.filter(s=>s.area===teacher.area);
+  })();
 
   // ── Anlık / sıradaki ders hesapla ──────────────────────────────────────────
   // Günün ders programından şu anda ya da en yakın ders hangisi?
@@ -14317,6 +13567,13 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
 
   // Gösterilecek "güncel" ders: önce aktif, yoksa sıradaki, yoksa bugün ilk, yoksa tüm program ilk
   const currentLesson = activeLesson || upcomingLesson || todayLessons[0] || mySchedule[0] || null;
+  const curRoster = currentLesson ? rosterOf(currentLesson) : myStudents;
+  const sessLesson = activeQRSession ? mySchedule.find(l=>String(l.id)===String(activeQRSession.lessonId)) : null;
+  const sessRoster = sessLesson ? rosterOf(sessLesson) : myStudents;
+  // Elle yoklama: bugünkü derslerden seçilen (varsayılan: şu anki ders) + o dersin sınıf listesi
+  const attLesson = todayLessons.find(l=>String(l.id)===String(attLsId)) || (todayLessons.includes(currentLesson)?currentLesson:todayLessons[0]) || null;
+  const attRoster = attLesson ? rosterOf(attLesson) : [];
+  const attCount = v => attRoster.filter(s=>attendance[s.id]===v).length;
 
   // Ders durumu etiketi
   function lessonStatusLabel(ls){
@@ -14473,7 +13730,6 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
   }
 
   // QR otomatik açılmaz — öğretmen panelde manuel olarak başlatır
-  const autoOpened = useRef(false);
 
   function closeLessonQR(){
     const checkins = getSessionCheckins();
@@ -14495,15 +13751,18 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
 
     // 3. Yoklamayı Firebase attendance koleksiyonuna kaydet
     const lessonId = session?.lessonId || ("manual_"+Date.now());
+    // Yoklama listesi dersin sınıfıdır (sınıfsız ders → alanın öğrencileri)
+    const sesLs = mySchedule.find(l=>String(l.id)===String(lessonId));
+    const roster = sesLs ? rosterOf(sesLs) : myStudents;
     const records  = {};
-    myStudents.forEach(s=>{
+    roster.forEach(s=>{
       records[s.id] = checkins[s.id] ? (checkins[s.id].late ? "late" : "on") : "off";
     });
     fbSaveAttendance(lessonId, teacher.id, dateStr, records);
 
     // 4. Öğrenci istatistiklerini güncelle
     const presentCount = Object.keys(checkins).length;
-    myStudents.forEach(s=>{
+    roster.forEach(s=>{
       const st = getStudentStats(s.id);
       const wasOn = !!checkins[s.id];
       const todayAtt = wasOn ? 100 : 0;
@@ -14513,41 +13772,10 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
 
     setActiveQRSession(null);
     setQrToken(null);
-    const total = myStudents.length;
+    const total = roster.length;
     toast("✅ " + (session?.lessonName||"Ders") + " — " + presentCount + "/" + total + " " + (lang==="en"?"checked in":K("kete dersê")));
   }
 
-  const doQRScan=useCallback(()=>{
-    if(!myStudents.length){toast(lang==="en"?"No students":K("Xwendekar tune")); return;}
-    const unscanned=myStudents.filter(s=>!scannedId||s.id!==scannedId);
-    const target=unscanned.length>0?unscanned[Math.floor(Math.random()*unscanned.length)]:myStudents[0];
-    setScannedId(target.id);
-    setScanResult(target);
-    setAttendance(prev=>({...prev,[target.id]:"on"}));
-    toast("✓ "+target.name+" → "+target.no);
-  },[myStudents,scannedId]);
-
-  const [materials, setMaterials] = useState([]);
-  const materialFileRef = useRef();
-
-  function handleMaterialUpload(e){
-    const files = Array.from(e.target.files);
-    files.forEach(file=>{
-      const reader = new FileReader();
-      reader.onload = ev => {
-        setMaterials(prev=>[...prev,{
-          id: Date.now()+Math.random(),
-          name: file.name,
-          size: (file.size/1024).toFixed(0)+"KB",
-          type: file.type,
-          date: new Date().toLocaleDateString(lang==="en"?"en-GB":"ku"),
-          url: ev.target.result
-        }]);
-      };
-      reader.readAsDataURL(file);
-    });
-    e.target.value="";
-  }
 
   const [teacherAnns,setTeacherAnns]=useState([]);
   // Firebase'den öğretmene yönelik duyuruları yükle (admin + kendi alanı)
@@ -14690,16 +13918,16 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                   </span>
                 </div>
                 <div style={{fontSize:11,color:"var(--text2)",marginBottom:10}}>
-                  {currentLesson.start} – {currentLesson.end} · {currentLesson.loc||"—"} · {myStudents.length} {t.totalStudents.toLowerCase()}
+                  {currentLesson.start} – {currentLesson.end} · {currentLesson.loc||"—"} · {curRoster.length} {t.totalStudents.toLowerCase()}
                   {currentLesson.day!==todayKu&&<span style={{marginLeft:6,color:"var(--text2)",fontStyle:"italic"}}>({t.days?.[currentLesson.day]||currentLesson.day})</span>}
                 </div>
                 <div style={{marginBottom:10}}>
                   <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"var(--text2)",marginBottom:4}}>
                     <span>{lang==="en"?"QR Attendance":K("Amadebûna QR")}</span>
-                    <span style={{fontWeight:600}}>{Object.values(attendance).filter(v=>v==="on").length} / {myStudents.length}</span>
+                    <span style={{fontWeight:600}}>{Object.values(attendance).filter(v=>v==="on").length} / {curRoster.length}</span>
                   </div>
                   <div style={{height:6,background:"var(--bg2)",borderRadius:3}}>
-                    <div style={{height:"100%",width:`${myStudents.length?Object.values(attendance).filter(v=>v==="on").length/myStudents.length*100:0}%`,background:a.color,borderRadius:3,transition:"width 0.3s"}}/>
+                    <div style={{height:"100%",width:`${curRoster.length?Object.values(attendance).filter(v=>v==="on").length/curRoster.length*100:0}%`,background:a.color,borderRadius:3,transition:"width 0.3s"}}/>
                   </div>
                 </div>
                 <PrimaryBtn onClick={()=>openLessonQR(currentLesson)} icon="📷">{t.qrScanTeacher}</PrimaryBtn>
@@ -14781,31 +14009,37 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
         )}
         {view==="attendance"&&todayLessons.length>0&&(
           <>
-            <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:10,padding:"9px 12px",background:"var(--bg2)",border:"1px solid var(--border2)",borderRadius:10}}>
-              📅 {lang==="en"?"Today":K("Îro")}: {todayLessons.map(l=>l.name).join(" · ")}
+            <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
+              {todayLessons.map(l=>{ const on=attLesson&&String(attLesson.id)===String(l.id); const cd=l.classId&&clsDocs.find(d=>d.id===l.classId); return(
+                <button key={l.id} onClick={()=>setAttLsId(l.id)} style={{padding:"7px 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",
+                  border:"1.5px solid "+(on?"#0f2f38":"var(--border2)"),background:on?"#0f2f38":"var(--surface)",color:on?"#fff":"var(--text)"}}>
+                  📅 {l.start} {l.name}{cd?" · 🏫 "+cd.name:""}</button>); })}
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
               <div style={{background:"var(--surface)",borderRadius:10,padding:11,textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
                 <div style={{fontSize:10,color:"var(--green)",marginBottom:3}}>✅ {t.attended}</div>
-                <div style={{fontSize:22,fontWeight:700,color:"var(--green)"}}>{Object.values(attendance).filter(v=>v==="on").length}</div>
+                <div style={{fontSize:22,fontWeight:700,color:"var(--green)"}}>{attCount("on")}</div>
               </div>
               <div style={{background:"var(--surface)",borderRadius:10,padding:11,textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
                 <div style={{fontSize:10,color:"#d97706",marginBottom:3}}>⏱ {t.late}</div>
-                <div style={{fontSize:22,fontWeight:700,color:"#d97706"}}>{Object.values(attendance).filter(v=>v==="late").length}</div>
+                <div style={{fontSize:22,fontWeight:700,color:"#d97706"}}>{attCount("late")}</div>
               </div>
               <div style={{background:"var(--surface)",borderRadius:10,padding:11,textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
                 <div style={{fontSize:10,color:"var(--red)",marginBottom:3}}>❌ {t.absent}</div>
-                <div style={{fontSize:22,fontWeight:700,color:"var(--red)"}}>{Object.values(attendance).filter(v=>v==="off").length}</div>
+                <div style={{fontSize:22,fontWeight:700,color:"var(--red)"}}>{attCount("off")}</div>
               </div>
             </div>
             <Card>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
                 <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>📋 {t.attendanceList}</div>
                 <button onClick={()=>{
-                  // Yoklamayı stats deposuna işle
-                  const total=myStudents.length||1;
-                  const presentCount=Object.values(attendance).filter(v=>v==="on").length;
-                  myStudents.forEach(s=>{
+                  if(!attLesson) return;
+                  // Yoklama kaydı (raporlar buradan okur) + devam istatistiği
+                  const total=attRoster.length||1;
+                  const presentCount=attCount("on");
+                  const records={}; attRoster.forEach(s=>{ records[s.id]=attendance[s.id]||"off"; });
+                  fbSaveAttendance(attLesson.id, teacher.id, todayStr_t, records);
+                  attRoster.forEach(s=>{
                     const st=getStudentStats(s.id);
                     const wasOn=attendance[s.id]==="on";
                     const wasLate=attendance[s.id]==="late";
@@ -14819,7 +14053,8 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                   hapticSuccess(); toast("✓ "+t.attendanceSaved+" ("+presentCount+"/"+total+")");
                 }} style={{padding:"6px 14px",fontSize:11,background:"#0f2f38",color:"#ffffff",border:"none",borderRadius:8,cursor:"pointer",fontWeight:600}}>{t.saveAttendance}</button>
               </div>
-              {myStudents.map(s=>(
+              {attRoster.length===0&&<div style={{fontSize:12,color:"var(--text2)",textAlign:"center",padding:16}}>{lang==="en"?"No students in this lesson's class.":K("Di sinifa vê dersê de xwendekar tune.")}</div>}
+              {attRoster.map(s=>(
                 <div key={s.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"0.5px solid var(--border)"}}>
                   <Avatar name={s.name} color={a.color} size={32} photo={s.photo}/>
                   <div style={{flex:1}}>
@@ -14853,71 +14088,6 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
             {/* Yönetimden gelen anketler + haftalık ders değerlendirmesi
                 (ikisi de TeacherSurveyPanel içinde; mükerrer liste kaldırıldı) */}
             <TeacherSurveyPanel teacher={teacher} schedule={mySchedule} lang={lang} t={t} toast={toast}/>
-          </>
-        )}
-        {view==="materials"&&(
-          <>
-            <Card style={{marginBottom:10}}>
-              <div style={{fontSize:14,fontWeight:700,color:"var(--text)",marginBottom:4}}>
-                📂 {lang==="en"?"Teaching Materials":K("Materyalên Dersê")}
-              </div>
-              <div style={{fontSize:11,color:"var(--text2)",marginBottom:14}}>
-                {lang==="en"?"Upload teaching materials for your students.":K("Ji bo xwendekarên xwe materyalên dersê barkirin.")}
-              </div>
-              <div
-                onClick={()=>materialFileRef.current.click()}
-                style={{border:"2px dashed #0f2f38",borderRadius:12,padding:"20px 16px",textAlign:"center",cursor:"pointer",background:"var(--surface2)",marginBottom:12}}>
-                <div style={{fontSize:32,marginBottom:8}}>📁</div>
-                <div style={{fontSize:13,color:"var(--text)",fontWeight:600}}>
-                  {lang==="en"?"Upload Files":K("Pelê Barkirin")}
-                </div>
-                <div style={{fontSize:11,color:a.color,marginTop:4}}>
-                  {lang==="en"?"PDF, Word, PPT, Image, Video":K("PDF, Word, PPT, Wêne, Vîdyo")}
-                </div>
-              </div>
-              <input ref={materialFileRef} type="file" multiple accept="*/*" style={{display:"none"}} onChange={handleMaterialUpload}/>
-              <button onClick={()=>materialFileRef.current.click()}
-                style={{width:"100%",padding:11,background:"#0f2f38",color:"#ffffff",border:"none",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-                ➕ {lang==="en"?"Add Material":K("Materyala Nû")}
-              </button>
-            </Card>
-            {materials.length===0?(
-              <Card>
-                <div style={{textAlign:"center",padding:"24px 12px",color:"var(--text2)"}}>
-                  <div style={{fontSize:40,marginBottom:10}}>📭</div>
-                  <div style={{fontSize:13}}>{lang==="en"?"No materials uploaded yet":K("Hîn materyaleke nehatiye barkirin")}</div>
-                </div>
-              </Card>
-            ):(
-              <Card>
-                <div style={{fontSize:12,fontWeight:600,color:"var(--text2)",marginBottom:10,textTransform:"uppercase",letterSpacing:"0.07em"}}>
-                  {materials.length} {lang==="en"?"Files":K("Pel")}
-                </div>
-                {materials.map((mat,i)=>{
-                  const icon = mat.type.includes("pdf")?"📄":mat.type.includes("image")?"🖼️":mat.type.includes("video")?"🎬":mat.type.includes("word")||mat.name.endsWith(".docx")?"📝":mat.type.includes("presentation")||mat.name.endsWith(".pptx")?"📊":"📎";
-                  return(
-                    <div key={mat.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 0",borderBottom:i<materials.length-1?"0.5px solid var(--border)":"none"}}>
-                      <div style={{width:40,height:40,borderRadius:8,background:a.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>
-                        {icon}
-                      </div>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontSize:12,color:"var(--text)",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{mat.name}</div>
-                        <div style={{fontSize:10,color:"var(--text2)",marginTop:2}}>{mat.size} · {mat.date}</div>
-                      </div>
-                      <a href={safeHref(mat.url)} rel="noopener" download={mat.name}
-                        onClick={e=>e.stopPropagation()}
-                        style={{padding:"5px 10px",borderRadius:6,background:a.bg,color:"var(--text)",fontSize:11,fontWeight:500,textDecoration:"none",flexShrink:0}}>
-                        ⬇
-                      </a>
-                      <button onClick={()=>setMaterials(p=>p.filter(m=>m.id!==mat.id))}
-                        style={{padding:"5px 8px",borderRadius:6,background:"var(--red-bg)",color:"var(--red)",border:"none",fontSize:11,cursor:"pointer",flexShrink:0}}>
-                        ✕
-                      </button>
-                    </div>
-                  );
-                })}
-              </Card>
-            )}
           </>
         )}
         {view==="scanner"&&(
@@ -15035,10 +14205,10 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                   <div style={{fontSize:11,color:"var(--text2)",marginBottom:8}}>{activeQRSession.lessonName}</div>
                   <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}>
                     <span style={{color:"var(--text2)"}}>{lang==="en"?"Checked in":K("Ketin")}</span>
-                    <span style={{fontWeight:700,color:"var(--green)"}}>{Object.keys(getSessionCheckins()).length} / {myStudents.length}</span>
+                    <span style={{fontWeight:700,color:"var(--green)"}}>{Object.keys(getSessionCheckins()).length} / {sessRoster.length}</span>
                   </div>
                   <div style={{height:6,background:"var(--bg2)",borderRadius:3,overflow:"hidden",marginBottom:10}}>
-                    <div style={{height:"100%",width:`${myStudents.length?Object.keys(getSessionCheckins()).length/myStudents.length*100:0}%`,background:"var(--green)",borderRadius:3,transition:"width 0.5s"}}/>
+                    <div style={{height:"100%",width:`${sessRoster.length?Object.keys(getSessionCheckins()).length/sessRoster.length*100:0}%`,background:"var(--green)",borderRadius:3,transition:"width 0.5s"}}/>
                   </div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6}}>
                     <button onClick={()=>regenerateQR()} style={{padding:"9px",background:"#0f2f38",color:"#ffffff",border:"none",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer"}}>
@@ -15079,10 +14249,10 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
               <div>
                 <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"var(--text2)",marginBottom:5}}>
                   <span>{t.attendance||"Amadebûn"}</span>
-                  <span style={{fontWeight:600}}>{Object.values(attendance).filter(v=>v==="on").length} / {myStudents.length}</span>
+                  <span style={{fontWeight:600}}>{Object.values(attendance).filter(v=>v==="on").length} / {curRoster.length}</span>
                 </div>
                 <div style={{height:6,background:"var(--bg2)",borderRadius:3}}>
-                  <div style={{height:"100%",width:`${myStudents.length?Object.values(attendance).filter(v=>v==="on").length/myStudents.length*100:0}%`,background:a.color,borderRadius:3,transition:"width 0.3s"}}/>
+                  <div style={{height:"100%",width:`${curRoster.length?Object.values(attendance).filter(v=>v==="on").length/curRoster.length*100:0}%`,background:a.color,borderRadius:3,transition:"width 0.3s"}}/>
                 </div>
               </div>
 
@@ -15158,8 +14328,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
 
             </div>
 
-            <MyClassesCard coll="classes" teacherNo={teacher.no} byArea={true} areaLabel={a2=>areaName(a2,lang)} lang={lang}
-              members={(students||[]).filter(s2=>!s2.isAdmin).map(s2=>({key:s2.fireId||String(s2.id),name:s2.name,no:s2.no,area:s2.area,level:s2.classLevel||1}))}/>
+            <MyClassesCard teacherNo={teacher.no} students={students} lang={lang}/>
             {/* Bulk message shortcut */}
             <div style={{background:"var(--surface)",borderRadius:12,padding:"11px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:10,cursor:"pointer",border:"1px solid rgba(15,23,42,.08)",borderLeft:"4px solid "+a.color}}
               onClick={()=>setView("messages")}>
@@ -15724,12 +14893,6 @@ function BiometricModal({ open, onSuccess, onCancel, lang, aColor, user }) {
 /* ─── STUDENT PANEL ─────────────────────────────────────────────────────── */
 /* ─── STUDENT SURVEY VIEW ────────────────────────────────────────────────── */
 function StudentSurveyView({student, a, lang, toast, mode}) {
-  const STUDENT_SURVEYS_KEY = "aat-student-surveys";
-  const STUDENT_SURVEY_RESPONSES_KEY = "aat-student-survey-responses";
-
-  function loadSS(){ try{const r=localStorage.getItem(STUDENT_SURVEYS_KEY);return r?JSON.parse(r):[]}catch{return[];} }
-  function loadSSR(){ try{const r=localStorage.getItem(STUDENT_SURVEY_RESPONSES_KEY);return r?JSON.parse(r):[]}catch{return[];} }
-
   const [surveys, setSurveys] = useState(loadSS);
   const [myResponses, setMyResponses] = useState(()=>loadSSR().filter(r=>r.studentId===student.id));
   const [activeSurvey, setActiveSurvey] = useState(null);
@@ -15760,7 +14923,6 @@ function StudentSurveyView({student, a, lang, toast, mode}) {
     return()=>{unsub();unsubR();};
   },[student.id]);
 
-  const svCls=useClassDocs("classes",mode!=="teacher");
   const visibleSurveys = surveys.filter(sv=>{
     if(!sv.active) return false;
     if(sv.endDate&&sv.endDate<new Date().toISOString().slice(0,10)) return false;
@@ -15771,9 +14933,6 @@ function StudentSurveyView({student, a, lang, toast, mode}) {
     }
     if(sv.targetType==="teachers"||sv.targetType==="teachers_area") return false; // öğretmenlere özel — öğrencilere gösterme
     if(sv.targetType==="area"&&!(sv.targetAreas||[]).includes(student.area)) return false;
-    // İsteğe bağlı sınıf / sınıf öğretmeni hedefi
-    if((sv.targetLevels||[]).length&&!(sv.targetLevels||[]).map(Number).includes(+(student.classLevel||1))) return false;
-    if(sv.targetTeacherNo){ const d=svCls.find(x=>x.id===classDocId(true,student.area,student.classLevel||1)); if(!d||!(d.teacherNos||[]).map(String).includes(String(sv.targetTeacherNo))) return false; }
     return true;
   });
 
@@ -16090,10 +15249,15 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
   const [showChangePass,setShowChangePass]=useState(false);
   const [showSelfProfile,setShowSelfProfile]=useState(false);
   const a=AREA_MAP[student.area]||AREA_MAP["genel"]||{color:"#0f2f38",bg:"rgba(15,47,56,0.08)",icon:"🎓",name:{ku:"",en:"",desc:{ku:"",en:""}}};
+  // Sınıflarım: alan sınıfı + genel sınıf + açık atölye
+  const myClasses=classesOfStudent(useClassDocs("classes"),student.no);
+  const myClassIds=new Set(myClasses.map(d=>d.id));
   const mySchedule=schedule.filter(s=>{
     if(!s.area||!student.area) return false;
-    // Öğretmeni atanmamış ders henüz aktif değildir — kimseye gösterilmez
-    if(!s.teacherNo) return false;
+    // Öğretmeni atanmamış ders henüz aktif değildir — kimseye gösterilmez (atölyede dış eğitmen yeter)
+    if(!s.teacherNo&&!s.guestTeacher) return false;
+    // Sınıfa bağlı ders yalnızca o sınıfın öğrencilerine görünür
+    if(s.classId) return myClassIds.has(s.classId);
     // Genel alan dersleri herkese görünür
     if(s.area==="genel") return true;
     // Direkt eşleşme
@@ -16228,8 +15392,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
             <div className="pill-row">
               <span className="glass-pill">{a.icon} {areaName(student.area,lang)}</span>
               <span className="glass-pill" style={{fontFamily:"monospace"}}>{student.no}</span>
-              <span className="glass-pill">{(student.classLevel||1)}. {lang==="en"?"Class":K("Sînif")}</span>
-              <ClassTeacherPill coll="classes" id={classDocId(true,student.area,student.classLevel||1)}/>
+              {myClasses.map(d=><span key={d.id} className="glass-pill">🏫 {d.kind==="area"?d.name:classLabel(d,lang)}{(d.teacherNames||[]).filter(Boolean).length?" · 👩‍🏫 "+d.teacherNames.filter(Boolean).join(", "):""}</span>)}
             </div>
           </div>
           <button onClick={onLogout} style={{color:"rgba(255,255,255,.6)",background:"rgba(255,255,255,.1)",
@@ -17133,10 +16296,6 @@ function buildQRContent(sessionId){
   return "AAT|" + sessionId;
 }
 
-// Geriye uyumluluk için alias
-function buildDynamicQRContent(sessionId){ return buildQRContent(sessionId); }
-function buildStaticQRContent(sessionId){ return buildQRContent(sessionId); }
-
 // QR doğrula — sadece sessionId eşleşmesi
 function validateQRContent(content, sessionId){
   // Yeni format: "AAT|<sessionId>"
@@ -17147,9 +16306,6 @@ function validateQRContent(content, sessionId){
   if(content.startsWith(sessionId + "|")) return true;
   return false;
 }
-// Alias
-function validateDynamicQRContent(content, sessionId){ return validateQRContent(content, sessionId); }
-
 function openQRSession(sessionId, lessonName, teacherName, area, expiresInMs=600000, teacherLocation=null, lessonId=null, teacherId=null){
   const session = {
     sessionId, lessonName, teacherName, area,
@@ -17977,7 +17133,7 @@ function ThemeToggle({dark,onToggle,lang}){
 class ErrorBoundary extends React.Component {
   constructor(props){super(props);this.state={error:null,info:null};}
   static getDerivedStateFromError(error){return {error};}
-  componentDidCatch(error,info){this.setState({error,info});console.error("App Error:",error,info);window._crashlytics&&window._crashlytics.recordError(error,{fatal:true,componentStack:info.componentStack});}
+  componentDidCatch(error,info){this.setState({error,info});console.error("App Error:",error,info);}
   render(){
     if(this.state.error){
       return(
