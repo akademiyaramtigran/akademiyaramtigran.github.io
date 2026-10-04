@@ -828,7 +828,7 @@ html.theme-dark .sm-head{background:var(--surface2)}
 .sm-brand span{flex:1;min-width:0;font-size:9.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#9c7d33;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sm-x{background:var(--bg1);border:1px solid var(--border2);color:var(--text2);width:30px;height:30px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .sm-user{display:flex;align-items:center;gap:12px}
-.sm-av{width:48px;height:48px;border-radius:50%;flex-shrink:0;object-fit:cover;background:var(--bg1);border:2px solid #b8923f;color:#0f2f38;
+.sm-av{width:48px;height:48px;border-radius:50%;flex-shrink:0;object-fit:cover;background:var(--bg1);border:2px solid #b8923f;color:var(--text);
   display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:17px;letter-spacing:.04em}
 .sm-head .sm-nm{color:var(--text);font-family:var(--serif);font-size:17px;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sm-head .sm-rl{color:var(--text2);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;margin-top:4px;font-weight:700;
@@ -902,6 +902,16 @@ html.theme-dark .ph,html.theme-dark .student-hero,html.theme-dark .admin-header{
 .admin-header .tab-btn{color:var(--text2)!important}
 .admin-header .tab-btn.active{color:var(--accent)!important;border-bottom-color:#b8923f!important}
 .student-hero::before,.student-hero::after{background:rgba(184,146,63,.05)!important}
+
+/* ══ KOYU MOD — petrol öğeler koyu zeminde kaybolmasın ══ */
+html.theme-dark .sm-it.active{background:rgba(231,199,123,.10);color:#e7c77b}
+html.theme-dark .sm-it.active .sm-ic{background:#1c4a55;border-color:#2c6b74}
+html.theme-dark .btn-navy{background:#1c4a55;border-color:#2c6b74}
+html.theme-dark .btn-navy:hover{background:#235965}
+html.theme-dark button[style*="background: rgb(15, 47, 56)"]{background:#1c4a55!important;border-color:#2c6b74!important}
+html.theme-dark :is(div,span)[style*="background: rgb(15, 47, 56)"]{background:#1c4a55!important}
+html.theme-dark .app-nav-item.active .app-nav-label{color:#e7c77b}
+html.theme-dark .app-nav-item.active{box-shadow:inset 0 2px 0 #e7c77b}
 
 /* ══ DÜĞMELER — site ile uyumlu sade çizgi simgeler ══ */
 button:has(> .ico-solo){background:transparent!important;border:1px solid var(--border2)!important;color:var(--text2)!important;border-radius:9px!important;
@@ -3575,7 +3585,7 @@ function Avatar({name,color,size=36,photo,onDark}){
   const ini=name?name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase():"??";
   const c=color||"#0f2f38";
   const st=onDark
-    ? {background:"var(--bg1)",border:"2px solid #b8923f",color:"#0f2f38"}
+    ? {background:"var(--bg1)",border:"2px solid #b8923f",color:"var(--text)"}
     : {background:"color-mix(in srgb, "+c+" 14%, var(--bg1))",border:"1.5px solid color-mix(in srgb, "+c+" 45%, transparent)",color:"color-mix(in srgb, "+c+" 80%, #0f2f38)"};
   return(
     <div style={{width:size,height:size,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--serif)",fontSize:size*0.36,letterSpacing:".03em",flexShrink:0,boxSizing:"border-box",...st}}>
@@ -4583,6 +4593,10 @@ function AddLessonSheet({open,onClose,defaultArea,defaultClassId,t,lang,toast,on
   const [classId,setClassId]=useState(defaultClassId||""); // "" = sınıfsız (alanın bütün öğrencileri)
   const clsDocs=useClassDocs("classes",!!open);
   const clsOpts=lessonClassOptions(clsDocs,area);
+  // Dönem: haftalık ders bu dönemin tarihleri içinde her hafta tekrarlanır (varsayılan: aktif dönem)
+  const terms=useTerms();
+  const [term,setTerm]=useState(terms.activeId||"");
+  useEffect(()=>{ if(!term&&terms.activeId) setTerm(terms.activeId); },[terms.activeId]);
   const [teacherNo,setTeacherNo]=useState(""); // "" = atanmamış (alan öğretmenleri görür)
   const [day,setDay]=useState("Dûşem");
   const [name,setName]=useState("");
@@ -4617,6 +4631,7 @@ function AddLessonSheet({open,onClose,defaultArea,defaultClassId,t,lang,toast,on
     const ls={
       id:Date.now(),area,name:name.trim(),start,end,loc:loc||"—",
       classId:clsOpts.some(d=>d.id===classId)?classId:null,
+      term:lessonType==="main"&&term?term:null,
       lessonType, // "main" veya "extra"
       day: lessonType==="main" ? day : null,
       extraDates: lessonType==="extra" ? extraDates : null,
@@ -4677,6 +4692,14 @@ function AddLessonSheet({open,onClose,defaultArea,defaultClassId,t,lang,toast,on
         </select>
       </FieldWrap>
 
+      {lessonType==="main"&&(terms.list||[]).length>0&&(
+        <FieldWrap label={"📆 "+(lang==="en"?"Term (repeats weekly between its dates)":K("Demsal (di navbera tarîxên wê de her hefte dubare dibe)"))}>
+          <select style={selectStyle} value={term} onChange={e=>setTerm(e.target.value)}>
+            <option value="">— {lang==="en"?"No term (always)":K("Bê demsal (her dem)")}</option>
+            {(terms.list||[]).map(tm=>(<option key={tm.id} value={tm.id}>{tm.label} · {tm.start} → {tm.end}</option>))}
+          </select>
+        </FieldWrap>
+      )}
       {lessonType==="main" ? (
         <FieldWrap label={t.day}>
           <select style={selectStyle} value={day} onChange={e=>setDay(e.target.value)}>
@@ -9766,7 +9789,7 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
         <div style={{display:"flex",flexDirection:"column",gap:5,justifyContent:"center",flexShrink:0}}>
           <button onClick={()=>setEditingLesson(ls)}
             style={{padding:"6px 9px",fontSize:12,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:7,cursor:"pointer",color:"var(--text)"}}><Ico n="edit" solo/></button>
-          <button onClick={()=>markTeacherAbsent(ls)} title={lang==="en"?"Teacher absent today":K("Mamoste nehat (îro)")}
+          <button onClick={()=>markTeacherAbsent(ls)} title={lang==="en"?"Lesson not held (teacher absent)":K("Ders nehat kirin (mamoste nehat)")}
             style={{padding:"6px 9px",fontSize:12,background:"rgba(220,38,38,0.06)",border:"0.5px solid rgba(220,38,38,0.3)",borderRadius:7,cursor:"pointer"}}>🚫</button>
           <button onClick={()=>deleteLesson(ls)}
             style={{padding:"6px 9px",fontSize:12,background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:7,cursor:"pointer",color:"var(--red)"}}><Ico n="trash" solo/></button>
@@ -9775,21 +9798,29 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
     );
   }
 
+  // Öğretmen dersi işlemedi: Öğrenci İşleri tarih + neden (devamsız / raporlu / mazeretli) + açıklama ile işler.
+  //  attendance/{dersId}-{tarih}: teacherAbsent, absenceKind, absenceNote → öğretmen devamı raporunda görünür
+  const [absFor,setAbsFor]=useState(null);   // {ls,date,kind,note,exists}
   async function markTeacherAbsent(ls){
-    const now=new Date();
-    const todayStr=now.toISOString().slice(0,10);
-    const DAYS=["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"];
-    const isToday=(ls.lessonType==="extra") ? (ls.extraDates||[]).includes(todayStr) : ls.day===DAYS[now.getDay()];
-    if(!isToday){ toast(lang==="en"?"⚠ This lesson is not scheduled today":K("⚠ Ev ders îro nîne")); return; }
-    if(!window.confirm((lang==="en"?"Record: teacher did NOT come today?":K("Îro mamoste NEHAT — were tomarkirin?"))+"\n"+ls.name)) return;
+    const todayStr=new Date().toISOString().slice(0,10);
+    let ex=null;
+    try{ if(window.__FB&&window.__FB.isConfigured()){ const sn=await window.__FB.getDoc(window.__FB.doc(window.__FB.db,"attendance",ls.id+"-"+todayStr)); if(sn.exists()&&sn.data().teacherAbsent) ex=sn.data(); } }catch(_){}
+    setAbsFor({ls,date:todayStr,kind:(ex&&ex.absenceKind)||"absent",note:(ex&&ex.absenceNote)||"",exists:!!ex});
+  }
+  async function saveAbsence(remove){
+    const {ls,date,kind,note}=absFor;
+    if(!date||!lessonDates(ls,terms,date,date).length){ toast("⚠ "+(lang==="en"?"This lesson is not scheduled on that date":K("Ev ders di wê rojê de nîne"))); return; }
     try{
       if(window.__FB&&window.__FB.isConfigured()){
-        await window.__FB.setDoc(window.__FB.doc(window.__FB.db,"attendance",ls.id+"-"+todayStr),
-          {lessonId:ls.id,lessonName:ls.name,area:ls.area,teacherId:ls.teacherNo||null,teacherName:ls.teacherName||null,
-           date:todayStr,teacherAbsent:true,records:{},updatedAt:window.__FB.serverTimestamp()},{merge:true});
+        const ref=window.__FB.doc(window.__FB.db,"attendance",ls.id+"-"+date);
+        if(remove) await window.__FB.setDoc(ref,{teacherAbsent:false,absenceKind:null,absenceNote:null,updatedAt:window.__FB.serverTimestamp()},{merge:true});
+        else await window.__FB.setDoc(ref,
+          {lessonId:ls.id,lessonName:ls.name,area:ls.area,classId:ls.classId||null,teacherId:ls.teacherNo||null,teacherName:ls.teacherName||null,
+           date,teacherAbsent:true,absenceKind:kind,absenceNote:String(note||"").trim().slice(0,300),records:{},updatedAt:window.__FB.serverTimestamp()},{merge:true});
       }
-      toast("🚫 "+(lang==="en"?"Recorded: teacher absent":K("Hat tomarkirin: mamoste nehat")));
-    }catch(e){ toast("❌"); }
+      toast(remove?"↩ "+(lang==="en"?"Mark removed":K("Nîşan hate rakirin")):"🚫 "+(lang==="en"?"Recorded: lesson not held":K("Hate tomarkirin: ders nehat kirin")));
+      setAbsFor(null);
+    }catch(e){ toast("❌ "+(e.code||e.message||"")); }
   }
 
   const termsBlock=(
@@ -9996,11 +10027,28 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
         </>
       )}
 
+      {absFor&&(
+        <Sheet open={true} onClose={()=>setAbsFor(null)} title={"🚫 "+(lang==="en"?"Lesson not held":K("Ders nehat kirin"))}>
+          <div style={{fontSize:13,color:"var(--text)",fontWeight:700,marginBottom:4}}>{absFor.ls.name}</div>
+          <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:12}}>👨‍🏫 {absFor.ls.teacherName||"—"} · {absFor.ls.start}–{absFor.ls.end}</div>
+          <FieldWrap label={lang==="en"?"Date":K("Tarîx")}><input type="date" style={inputStyle} value={absFor.date} max={new Date().toISOString().slice(0,10)} onChange={e=>setAbsFor(x=>({...x,date:e.target.value}))}/></FieldWrap>
+          <FieldWrap label={lang==="en"?"Reason":K("Sedem")}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
+              {TEACHER_ABSENCE.map(([k,ic])=>(
+                <button key={k} onClick={()=>setAbsFor(x=>({...x,kind:k}))} style={{padding:"10px 6px",borderRadius:10,fontSize:12.5,fontWeight:700,cursor:"pointer",
+                  border:"1.5px solid "+(absFor.kind===k?"#0f2f38":"var(--border2)"),background:absFor.kind===k?"#0f2f38":"var(--surface)",color:absFor.kind===k?"#fff":"var(--text)"}}>{ic} {absenceLabel(k)}</button>))}
+            </div>
+          </FieldWrap>
+          <FieldWrap label={lang==="en"?"Note (optional)":K("Nîşe (vebijarkî)")}><textarea style={{...inputStyle,minHeight:64,resize:"vertical"}} maxLength={300} value={absFor.note} onChange={e=>setAbsFor(x=>({...x,note:e.target.value}))}/></FieldWrap>
+          <PrimaryBtn onClick={()=>saveAbsence(false)} icon="💾">{lang==="en"?"Save":K("Tomar bike")}</PrimaryBtn>
+          {absFor.exists&&<button onClick={()=>saveAbsence(true)} style={{width:"100%",marginTop:8,padding:11,borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,cursor:"pointer"}}>↩ {lang==="en"?"Remove mark (lesson was held)":K("Nîşanê rake (ders hate kirin)")}</button>}
+        </Sheet>
+      )}
       {showAdd&&(
         <AddLessonSheet open={showAdd} onClose={()=>setShowAdd(false)} defaultArea={filterArea==="all"?null:filterArea} teachers={teachers} t={t} lang={lang} toast={toast}
           onSave={(ls)=>{
             const term=(viewTerm!=="all"?viewTerm:terms.activeId)||null;
-            onDataChange("addSchedule",term?{...ls,term}:ls);
+            onDataChange("addSchedule",ls.term?ls:(term?{...ls,term}:ls));
             setShowAdd(false);toast("✓ "+ls.name);
           }}/>
       )}
@@ -11061,6 +11109,7 @@ function AdminReportCenter({students,teachers,schedule,lang,t,toast,byName}){
     {key:"liste",icon:"📄",label:lang==="en"?"Lists":K("Lîste")},
     {key:"nirxandin",icon:"📅",label:lang==="en"?"Evaluation":K("Nirxandin")},
     {key:"anket",icon:"📊",label:lang==="en"?"Surveys":K("Ankêt")},
+    {key:"mamoste",icon:"👨‍🏫",label:lang==="en"?"Teacher attendance":K("Amadebûna mamosteyan")},
     {key:"zarok",icon:"🎼",label:lang==="en"?"Children's Academy":K("Akademiya Zarokan")},
     {key:"arsiv",icon:"🗂",label:lang==="en"?"Archive":K("Arşîv")},
   ];
@@ -11080,9 +11129,98 @@ function AdminReportCenter({students,teachers,schedule,lang,t,toast,byName}){
       {rTab==="nirxandin"&&<AdminWeeklyReportPanel students={students} teachers={teachers} schedule={schedule} lang={lang} toast={toast}/>}
       {rTab==="anket"&&<AdminSurveyResultsReport lang={lang} toast={toast} byName={byName}/>}
       {rTab==="zarok"&&<KidAcademyReport lang={lang} toast={toast}/>}
+      {rTab==="mamoste"&&<TeacherAttendanceReport teachers={teachers} schedule={schedule} lang={lang} toast={toast}/>}
       {rTab==="arsiv"&&<ReportArchiveTab lang={lang}/>}
     </div>
   );
+}
+
+// ══ Öğretmen derse katılım raporu ══
+//  Programdaki her ders oturumu (haftalık ders → dönemi içindeki her hafta; ek ders → tarihleri):
+//   ✅ yapıldı   : attendance/{dersId}-{tarih} yoklama kaydı var (QR kapanışı ya da elle yoklama)
+//   🚫/🏥/📝     : Öğrenci İşleri "ders işlenmedi" işaretledi — devamsız / raporlu / mazeretli (+ açıklama)
+//   ⚠ kayıt yok : tarihi geçmiş, yoklama alınmamış
+function TeacherAttendanceReport({teachers,schedule,lang,toast}){
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const terms=useTerms();
+  const today=new Date().toISOString().slice(0,10);
+  const iso=d=>d.toISOString().slice(0,10);
+  const weekStart=(()=>{ const d=new Date(); const k=(d.getDay()+6)%7; d.setDate(d.getDate()-k); return iso(d); })();
+  const at=(terms.list||[]).find(x=>x.id===terms.activeId);
+  const [range,setRange]=useState("week"); // week | d30 | term
+  const from=range==="week"?weekStart:range==="term"&&at&&at.start?at.start:iso(new Date(Date.now()-29*864e5));
+  const to=today;
+  const [att,setAtt]=useState(null);
+  const [open,setOpen]=useState(null);
+  useEffect(()=>{
+    const F=window.__FB; if(!F||!F.isConfigured()) { setAtt([]); return; }
+    let u=()=>{};
+    try{ u=F.onSnapshot(F.query(F.collection(F.db,"attendance"),F.where("date",">=",from)),sn=>setAtt(sn.docs.map(d=>({...d.data(),_id:d.id}))),()=>setAtt([])); }catch(_){ setAtt([]); }
+    return ()=>{ try{u();}catch(_){} };
+  },[from]);
+  const byId=new Map((att||[]).filter(d=>d.date).map(d=>[String(d.lessonId)+"-"+d.date,d]));
+  const plain=(teachers||[]).filter(t2=>t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate);
+  const rows=plain.map(tc=>{
+    const ls=(schedule||[]).filter(l=>String(l.teacherNo||"")===String(tc.no));
+    const occ=[];
+    ls.forEach(l=>lessonDates(l,terms,from,to).forEach(date=>{
+      const a=byId.get(String(l.id)+"-"+date);
+      const st=a&&a.teacherAbsent?"absent":a&&a.records&&Object.keys(a.records).length?"held":date<today?"missing":"today";
+      occ.push({l,date,st,kind:a&&a.teacherAbsent?(a.absenceKind||"absent"):null,note:(a&&a.absenceNote)||""});
+    }));
+    occ.sort((a,b)=>a.date.localeCompare(b.date)||String(a.l.start).localeCompare(String(b.l.start)));
+    const n=k=>occ.filter(o=>o.st===k).length;
+    const done=n("held"), abs=n("absent"), miss=n("missing"), due=done+abs+miss;
+    const kinds=Object.fromEntries(TEACHER_ABSENCE.map(([k])=>[k,occ.filter(o=>o.kind===k).length]));
+    return {tc,occ,done,abs,miss,kinds,pct:due?Math.round(done/due*100):null};
+  }).filter(r=>r.occ.length).sort((a,b)=>(a.pct==null?101:a.pct)-(b.pct==null?101:b.pct));
+  function csv(){
+    const out=[[W2("Mamoste","Teacher"),"No",W2("Ders","Lesson"),W2("Tarîx","Date"),W2("Rewş","Status")]];
+    out[0].push(W2("Nîşe","Note"));
+    rows.forEach(r=>r.occ.forEach(o=>out.push([r.tc.name,r.tc.no,o.l.name,o.date,o.st==="absent"?absenceLabel(o.kind):{held:W2("Hate kirin","Held"),missing:W2("Tomar tune","No record"),today:W2("Îro","Today")}[o.st],o.note])));
+    downloadCSV("mamoste-amadebun-"+from+"_"+to+".csv",out);
+  }
+  const box={background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,padding:12,marginBottom:10};
+  const small={fontSize:11.5,color:"var(--text2)"};
+  const chip=on=>({padding:"7px 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",border:"1.5px solid "+(on?"#0f2f38":"var(--border2)"),background:on?"#0f2f38":"var(--surface)",color:on?"#fff":"var(--text)"});
+  const stIc={held:"✅",absent:"🚫",missing:"⚠",today:"⏳"};
+  const tot=k=>rows.reduce((a,r)=>a+r[k],0);
+  return(
+    <div>
+      <div style={{...box,background:"var(--bg2)"}}>
+        <div style={{fontWeight:800,color:"var(--text)",marginBottom:4}}>👨‍🏫 {W2("Amadebûna mamosteyan a dersan","Teacher lesson attendance")}</div>
+        <div style={small}>{W2("Her dersa di bernameyê de: ✅ hate kirin (amadebûn hate girtin) · 🚫 bêdestûr · 🏥 bi rapor · 📝 bi hincet (Karûbarên Xwendekaran nîşan dide) · ⚠ tomar tune (amadebûn nehatiye girtin).","Every scheduled lesson: ✅ held (attendance taken) · 🚫 absent · 🏥 medical report · 📝 excused (marked by Student Affairs) · ⚠ no record (no attendance taken).")}</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:10}}>
+          <button onClick={()=>setRange("week")} style={chip(range==="week")}>{W2("Ev hefte","This week")}</button>
+          <button onClick={()=>setRange("d30")} style={chip(range==="d30")}>{W2("30 roj","30 days")}</button>
+          {at&&<button onClick={()=>setRange("term")} style={chip(range==="term")}>📆 {at.label}</button>}
+          <button onClick={csv} disabled={!rows.length} style={{...chip(false),marginLeft:"auto"}}>⬇ CSV</button>
+        </div>
+        <div style={{...small,marginTop:8}}>{from} → {to} · ✅ {tot("done")} · 🚫 {tot("abs")} · ⚠ {tot("miss")}</div>
+      </div>
+      {att===null&&<div style={{...small,textAlign:"center",padding:20}}>⏳</div>}
+      {att!==null&&rows.length===0&&<div style={{...small,textAlign:"center",padding:20}}>{W2("Di vê navberê de dersa bi mamoste tune.","No lessons with a teacher in this period.")}</div>}
+      {rows.map(r=>{ const isO=open===r.tc.no, bad=r.occ.filter(o=>o.st==="absent"||o.st==="missing");
+        return(
+        <div key={r.tc.no} style={box}>
+          <div onClick={()=>setOpen(isO?null:r.tc.no)} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer"}}>
+            <Avatar name={r.tc.name} color={(AREA_MAP[r.tc.area]||{}).color} size={36} photo={r.tc.photo}/>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontWeight:800,color:"var(--text)"}}>{isO?"▾":"▸"} {r.tc.name}</div>
+              <div style={small}>✅ {r.done}{TEACHER_ABSENCE.map(([k,ic])=>r.kinds[k]?" · "+ic+" "+r.kinds[k]:"").join("")} · ⚠ {r.miss}{r.occ.some(o=>o.st==="today")?" · ⏳ "+r.occ.filter(o=>o.st==="today").length:""}</div>
+            </div>
+            <div style={{fontWeight:800,fontSize:16,color:r.pct==null?"var(--text2)":r.pct>=90?"#15803d":r.pct>=70?"#b45309":"#b42318"}}>{r.pct==null?"—":r.pct+"%"}</div>
+          </div>
+          {isO&&<div style={{marginTop:8}}>
+            {(bad.length?bad:r.occ).map((o,i)=>(
+              <div key={i} style={{display:"flex",gap:8,fontSize:12.5,color:"var(--text)",padding:"5px 0",borderTop:"1px solid var(--border2)"}}>
+                <span>{o.st==="absent"?(TEACHER_ABSENCE.find(x=>x[0]===o.kind)||["","🚫"])[1]:stIc[o.st]}</span><span style={{minWidth:86,fontFamily:"monospace"}}>{o.date}</span>
+                <span style={{flex:1,minWidth:0}}>{o.l.name} <span style={small}>{o.l.start}–{o.l.end}{o.st==="absent"?" · "+absenceLabel(o.kind)+(o.note?" — "+o.note:""):o.st==="missing"?" · "+W2("amadebûn nehatiye girtin","no attendance taken"):""}</span></span>
+              </div>))}
+            {!bad.length&&<div style={{...small,marginTop:4}}>✅ {W2("Hemû ders hatin kirin.","All lessons held.")}</div>}
+          </div>}
+        </div>); })}
+    </div>);
 }
 
 function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
@@ -11741,6 +11879,28 @@ function saveTerms(data){
 function lessonForTeacher(ls,teacher){
   if(!ls.teacherNo) return false;
   return String(ls.teacherNo)===String(teacher.no);
+}
+// Öğretmen dersi işlemediğinde neden türleri
+const TEACHER_ABSENCE=[["absent","🚫"],["report","🏥"],["excused","📝"]];
+function absenceLabel(k){ const L={absent:["Bêdestûr","Absent"],report:["Bi rapor","Medical report"],excused:["Bi hincet","Excused"]}[k]||["Bêdestûr","Absent"]; return RL()==="en"?L[1]:K(L[0]); }
+// Haftalık ders, bağlı olduğu dönemin tarihleri içinde her hafta aynı gün/saatte tekrarlanır;
+// dönem başlamadıysa ya da bittiyse o gün programa düşmez (dönemsiz ders her zaman geçerli)
+function lessonOnDate(ls,terms,dateStr){
+  if(!ls||!ls.term||!terms) return true;
+  const tm=(terms.list||[]).find(x=>x.id===ls.term); if(!tm) return true;
+  return (!tm.start||dateStr>=tm.start)&&(!tm.end||dateStr<=tm.end);
+}
+// Bir dersin [from,to] aralığındaki oturum tarihleri (haftalık: dönem içindeki her hafta; ek ders: tarihleri)
+function lessonDates(ls,terms,from,to){
+  if(ls.lessonType==="extra") return (ls.extraDates||[]).filter(d=>d>=from&&d<=to).sort();
+  const dow=["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"].indexOf(ls.day); if(dow<0) return [];
+  const tm=ls.term&&terms&&(terms.list||[]).find(x=>x.id===ls.term);
+  let a=from,b=to; if(tm){ if(tm.start&&tm.start>a)a=tm.start; if(tm.end&&tm.end<b)b=tm.end; }
+  const out=[], d=new Date(a+"T12:00:00"), e=new Date(b+"T12:00:00");
+  if(isNaN(d)||isNaN(e)) return out;
+  while(d.getDay()!==dow) d.setDate(d.getDate()+1);
+  for(;d<=e;d.setDate(d.getDate()+7)) out.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"));
+  return out;
 }
 // Bir ders aktif dönemde mi? (dönemsiz dersler her dönemde görünür)
 function lessonInActiveTerm(ls,terms){
@@ -13509,7 +13669,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
 
   // Bugünkü dersler — hem haftalık (day eşleşmesi) hem de tarih bazlı ek dersler
   const todayLessons = mySchedule.filter(s=>{
-    if(!s.lessonType||s.lessonType==="main") return s.day===todayKu;
+    if(!s.lessonType||s.lessonType==="main") return s.day===todayKu&&lessonOnDate(s,_terms,todayStr_t);
     if(s.lessonType==="extra") return (s.extraDates||[]).includes(todayStr_t);
     return false;
   });
@@ -13640,7 +13800,12 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     // Oturumun alanı DERSİN alanıdır (öğretmenin değil): ortak/genel dersler ve
     // öğretmenin başka alandan bir derse atandığı durumlar için gerekli.
     const sessionArea = (lesson && lesson.area) ? lesson.area : teacher.area;
-    const session = openQRSession(sessionId, lessonName, teacher.name, sessionArea, 36000000, null, lessonId, teacher.id); // 10 saat
+    // QR (ekran + çıktı aynı kod) dersin bitiş saatinde kendiliğinden kapanır; ilk 15 dk "zamanında",
+    // sonrası "geç", hiç okutmayan "yok" yazılır. Bitiş saati yoksa 10 saat.
+    let ttl = 36000000;
+    if(lesson && lesson.end){ const [eh,em]=lesson.end.split(":").map(Number); const endAt=new Date(); endAt.setHours(eh,em,0,0);
+      const left=endAt.getTime()-Date.now(); if(left>5*60000) ttl=left; }
+    const session = openQRSession(sessionId, lessonName, teacher.name, sessionArea, ttl, null, lessonId, teacher.id);
     // Ek ders tarihini session'a ekle
     if(lessonDate && window._aat_qr_session) window._aat_qr_session._lessonDate = lessonDate;
     setQrToken(sessionId);
@@ -15376,7 +15541,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
               const todayStrS = new Date().toISOString().slice(0,10);
               const nowMinS = new Date().getHours()*60+new Date().getMinutes();
               const todayLs = mySchedule.filter(s=>{
-                if(!s.lessonType||s.lessonType==="main") return s.day===todayKuS;
+                if(!s.lessonType||s.lessonType==="main") return s.day===todayKuS&&lessonOnDate(s,_terms,todayStrS);
                 if(s.lessonType==="extra") return (s.extraDates||[]).includes(todayStrS);
                 return false;
               });
@@ -16740,6 +16905,24 @@ function StudentQRScanner({student, onClose, toast, lang="ku"}){
       } catch(e){}
     }
 
+    // Bir telefon, bir derste YALNIZCA bir öğrenci adına yoklama verebilir.
+    // attendance/{oturum}_d_{cihaz} belgesini ilk yazan öğrenci sahiplenir; kurallar başka
+    // öğrencinin aynı belgeyi güncellemesine izin vermez (studentNo kendi numarası olmalı).
+    {
+      const _s = getActiveQRSession();
+      if(_s && window.__FB && window.__FB.isConfigured()){
+        try{
+          const dev = (await getDeviceFingerprint()).replace(/[^A-Za-z0-9_-]/g,"").slice(0,48);
+          await window.__FB.setDoc(window.__FB.doc(window.__FB.db,"attendance",_s.sessionId+"_d_"+dev),
+            {sessionId:_s.sessionId, studentNo:String(student.no), deviceClaim:true, time:new Date().toISOString()},{merge:true});
+        }catch(e){
+          if(/permission/i.test(String(e&&e.code))){
+            setErrorMsg(lang==="en"?"This phone was already used for another student in this lesson":K("Ev têlefon di vê dersê de ji bo xwendekarekî din hatiye bikaranîn"));
+            hapticError(); setStatus("error"); return;
+          }
+        }
+      }
+    }
     const result = checkinToSession(qrContent, student);
     if(result.ok){
       const s = getActiveQRSession();

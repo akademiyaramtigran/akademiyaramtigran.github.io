@@ -40,3 +40,15 @@
 öğrencileri (kayıt, düzenleme, kart basımı / kayıp kart), öğretmenleri (alana kayıt) ve ders programı
 (ana/ek ders, düzenleme, "öğretmen gelmedi") aynı pencerededir. Ortak dersler **Hemû Xwendekar** kartında.
 Farklı dönemlerden öğrencilerin girdiği ortak derslerde birden çok genel sınıf açılıp aynı öğretmen hepsine atanabilir.
+
+## Haftalık program, QR yoklama ve öğretmen devamı
+- **Haftalık tekrar:** Ders eklerken **Dönem** seçilir (varsayılan: aktif dönem). Haftalık ders, dönemin başlangıç–bitiş tarihleri arasında her hafta aynı gün/saatte programa düşer; dönem bitince kendiliğinden kalkar.
+- **QR ile derse giriş:** Öğretmen dersin gününde "Dersi başlat" der → tek bir QR oluşur (tablette gösterilir **ya da** çıktı alınır — ikisi aynı kod).
+  - Açılıştan sonraki ilk **15 dk** okutan **zamanında**, sonra okutan **geç**; hiç okutmayan **yok** yazılır.
+  - QR dersin **bitiş saatinde** kendiliğinden kapanır (öğretmen kapatmayı unutsa da ders sonrası okutulamaz). Her hafta yeni ders = yeni QR; geçen haftanın çıktısı geçersizdir.
+- **Başka hesaba okutma engelleri:**
+  - Öğrenci hesabı ilk girdiği telefona bağlanır; başka telefondan girilemez (Öğrenci İşleri cihazı sıfırlayabilir).
+  - Bir telefon bir derste **yalnızca bir öğrenci** adına yoklama verebilir (`attendance/{oturum}_d_{cihaz}`; Firestore kuralı denetler).
+  - Aynı öğrenci aynı derse iki kez yoklama veremez; QR yalnızca ders açıkken geçerlidir.
+- **Öğretmen dersi işlemediğinde:** Öğrenci İşleri → program → dersin 🚫 düğmesi → tarih + neden (**devamsız / raporlu / mazeretli**) + açıklama.
+- **Öğretmen devamı raporu:** Rapor → **Öğretmen devamı**: bu hafta / 30 gün / dönem; her öğretmen için ✅ işlendi · 🚫/🏥/📝 · ⚠ kayıt yok (yoklama alınmamış), CSV.
