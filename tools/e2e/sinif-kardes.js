@@ -218,12 +218,14 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   const tc = await mk(390); const tp = await tc.newPage(); tp.on('pageerror', e => errs.push('kidteacher: ' + e.message));
   await tp.goto('http://localhost:8765/zarok/app/?emu=1'); await tp.waitForSelector('#l-no', { timeout: 20000 });
   await tp.click('.roles button:nth-child(2)'); await tp.fill('#l-no', KT); await tp.fill('#l-pw', 'Kid12345'); await tp.click('.login .btn');
-  await tp.waitForSelector('.chips', { timeout: 20000 }); await tp.waitForTimeout(1500);
-  await tp.evaluate(() => [...document.querySelectorAll('.chipb')].find(x => x.textContent.includes('Sinifa min')).click()); await tp.waitForTimeout(500);
+  await tp.waitForSelector('.nav', { timeout: 20000 }); await tp.waitForTimeout(1500);
+  const navT = await tp.evaluate(() => [...document.querySelectorAll('.nav button')].map(b => b.textContent.trim()).join('|'));
+  ok('Çocuk öğretmeni alt menüsü akademi öğretmeniyle aynı düzende', ['🏠', '📋', '📢', '💬', '🎓', '🏫', '📇', '📝', '👤'].every((e, i) => navT.split('|')[i] && navT.split('|')[i].startsWith(e)), navT);
+  await tp.evaluate(e => [...document.querySelectorAll('.nav button')].find(b => b.textContent.includes(e)).click(), '📋'); await tp.waitForTimeout(600);
   const t7 = await txt(tp);
-  ok('Öğretmen "Sinifa min" → yalnızca kendi sınıfının çocukları', t7.includes('Dilan Aram') && t7.includes('Zîlan Aram') && !t7.includes('Serhat Aram'));
+  ok('Öğretmen yalnızca kendi sınıfının çocuklarını görür (aynı alan/başka çocuk yok)', t7.includes('Dilan Aram') && t7.includes('Zîlan Aram') && !t7.includes('Serhat Aram'));
   // Sınıfa ödev gönder → velide görünür
-  await tp.click('.nav button:nth-child(4)'); await tp.waitForTimeout(600);
+  await tp.evaluate(e => [...document.querySelectorAll('.nav button')].find(b => b.textContent.includes(e)).click(), '🏫'); await tp.waitForTimeout(600);
   ok('Çocuk öğretmeni: "Ji sinifa xwe re bişîne" kartı', (await txt(tp)).includes('Ji sinifa xwe re bişîne'));
   await tp.evaluate(() => [...document.querySelectorAll('.chipb')].find(x => x.textContent.includes('Erka malê')).click()); await tp.waitForTimeout(200);
   await tp.evaluate(() => [...document.querySelectorAll('.chipb')].find(x => x.textContent.trim() === '1. Sînif').click()); await tp.waitForTimeout(200);
@@ -231,11 +233,22 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await tp.evaluate(() => [...document.querySelectorAll('button.btn')].find(x => x.textContent.includes('Ji sinifa xwe re bişîne')).click()); await tp.waitForTimeout(2000);
   const kcp = await list('kidClassPosts');
   ok('Çocuk sınıf ödevi kaydedildi (1. sınıf)', kcp.some(d => d.fields.title.stringValue === 'Stranê dubare bikin' && d.fields.classId.stringValue === KCid));
+  const vToast = await vp.locator('.toast').textContent().catch(() => '');
+  ok('Veliye anında bildirim: sınıftan yeni ödev', /Stranê dubare bikin/.test(vToast), vToast);
   await vp.bringToFront(); await vp.click('.nav button:nth-child(1)'); await vp.waitForTimeout(1500);
   const vToday = await txt(vp);
   await vp.click('.nav button:nth-child(4)'); await vp.waitForTimeout(800);
   const vAnn = await txt(vp);
   ok('Veli: çocuğun sınıf ödevi Bugün + Duyurular ekranında', vToday.includes('Stranê dubare bikin') && vAnn.includes('Stranê dubare bikin') && vAnn.includes('2030-01-10'));
+  // Çocuk modu: yıldızlar + "Erkên min" (ödev görünür, "Min kir" ile işaretlenir)
+  await vp.click('.top .iconbtn'); await vp.waitForTimeout(400);
+  await vp.evaluate(() => [...document.querySelectorAll('.sheet button')].find(b => b.textContent.includes('Moda Xwendekar Veke')).click()); await vp.waitForTimeout(800);
+  const km0 = await txt(vp);
+  await vp.evaluate(() => [...document.querySelectorAll('.ktile')].find(b => b.textContent.includes('Erkên min')).click()); await vp.waitForTimeout(500);
+  const km1 = await txt(vp);
+  await vp.evaluate(() => [...document.querySelectorAll('.kidmode button.btn')].find(b => b.textContent.includes('Min kir')).click()); await vp.waitForTimeout(400);
+  const km2 = await txt(vp);
+  ok('Çocuk modu: yıldızlar + ödevlerim (ödev görünür, "yaptım" işaretlenir)', km0.includes('Stêrkên min') && km1.includes('Stranê dubare bikin') && km2.includes('Te kir'), km0.slice(0, 120).replace(/\n/g, ' / '));
 
   // ── 8) Ana akademi öğretmeni: "Sinifên Min" ──
   const ac = await mk(430); const ap = await login(ac, '50202601', 'Tea12345');

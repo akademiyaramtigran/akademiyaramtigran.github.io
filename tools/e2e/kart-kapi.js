@@ -138,6 +138,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await tp.goto('http://localhost:8765/zarok/app/?emu=1'); await tp.waitForSelector('#l-no', { timeout: 20000 });
   await tp.click('.roles button:nth-child(2)'); await tp.fill('#l-no', '72026001'); await tp.fill('#l-pw', 'Kid12345'); await tp.click('.login .btn');
   await tp.waitForSelector('.attrow', { timeout: 20000 });
+  await tp.evaluate(e => [...document.querySelectorAll('.nav button')].find(b => b.textContent.includes(e)).click(), '📇'); await tp.waitForTimeout(600);
   await tp.getByText('Kartê bixwîne').first().click(); await tp.waitForTimeout(500);
   await tp.fill('.scanov input[aria-label=card-code]', 'AAT1:' + ktok); await tp.click('.scanov .btn.sm'); await tp.waitForTimeout(2500);
   ok('Öğretmen çocuk kartını okutur → "ket dersê"', (await tp.evaluate(() => document.querySelector('.scanres').textContent)).includes('Rojda'));

@@ -151,6 +151,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await vp.goto('http://localhost:8765/zarok/app/?emu=1'); await vp.waitForSelector('#l-no', { timeout: 20000 });
   await vp.click('.roles button:nth-child(1)'); await vp.fill('#l-no', gno); await vp.fill('#l-pw', gpass); await vp.click('.login .btn');
   await vp.waitForSelector('.status', { timeout: 20000 });
+  await tp.evaluate(e => [...document.querySelectorAll('.nav button')].find(b => b.textContent.includes(e)).click(), '📋'); await tp.waitForTimeout(600);
   await tp.evaluate(() => { const r = [...document.querySelectorAll('.attrow')].find(x => x.textContent.includes('Rojîn')); r.querySelector('.attbtn').click(); });
   await vp.waitForTimeout(2500);
   const toast = await vp.locator('.toast').textContent().catch(() => '');

@@ -1953,6 +1953,17 @@ function LiveRegion({ msg }) {
 }
 
 /* ─── ATTENDANCE FIREBASE PERSISTENCE ──────────────────────────────────────── */
+// Devam istatistiği her ders+tarih için bir kez işlenir: yoklama düzeltilip yeniden
+// kaydedildiğinde (ya da QR kapatılıp elle kaydedildiğinde) oran iki kez düşmez.
+function applyAttStats(lessonId, date, roster, records){
+  const key="aat-attst-"+lessonId+"-"+date;
+  try{ if(localStorage.getItem(key)) return; localStorage.setItem(key,"1"); }catch(_){}
+  roster.forEach(s=>{
+    const v=records[s.id], st=getStudentStats(s.id);
+    const todayAtt=v==="on"?100:v==="late"?50:0;
+    updateStudentStats(s.id,{att:Math.round((st.att*17+todayAtt)/18),late:st.late+(v==="late"?1:0)});
+  });
+}
 async function fbSaveAttendance(lessonId, teacherId, date, records){
 
   if(!window.__FB||!window.__FB.isConfigured()) {
@@ -1965,7 +1976,7 @@ async function fbSaveAttendance(lessonId, teacherId, date, records){
   }
   try{
     const ref = window.__FB.doc(window.__FB.db, "attendance", `${lessonId}-${date}`);
-    await window.__FB.setDoc(ref, {lessonId,teacherId,date,records,updatedAt:window.__FB.serverTimestamp()},{merge:true});
+    await window.__FB.setDoc(ref, {lessonId,teacherId:teacherId==null?null:teacherId,date,records,updatedAt:window.__FB.serverTimestamp()},{merge:true});
     return ref.id;
   } catch(e){ console.warn("Attendance save error:", e); return null; }
 }
@@ -13583,6 +13594,8 @@ function TeacherProfileView({teacher,a,lang,t,toast,avgAtt,riskCount,myStudents,
 
 /* ─── TEACHER PANEL ─────────────────────────────────────────────────────── */
 function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataChange,onSettings}){
+  // Kayıt kimliği her yolda aynı olsun (yoklama/QR kayıtları teacherId ister)
+  if(teacher && teacher.id==null) teacher={...teacher,id:teacher.fireId||teacher.no};
   // Aktif dönem filtresi: dönemsiz dersler + aktif dönemin dersleri görünür
   const _terms=useTerms();
   schedule=(schedule||[]).filter(l=>lessonInActiveTerm(l,_terms));
@@ -13644,14 +13657,15 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
   // Öğrencilerim: verdiğim derslerin sınıfları + sınıf öğretmeni olduğum sınıflar.
   // Hiç dersi/sınıfı yoksa eskisi gibi kendi alanının öğrencileri (genel → herkes).
   const clsDocs=useClassDocs("classes");
-  const rosterOf=ls=>lessonRoster(ls,students,clsDocs);
+  // Öğretmen yalnızca SINIFLARININ öğrencilerini görür (aynı alanın diğer öğrencileri görünmez):
+  // sınıfa bağlı dersin listesi o sınıftır; sınıfı olmayan dersin listesi boştur.
+  const rosterOf=ls=>(ls&&ls.classId)?lessonRoster(ls,students,clsDocs):[];
   const myStudents=(()=>{
     const m=new Map();
     mySchedule.forEach(ls=>rosterOf(ls).forEach(s=>m.set(s.id,s)));
     clsDocs.filter(d=>d.kind&&d.status!=="closed"&&(d.teacherNos||[]).map(String).includes(String(teacher.no)))
       .forEach(d=>students.forEach(s=>{ if(!s.isAdmin&&inClass(d,s.no)) m.set(s.id,s); }));
-    if(m.size) return [...m.values()].sort((x,y)=>(x.name||"").localeCompare(y.name||""));
-    return teacher.area==="genel"?students.filter(s=>!s.isAdmin):students.filter(s=>s.area===teacher.area);
+    return [...m.values()].sort((x,y)=>(x.name||"").localeCompare(y.name||""));
   })();
 
   // ── Anlık / sıradaki ders hesapla ──────────────────────────────────────────
@@ -13689,13 +13703,33 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
 
   // Gösterilecek "güncel" ders: önce aktif, yoksa sıradaki, yoksa bugün ilk, yoksa tüm program ilk
   const currentLesson = activeLesson || upcomingLesson || todayLessons[0] || mySchedule[0] || null;
-  const curRoster = currentLesson ? rosterOf(currentLesson) : myStudents;
+  const curRoster = currentLesson ? rosterOf(currentLesson) : [];
   const sessLesson = activeQRSession ? mySchedule.find(l=>String(l.id)===String(activeQRSession.lessonId)) : null;
-  const sessRoster = sessLesson ? rosterOf(sessLesson) : myStudents;
+  const sessRoster = sessLesson ? rosterOf(sessLesson) : [];
   // Elle yoklama: bugünkü derslerden seçilen (varsayılan: şu anki ders) + o dersin sınıf listesi
   const attLesson = todayLessons.find(l=>String(l.id)===String(attLsId)) || (todayLessons.includes(currentLesson)?currentLesson:todayLessons[0]) || null;
   const attRoster = attLesson ? rosterOf(attLesson) : [];
   const attCount = v => attRoster.filter(s=>attendance[s.id]===v).length;
+  // Elle yoklama listesi derse özeldir: ders değişince temizlenir ve o dersin bugünkü kaydı
+  // (QR ile alınan ya da daha önce elle kaydedilen) yüklenir. Henüz kaydedilmemiş işaretler korunur.
+  const attLessonId = attLesson ? String(attLesson.id) : null;
+  const attLessonRef = useRef(null); attLessonRef.current = attLessonId;
+  const [attSaving,setAttSaving]=useState(false);
+  useEffect(()=>{
+    setAttendance({});
+    if(!attLessonId) return;
+    let alive=true;
+    const FB=window.__FB;
+    if(!FB||!FB.isConfigured()){
+      try{ const v=JSON.parse(localStorage.getItem("aat-att-"+attLessonId+"-"+todayStr_t)||"null"); if(v&&v.records) setAttendance(p=>({...v.records,...p})); }catch(_){}
+      return;
+    }
+    FB.getDoc(FB.doc(FB.db,"attendance",attLessonId+"-"+todayStr_t)).then(snap=>{
+      if(!alive||!snap.exists()) return; const r=snap.data().records;
+      if(r) setAttendance(p=>({...r,...p}));
+    }).catch(()=>{});
+    return ()=>{ alive=false; };
+  },[attLessonId,todayStr_t]);
 
   // Ders durumu etiketi
   function lessonStatusLabel(ls){
@@ -13729,6 +13763,8 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
   useEffect(()=>{
     if(!activeQRSession) return;
     const interval = setInterval(()=>{
+      const s=window._aat_qr_session;
+      if(!s||String(s.lessonId)!==String(attLessonRef.current)) return;
       const checkins = getSessionCheckins();
       setAttendance(prev=>{
         const updated = {...prev};
@@ -13810,6 +13846,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     if(lessonDate && window._aat_qr_session) window._aat_qr_session._lessonDate = lessonDate;
     setQrToken(sessionId);
     setActiveQRSession(session);
+    if(lesson && lesson.id && todayLessons.some(l=>String(l.id)===String(lesson.id))) setAttLsId(lesson.id);
     toast("✅ QR " + lessonName + (lessonDate?" · "+lessonDate:""));
 
     // Çap butonu için
@@ -13869,33 +13906,24 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     window._aat_printQR = null;
     _qrPrinted.current = false;
 
-    // 2. Yoklama state'ini güncelle
-    setAttendance(prev=>{
-      const updated = {...prev};
-      Object.keys(checkins).forEach(sid=>{ updated[sid]="on"; });
-      return updated;
-    });
-
-    // 3. Yoklamayı Firebase attendance koleksiyonuna kaydet
+    // 2. Yoklamayı Firebase attendance koleksiyonuna kaydet
     const lessonId = session?.lessonId || ("manual_"+Date.now());
     // Yoklama listesi dersin sınıfıdır (sınıfsız ders → alanın öğrencileri)
     const sesLs = mySchedule.find(l=>String(l.id)===String(lessonId));
-    const roster = sesLs ? rosterOf(sesLs) : myStudents;
+    const roster = sesLs ? rosterOf(sesLs) : [];
+    // QR okutamayan öğrenciyi öğretmen elle "geldi/geç" işaretlediyse o işaret korunur
+    const manual = String(lessonId)===String(attLessonRef.current) ? attendance : {};
     const records  = {};
     roster.forEach(s=>{
-      records[s.id] = checkins[s.id] ? (checkins[s.id].late ? "late" : "on") : "off";
+      const m = manual[s.id];
+      records[s.id] = checkins[s.id] ? (checkins[s.id].late ? "late" : "on") : (m==="on"||m==="late") ? m : "off";
     });
     fbSaveAttendance(lessonId, teacher.id, dateStr, records);
+    if(String(lessonId)===String(attLessonRef.current)) setAttendance(p=>({...p,...records}));
 
-    // 4. Öğrenci istatistiklerini güncelle
-    const presentCount = Object.keys(checkins).length;
-    roster.forEach(s=>{
-      const st = getStudentStats(s.id);
-      const wasOn = !!checkins[s.id];
-      const todayAtt = wasOn ? 100 : 0;
-      const newAtt = Math.round((st.att*17 + todayAtt)/18);
-      updateStudentStats(s.id, {att:newAtt});
-    });
+    // 3. Öğrenci istatistiklerini güncelle (ders başına bir kez)
+    const presentCount = roster.filter(s=>records[s.id]!=="off").length;
+    applyAttStats(lessonId, dateStr, roster, records);
 
     setActiveQRSession(null);
     setQrToken(null);
@@ -14159,28 +14187,27 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
             <Card>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
                 <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>📋 {t.attendanceList}</div>
-                <button onClick={()=>{
-                  if(!attLesson) return;
-                  // Yoklama kaydı (raporlar buradan okur) + devam istatistiği
+                <button disabled={attSaving} onClick={async()=>{
+                  if(!attLesson||attSaving) return;
+                  // Yoklama kaydı (raporlar buradan okur) + devam istatistiği. QR açıksa okutanlar
+                  // da listeye zaten işlenmiştir; kayıt aynı belgeye yazılır, tekrar kaydetmek güvenlidir.
                   const total=attRoster.length||1;
-                  const presentCount=attCount("on");
                   const records={}; attRoster.forEach(s=>{ records[s.id]=attendance[s.id]||"off"; });
-                  fbSaveAttendance(attLesson.id, teacher.id, todayStr_t, records);
-                  attRoster.forEach(s=>{
-                    const st=getStudentStats(s.id);
-                    const wasOn=attendance[s.id]==="on";
-                    const wasLate=attendance[s.id]==="late";
-                    // New attendance rate: weighted update (prev 17 lessons + today)
-                    const prevAtt=st.att;
-                    const todayAtt=wasOn?100:wasLate?50:0;
-                    const newAtt=Math.round((prevAtt*17+todayAtt)/18);
-                    const newLate=wasLate?st.late+1:st.late;
-                    updateStudentStats(s.id,{att:newAtt,late:newLate});
-                  });
+                  const presentCount=attRoster.filter(s=>records[s.id]!=="off").length;
+                  setAttSaving(true);
+                  const ok=await fbSaveAttendance(attLesson.id, teacher.id, todayStr_t, records);
+                  setAttSaving(false);
+                  if(ok===null && window.__FB && window.__FB.isConfigured()){
+                    toast("⚠ "+(lang==="en"?"Attendance could not be saved — check the connection and try again":K("Amadebûn nehat tomarkirin — girêdanê kontrol bike û dîsa biceribîne")), 6000);
+                    return;
+                  }
+                  applyAttStats(attLesson.id, todayStr_t, attRoster, records);
                   hapticSuccess(); toast("✓ "+t.attendanceSaved+" ("+presentCount+"/"+total+")");
-                }} style={{padding:"6px 14px",fontSize:11,background:"#0f2f38",color:"#ffffff",border:"none",borderRadius:8,cursor:"pointer",fontWeight:600}}>{t.saveAttendance}</button>
+                }} style={{padding:"6px 14px",fontSize:11,background:"#0f2f38",color:"#ffffff",border:"none",borderRadius:8,cursor:attSaving?"wait":"pointer",fontWeight:600,opacity:attSaving?.6:1}}>{attSaving?"…":t.saveAttendance}</button>
               </div>
-              {attRoster.length===0&&<div style={{fontSize:12,color:"var(--text2)",textAlign:"center",padding:16}}>{lang==="en"?"No students in this lesson's class.":K("Di sinifa vê dersê de xwendekar tune.")}</div>}
+              {attRoster.length===0&&<div style={{fontSize:12,color:"var(--text2)",textAlign:"center",padding:16}}>{attLesson&&!attLesson.classId
+                ?(lang==="en"?"No class is linked to this lesson — ask Student Affairs to link one.":K("Ev ders bi sinifekê ve nehatiye girêdan — ji Karûbarên Xwendekaran bixwaze."))
+                :(lang==="en"?"No students in this lesson's class.":K("Di sinifa vê dersê de xwendekar tune."))}</div>}
               {attRoster.map(s=>(
                 <div key={s.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"0.5px solid var(--border)"}}>
                   <Avatar name={s.name} color={a.color} size={32} photo={s.photo}/>
@@ -16148,6 +16175,7 @@ function LoginScreen({students,teachers,t,lang,rawLang,setLang,onLogin,onForgot,
     const passInput = pass;
 
     let matched=null, matchedType=null;
+    let _lastAuthCode=null;
 
     // ══════════════════════════════════════════════════════
     // YOL 1: Firebase Auth ile giriş (yeni oluşturulan kullanıcılar)
@@ -16159,11 +16187,16 @@ function LoginScreen({students,teachers,t,lang,rawLang,setLang,onLogin,onForgot,
       const stFound = students.find(s => s.no === userInput);
 
       // Hangi email suffix'ini deneyeceğimizi belirle
+      // Giriş öncesi listeler çoğu zaman boştur (oturum yokken okunamaz). Bu durumda
+      // ekranda seçilen rol önce denenir, sonra diğeri: yeni Firebase sürümleri olmayan hesap
+      // için de "invalid-credential" döndürdüğünden ilk rolün hatası ikinciyi engellememeli.
       const tryRoles = [];
-      if(tcFound) tryRoles.push(tcFound.isAdmin ? "teacher" : "teacher");
+      if(tcFound) tryRoles.push("teacher");
       if(stFound) tryRoles.push("student");
-      if(tryRoles.length === 0) tryRoles.push("teacher", "student"); // bilinmiyorsa ikisini de dene
+      const _guessed = tryRoles.length === 0;
+      if(_guessed) tryRoles.push(...(role === "teacher" ? ["teacher", "student"] : ["student", "teacher"]));
 
+      _lastAuthCode = null;
       for(const tryRole of tryRoles){
         try {
           const fbCred = await window.__FB.authSignIn(userInput, passInput, tryRole);
@@ -16180,7 +16213,7 @@ function LoginScreen({students,teachers,t,lang,rawLang,setLang,onLogin,onForgot,
                     window.__FB.collection(window.__FB.db,"students"),
                     window.__FB.where("no","==",String(userInput)));
                   const snap = await window.__FB.getDocs(q);
-                  const fresh = snap.docs.map(d=>({...d.data(),fireId:d.id})).find(d=>(d.no||"")===userInput);
+                  const fresh = snap.docs.map(d=>({...d.data(),fireId:d.id,id:d.data().id||d.id})).find(d=>(d.no||"")===userInput);
                   if(fresh) s = fresh;
                 } catch(_){}
               }
@@ -16192,14 +16225,14 @@ function LoginScreen({students,teachers,t,lang,rawLang,setLang,onLogin,onForgot,
               if(!tc || !tc.photo){
                 try {
                   const snap = await window.__FB.getDocs(window.__FB.collection(window.__FB.db,"teachers"));
-                  const fresh = snap.docs.map(d=>({...d.data(),fireId:d.id})).find(d=>(d.no||"")===userInput||(d.id||"")===userInput);
+                  const fresh = snap.docs.map(d=>({...d.data(),fireId:d.id,id:d.data().id||d.id})).find(d=>(d.no||"")===userInput||(d.id||"")===userInput);
                   if(fresh) tc = fresh; // taze veri varsa (fotoğraf dahil) onu kullan
                 } catch(_){
                   // Liste okuma yetkisi yoksa (ör. kapı güvenliği) yalnızca KENDİ kaydını sorgula
                   try {
                     const q2 = window.__FB.query(window.__FB.collection(window.__FB.db,"teachers"), window.__FB.where("no","==",String(userInput)));
                     const s2 = await window.__FB.getDocs(q2);
-                    const own = s2.docs.map(d=>({...d.data(),fireId:d.id}))[0];
+                    const own = s2.docs.map(d=>({...d.data(),fireId:d.id,id:d.data().id||d.id}))[0];
                     if(own) tc = own;
                   } catch(__){}
                 }
@@ -16210,8 +16243,10 @@ function LoginScreen({students,teachers,t,lang,rawLang,setLang,onLogin,onForgot,
           }
         } catch(authErr){
           // auth/user-not-found veya auth/wrong-password — devam et
+          _lastAuthCode = authErr && authErr.code;
           if(authErr.code === "auth/wrong-password" || authErr.code === "auth/invalid-credential"){
-            // Şifre yanlış — diğer rolü deneme, direkt hata ver
+            // Rol kesin biliniyorsa şifre yanlıştır — dur. Tahmin ediliyorsa diğer rolü de dene.
+            if(_guessed) continue;
             break;
           }
           // auth/user-not-found — diğer rolü dene
@@ -16303,7 +16338,12 @@ function LoginScreen({students,teachers,t,lang,rawLang,setLang,onLogin,onForgot,
       recordFailedAttempt(uid);
       const rem = Math.max(0, MAX_ATTEMPTS - (_loginAttempts[uid]||[]).length);
       hapticError();
-      setErr(rem > 0 ? t.errLogin+" ("+rem+")" : (lang==="en"?"Account locked":K("Hesab kilî ye")));
+      // Firebase'in geçici kilidi / bağlantı hatası "şifre yanlış" gibi görünmesin
+      if(_lastAuthCode === "auth/too-many-requests")
+        setErr(lang==="en"?"Too many attempts on this account — wait a few minutes and try again":K("Gelek ceribandin — çend deqîqeyan bisekine û dîsa biceribîne"));
+      else if(_lastAuthCode === "auth/network-request-failed")
+        setErr(lang==="en"?"No connection — check the internet and try again":K("Girêdan tune — înternetê kontrol bike û dîsa biceribîne"));
+      else setErr(rem > 0 ? t.errLogin+" ("+rem+")" : (lang==="en"?"Account locked":K("Hesab kilî ye")));
     }
   }
 
@@ -16732,7 +16772,7 @@ function TeacherQRDisplay({token, lessonName, teacherName, areaColor, onClose, o
           {lang==="en"?"Print QR Sheet":K("Kaxeza QR Çap Bike")}
         </button>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          <button onClick={()=>{closeQRSession();onClose();}} style={{padding:"10px",background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:8,color:"var(--red)",fontSize:13,fontWeight:600,cursor:"pointer"}}>
+          <button onClick={()=>onClose()} style={{padding:"10px",background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:8,color:"var(--red)",fontSize:13,fontWeight:600,cursor:"pointer"}}>
             ✕ {lang==="en"?"Close":K("Bigire")}
           </button>
           <button onClick={()=>{ onRegenerate&&onRegenerate(); setCheckins(getSessionCheckins()); }} style={{padding:"10px",background:"var(--green-bg)",border:"0.5px solid var(--green)",borderRadius:8,color:"var(--green)",fontSize:13,fontWeight:600,cursor:"pointer"}}>

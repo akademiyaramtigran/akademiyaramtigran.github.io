@@ -8,7 +8,7 @@
  * AAT_ZAROK     : Akademiya Zarokan veli uygulaması (anahtar = zarok/app sözlük anahtarı)
  * AAT_ZAROK_SITE: Akademiya Zarokan tanıtım/başvuru sayfası
  * Elle düzenlemeyin; rapor JSON'larını tools/dil-entegre.js ile birleştirin. */
-window.AAT_TX={"ku":{},"zza":{},"tr":{"Demsal (di navbera tarîxên wê de her hefte dubare dibe)":"Dönem (tarihleri arasında her hafta tekrarlanır)",
+window.AAT_TX={"ku":{},"zza":{},"tr":{"Ev ders bi sinifekê ve nehatiye girêdan — ji Karûbarên Xwendekaran bixwaze.":"Bu derse sınıf bağlanmamış — Öğrenci İşleri'nden bağlanmasını isteyin.","Gelek ceribandin — çend deqîqeyan bisekine û dîsa biceribîne":"Çok fazla deneme — birkaç dakika bekleyip tekrar deneyin","Girêdan tune — înternetê kontrol bike û dîsa biceribîne":"Bağlantı yok — interneti kontrol edip tekrar deneyin","Amadebûn nehat tomarkirin — girêdanê kontrol bike û dîsa biceribîne":"Yoklama kaydedilemedi — bağlantıyı kontrol edip tekrar deneyin","Demsal (di navbera tarîxên wê de her hefte dubare dibe)":"Dönem (tarihleri arasında her hafta tekrarlanır)",
 "Bê demsal (her dem)":"Dönemsiz (her zaman)",
 "Ders nehat kirin (mamoste nehat)":"Ders işlenmedi (öğretmen gelmedi)",
 "Ev ders di wê rojê de nîne":"Bu ders o gün programda yok",
