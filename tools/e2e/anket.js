@@ -110,7 +110,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   // 3) Sonuçlar: istatistik + katılım
   await p.bringToFront(); await p.waitForTimeout(1500);
   await topTab(p, 'Rapor'); await p.waitForTimeout(500); await topTab(p, 'Ankêt'); await p.waitForTimeout(1200);
-  await p.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('📊') && x.textContent.length < 20 && x.offsetParent); b[0].click(); }); await p.waitForTimeout(1200);
+  await p.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('📊') && x.textContent.length < 20 && x.offsetParent && !x.closest('.sm')); b[0].click(); }); await p.waitForTimeout(1200);
   const r3 = await txt(p);
   await shot(p, 'sonuc.png');
   ok('Sonuçlar: ortalama, dağılım ve katılım', r3.includes('Beşdarî') && r3.includes('100%') && r3.includes('Tembûr'));
