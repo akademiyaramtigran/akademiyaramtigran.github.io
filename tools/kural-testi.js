@@ -288,6 +288,13 @@ const { ref, uploadString, getBytes } = require('firebase/storage');
   await t('Paylaşım: öğretmen kendi paylaşımını siler', deleteDoc(doc(cT2, 'classPosts/P1')), true);
   await t('Çocuk paylaşımı: sınıf öğretmeni gönderir', setDoc(doc(cKT, 'kidClassPosts/Q1'), post('72026001', 'L1')), true);
   await t('Çocuk paylaşımı: sınıfı olmayan öğretmen gönderemez', setDoc(doc(cKT, 'kidClassPosts/Q2'), post('72026001', 'L2')), false);
+  await t('Çocuk paylaşımı: ders hazırlığı (sınıf öğretmeni olmayan sınıf + o sınıfın dersi)', Promise.all([
+    setDoc(doc(cR, 'kidClasses/L3'), { kind: 'area', name: '3', teacherNos: [] }),
+    setDoc(doc(cR, 'kidSchedule/KS1'), { classId: 'L3', teacherNo: '72026001', title: 'Ders' }),
+    setDoc(doc(cR, 'kidSchedule/KS2'), { classId: 'L3', teacherNo: '72026099', title: 'Ders' })]), true);
+  await t('Çocuk paylaşımı: sınıfa DERS VEREN öğretmen gönderir', setDoc(doc(cKT, 'kidClassPosts/Q4'), post('72026001', 'L3', { lessonId: 'KS1' })), true);
+  await t('Çocuk paylaşımı: başkasının dersiyle gönderemez', setDoc(doc(cKT, 'kidClassPosts/Q5'), post('72026001', 'L3', { lessonId: 'KS2' })), false);
+  await t('Çocuk paylaşımı: ders başka sınıfın ise gönderemez', setDoc(doc(cKT, 'kidClassPosts/Q6'), post('72026001', 'L2', { lessonId: 'KS1' })), false);
   await t('Çocuk paylaşımı: veli okur', getDoc(doc(cV, 'kidClassPosts/Q1')), true);
   await t('Çocuk paylaşımı: veli YAZAMAZ', setDoc(doc(cV, 'kidClassPosts/Q3'), post('92026001', 'L1')), false);
   await t('Çocuk paylaşımı: yetişkin öğrenci okuyamaz', getDoc(doc(cS, 'kidClassPosts/Q1')), false);

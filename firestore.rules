@@ -198,17 +198,24 @@ service cloud.firestore {
     match /classes/{id}           { allow read: if member(); allow write: if isRegistrar(); }
     // Sınıf paylaşımları (duyuru/ödev/belge): öğretmen YALNIZCA sınıf öğretmeni olduğu sınıfa, kendi adıyla yazar
     function clsDoc(c, id) { return /databases/$(database)/documents/$(c)/$(id); }
-    function classPostOk(c) {
+    // Sınıfa paylaşım: sınıf öğretmeni YA DA o sınıfa bağlı dersi veren öğretmen (lessonId ile kanıtlar)
+    function teachesClassLesson(sc) {
+      return request.resource.data.get('lessonId', '') is string && request.resource.data.get('lessonId', '') != ''
+        && exists(clsDoc(sc, request.resource.data.lessonId))
+        && get(clsDoc(sc, request.resource.data.lessonId)).data.get('classId', '') == request.resource.data.classId
+        && string(get(clsDoc(sc, request.resource.data.lessonId)).data.get('teacherNo', '')) == prefix();
+    }
+    function classPostOk(c, sc) {
       return request.resource.data.teacherNo == prefix()
         && request.resource.data.classId is string
         && exists(clsDoc(c, request.resource.data.classId))
-        && prefix() in get(clsDoc(c, request.resource.data.classId)).data.get('teacherNos', [])
+        && (prefix() in get(clsDoc(c, request.resource.data.classId)).data.get('teacherNos', []) || teachesClassLesson(sc))
         && request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 140
         && request.resource.data.type in ['duyuru', 'odev', 'belge'];
     }
     match /classPosts/{id} {
       allow read: if member();
-      allow create: if isRegistrar() || (isStaff() && classPostOk('classes'));
+      allow create: if isRegistrar() || (isStaff() && classPostOk('classes', 'schedule'));
       allow update: if isRegistrar();
       allow delete: if isRegistrar() || (isStaff() && resource.data.teacherNo == prefix());
     }
@@ -385,7 +392,7 @@ service cloud.firestore {
     }
     match /kidClassPosts/{id} {
       allow read: if kidStaff() || isGuardian();
-      allow create: if isRegistrar() || (kidStaff() && classPostOk('kidClasses'));
+      allow create: if isRegistrar() || (kidStaff() && classPostOk('kidClasses', 'kidSchedule'));
       allow update: if isRegistrar();
       allow delete: if isRegistrar() || (kidStaff() && resource.data.teacherNo == prefix());
     }
