@@ -2,8 +2,8 @@
 
 | Adım | Kim | Nerede |
 |---|---|---|
-| 1. Öğrenci kaydı (elle veya kabul edilen başvurudan) | Öğrenci İşleri | Tescîl / Serlêdan · Çocuk Akademisi → Serlêdan / Zarok |
-| 2. Öğretmen kaydı | Öğrenci İşleri | Tescîl · Çocuk Akademisi → Mamoste |
+| 1. Öğrenci kaydı (elle veya kabul edilen başvurudan) | Öğrenci İşleri | **Qad · Tescîl · Bername** (alanı aç) / Serlêdan · Çocuk Akademisi → Serlêdan / Zarok |
+| 2. Öğretmen kaydı (alana eklenir) | Öğrenci İşleri | **Qad · Tescîl · Bername** → alan → Mamoste · Çocuk Akademisi → Mamoste |
 | 3. **Alan sınıfları** — ör. Sinema'ya kaydedilen öğrencilerden "1. Sınıf", "A Grubu"; öğrenciler listeden seçilir (sınıfsızlar ayrıca gösterilir) | Öğrenci İşleri | **Sınıf ve Atölye** → 🎨 Alan sınıfları → alan seç → ➕ Yeni sınıf |
 | 4. Sınıfa **sınıf öğretmeni** atama (bir veya birkaç) | Öğrenci İşleri | Sınıf formunda öğretmen seçimi |
 | 4b. **Sınıfa ders programı** — sınıf kartı → 📅 "Ders ekle" (veya Program'da ders eklerken **Sınıf** seçimi). Ders yalnız o sınıfın öğrencilerine görünür; öğretmenin yoklama listesi o sınıftır. Sınıfsız ders eskisi gibi alanın tüm öğrencilerine açıktır | Öğrenci İşleri | Sınıf kartı · Program |
@@ -34,3 +34,9 @@
 - Tüm anket verilerini silmek: GitHub → Actions → **Anket verilerini sil** → onaya `SİL`
 - `classPosts`, `kidClassPosts`: `classId, type (duyuru|odev|belge), title, body, due, files[], teacherNo, teacherName` (`classPosts`'ta ayrıca `className`)
 - Öğrenci birden çok sınıfta olabilir (alan sınıfı + genel sınıf + açık atölye): hepsinin paylaşımlarını ve derslerini görür
+
+## Öğrenci İşleri — tek giriş noktası
+**Qad · Tescîl · Bername**: dönem (demsal) yöneticisi en üstte; her alan kartı açılınca o alanın
+öğrencileri (kayıt, düzenleme, kart basımı / kayıp kart), öğretmenleri (alana kayıt) ve ders programı
+(ana/ek ders, düzenleme, "öğretmen gelmedi") aynı pencerededir. Ortak dersler **Hemû Xwendekar** kartında.
+Farklı dönemlerden öğrencilerin girdiği ortak derslerde birden çok genel sınıf açılıp aynı öğretmen hepsine atanabilir.

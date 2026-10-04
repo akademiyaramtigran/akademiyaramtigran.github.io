@@ -88,7 +88,11 @@ const S = v => ({ stringValue: v }), A = a => ({ arrayValue: { values: a } }), M
   for (const pg of pops) { const rr = await probe(pg).catch(() => ({ x: false, bad: 0, handlers: 0 })); ok('Yazdırma sayfası: zararlı ad betik çalıştırmaz', verdict(rr), JSON.stringify(rr)); }
   // Tescîl + Zarok bölümleri
   const tab = t => p3.evaluate(t => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes(t)).find(x => { const q = x.getBoundingClientRect(); return q.top > 60 && q.top < 240; }); b && b.click(); }, t);
-  await tab('Tescîl'); await p3.waitForTimeout(1200); await tab('Akademiya Zarokan'); await p3.waitForTimeout(1500);
+  await tab('Qad · Tescîl'); await p3.waitForTimeout(1000);
+  await p3.evaluate(() => { const c = [...document.querySelectorAll('.area-card')].find(x => x.textContent.includes('Hemû Xwendekar')); c && c.click(); }); await p3.waitForTimeout(1200);
+  r = await probe(p3); ok('Öğrenci işleri: alan penceresi (öğrenci listesi) güvenli', verdict(r), JSON.stringify(r));
+  await p3.mouse.click(5, 5); await p3.waitForTimeout(500);   // alan penceresini kapat (arka plana tıkla)
+  await tab('Akademiya Zarokan'); await p3.waitForTimeout(1500);
   await openRow(); await p3.waitForTimeout(1000);
   r = await probe(p3); ok('Öğrenci işleri: öğrenci listesi + çocuk başvurusu güvenli', verdict(r), JSON.stringify(r));
   // 4) Çerçeveye gömme (clickjacking)

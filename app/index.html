@@ -5019,8 +5019,7 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
   const [tab,setTab]=useState("students");
   const [showAddStudent,setShowAddStudent]=useState(false);
   const [showAddTeacher,setShowAddTeacher]=useState(false);
-  const [showAddLesson,setShowAddLesson]=useState(false);
-  const [deleteConfirm,setDeleteConfirm]=useState(null); // {type:"student"|"teacher"|"lesson", item}
+  const [deleteConfirm,setDeleteConfirm]=useState(null); // {type:"student"|"teacher", item}
   const [selectedStudent,setSelectedStudent]=useState(null);
   const [editingStudent,setEditingStudent]=useState(null);
   const [editingTeacher,setEditingTeacher]=useState(null);
@@ -5034,7 +5033,7 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
   const aTeachers = isGenel
     ? teachers.filter(t2=>t2.area==="genel"&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate)
     : teachers.filter(t2=>t2.area===areaKey&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate);
-  const aSchedule=schedule.filter(s=>s.area===areaKey);
+  const cardOpts={areaLabel:x=>areaName(x,lang),colorOf:x=>AREA_MAP[x]?.color};
 
   const tabs=[
     {key:"students",label:isGenel?(t.commonArea||"Hemû Xwendekar"):t.areaStudents,icon:"🎓"},
@@ -5071,6 +5070,10 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
           {tab==="students"&&(
             <>
               {!isGenel&&<PrimaryBtn onClick={()=>setShowAddStudent(true)} style={{marginBottom:12}} icon="➕">{t.areaCard_student}</PrimaryBtn>}
+              {aStudents.length>0&&<button onClick={()=>issueAndPrintCards("student",aStudents,lang,toast,cardOpts)}
+                style={{width:"100%",padding:"10px",marginBottom:10,background:"#0f2f38",color:"#e7c77b",border:"none",borderRadius:10,fontSize:12.5,fontWeight:800,cursor:"pointer"}}>
+                🪪 {lang==="en"?"Print student cards":K("Kartên xwendekaran çap bike")} ({aStudents.length})
+              </button>}
               {isGenel&&<div style={{fontSize:11,color:"var(--text2)",marginBottom:10,padding:"8px 12px",background:"var(--bg2)",borderRadius:8}}>
                 🏫 {t.commonAreaDesc||"Konservatuvarın tüm öğrencileri"} — {aStudents.length} {t.totalStudents.toLowerCase()}
               </div>}
@@ -5088,8 +5091,10 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
                         {isGenel&&sArea&&<div style={{fontSize:10,padding:"1px 6px",borderRadius:10,background:sArea.bg,color:sArea.color,display:"inline-block",marginTop:2}}>{sArea.icon} {areaName(s.area,lang)}</div>}
                       </div>
                     </div>
-                    {!isGenel&&<button onClick={()=>setEditingStudent(s)} style={{padding:"5px 10px",fontSize:11,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:6,cursor:"pointer",color:"var(--text)",flexShrink:0}}>✏️</button>}
-                    {!isGenel&&<button onClick={()=>setDeleteConfirm({type:"student",item:s})} style={{padding:"5px 10px",fontSize:11,background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:6,cursor:"pointer",color:"var(--red)",flexShrink:0}}>🗑</button>}
+                    <button title={lang==="en"?"Print card":K("Kartê çap bike")} onClick={()=>issueAndPrintCards("student",[s],lang,toast,cardOpts)} style={{padding:"5px 9px",fontSize:11,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:6,cursor:"pointer",color:"var(--text)",flexShrink:0}}>🪪</button>
+                    {s.cardToken&&<button title={lang==="en"?"Lost card: issue new (old one stops working)":K("Karta winda: ya nû çêke (ya kevn betal dibe)")} onClick={()=>{ if(window.confirm(lang==="en"?"Issue a NEW card? The old card will stop working.":K("Karteke NÛ were çêkirin? Karta kevn êdî naxebite."))) issueAndPrintCards("student",[s],lang,toast,{...cardOpts,renew:true}); }} style={{padding:"5px 9px",fontSize:11,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:6,cursor:"pointer",color:"var(--text)",flexShrink:0}}>♻️</button>}
+                    {<button onClick={()=>setEditingStudent(s)} style={{padding:"5px 10px",fontSize:11,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:6,cursor:"pointer",color:"var(--text)",flexShrink:0}}>✏️</button>}
+                    {<button onClick={()=>setDeleteConfirm({type:"student",item:s})} style={{padding:"5px 10px",fontSize:11,background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:6,cursor:"pointer",color:"var(--red)",flexShrink:0}}>🗑</button>}
                   </div>
                   );
                 })
@@ -5124,31 +5129,15 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
             </>
           )}
           {tab==="schedule"&&(
-            <>
-              <PrimaryBtn onClick={()=>setShowAddLesson(true)} style={{marginBottom:12}} icon="➕">
-                {isGenel ? (t.addCommonLesson||t.addToSchedule) : t.addToSchedule}
-              </PrimaryBtn>
-              {aSchedule.length===0
-                ? <div style={{textAlign:"center",padding:20,color:"var(--text2)",fontSize:13}}>—</div>
-                : aSchedule.map(ls=>(
-                  <div key={ls.id} style={{display:"flex",gap:10,marginBottom:8,alignItems:"center"}}>
-                    <div style={{fontSize:10,color:"var(--text2)",minWidth:40,paddingTop:9}}>{ls.start}</div>
-                    <div style={{flex:1,background:"var(--surface2)",borderRadius:8,padding:"9px 11px",borderLeft:"3px solid "+a.color}}>
-                      <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{ls.name}</div>
-                      <div style={{fontSize:11,color:a.color,marginTop:2}}>{ls.loc} · {ls.start}–{ls.end}</div>
-                      <div style={{fontSize:10,color:a.color+"99",marginTop:1}}>{t.days[ls.day]||ls.day}</div>
-                    </div>
-                    <button onClick={()=>setDeleteConfirm({type:"lesson",item:ls})} style={{padding:"5px 10px",fontSize:11,background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:6,cursor:"pointer",color:"var(--red)",flexShrink:0}}>🗑</button>
-                  </div>
-                ))
-              }
-            </>
+            <AdminScheduleTab fixedArea={areaKey} schedule={schedule} teachers={teachers} students={students} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>
           )}
         </div>
       </div>
       <AddStudentSheet open={showAddStudent} onClose={()=>setShowAddStudent(false)} defaultArea={areaKey} students={students} t={t} lang={lang} toast={toast} onSave={(s)=>{onDataChange("addStudent",s);setShowAddStudent(false);}}/>
-      <AddTeacherSheet open={showAddTeacher} onClose={()=>setShowAddTeacher(false)} defaultArea={areaKey} teachers={teachers} t={t} lang={lang} toast={toast} onSave={(tc)=>{onDataChange("addTeacher",tc);setShowAddTeacher(false);}}/>
-      <AddLessonSheet open={showAddLesson} onClose={()=>setShowAddLesson(false)} defaultArea={areaKey} teachers={teachers} t={t} lang={lang} toast={toast} onSave={(ls)=>{onDataChange("addSchedule",ls);setShowAddLesson(false);}}/>
+      <AddTeacherSheet open={showAddTeacher} onClose={()=>setShowAddTeacher(false)} defaultArea={areaKey} teachers={teachers} t={t} lang={lang} toast={toast}
+        schedule={schedule}
+        onAssignLessons={(ids,tc)=>{ids.forEach(id=>{const ls=schedule.find(l=>String(l.id)===String(id));if(ls)onDataChange("updateSchedule",{...ls,teacherNo:tc.no,teacherName:tc.name});});}}
+        onSave={(tc)=>{onDataChange("addTeacher",tc);setShowAddTeacher(false);}}/>
       {/* Student detail modal */}
       {selectedStudent&&(
         <>
@@ -5213,9 +5202,6 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
                   toast("🗑 "+deleteConfirm.item.name);
                 } else if(deleteConfirm.type==="teacher"){
                   onDataChange("deleteTeacher",deleteConfirm.item);
-                  toast("🗑 "+deleteConfirm.item.name);
-                } else if(deleteConfirm.type==="lesson"){
-                  onDataChange("deleteSchedule",deleteConfirm.item);
                   toast("🗑 "+deleteConfirm.item.name);
                 }
                 setDeleteConfirm(null);
@@ -8629,19 +8615,13 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
 }
 
 function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,onDataChange}){
-  // ── Bölümler: serledan | tescil | bername | anket ──
+  // ── Bölümler: serledan | qad (kayıt + program + dönem) | sinif | anket | rapor | zarok ──
   const [section,setSection]=useState("serledan");
   const [menuOpen,setMenuOpen]=useState(false);
-  const [showAddStudent,setShowAddStudent]=useState(false);
-  const [showAddTeacher,setShowAddTeacher]=useState(false);
-  const [editingStudent,setEditingStudent]=useState(null);
-  const [editingTeacher,setEditingTeacher]=useState(null);
   const regTabs=[
     {key:"serledan",icon:"📋",label:lang==="en"?"Applications":K("Serlêdan")},
-    {key:"tescil",icon:"🎓",label:lang==="en"?"Registration":K("Tescîl (Xwendekar/Mamoste)")},
-    {key:"qad",icon:"🎭",label:lang==="en"?"Art Fields":K("Qadên Hunerê")},
+    {key:"qad",icon:"🎭",label:lang==="en"?"Art Fields · Registration · Schedule":K("Qad · Tescîl · Bername")},
     {key:"sinif",icon:"🏫",label:lang==="en"?"Classes & Workshops":K("Sinif û Atolye")},
-    {key:"bername",icon:"📅",label:lang==="en"?"Schedule & Terms":K("Bername û Demsal")},
     {key:"anket",icon:"📊",label:lang==="en"?"Surveys":K("Ankêt")},
     {key:"rapor",icon:"📄",label:lang==="en"?"Reports":K("Rapor")},
     {key:"zarok",icon:"🎼",label:lang==="en"?"Children's Academy":K("Akademiya Zarokan")},
@@ -8656,7 +8636,6 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
   const [reqName,setReqName]=useState("");
   const [reqFile,setReqFile]=useState(null); // {file,fileName}
   const [regCreds,setRegCreds]=useState(null); // kabul sonrası öğrenci bilgileri
-  const [showPass,setShowPass]=useState(false); // liste içinde şîfre göster/gizle
   const reqFileRef=useRef(null);
   const L=(k)=>({
     settings:{get ku(){return K("⚙️ Mîhengên Serlêdanê")},en:"⚙️ Application Settings"},
@@ -8857,6 +8836,8 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
         {section==="qad"&&(
           <>
             <SectionHeader>🎭 {(t&&t.areas)||"Qadên Hunerê"}</SectionHeader>
+            <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>{lang==="en"?"Open a field to register students and teachers and to manage its schedule. Common lessons are under “All students”.":K("Qadekê veke: xwendekar û mamoste tescîl bike, bernameya dersan birêve bibe. Dersên hevpar di bin “Hemû Xwendekar” de ne.")}</div>
+            <AdminScheduleTab termsOnly schedule={schedule||[]} teachers={teachers||[]} students={students||[]} lang={lang} t={t||T.ku} toast={toast} onDataChange={onDataChange}/>
             {(()=>{
               const genelArea = AREA_MAP["genel"];
               const genelCnt = (students||[]).filter(st=>!st.isAdmin).length;
@@ -8899,9 +8880,6 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
             </div>
           </>
         )}
-        {section==="bername"&&(
-          <AdminScheduleTab schedule={schedule||[]} teachers={teachers||[]} students={students||[]} lang={lang} t={t||T.ku} toast={toast} onDataChange={onDataChange}/>
-        )}
         {section==="anket"&&(
           <AdminSurveyPanel lang={lang} t={t||T.ku} schedule={schedule||[]} teachers={teachers||[]} students={students||[]} toast={toast}/>
         )}
@@ -8909,81 +8887,6 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
         {section==="sinif"&&<AcademyClassBoard students={students||[]} teachers={teachers||[]} schedule={schedule||[]} lang={lang} t={t||T.ku} toast={toast} onDataChange={onDataChange}/>}
         {section==="rapor"&&(
           <AdminReportCenter students={students||[]} teachers={teachers||[]} schedule={schedule||[]} lang={lang} t={t||T.ku} toast={toast} byName={user.name}/>
-        )}
-        {section==="tescil"&&(
-          <>
-            <SectionHeader>🎓 {lang==="en"?"Register":K("Tescîl")}</SectionHeader>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
-              <button onClick={()=>setShowAddStudent(true)}
-                style={{padding:"14px 8px",borderRadius:12,border:"none",cursor:"pointer",background:"#0f2f38",color:"#fff",fontSize:12.5,fontWeight:800}}>
-                🎓 {(t&&t.areaCard_student)||"Xwendekar Tescîl Bike"}
-              </button>
-              <button onClick={()=>setShowAddTeacher(true)}
-                style={{padding:"14px 8px",borderRadius:12,border:"none",cursor:"pointer",background:"rgba(22,163,74,0.12)",color:"#16a34a",fontSize:12.5,fontWeight:800,border:"1.5px solid #16a34a"}}>
-                👨‍🏫 {(t&&t.areaCard_teacher)||"Mamoste Tescîl Bike"}
-              </button>
-            </div>
-            <SectionHeader>🎓 {(t&&t.students)||"Xwendekar"} ({(students||[]).length})</SectionHeader>
-            <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8}}>
-              <button onClick={()=>setShowPass(v=>!v)}
-                style={{padding:"7px 13px",borderRadius:20,fontSize:11,fontWeight:700,cursor:"pointer",
-                  border:"1.5px solid "+(showPass?"#0f2f38":"var(--border2)"),
-                  background:showPass?"#0f2f38":"var(--surface)",color:showPass?"#fff":"var(--text2)"}}>
-                {showPass?"🙈 ":"👁 "}{lang==="en"?"Passwords":K("Şîfre")}
-              </button>
-            </div>
-            {(students||[]).length>0&&(
-              <button onClick={()=>issueAndPrintCards("student",students,lang,toast,{areaLabel:a=>areaName(a,lang),colorOf:a=>AREA_MAP[a]?.color})}
-                style={{width:"100%",padding:"11px",marginBottom:10,background:"#0f2f38",color:"#e7c77b",border:"none",borderRadius:10,fontSize:13,fontWeight:800,cursor:"pointer"}}>
-                🪪 {lang==="en"?"Print all student cards":K("Hemû kartên xwendekaran çap bike")} ({students.length})
-              </button>
-            )}
-            {(students||[]).map(st=>(
-              <Card key={st.no}>
-                <div style={{display:"flex",alignItems:"center",gap:10}}>
-                  <Avatar name={st.name} color={AREA_MAP[st.area]?.color||"#0f2f38"} size={36} photo={st.photo}/>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:13,fontWeight:700,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{st.name}</div>
-                    <div style={{fontSize:10,color:"var(--text2)",fontFamily:"monospace"}}>{st.no} · {areaName(st.area,lang)}</div>
-                    {showPass&&(
-                      <div style={{marginTop:5,display:"flex",alignItems:"center",gap:6}}>
-                        <span style={{fontSize:11.5,fontFamily:"monospace",fontWeight:800,letterSpacing:"0.06em",
-                          color:st._plainPass?"#2f8f78":"var(--text2)",background:"var(--bg2)",
-                          border:"1px solid var(--border2)",borderRadius:7,padding:"3px 8px"}}>
-                          {st._plainPass || (lang==="en"?"🔒 hidden — set a new one":K("🔒 veşartî — ya nû saz bike"))}
-                        </span>
-                        {st._plainPass&&(
-                          <button onClick={async()=>{await copyToClipboard(st._plainPass);hapticLight();toast("📋 "+st.name);}}
-                            style={{background:"var(--bg2)",border:"1px solid var(--border2)",borderRadius:7,padding:"3px 7px",fontSize:11,cursor:"pointer",color:"var(--text)"}}>📋</button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <button title={lang==="en"?"Print card":K("Kartê çap bike")} onClick={()=>issueAndPrintCards("student",[st],lang,toast,{areaLabel:a=>areaName(a,lang),colorOf:a=>AREA_MAP[a]?.color})} style={{background:"var(--bg2)",border:"0.5px solid var(--border2)",color:"var(--text)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>🪪</button>
-                  {st.cardToken&&<button title={lang==="en"?"Lost card: issue new (old one stops working)":K("Karta winda: ya nû çêke (ya kevn betal dibe)")} onClick={()=>{ if(window.confirm(lang==="en"?"Issue a NEW card? The old card will stop working.":K("Karteke NÛ were çêkirin? Karta kevn êdî naxebite."))) issueAndPrintCards("student",[st],lang,toast,{renew:true,areaLabel:a=>areaName(a,lang),colorOf:a=>AREA_MAP[a]?.color}); }} style={{background:"var(--bg2)",border:"0.5px solid var(--border2)",color:"var(--text)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>♻️</button>}
-                  <button onClick={()=>setEditingStudent(st)} style={{background:"var(--bg2)",border:"0.5px solid var(--border2)",color:"var(--text)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>✏️</button>
-                  <button onClick={()=>{if(window.confirm("🗑 "+st.name+"?"))onDataChange("deleteStudent",st);}} style={{background:"var(--red-bg)",border:"0.5px solid var(--red)",color:"var(--red)",borderRadius:8,padding:"6px 10px",fontSize:11,cursor:"pointer"}}>🗑</button>
-                </div>
-              </Card>
-            ))}
-            {(students||[]).length===0&&<Card><div style={{fontSize:12,color:"var(--text2)",textAlign:"center",padding:"8px 0"}}>—</div></Card>}
-            <SectionHeader>👨‍🏫 {(t&&t.teachers)||"Mamoste"} ({(teachers||[]).filter(tc=>!tc.isPress&&!tc.isRegistrar&&!tc.isGate).length})</SectionHeader>
-            {(teachers||[]).filter(tc=>!tc.isPress&&!tc.isRegistrar&&!tc.isGate).map(tc=>(
-              <Card key={tc.no}>
-                <div style={{display:"flex",alignItems:"center",gap:10}}>
-                  <Avatar name={tc.name} color={AREA_MAP[tc.area]?.color||"#16a34a"} size={36} photo={tc.photo}/>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:13,fontWeight:700,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                      {tc.name}{tc.isAdmin&&<span style={{marginLeft:6,fontSize:9,fontWeight:800,padding:"2px 7px",borderRadius:99,background:"var(--accent-dim)",color:"var(--accent)"}}>🛡 Admin</span>}
-                    </div>
-                    <div style={{fontSize:10,color:"var(--text2)",fontFamily:"monospace"}}>{tc.no} · {areaName(tc.area,lang)}</div>
-                  </div>
-                  <button onClick={()=>setEditingTeacher(tc)} style={{background:"var(--bg2)",border:"0.5px solid var(--border2)",color:"var(--text)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>✏️</button>
-                  <button onClick={()=>{if(window.confirm("🗑 "+tc.name+"?"))onDataChange("deleteTeacher",tc);}} style={{background:"var(--red-bg)",border:"0.5px solid var(--red)",color:"var(--red)",borderRadius:8,padding:"6px 10px",fontSize:11,cursor:"pointer"}}>🗑</button>
-                </div>
-              </Card>
-            ))}
-          </>
         )}
         {section!=="serledan"?null:(<>
 
@@ -9108,24 +9011,6 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
 
       {activeArea&&(
         <AreaDetailModal areaKey={activeArea} students={students||[]} teachers={teachers||[]} schedule={schedule||[]} onClose={()=>setActiveArea(null)} t={t||T.ku} lang={lang} toast={toast} onDataChange={onDataChange}/>
-      )}
-      {showAddStudent&&(
-        <AddStudentSheet open={showAddStudent} onClose={()=>setShowAddStudent(false)} defaultArea={null} students={students||[]} t={t||T.ku} lang={lang} toast={toast}
-          onSave={(st)=>{onDataChange("addStudent",st);}}/>
-      )}
-      {showAddTeacher&&(
-        <AddTeacherSheet open={showAddTeacher} onClose={()=>setShowAddTeacher(false)} defaultArea={null} teachers={teachers||[]} t={t||T.ku} lang={lang} toast={toast}
-          schedule={schedule||[]}
-          onAssignLessons={(ids,tc)=>{ids.forEach(id=>{const ls=(schedule||[]).find(l=>String(l.id)===String(id));if(ls)onDataChange("updateSchedule",{...ls,teacherNo:tc.no,teacherName:tc.name});});}}
-          onSave={(tc)=>{onDataChange("addTeacher",tc);}}/>
-      )}
-      {editingStudent&&(
-        <EditStudentSheet student={editingStudent} onClose={()=>setEditingStudent(null)} t={t||T.ku} lang={lang} toast={toast}
-          onSave={(st)=>{onDataChange("updateStudent",st);setEditingStudent(null);toast("✅ "+st.name);}}/>
-      )}
-      {editingTeacher&&(
-        <EditTeacherSheet teacher={editingTeacher} onClose={()=>setEditingTeacher(null)} t={t||T.ku} lang={lang} toast={toast}
-          onSave={(tc)=>{onDataChange("updateTeacher",tc);setEditingTeacher(null);toast("✅ "+tc.name);}}/>
       )}
       {regCreds&&(
         <Sheet open={true} onClose={()=>setRegCreds(null)} title={L("regDone")}>
@@ -9704,10 +9589,12 @@ function AdminProfileSheet({admin,onClose,t,lang,toast,onSave}){
   );
 }
 
-function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataChange}) {
+// fixedArea: alan penceresinde yalnız o alanın programı (alan süzgeci + dönem yöneticisi gizli)
+// termsOnly: yalnız dönem (demsal) yöneticisi — Sanat Alanları sayfasının üstünde
+function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataChange, fixedArea=null, termsOnly=false}) {
   const [showAdd, setShowAdd] = useState(false);
   const [editingLesson, setEditingLesson] = useState(null);
-  const [filterArea, setFilterArea] = useState("all");
+  const [filterArea, setFilterArea] = useState(fixedArea||"all");
   const [tabView, setTabView] = useState("main"); // "main" | "extra"
   const DAYS = ["Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî","Yekşem"];
   // ── Dönemler (Demsal) ──
@@ -9836,21 +9723,7 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
     }catch(e){ toast("❌"); }
   }
 
-  return(
-    <div style={{paddingBottom:80}}>
-      {/* Header row */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-        <div style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>
-          📅 {t.schedule||t.adminPanel}
-          <span style={{marginLeft:8,fontSize:11,color:"var(--text2)",fontWeight:400}}>({allFiltered.length})</span>
-        </div>
-        <button onClick={()=>setShowAdd(true)}
-          style={{padding:"9px 16px",background:"#0f2f38",color:"#ffffff",border:"none",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
-          ➕ {t.addLesson}
-        </button>
-      </div>
-
-      {/* ── Demsal (Dönem) yöneticisi ── */}
+  const termsBlock=(
       <div style={{background:"var(--surface)",border:"1px solid rgba(15,23,42,.09)",borderRadius:12,marginBottom:12,overflow:"hidden"}}>
         <div onClick={()=>setShowTerms(s=>!s)} style={{display:"flex",alignItems:"center",gap:8,padding:"11px 14px",cursor:"pointer"}}>
           <span style={{fontSize:13,fontWeight:700,color:"var(--text)",flex:1}}>{TL("terms")}</span>
@@ -9901,6 +9774,24 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
           </div>
         )}
       </div>
+  );
+  if(termsOnly) return termsBlock;
+
+  return(
+    <div style={{paddingBottom:80}}>
+      {/* Header row */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+        <div style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>
+          📅 {t.schedule||t.adminPanel}
+          <span style={{marginLeft:8,fontSize:11,color:"var(--text2)",fontWeight:400}}>({allFiltered.length})</span>
+        </div>
+        <button onClick={()=>setShowAdd(true)}
+          style={{padding:"9px 16px",background:"#0f2f38",color:"#ffffff",border:"none",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+          ➕ {t.addLesson}
+        </button>
+      </div>
+
+      {!fixedArea&&termsBlock}
 
       {/* Dönem filtresi */}
       {(terms.list||[]).length>0&&(
@@ -9923,7 +9814,7 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
       )}
 
       {/* Area filter */}
-      <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:8,marginBottom:12}}>
+      {!fixedArea&&<div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:8,marginBottom:12}}>
         <button onClick={()=>setFilterArea("all")}
           style={{padding:"5px 12px",borderRadius:20,fontSize:10,fontWeight:filterArea==="all"?700:400,flexShrink:0,
             background:"var(--surface)",color:filterArea==="all"?"var(--accent)":"#64748b",
@@ -9938,7 +9829,7 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
             {a.icon} {a.name[lang]||a.name.ku}
           </button>
         ))}
-      </div>
+      </div>}
 
       {/* Tab: Ana Ders / Ek Ders */}
       <div style={{display:"flex",gap:6,marginBottom:16,background:"var(--bg2)",padding:4,borderRadius:10}}>

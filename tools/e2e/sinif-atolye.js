@@ -102,6 +102,14 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   const G = await cls('Koro');
   ok('Genel sınıf iki alandan öğrenciyle kaydedildi', G && G.fields.kind.stringValue === 'general' && G.fields.area.stringValue === 'genel' && G.fields.studentNos.arrayValue.values.length === 2);
 
+  // Aynı öğretmen ikinci bir ortak sınıfa (ör. başka dönemin öğrencileri) bağlanabilir
+  await clickText(p, '➕ Sinifa giştî ya nû'); await p.waitForTimeout(300);
+  await p.locator('input[aria-label="Navê sinifê"]').fill('Koro B');
+  await check(p, 'Mamoste Dilovan'); await check(p, 'Jîyan Roj');
+  await clickText(p, '💾 Tomar bike'); await p.waitForTimeout(1500);
+  const G2 = await cls('Koro B');
+  ok('Aynı öğretmen iki ortak sınıfa bağlı', G2 && JSON.stringify(G2.fields.teacherNos).includes('50202601') && JSON.stringify(G.fields.teacherNos).includes('50202601'));
+
   // ── 4) Atölye aç ──
   await clickText(p, '🛠 Atolye'); await p.waitForTimeout(400);
   await clickText(p, '➕ Atolye veke'); await p.waitForTimeout(300);
