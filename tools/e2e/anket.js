@@ -45,6 +45,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await put('idx_guardians/' + G, { no: G });
   await put('guardians/' + G, { no: G, name: 'Nûrê Aram', phone: '0555 1' });
   await put('kids/K1', { no: '8' + YR + '501', name: 'Dilan Aram', area: 'drama', classLevel: 1, guardianNos: [G] });
+  await put('kidClasses/KC1', { kind: 'general', name: '1. Sînif', area: 'genel', studentNos: ['8' + YR + '501'], teacherNos: [], teacherNames: [] });
   await signUp(G + '@veli.aat', 'Veli12345');
   const KT = '7' + YR + '501';
   await put('idx_kidstaff/' + KT, { no: KT }); await put('kidTeachers/' + KT, { no: KT, name: 'Mamoste Berfîn', area: 'drama' });

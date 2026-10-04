@@ -592,7 +592,8 @@ function tKidsFiltered() {
   if (S.tFilter === "mine") return S.kids.filter(k => k.teacherNo === me || mc.some(c => inMyCls(c, k)));
   if (S.tFilter === "cls") return S.kids.filter(k => mc.some(c => inMyCls(c, k)));
   if (S.tFilter.indexOf("c:") === 0) { const c = S.cls.find(x => x.id === S.tFilter.slice(2)); return c ? S.kids.filter(k => inMyCls(c, k)) : []; }
-  if (S.tFilter === "today") { const { areas } = myTodayAreas(); return S.kids.filter(k => k.teacherNo === me || (k.area && areas.has(k.area))); }
+  if (S.tFilter === "today") { const { lessons, areas } = myTodayAreas(); const cids = new Set(lessons.map(x => x.classId).filter(Boolean));
+    return S.kids.filter(k => k.teacherNo === me || mc.some(c => inMyCls(c, k)) || S.cls.some(c => cids.has(c.id) && inMyCls(c, k)) || (k.area && areas.has(k.area))); }
   return S.kids.filter(k => k.area === S.tFilter);
 }
 function tFilterChips() {
