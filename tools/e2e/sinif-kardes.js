@@ -233,6 +233,13 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await tp.evaluate(() => [...document.querySelectorAll('button.btn')].find(x => x.textContent.includes('Ji sinifa xwe re bişîne')).click()); await tp.waitForTimeout(2000);
   const kcp = await list('kidClassPosts');
   ok('Çocuk sınıf ödevi kaydedildi (1. sınıf)', kcp.some(d => d.fields.title.stringValue === 'Stranê dubare bikin' && d.fields.classId.stringValue === KCid));
+  ok('Sınıfım: sınıftaki çocukların adları görünür', (await txt(tp)).includes('Dilan Aram · Zîlan Aram') || /Dilan Aram.*Zîlan Aram|Zîlan Aram.*Dilan Aram/.test(await txt(tp)));
+  // Öğretmen yeni mesaj: tüm sınıfın ailelerine
+  await tp.evaluate(() => [...document.querySelectorAll('.nav button')].find(b => b.textContent.includes('💬')).click()); await tp.waitForTimeout(500);
+  await tp.selectOption('#t-nm-to', { label: '🏫 1. Sînif · hemû malbat' }); await tp.fill('#t-nm', 'Sibê konser heye');
+  await tp.evaluate(() => [...document.querySelectorAll('main button.btn')].find(b => b.textContent.includes('Bişîne')).click()); await tp.waitForTimeout(2000);
+  const kmsg = (await list('kidMessages')).filter(d => d.fields.text && d.fields.text.stringValue === 'Sibê konser heye');
+  ok('Öğretmen sınıfın ailelerine yeni mesaj gönderir (aile başına bir)', kmsg.length >= 1 && kmsg.every(d => d.fields.from.stringValue === 'staff'), kmsg.length + ' mesaj');
   const vToast = await vp.locator('.toast').textContent().catch(() => '');
   ok('Veliye anında bildirim: sınıftan yeni ödev', /Stranê dubare bikin/.test(vToast), vToast);
   await vp.bringToFront(); await vp.click('.nav button:nth-child(1)'); await vp.waitForTimeout(1500);
