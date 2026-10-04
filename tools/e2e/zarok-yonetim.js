@@ -78,14 +78,15 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await p.locator('label:has-text("Nav û paşnavê zarokê") + input').fill('Rojîn Aydın');
   await p.locator('label:has-text("Navê dêûbav") + input').fill('Sara Aydın');
   await p.locator('label:has-text("Têlefon *") + input').fill('0555 444 55 66');
-  await p.selectOption('label:has-text("Mamoste") + select', { label: 'Mamoste Hêvî' });
   await clickText(p, '💾 Tomar bike');
   await p.waitForSelector('text=Zarok hate tomarkirin', { timeout: 20000 });
   t = await p.evaluate(() => document.body.innerText);
   const gno = (t.match(/Jimara têketinê:\s*(\d+)/) || [])[1], gpass = (t.match(/Şîfre:\s*(\S+)/) || [])[1];
   ok('Çocuk + yeni veli hesabı elle kaydedilir', !!gno && !!gpass, 'veli ' + gno);
   const kid = (await list('kids')).find(d => d.fields.name.stringValue === 'Rojîn Aydın');
-  ok('Çocuk öğretmene atanır', kid && kid.fields.teacherNo.stringValue === tno);
+  // Öğretmen ataması artık sınıf üzerinden (Sinif û Atolye): sınıf öğretmeni olduğu sınıfa çocuk eklenir
+  await put('kidClasses/KC1', { kind: 'general', name: 'Koma A', area: 'genel', studentNos: [kid.fields.no.stringValue], teacherNos: [tno], teacherNames: ['Mamoste Hêvî'] });
+  ok('Çocuk kaydı oluşturuldu (öğretmen sınıf üzerinden)', !!kid && !kid.fields.teacherNo);
   await clickText(p, 'Baş e');
 
   // 3) Yönetici TÜRKÇE arayüzde Basın kartı açar (önceden "K is not a function" ile çöküyordu);

@@ -82,14 +82,13 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await clickText(p, '🎓 Zarok'); await p.waitForTimeout(400);
   await clickText(p, 'Zarokê Tescîl Bike'); await p.waitForTimeout(300);
   await p.locator('label:has-text("Nav û paşnavê zarokê") + input').fill('Dilan Aram');
-  await p.selectOption('label:has-text("Sinif (li akademiyê)") + select', '1');
   await p.locator('label:has-text("Navê dêûbav") + input').fill('Nûrê Aram');
   await p.locator('label:has-text("Têlefon *") + input').fill('0555 444 55 66');
   await clickText(p, '💾 Tomar bike');
   await p.waitForSelector('text=Zarok hate tomarkirin', { timeout: 20000 });
   const c1 = await txt(p);
   const gno = (c1.match(/Jimara têketinê:\s*(\d+)/) || [])[1], gpass = (c1.match(/Şîfre:\s*(\S+)/) || [])[1];
-  ok('Çocuk + yeni veli hesabı (1. sınıf)', !!gno && !!gpass, 'veli ' + gno);
+  ok('Çocuk + yeni veli hesabı', !!gno && !!gpass, 'veli ' + gno);
   await clickText(p, 'Baş e'); await p.waitForTimeout(300);
 
   // ── 2) Veliler → "➕ Xwişk/bira": kardeş aynı hesaba ──
@@ -100,7 +99,6 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   const f2 = await txt(p);
   ok('Kardeş formu mevcut veliyle açılır (yeni hesap yok uyarısı)', f2.includes('Zarokên vê dêûbavê') && f2.includes('Dilan Aram'));
   await p.locator('label:has-text("Nav û paşnavê zarokê") + input').fill('Serhat Aram');
-  await p.selectOption('label:has-text("Sinif (li akademiyê)") + select', '2');
   await clickText(p, '💾 Tomar bike');
   await p.waitForSelector('text=Zarok hate tomarkirin', { timeout: 20000 });
   const c2 = await txt(p);
@@ -121,24 +119,54 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   ok('Başvurudan gelen kardeş aynı veliye bağlandı', ks.length === 3 && (await list('guardians')).length === 2, ks.length + ' çocuk');
   await clickText(p, 'Baş e'); await p.waitForTimeout(300);
   await clickText(p, '🎓 Zarok'); await p.waitForTimeout(500);
-  ok('Çocuk listesinde kardeşler ve sınıf görünür', /Xwişk û bira: .*Serhat Aram/.test(await txt(p)) && (await txt(p)).includes('1. Sînif'));
+  ok('Çocuk listesinde kardeşler görünür', /Xwişk û bira: .*Serhat Aram/.test(await txt(p)));
 
-  // ── 4) Çocuk sınıfları: atanmamış çocuğa sınıf + sınıf öğretmeni ──
-  await clickText(p, '🏫 Sînif'); await p.waitForTimeout(600);
-  const s4 = await txt(p);
-  ok('Sınıf sekmesi: atanmamış çocuk listelenir', s4.includes('Sinif nehatiye diyarkirin') && s4.includes('Zîlan Aram'));
-  await p.evaluate(() => { const row = [...document.querySelectorAll('div')].filter(d => d.children.length === 2 && d.textContent.includes('Zîlan Aram') && d.querySelector('select')).pop();
-    const s = row.querySelector('select'); const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; set.call(s, '1'); s.dispatchEvent(new Event('change', { bubbles: true })); });
-  await p.waitForTimeout(1500);
-  const zil = (await list('kids')).find(d => d.fields.name.stringValue === 'Zîlan Aram');
-  ok('Çocuğun sınıfı listeden değiştirilir', zil && zil.fields.classLevel && zil.fields.classLevel.integerValue === '1');
-  await p.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('Mamosteyê sinifê') && x.offsetParent)[0]; b.click(); });
-  await p.waitForTimeout(400);
+  // ── 4) Çocuk sınıfları (akademiyle aynı stüdyo): genel sınıf + sınıf öğretmeni ──
+  const lowBtn = (p, t) => p.evaluate(t => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes(t) && x.offsetParent).pop(); b.scrollIntoView({ block: 'center' }); b.click(); }, t);
+  await lowBtn(p, 'Sinif û Atolye'); await p.waitForTimeout(800);
+  ok('Çocuk sınıf stüdyosu: alan / genel / atölye sekmeleri', /Sinifên qadê/.test(await txt(p)) && /Atolye/.test(await txt(p)));
+  await lowBtn(p, '🌐 Sinifên giştî'); await p.waitForTimeout(300);
+  await lowBtn(p, '➕ Sinifa giştî ya nû'); await p.waitForTimeout(300);
+  await p.locator('input[aria-label="Navê sinifê"]').fill('1. Sînif');
   await p.locator('label', { hasText: 'Mamoste Berfîn' }).locator('input[type=checkbox]').check();
-  await clickText(p, '💾 Tomar bike'); await p.waitForTimeout(1500);
-  const L1 = await getDocF('kidClasses/L1');
-  ok('Çocuk 1. sınıfına sınıf öğretmeni atanır', L1.fields && JSON.stringify(L1.fields.teacherNos).includes(KT) && JSON.stringify(L1.fields.teacherNames).includes('Mamoste Berfîn'));
+  await p.locator('label', { hasText: 'Dilan Aram' }).locator('input[type=checkbox]').check();
+  await p.locator('label', { hasText: 'Zîlan Aram' }).locator('input[type=checkbox]').check();
+  await lowBtn(p, '💾 Tomar bike'); await p.waitForTimeout(1500);
+  const KC = (await list('kidClasses')).find(d => d.fields.name && d.fields.name.stringValue === '1. Sînif');
+  const KCid = KC ? KC.name.split('/').pop() : '';
+  ok('Çocuk sınıfı: 2 çocuk + sınıf öğretmeni', KC && KC.fields.kind.stringValue === 'general' && KC.fields.studentNos.arrayValue.values.length === 2
+    && JSON.stringify(KC.fields.teacherNos).includes(KT) && JSON.stringify(KC.fields.teacherNames).includes('Mamoste Berfîn'));
   ok('Sınıf kartında öğretmen ve 2 çocuk', /1\. Sînif \(2 zarok\)/.test(await txt(p)) && (await txt(p)).includes('👩‍🏫 Mamoste Berfîn'));
+  // Sınıfa haftalık ders
+  // kaydedilen sınıf açık gelir (ders programı görünür)
+  await lowBtn(p, '➕ Ders zêde bike'); await p.waitForTimeout(500);
+  await p.locator('input[aria-label="Navê dersê"]').fill('Solfeja Zarokan');
+  await p.evaluate(() => { const b = [...document.querySelectorAll('.sheet-shell button')].filter(x => x.textContent.includes('Dersê Zêde Bike')).pop(); b.click(); }); await p.waitForTimeout(1500);
+  const KL = (await list('kidSchedule')).find(d => d.fields.title.stringValue === 'Solfeja Zarokan');
+  ok('Çocuk sınıfına ders bağlandı (sınıf öğretmeni ön seçili)', KL && KL.fields.classId.stringValue === KCid && KL.fields.teacherNo.stringValue === KT);
+
+  // Çocuk atölyesi: aç → yoklama (gelen çocuğa "in" kaydı) → kapat
+  await lowBtn(p, '🛠 Atolye'); await p.waitForTimeout(300);
+  await lowBtn(p, '➕ Atolye veke'); await p.waitForTimeout(300);
+  await p.locator('input[aria-label="Navê sinifê"]').fill('Atolyeya Stranan');
+  await p.locator('label', { hasText: 'Mamoste Berfîn' }).locator('input[type=checkbox]').check();
+  await p.locator('label', { hasText: 'Serhat Aram' }).locator('input[type=checkbox]').check();
+  await p.locator('label', { hasText: 'Dilan Aram' }).locator('input[type=checkbox]').check();
+  await lowBtn(p, '💾 Tomar bike'); await p.waitForTimeout(1800);
+  const KW = (await list('kidClasses')).find(d => d.fields.name && d.fields.name.stringValue === 'Atolyeya Stranan'); const KWid = KW ? KW.name.split('/').pop() : '';
+  const KWL = await getDocF('kidSchedule/ws_' + KWid);
+  ok('Çocuk atölyesi açıldı (o günün dersi)', KW && KW.fields.status.stringValue === 'open' && KWL.fields && KWL.fields.date.stringValue === KW.fields.date.stringValue);
+  await p.evaluate(() => { const card = [...document.querySelectorAll('div')].filter(d => d.textContent.includes('Atolyeya Stranan') && [...d.querySelectorAll('button')].some(x => x.textContent.includes('📋 Amadebûn'))).pop();
+    [...card.querySelectorAll('button')].find(x => x.textContent.includes('📋 Amadebûn')).click(); }); await p.waitForTimeout(1200);
+  await p.locator('button[aria-label="on Serhat Aram"]').click();
+  await p.locator('button[aria-label="off Dilan Aram"]').click();
+  await lowBtn(p, '🔒 Tomar bike û atolyeyê bigire'); await p.waitForTimeout(2500);
+  const serhat = (await list('kids')).find(d => d.fields.name.stringValue === 'Serhat Aram').name.split('/').pop();
+  const dilan = (await list('kids')).find(d => d.fields.name.stringValue === 'Dilan Aram').name.split('/').pop();
+  const inS = await getDocF('kidAttendance/ws_' + KWid + '_' + serhat), inD = await fetch(`${FS}/kidAttendance/ws_${KWid}_${dilan}`, { headers: H });
+  const KW2 = (await list('kidClasses')).find(d => d.name.endsWith('/' + KWid)), KWL2 = await fetch(`${FS}/kidSchedule/ws_${KWid}`, { headers: H });
+  ok('Çocuk atölyesi yoklaması: gelen "in", gelmeyen kayıtsız', inS.fields && inS.fields.type.stringValue === 'in' && inD.status === 404);
+  ok('Çocuk atölyesi kapandı, programdan kalktı', KW2.fields.status.stringValue === 'closed' && KWL2.status === 404);
 
   // ── 5) Ana akademi: Müzik alanında sınıf oluştur (öğrenci seç + sınıf öğretmeni) ──
   await topTab(p, 'Sinif û Atolye'); await p.waitForTimeout(1500);
@@ -202,7 +230,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await tp.fill('#cp-t', 'Stranê dubare bikin'); await tp.fill('#cp-b', 'Rûpel 3'); await tp.fill('#cp-due', '2030-01-10');
   await tp.evaluate(() => [...document.querySelectorAll('button.btn')].find(x => x.textContent.includes('Ji sinifa xwe re bişîne')).click()); await tp.waitForTimeout(2000);
   const kcp = await list('kidClassPosts');
-  ok('Çocuk sınıf ödevi kaydedildi (1. sınıf)', kcp.some(d => d.fields.title.stringValue === 'Stranê dubare bikin' && d.fields.classId.stringValue === 'L1'));
+  ok('Çocuk sınıf ödevi kaydedildi (1. sınıf)', kcp.some(d => d.fields.title.stringValue === 'Stranê dubare bikin' && d.fields.classId.stringValue === KCid));
   await vp.bringToFront(); await vp.click('.nav button:nth-child(1)'); await vp.waitForTimeout(1500);
   const vToday = await txt(vp);
   await vp.click('.nav button:nth-child(4)'); await vp.waitForTimeout(800);

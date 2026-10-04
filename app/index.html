@@ -821,17 +821,26 @@ input,select,textarea{font-family:inherit;}
   display:flex;flex-direction:column;box-shadow:8px 0 40px rgba(8,14,24,.35);
   border-right:1px solid var(--border)}
 .sm.open{transform:translateX(0)}
-.sm-head{background:var(--bg1);padding:calc(env(safe-area-inset-top,0px) + 20px) 18px 16px;
-  display:flex;align-items:center;gap:12px;flex-shrink:0;border-bottom:1px solid var(--border)}
-.sm-head .sm-nm{color:var(--text);font-family:var(--serif);font-size:16px;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sm-head .sm-rl{color:var(--text2);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;margin-top:3px;font-weight:700;
+.sm-head{background:var(--hero-grad);padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 18px;flex-shrink:0;color:#fff}
+.sm-brand{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.sm-brand img{border-radius:6px;background:#fff;padding:2px}
+.sm-brand span{flex:1;min-width:0;font-size:9.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#e7c77b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sm-x{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);color:rgba(255,255,255,.85);width:30px;height:30px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sm-user{display:flex;align-items:center;gap:12px}
+.sm-av{width:48px;height:48px;border-radius:50%;flex-shrink:0;object-fit:cover;background:rgba(255,255,255,.12);border:2px solid #e7c77b;color:#e7c77b;
+  display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:17px;letter-spacing:.04em}
+.sm-head .sm-nm{color:#fff;font-family:var(--serif);font-size:17px;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sm-head .sm-rl{color:rgba(255,255,255,.66);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;margin-top:4px;font-weight:700;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sm-items{flex:1;overflow-y:auto;padding:12px 0 calc(env(safe-area-inset-bottom,0px) + 14px)}
-.sm-it{display:flex;align-items:center;gap:10px;width:100%;padding:12px 16px;margin-bottom:0;letter-spacing:.01em;
-  border:none;border-left:2px solid transparent;border-radius:0;background:none;cursor:pointer;text-align:left;
-  font-size:13.5px;font-weight:500;color:var(--text2);transition:background .15s,color .15s}
-.sm-it:hover{background:var(--bg2);color:var(--text)}
-.sm-it.active{background:var(--bg2);border-left-color:#0f2f38;color:#0f2f38;font-weight:700}
+.sm-it{display:flex;align-items:center;gap:12px;width:100%;padding:9px 16px 9px 13px;margin-bottom:0;letter-spacing:.01em;
+  border:none;border-left:3px solid transparent;border-radius:0;background:none;cursor:pointer;text-align:left;
+  font-size:14px;font-weight:500;color:var(--text);transition:background .15s,color .15s}
+.sm-it .sm-ic{width:32px;height:32px;border-radius:9px;background:var(--bg2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;filter:saturate(.75)}
+.sm-it:hover{background:var(--bg2)}
+.sm-it.active{background:rgba(231,199,123,.16);border-left-color:#b8923f;color:#0f2f38;font-weight:700}
+.sm-it.active .sm-ic{background:#0f2f38;border-color:#0f2f38;filter:none}
+.sm-it.sm-danger{color:var(--red)}
 [data-theme="dark"] .sm-it.active{background:rgba(77,179,160,.10);border-left-color:#7fd0c0;color:#7fd0c0}
 .sm-it .sm-ar{margin-left:2px;color:var(--text2);font-size:17px;font-weight:400;line-height:1;flex-shrink:0;opacity:.7}
 .sm-it .sm-bdg{margin-left:auto;background:#dc2626;color:#fff;font-size:10px;font-weight:800;
@@ -857,7 +866,6 @@ html.theme-dark .att-btn{background:var(--surface2)}
 html.theme-dark .stat-chip,html.theme-dark .area-card,
 html.theme-dark .ann-card,html.theme-dark .panel-card{background:var(--surface)}
 html.theme-dark .sm{background:var(--surface2)}
-html.theme-dark .sm-head{background:var(--surface2)}
 html.theme-dark .glass-pill{background:rgba(255,255,255,.10);border-color:rgba(255,255,255,.18)}
 html.theme-dark input,html.theme-dark select,html.theme-dark textarea{background:var(--surface2);color:var(--text)}
 html.theme-dark .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
@@ -877,6 +885,14 @@ html.theme-dark .admin-header .tab-btn{color:rgba(255,255,255,0.62)}
 .sm-sep{margin:10px 0}
 input,select,textarea{border-radius:5px!important}
 button{letter-spacing:.01em}
+
+/* ══ DÜĞMELER — site ile uyumlu sade çizgi simgeler ══ */
+button:has(> .ico-solo){background:transparent!important;border:1px solid var(--border2)!important;color:var(--text2)!important;border-radius:9px!important;
+  min-width:34px;min-height:32px;padding:5px 8px!important;display:inline-flex!important;align-items:center;justify-content:center;
+  transition:color .15s,border-color .15s,background .15s;box-shadow:none!important}
+button:has(> .ico-trash.ico-solo):hover{color:#b42318!important;border-color:#e8b4ad!important;background:#fdf3f1!important}
+button:has(> .ico-edit.ico-solo):hover{color:var(--accent)!important;border-color:var(--accent)!important}
+.sm-burger{border-radius:10px}
 
 /* ── BOTTOM NAV ── */
 .app-nav{
@@ -975,16 +991,16 @@ button{letter-spacing:.01em}
 /* ── PRIMARY BUTTON — solid navy premium ── */
 .btn-navy{
   width:100%;padding:14px;
-  background:linear-gradient(135deg,#0f2f38 0%,#2c6b74 100%);
+  background:#0f2f38;
   color:#ffffff;
-  border:none;
-  border-radius:var(--radius);
+  border:1px solid #0f2f38;
+  border-radius:10px;
   font-size:14px;font-weight:700;cursor:pointer;
-  transition:opacity .15s,transform .12s,box-shadow .15s;
-  letter-spacing:0.01em;
-  box-shadow:0 4px 18px rgba(15,47,56,0.28);
+  transition:background .15s,transform .12s,box-shadow .15s;
+  letter-spacing:0.02em;
+  box-shadow:0 1px 2px rgba(15,47,56,0.18);
 }
-.btn-navy:hover{opacity:0.93;box-shadow:0 6px 24px rgba(15,47,56,0.32);}
+.btn-navy:hover{background:#1c4a55;box-shadow:0 3px 10px rgba(15,47,56,0.20);}
 .btn-navy:active{opacity:.87;transform:scale(.99);}
 
 /* ── QR CARD ── */
@@ -3528,6 +3544,14 @@ function GatePanel({user,lang,toast,onLogout}){
   );
 }
 
+// Çizgi simgeler (site ile uyumlu, emoji yerine) — currentColor ile boyanır
+const ICO={trash:"M4 7h16M9 7V4.5h6V7m-8.5 0 1 12.5h9l1-12.5M10 11v5.5M14 11v5.5",edit:"M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4zM13.5 6.5l4 4",
+  close:"M6 6l12 12M18 6 6 18",plus:"M12 5v14M5 12h14",out:"M14 4h4.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H14M10 16l4-4-4-4M14 12H4",
+  save:"M5 4h11l3 3v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4zM8 4v5h7V4M8 20v-6h8v6",globe:"M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c2.5 2.8 2.5 15.2 0 18M12 3c-2.5 2.8-2.5 15.2 0 18"};
+function Ico({n,size=16,solo,style}){
+  return <svg className={"ico ico-"+n+(solo?" ico-solo":"")} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{flexShrink:0,verticalAlign:"-3px",...style}}><path d={ICO[n]}/></svg>;
+}
 function Avatar({name,color,size=36,photo}){
   if(photo) return <img src={photo} style={{width:size,height:size,borderRadius:"50%",objectFit:"cover",flexShrink:0}} alt={name}/>;
   const ini=name?name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase():"??";
@@ -3551,11 +3575,12 @@ function Card({children,style,onClick}){
   );
 }
 
+function startsWithSymbol(ch){ const f=Array.isArray(ch)?ch.find(x=>x!=null&&x!==false&&x!==""):ch; return typeof f==="string"&&/^\s*[^\p{L}\p{N}\s]/u.test(f); }
 function PrimaryBtn({children,onClick,style,icon,disabled}){
   return(
     <button onClick={onClick} className="btn-navy" disabled={disabled} style={{...(disabled?{opacity:0.55,cursor:"not-allowed"}:{}),...style}}>
       <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
-        {icon&&<span>{icon}</span>}{children}
+        {icon&&!startsWithSymbol(children)&&<span>{icon}</span>}{children}
       </span>
     </button>
   );
@@ -5093,8 +5118,8 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
                     </div>
                     <button title={lang==="en"?"Print card":K("Kartê çap bike")} onClick={()=>issueAndPrintCards("student",[s],lang,toast,cardOpts)} style={{padding:"5px 9px",fontSize:11,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:6,cursor:"pointer",color:"var(--text)",flexShrink:0}}>🪪</button>
                     {s.cardToken&&<button title={lang==="en"?"Lost card: issue new (old one stops working)":K("Karta winda: ya nû çêke (ya kevn betal dibe)")} onClick={()=>{ if(window.confirm(lang==="en"?"Issue a NEW card? The old card will stop working.":K("Karteke NÛ were çêkirin? Karta kevn êdî naxebite."))) issueAndPrintCards("student",[s],lang,toast,{...cardOpts,renew:true}); }} style={{padding:"5px 9px",fontSize:11,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:6,cursor:"pointer",color:"var(--text)",flexShrink:0}}>♻️</button>}
-                    {<button onClick={()=>setEditingStudent(s)} style={{padding:"5px 10px",fontSize:11,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:6,cursor:"pointer",color:"var(--text)",flexShrink:0}}>✏️</button>}
-                    {<button onClick={()=>setDeleteConfirm({type:"student",item:s})} style={{padding:"5px 10px",fontSize:11,background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:6,cursor:"pointer",color:"var(--red)",flexShrink:0}}>🗑</button>}
+                    {<button onClick={()=>setEditingStudent(s)} style={{padding:"5px 10px",fontSize:11,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:6,cursor:"pointer",color:"var(--text)",flexShrink:0}}><Ico n="edit" solo/></button>}
+                    {<button onClick={()=>setDeleteConfirm({type:"student",item:s})} style={{padding:"5px 10px",fontSize:11,background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:6,cursor:"pointer",color:"var(--red)",flexShrink:0}}><Ico n="trash" solo/></button>}
                   </div>
                   );
                 })
@@ -5121,8 +5146,8 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
                       {tc.phone&&<div style={{fontSize:10,color:"var(--text2)"}}>{tc.phone}</div>}
                       {tc.bio&&<div style={{fontSize:10,color:"var(--text2)",fontStyle:"italic"}}>{tc.bio}</div>}
                     </div>
-                    <button onClick={()=>setEditingTeacher(tc)} style={{padding:"5px 10px",fontSize:11,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:6,cursor:"pointer",color:"var(--text)",flexShrink:0}}>✏️</button>
-                    <button onClick={()=>setDeleteConfirm({type:"teacher",item:tc})} style={{padding:"5px 10px",fontSize:11,background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:6,cursor:"pointer",color:"var(--red)",flexShrink:0}}>🗑</button>
+                    <button onClick={()=>setEditingTeacher(tc)} style={{padding:"5px 10px",fontSize:11,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:6,cursor:"pointer",color:"var(--text)",flexShrink:0}}><Ico n="edit" solo/></button>
+                    <button onClick={()=>setDeleteConfirm({type:"teacher",item:tc})} style={{padding:"5px 10px",fontSize:11,background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:6,cursor:"pointer",color:"var(--red)",flexShrink:0}}><Ico n="trash" solo/></button>
                   </div>
                 ))
               }
@@ -5185,7 +5210,7 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
           <div onClick={()=>setDeleteConfirm(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:500}}/>
           <div style={{position:"fixed",bottom:0,left:0,right:0,width:"100%",background:"var(--surface)",borderRadius:"24px 24px 0 0",zIndex:501,padding:"24px 20px 36px"}}>
             <div style={{textAlign:"center",marginBottom:20}}>
-              <div style={{fontSize:40,marginBottom:12}}>🗑️</div>
+              <div style={{marginBottom:10,color:"var(--red)"}}><Ico n="trash" size={40}/></div>
               <div style={{fontSize:16,fontWeight:700,color:"var(--text)",marginBottom:8}}>{t.confirmDelete}</div>
               <div style={{fontSize:13,color:"var(--text2)",lineHeight:1.6}}>
                 {deleteConfirm.item.name || deleteConfirm.item.name}
@@ -5206,7 +5231,7 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
                 }
                 setDeleteConfirm(null);
               }} style={{padding:13,background:"var(--red)",border:"none",borderRadius:12,fontSize:14,fontWeight:700,cursor:"pointer",color:"#fff"}}>
-                🗑 {t.yes}
+                <Ico n="trash"/> {t.yes}
               </button>
             </div>
           </div>
@@ -5365,7 +5390,7 @@ function AdminMessagesPanel({students,teachers,lang,t,toast,adminName}){
           setSelectedMsg(null);
           toast(lang==="en"?"🗑 Message deleted":K("🗑 Peyam hate jêbirin"));
         }} style={{padding:"7px 12px",fontSize:12,background:"var(--red-bg,#fde8e8)",border:"0.5px solid #ef4444",borderRadius:8,cursor:"pointer",color:"#ef4444",fontWeight:700,flexShrink:0}}>
-          🗑 {lang==="en"?"Delete":K("Jêbire")}
+          <Ico n="trash"/> {lang==="en"?"Delete":K("Jêbire")}
         </button>
       </div>
       <Card>
@@ -5555,7 +5580,7 @@ function AdminMessagesPanel({students,teachers,lang,t,toast,adminName}){
                   return !matchFire && !matchId;
                 }));
                 toast(lang==="en"?"🗑 Deleted":K("🗑 Hate jêbirin"));
-              }} style={{padding:"4px 8px",fontSize:11,background:"transparent",border:"0.5px solid #ef4444",borderRadius:6,cursor:"pointer",color:"#ef4444",flexShrink:0,marginLeft:4}}>🗑</button>
+              }} style={{padding:"4px 8px",fontSize:11,background:"transparent",border:"0.5px solid #ef4444",borderRadius:6,cursor:"pointer",color:"#ef4444",flexShrink:0,marginLeft:4}}><Ico n="trash" solo/></button>
             </div>
           ))}
         </Card>
@@ -6301,7 +6326,7 @@ function AdminNewsPanel({lang,toast,adminName}){
             </div>
             <button onClick={()=>remove(item)}
               style={{background:"var(--red-bg)",border:"0.5px solid var(--red)",color:"var(--red)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer",flexShrink:0}}>
-              🗑 {L("del")}
+              <Ico n="trash"/> {L("del")}
             </button>
           </div>
         </Card>
@@ -6640,11 +6665,11 @@ function AdminPressPanel({teachers,onDataChange,lang,toast,t}){
             </div>
             <button onClick={()=>setEditing(tc)}
               style={{background:"var(--bg2)",border:"0.5px solid var(--border2)",color:"var(--text)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>
-              ✏️ {L("edit")}
+              <Ico n="edit"/> {L("edit")}
             </button>
             <button onClick={()=>onDataChange("deleteTeacher",tc)}
               style={{background:"var(--red-bg)",border:"0.5px solid var(--red)",color:"var(--red)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>
-              🗑
+              <Ico n="trash"/>
             </button>
           </div>
         </Card>
@@ -6674,17 +6699,26 @@ function SideMenu({open,onClose,items,activeKey,onSelect,user,roleLabel,extraIte
       <div className={"sm-ov"+(open?" open":"")} onClick={onClose}/>
       <aside className={"sm"+(open?" open":"")} role="navigation" aria-label="Menu" aria-hidden={!open}>
         <div className="sm-head">
-          <Avatar name={user?.name||""} color="rgba(255,255,255,.2)" size={44} photo={user?.photo}/>
-          <div style={{flex:1,minWidth:0}}>
-            <div className="sm-nm">{user?.name||""}</div>
-            <div className="sm-rl">{roleLabel||""}{user?.no?(" · "+user.no):""}</div>
+          <div className="sm-brand">
+            <img src="icons/akademi-mesale.png" alt="" width="22" height="22"/>
+            <span>Konservatuara Aram Tîgran</span>
+            <button className="sm-x" onClick={onClose} aria-label="✕"><Ico n="close" size={16}/></button>
           </div>
-          <button className="sm-x" onClick={onClose} style={{background:"rgba(255,255,255,.1)",border:"none",color:"rgba(255,255,255,.7)",width:30,height:30,borderRadius:"50%",cursor:"pointer",fontSize:14,flexShrink:0}}>✕</button>
+          <div className="sm-user">
+            {user?.photo
+              ? <img className="sm-av" src={user.photo} alt=""/>
+              : <div className="sm-av">{(user?.name||"").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}</div>}
+            <div style={{flex:1,minWidth:0}}>
+              <div className="sm-nm">{user?.name||""}</div>
+              <div className="sm-rl">{roleLabel||""}{user?.no?(" · "+user.no):""}</div>
+            </div>
+          </div>
         </div>
         <div className="sm-items">
           {items.map(it=>(
             <button key={it.key} className={"sm-it"+(activeKey===it.key?" active":"")}
               onClick={()=>{onSelect(it.key);onClose();}}>
+              {it.icon&&<span className="sm-ic" aria-hidden="true">{it.icon}</span>}
               <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{it.label}</span>
               {it.badge>0&&<span className="sm-bdg">{it.badge>99?"99+":it.badge}</span>}
               <span className="sm-ar" aria-hidden="true">›</span>
@@ -6694,8 +6728,8 @@ function SideMenu({open,onClose,items,activeKey,onSelect,user,roleLabel,extraIte
             <>
               <div className="sm-sep"/>
               {extraItems.map((it,i)=>(
-                <button key={i} className="sm-it" onClick={()=>{it.onClick();onClose();}}
-                  style={it.danger?{color:"var(--red)"}:null}>
+                <button key={i} className={"sm-it"+(it.danger?" sm-danger":"")} onClick={()=>{it.onClick();onClose();}}>
+                  {it.icon&&<span className="sm-ic" aria-hidden="true">{it.icon}</span>}
                   <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{it.label}</span>
                   <span className="sm-ar" aria-hidden="true">›</span>
                 </button>
@@ -6716,7 +6750,7 @@ function SpecialPanelHeader({user,icon,roleLabel,lang,onLogout,siteLink,onMenu,t
         {onMenu&&<button className="sm-burger" onClick={onMenu} aria-label="Menu">☰</button>}
         {user.photo
           ? <img src={user.photo} alt="" style={{width:46,height:46,borderRadius:14,objectFit:"cover",border:"2px solid rgba(255,255,255,0.35)",flexShrink:0}}/>
-          : <div style={{width:46,height:46,borderRadius:14,background:"rgba(255,255,255,0.14)",border:"1px solid rgba(255,255,255,0.22)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{icon}</div>}
+          : <div style={{width:46,height:46,borderRadius:"50%",background:"rgba(255,255,255,0.10)",border:"2px solid #e7c77b",color:"#e7c77b",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--serif)",fontSize:17,letterSpacing:".04em",flexShrink:0}}>{(user.name||"").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()||icon}</div>}
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:16,fontWeight:800,color:"#fff",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{user.name}</div>
           <div style={{fontSize:10,color:"rgba(255,255,255,0.65)",letterSpacing:"0.14em",textTransform:"uppercase",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",marginTop:2}}>{roleLabel}</div>
@@ -6725,11 +6759,11 @@ function SpecialPanelHeader({user,icon,roleLabel,lang,onLogout,siteLink,onMenu,t
       <div style={{display:"flex",gap:8}}>
         {siteLink&&(
           <a href="../" target="_blank" rel="noopener" style={{flex:1,textAlign:"center",background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.22)",borderRadius:10,padding:"10px 8px",fontSize:12.5,fontWeight:700,color:"#fff",textDecoration:"none",whiteSpace:"nowrap"}}>
-            🌐 {lang==="en"?"View site":K("Malperê bibîne")}
+            <Ico n="globe" size={15}/> {lang==="en"?"View site":K("Malperê bibîne")}
           </a>
         )}
-        <button onClick={onLogout} style={{flex:1,background:"rgba(220,38,38,0.16)",border:"1px solid rgba(255,120,120,0.45)",borderRadius:10,padding:"10px 8px",fontSize:12.5,fontWeight:700,color:"#ffb4b4",cursor:"pointer",whiteSpace:"nowrap"}}>
-          ↩ {lang==="en"?"Sign out":K("Derkeve")}
+        <button onClick={onLogout} style={{flex:1,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.22)",borderRadius:10,padding:"10px 8px",fontSize:12.5,fontWeight:700,color:"rgba(255,255,255,0.88)",cursor:"pointer",whiteSpace:"nowrap"}}>
+          <Ico n="out" size={15}/> {lang==="en"?"Sign out":K("Derkeve")}
         </button>
       </div>
       {tabs&&tabs.length>0&&(
@@ -6928,7 +6962,7 @@ function AdminArchivePanel({lang,toast,adminName}){
         {editId&&(
           <div style={{fontSize:11.5,fontWeight:700,color:"#0f2f38",background:"rgba(231,199,123,0.18)",
             border:"1px solid rgba(231,199,123,0.6)",borderRadius:8,padding:"7px 10px",marginBottom:10}}>
-            ✏️ {lang==="en"?"Editing entry":K("Tomar tê guhertin")}
+            <Ico n="edit"/> {lang==="en"?"Editing entry":K("Tomar tê guhertin")}
           </div>
         )}
         {/* Dil sekmeleri */}
@@ -7049,12 +7083,12 @@ function AdminArchivePanel({lang,toast,adminName}){
                     <button onClick={()=>startEdit(it)}
                       style={{background:"var(--bg2)",border:"1px solid var(--border2)",color:"var(--text)",borderRadius:8,
                         padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                      ✏️ {L("edit")}
+                      <Ico n="edit"/> {L("edit")}
                     </button>
                     <button onClick={()=>remove(it)}
                       style={{background:"var(--red-bg)",border:"0.5px solid var(--red)",color:"var(--red)",borderRadius:8,
                         padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                      🗑 {L("del")}
+                      <Ico n="trash"/> {L("del")}
                     </button>
                   </div>
                 </div>
@@ -7175,11 +7209,10 @@ function zarokNextNo(nos,prefix){
 //      sınıflarının derslerini görür, öğretmenin yoklama listesi o sınıftır.
 //    • Sınıfa bağlı olmayan ders eskisi gibi alanın bütün öğrencilerine açıktır.
 //    • teacherNames, öğretmen listesini okuyamayan öğrenci de adı görsün diye saklanır.
-//  ÇOCUK AKADEMİSİ — kidClasses/L{seviye}; çocuğun sınıfı kendi classLevel alanı.
+//  ÇOCUK AKADEMİSİ — kidClasses/{id}: aynı yapı (studentNos = çocuk numaraları); dersler kidSchedule.classId,
+//    atölye dersi kidSchedule/ws_{sınıf} (date), atölye yoklaması kidAttendance/ws_{sınıf}_{çocuk} ("in").
 //  Yazma: yalnızca öğrenci işleri + yönetici (firestore.rules)
 // ══════════════════════════════════════════════════════════════════════
-const KID_CLASS_LEVELS=[1,2,3,4,5,6];
-function classTitle(level){ return level+". "+(RL()==="en"?"Class":K("Sînif")); }
 function useClassDocs(coll,enabled=true){
   const [list,setList]=useState([]);
   useEffect(()=>{
@@ -7212,14 +7245,21 @@ function lessonClassOptions(docs,area){
     .sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
 }
 
-// Öğrenci İşleri: alan sınıfları · genel sınıflar · atölyeler
-function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange}){
+// Sınıf stüdyosu — alan sınıfları · genel sınıflar · atölyeler (ana akademi + çocuk akademisi ortak)
+//  cfg: { coll, members:[{id,no,name,area}], teachers:[{no,name,area}], areas:[{key,icon}], areaLabel(a),
+//         memberWord:[ku,en], lessonsOf(classId), lessonLine(l)→{title,sub}, deleteLesson(l),
+//         renderAddLesson(cls,close), renderEditLesson(l,close)|null,
+//         saveWorkshopLesson(classId,{name,date,start,end,loc,guest,teacherNo,teacherName},prev)→lessonId,
+//         loadWsAtt(d)→{memberId:on|late|off}, saveWsAtt(d,roster,records,close), convertLegacy(docs) }
+function ClassStudio({cfg,lang,t,toast}){
   const F=window.__FB;
   const W2=(ku,en)=>lang==="en"?en:K(ku);
-  const docs=useClassDocs("classes");
-  const studs=(students||[]).filter(s=>!s.isAdmin);
-  const tlist=(teachers||[]).filter(t2=>t2.no&&!t2.isGate&&!t2.isPress&&!t2.isRegistrar);
-  const fieldAreas=AREAS.filter(a=>a.key!=="genel");
+  const docs=useClassDocs(cfg.coll);
+  const studs=cfg.members;
+  const tlist=cfg.teachers;
+  const fieldAreas=cfg.areas;
+  const aName=a=>cfg.areaLabel(a);
+  const MW=()=>W2(cfg.memberWord[0],cfg.memberWord[1]);
   const [kind,setKind]=useState("area");
   const [areaF,setAreaF]=useState(()=>{ const a=fieldAreas.find(x=>studs.some(s=>s.area===x.key)); return (a||fieldAreas[0]||{key:"sinema"}).key; });
   const [open,setOpen]=useState(null);
@@ -7239,8 +7279,7 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
   const tName=no=>((tlist.find(t2=>String(t2.no)===String(no))||{}).name)||"";
   const stuByNo=no=>studs.find(s=>String(s.no)===String(no));
   const errMsg=e=>/permission/i.test(String(e&&e.code))?W2("Destûr tune: qaîdeyên Firestore yên nû biweşînin","Permission denied: publish the latest firestore.rules"):((e&&(e.code||e.message))||"error");
-  const lessonsOf=id=>(schedule||[]).filter(l=>l.classId===id);
-  const DAYN=d=>(t&&t.days&&t.days[d])||d;
+  const lessonsOf=id=>cfg.lessonsOf(id);
 
   const areaClasses=docs.filter(d=>d.kind==="area"&&d.area===areaF).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
   const generalClasses=docs.filter(d=>d.kind==="general").sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
@@ -7249,17 +7288,11 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
   const areaStuds=studs.filter(s=>s.area===areaF).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
   const noClass=areaStuds.filter(s=>!docs.some(d=>d.kind==="area"&&d.area===areaF&&inClass(d,s.no)));
 
-  // Eski düzen (classes/{alan}_{seviye} + öğrencinin classLevel'ı) → yeni sınıf belgesi
+  // Eski düzen (seviye belgeleri) → yeni sınıf belgesi
   async function convertLegacy(){
     if(busy) return; setBusy(true);
-    try{
-      for(const d of legacy){
-        const ar=d.area||String(d.id).split("_")[0];
-        const nos=studs.filter(s=>s.area===ar&&(+s.classLevel||1)===(+d.level||1)).map(s=>String(s.no));
-        await F.setDoc(F.doc(F.db,"classes",d.id),{kind:"area",name:(+d.level||1)+". "+W2("Sînif","Class"),area:ar,studentNos:nos,updatedAt:F.serverTimestamp()},{merge:true});
-      }
-      toast("✅ "+W2("Sinif hatin veguhertin","Classes converted")+" ("+legacy.length+")");
-    }catch(e){ toast("❌ "+errMsg(e)); }
+    try{ await cfg.convertLegacy(legacy); toast("✅ "+W2("Sinif hatin veguhertin","Classes converted")+" ("+legacy.length+")"); }
+    catch(e){ toast("❌ "+errMsg(e)); }
     setBusy(false);
   }
 
@@ -7286,19 +7319,17 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
     const tnames=tnos.map(no=>tName(no)||(old.teacherNames||[])[(old.teacherNos||[]).map(String).indexOf(no)]||"");
     if(busy) return; setBusy(true);
     try{
-      const ref=form.id?F.doc(F.db,"classes",form.id):F.doc(F.collection(F.db,"classes"));
+      const ref=form.id?F.doc(F.db,cfg.coll,form.id):F.doc(F.collection(F.db,cfg.coll));
       const data={kind:form.kind,name:nm.slice(0,80),area:form.kind==="area"?form.area:"genel",studentNos:nos,teacherNos:tnos,teacherNames:tnames,updatedAt:F.serverTimestamp()};
       if(!form.id) data.createdAt=F.serverTimestamp();
       if(isWs){
-        // Atölye kendi ek dersini (o günün programı) taşır → öğretmen QR/yoklama açabilir, öğrenci programında görür
-        const prev=(schedule||[]).find(l=>l.classId===ref.id)||null;
-        const ls={...(prev||{}),id:prev?prev.id:Date.now(),fireId:prev&&prev.fireId?prev.fireId:"ws_"+ref.id,classId:ref.id,area:"genel",name:nm.slice(0,80),
-          lessonType:"extra",day:null,extraDates:[form.date],start:form.start||"",end:form.end||"",loc:form.loc.trim()||"—",
-          teacherNo:tnos[0]||null,teacherName:tnames[0]||null,guestTeacher:form.guest.trim().slice(0,80)||null};
-        Object.assign(data,{date:form.date,start:form.start||"",end:form.end||"",loc:form.loc.trim().slice(0,80),guest:form.guest.trim().slice(0,80),lessonId:ls.id});
+        // Atölye kendi tek günlük dersini taşır → öğretmen programında görür, veli/öğrenci programında çıkar
+        const prev=lessonsOf(ref.id)[0]||null;
+        const lessonId=await cfg.saveWorkshopLesson(ref.id,{name:nm.slice(0,80),date:form.date,start:form.start||"",end:form.end||"",loc:form.loc.trim().slice(0,80),
+          guest:form.guest.trim().slice(0,80),teacherNo:tnos[0]||null,teacherName:tnames[0]||null},prev);
+        Object.assign(data,{date:form.date,start:form.start||"",end:form.end||"",loc:form.loc.trim().slice(0,80),guest:form.guest.trim().slice(0,80),lessonId});
         if(!form.id) data.status="open";
         await F.setDoc(ref,data,{merge:true});
-        onDataChange(prev?"updateSchedule":"addSchedule",ls);
       } else {
         await F.setDoc(ref,data,{merge:true});
       }
@@ -7313,20 +7344,19 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
     const msg=W2("Sinif were jêbirin?","Delete this class?")+"\n"+classLabel(d,lang)+(ls.length?"\n"+ls.length+" "+W2("dersên girêdayî jî tên jêbirin.","linked lessons will also be deleted."):"");
     if(!window.confirm(msg)) return;
     try{
-      ls.forEach(l=>onDataChange("deleteSchedule",{id:l.id,fireId:l.fireId||null}));
-      await F.deleteDoc(F.doc(F.db,"classes",d.id));
+      for(const l of ls) await cfg.deleteLesson(l);
+      await F.deleteDoc(F.doc(F.db,cfg.coll,d.id));
       toast("🗑 "+classLabel(d,lang)); if(open===d.id) setOpen(null);
     }catch(e){ toast("❌ "+errMsg(e)); }
   }
 
   // ── Atölye yoklaması ──
   const wsRoster=d=>studs.filter(s=>inClass(d,s.no)).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
-  const attDocId=d=>String(d.lessonId)+"-"+d.date;
   async function openAtt(d){
     setForm(null);
     if(attFor===d.id){ setAttFor(null); return; }
     let rec={};
-    try{ const s=await F.getDoc(F.doc(F.db,"attendance",attDocId(d))); if(s.exists()) rec=s.data().records||{}; }catch(_){}
+    try{ rec=(await cfg.loadWsAtt(d))||{}; }catch(_){}
     setAtt(rec); setAttFor(d.id); setOpen(d.id);
   }
   async function saveAtt(d,close){
@@ -7336,16 +7366,13 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
     if(close&&!window.confirm(W2("Atolye were girtin? Piştî girtinê amadebûn nayê guhertin.","Close this workshop? Attendance can't be changed after closing.")+"\n✅ "+sum.on+"  ⏱ "+sum.late+"  ❌ "+sum.off)) return;
     if(busy) return; setBusy(true);
     try{
-      await F.setDoc(F.doc(F.db,"attendance",attDocId(d)),{lessonId:d.lessonId,lessonName:d.name||"",area:"genel",classId:d.id,date:d.date,
-        teacherId:(d.teacherNos||[])[0]||null,teacherName:(d.teacherNames||[])[0]||d.guest||null,records,updatedAt:F.serverTimestamp()},{merge:true});
+      await cfg.saveWsAtt(d,roster,records,close);
       const patch={attSaved:true,attSummary:sum,updatedAt:F.serverTimestamp()};
       if(close){
         patch.status="closed"; patch.closedAt=F.serverTimestamp();
-        // Devam istatistiği (öğretmen yoklamasıyla aynı ağırlık) + programdaki atölye dersi kaldırılır
-        roster.forEach(s=>{ const st=getStudentStats(s.id); const v=records[s.id]; updateStudentStats(s.id,{att:Math.round((st.att*17+(v==="on"?100:v==="late"?50:0))/18),late:st.late+(v==="late"?1:0)}); });
-        lessonsOf(d.id).forEach(l=>onDataChange("deleteSchedule",{id:l.id,fireId:l.fireId||null}));
+        for(const l of lessonsOf(d.id)) await cfg.deleteLesson(l);   // tek günlük atölye dersi programdan kalkar
       }
-      await F.updateDoc(F.doc(F.db,"classes",d.id),patch);
+      await F.updateDoc(F.doc(F.db,cfg.coll,d.id),patch);
       toast(close?"🔒 "+W2("Atolye hate girtin","Workshop closed"):"✅ "+W2("Amadebûn hate tomarkirin","Attendance saved"));
       if(close) setAttFor(null);
     }catch(e){ toast("❌ "+errMsg(e)); }
@@ -7358,12 +7385,12 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
     const pool=(isArea?studs.filter(s=>s.area===form.area):studs)
       .filter(s=>isArea||form.pa==="all"||s.area===form.pa)
       .filter(s=>{ const q=form.q.trim().toLocaleLowerCase(); return !q||(s.name||"").toLocaleLowerCase().includes(q)||String(s.no||"").includes(q); })
-      .sort((a,b)=>(isArea?0:String(areaName(a.area,lang)).localeCompare(String(areaName(b.area,lang))))||(a.name||"").localeCompare(b.name||""));
+      .sort((a,b)=>(isArea?0:String(aName(a.area,lang)).localeCompare(String(aName(b.area,lang))))||(a.name||"").localeCompare(b.name||""));
     const nSel=Object.keys(form.sel).filter(k=>form.sel[k]&&(!isArea||(stuByNo(k)||{}).area===form.area)).length;
     const otherCls=s=>docs.filter(d=>d.id!==form.id&&d.kind===form.kind&&d.status!=="closed"&&inClass(d,s.no)).map(d=>d.name).join(", ");
     const setAll=on=>setForm(f=>({...f,sel:{...f.sel,...Object.fromEntries(pool.map(s=>[String(s.no),on]))}}));
     const tsorted=tlist.slice().sort((a,b)=>((isArea&&b.area===form.area)-(isArea&&a.area===form.area))||(a.name||"").localeCompare(b.name||""));
-    const title=form.id?W2("Sinif biguherîne","Edit class"):isWs?W2("Atolyeya nû","New workshop"):isArea?W2("Sinifa nû","New class")+" · "+areaName(form.area,lang):W2("Sinifa giştî ya nû","New general class");
+    const title=form.id?W2("Sinif biguherîne","Edit class"):isWs?W2("Atolyeya nû","New workshop"):isArea?W2("Sinifa nû","New class")+" · "+aName(form.area,lang):W2("Sinifa giştî ya nû","New general class");
     return(
       <div style={{...box,border:"2px solid var(--accent)"}}>
         <div style={{fontWeight:800,color:"var(--text)",marginBottom:8}}>{isWs?"🛠":isArea?"🎨":"🌐"} {title}</div>
@@ -7381,7 +7408,7 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
           {tsorted.map(t2=>(
             <label key={t2.no} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 2px",fontSize:13,color:"var(--text)",cursor:"pointer"}}>
               <input type="checkbox" checked={!!form.tsel[String(t2.no)]} onChange={e=>{const v=e.target.checked;setForm(f=>({...f,tsel:{...f.tsel,[String(t2.no)]:v}}));}}/>
-              {t2.name} <span style={small}>#{t2.no}{t2.area?" · "+areaName(t2.area,lang):""}</span>
+              {t2.name} <span style={small}>#{t2.no}{t2.area?" · "+aName(t2.area,lang):""}</span>
             </label>))}
           {tsorted.length===0&&<div style={small}>{W2("Hîn mamoste tune.","No teachers yet.")}</div>}
         </div>
@@ -7393,19 +7420,19 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
         {!isArea&&<div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:6}}>
           <button onClick={()=>setForm(f=>({...f,pa:"all"}))} style={chip(form.pa==="all")}>{W2("Hemû qad","All fields")}</button>
           {fieldAreas.filter(a=>studs.some(s=>s.area===a.key)).map(a=>{ const n=studs.filter(s=>s.area===a.key&&form.sel[String(s.no)]).length;
-            return <button key={a.key} onClick={()=>setForm(f=>({...f,pa:a.key}))} style={chip(form.pa===a.key)}>{a.icon} {areaName(a.key,lang)}{n?" ("+n+")":""}</button>; })}
+            return <button key={a.key} onClick={()=>setForm(f=>({...f,pa:a.key}))} style={chip(form.pa===a.key)}>{a.icon} {aName(a.key,lang)}{n?" ("+n+")":""}</button>; })}
         </div>}
         <input aria-label={W2("Bigere","Search")} style={{...inp,width:"100%",marginBottom:6}} value={form.q} onChange={e=>setForm(f=>({...f,q:e.target.value}))} placeholder={"🔎 "+W2("Nav an jimare bigere","Search name or number")}/>
         <div style={{maxHeight:300,overflowY:"auto",border:"1px solid var(--border2)",borderRadius:10,padding:"4px 8px"}}>
           {pool.map(s=>{ const oc=otherCls(s); return(
             <label key={s.no} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 2px",fontSize:13,color:"var(--text)",cursor:"pointer"}}>
               <input type="checkbox" checked={!!form.sel[String(s.no)]} onChange={e=>{const v=e.target.checked;setForm(f=>({...f,sel:{...f.sel,[String(s.no)]:v}}));}}/>
-              <span style={{flex:1,minWidth:0}}>{s.name} <span style={small}>#{s.no}{isArea?"":" · "+areaName(s.area,lang)}{oc?" · 🏫 "+oc:""}</span></span>
+              <span style={{flex:1,minWidth:0}}>{s.name} <span style={small}>#{s.no}{isArea?"":" · "+aName(s.area,lang)}{oc?" · 🏫 "+oc:""}</span></span>
             </label>); })}
           {pool.length===0&&<div style={{...small,padding:8}}>{W2("Xwendekar tune.","No students.")}</div>}
         </div>
         <div style={{display:"flex",gap:8,marginTop:10}}>
-          <button disabled={busy} onClick={saveForm} style={btn("#16a34a")}>💾 {W2("Tomar bike","Save")}</button>
+          <button disabled={busy} onClick={saveForm} style={btn()}>💾 {W2("Tomar bike","Save")}</button>
           <button onClick={()=>setForm(null)} style={ghost}>{W2("Betal","Cancel")}</button>
         </div>
       </div>);
@@ -7423,7 +7450,7 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
         </div>
         {roster.map(s=>(
           <div key={s.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderTop:"1px solid var(--border2)"}}>
-            <div style={{flex:1,minWidth:0,fontSize:13,color:"var(--text)"}}>{s.name} <span style={small}>#{s.no} · {areaName(s.area,lang)}</span></div>
+            <div style={{flex:1,minWidth:0,fontSize:13,color:"var(--text)"}}>{s.name} <span style={small}>#{s.no} · {aName(s.area,lang)}</span></div>
             {[["on","✓"],["late","⏱"],["off","✗"]].map(([v,ic])=>(
               <button key={v} aria-label={v+" "+s.name} onClick={()=>setAtt(a=>({...a,[s.id]:v}))} className={"att-btn"+(att[s.id]===v?" "+v:"")}>{ic}</button>))}
           </div>))}
@@ -7444,38 +7471,38 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
       <div key={d.id} style={{...box,opacity:closed?.8:1}}>
         <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
           <div onClick={()=>setOpen(isOpen?null:d.id)} style={{flex:1,minWidth:170,cursor:"pointer"}}>
-            <div style={{fontWeight:800,color:"var(--text)"}}>{isOpen?"▾":"▸"} {isWs?"🛠 ":d.kind==="general"?"🌐 ":""}{d.name} <span style={small}>({ms.length} {W2("xwendekar","students")})</span>
+            <div style={{fontWeight:800,color:"var(--text)"}}>{isOpen?"▾":"▸"} {isWs?"🛠 ":d.kind==="general"?"🌐 ":""}{d.name} <span style={small}>({ms.length} {MW()})</span>
               {isWs&&<span style={{marginLeft:6,fontSize:10.5,fontWeight:800,padding:"2px 8px",borderRadius:20,background:closed?"rgba(100,116,139,.15)":"rgba(22,163,74,.12)",color:closed?"var(--text2)":"#15803d"}}>{closed?"🔒 "+W2("Girtî","Closed"):"🟢 "+W2("Vekirî","Open")}</span>}</div>
             <div style={{...small,marginTop:2}}>👩‍🏫 {tns.length?tns.join(", "):W2("Mamosteyê sinifê tune","No class teacher")}{isWs&&d.guest?" · 🎤 "+d.guest:""}</div>
             {isWs?<div style={{...small,marginTop:2}}>📅 {d.date} · {d.start}–{d.end}{d.loc?" · 📍 "+d.loc:""}{d.attSummary?" · ✅ "+(d.attSummary.on||0)+" ⏱ "+(d.attSummary.late||0)+" ❌ "+(d.attSummary.off||0):""}</div>
               :<div style={{...small,marginTop:2}}>📅 {ls.length} {W2("ders di bernameyê de","lessons in schedule")}</div>}
           </div>
-          {!closed&&<button onClick={()=>editForm(d)} style={ghost}>✏️ {W2("Biguherîne","Edit")}</button>}
+          {!closed&&<button onClick={()=>editForm(d)} style={ghost}><Ico n="edit"/> {W2("Biguherîne","Edit")}</button>}
           {isWs&&!closed&&<button onClick={()=>openAtt(d)} style={btn("#0f2f38")}>📋 {W2("Amadebûn","Attendance")}</button>}
-          <button aria-label={W2("Jê bibe","Delete")} onClick={()=>delClass(d)} style={{...ghost,color:"var(--red)"}}>🗑</button>
+          <button aria-label={W2("Jê bibe","Delete")} onClick={()=>delClass(d)} style={{...ghost,color:"var(--red)"}}><Ico n="trash" solo/></button>
         </div>
         {isWs&&attFor===d.id&&renderAtt(d)}
         {isOpen&&!isWs&&(
           <div style={{marginTop:10,padding:10,borderRadius:10,background:"var(--bg2)"}}>
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
               <div style={{fontWeight:800,color:"var(--text)",flex:1}}>📅 {W2("Bernameya dersan","Lesson schedule")}</div>
-              <button onClick={()=>setAddLessonFor(d)} style={btn("#16a34a")}>➕ {W2("Ders zêde bike","Add lesson")}</button>
+              <button onClick={()=>setAddLessonFor(d)} style={btn()}>➕ {W2("Ders zêde bike","Add lesson")}</button>
             </div>
             {ls.length===0&&<div style={small}>{W2("Hîn ders nehatiye danîn.","No lessons yet.")}</div>}
-            {ls.slice().sort((a,b)=>String(a.day||"").localeCompare(String(b.day||""))||String(a.start||"").localeCompare(String(b.start||""))).map(l=>(
-              <div key={l.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderTop:"1px solid var(--border2)"}}>
+            {ls.map(l=>{ const ln=cfg.lessonLine(l); return(
+              <div key={l.fireId||l.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderTop:"1px solid var(--border2)"}}>
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{l.name}</div>
-                  <div style={small}>{l.lessonType==="extra"?(l.extraDates||[]).join(", "):DAYN(l.day)} · {l.start}–{l.end}{l.teacherName?" · 👨‍🏫 "+l.teacherName:" · ⚠ "+W2("mamoste tune","no teacher")}{l.loc&&l.loc!=="—"?" · 📍 "+l.loc:""}</div>
+                  <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{ln.title}</div>
+                  <div style={small}>{ln.sub}</div>
                 </div>
-                <button aria-label="✏️" onClick={()=>setEditLesson(l)} style={{...ghost,minHeight:30,padding:"4px 9px"}}>✏️</button>
-                <button aria-label="🗑" onClick={()=>{ if(window.confirm(W2("Ders bişimitîne?","Delete this lesson?")+" – "+l.name)) onDataChange("deleteSchedule",{id:l.id,fireId:l.fireId||null}); }} style={{...ghost,minHeight:30,padding:"4px 9px",color:"var(--red)"}}>🗑</button>
-              </div>))}
+                {cfg.renderEditLesson&&<button aria-label="✏️" onClick={()=>setEditLesson(l)} style={{...ghost,minHeight:30,padding:"4px 9px"}}><Ico n="edit" solo/></button>}
+                <button aria-label="🗑" onClick={()=>{ if(window.confirm(W2("Ders bişimitîne?","Delete this lesson?")+" – "+ln.title)) cfg.deleteLesson(l); }} style={{...ghost,minHeight:30,padding:"4px 9px",color:"var(--red)"}}><Ico n="trash" solo/></button>
+              </div>); })}
           </div>)}
         {isOpen&&(<div style={{marginTop:8}}>
           {ms.length===0&&<div style={small}>{W2("Di vê sinifê de kes tune.","Nobody in this class.")}</div>}
           {ms.map(s=>(
-            <div key={s.no} style={{fontSize:12.5,color:"var(--text)",padding:"4px 0",borderTop:"1px solid var(--border2)"}}>• {s.name} <span style={small}>#{s.no}{d.kind==="area"?"":" · "+areaName(s.area,lang)}</span></div>))}
+            <div key={s.no} style={{fontSize:12.5,color:"var(--text)",padding:"4px 0",borderTop:"1px solid var(--border2)"}}>• {s.name} <span style={small}>#{s.no}{d.kind==="area"?"":" · "+aName(s.area,lang)}</span></div>))}
         </div>)}
       </div>);
   }
@@ -7503,9 +7530,9 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
       {kind==="area"&&(<>
         <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
           <select aria-label={W2("Qad","Field")} style={{...inp,flex:1,minWidth:150}} value={areaF} onChange={e=>{setAreaF(e.target.value);setForm(null);}}>
-            {fieldAreas.map(a=><option key={a.key} value={a.key}>{a.icon} {areaName(a.key,lang)} ({studs.filter(s=>s.area===a.key).length})</option>)}
+            {fieldAreas.map(a=><option key={a.key} value={a.key}>{a.icon} {aName(a.key,lang)} ({studs.filter(s=>s.area===a.key).length})</option>)}
           </select>
-          <button onClick={()=>newForm("area")} style={btn("#16a34a")}>➕ {W2("Sinifa nû","New class")}</button>
+          <button onClick={()=>newForm("area")} style={btn()}>➕ {W2("Sinifa nû","New class")}</button>
         </div>
         {form&&form.kind==="area"&&renderForm()}
         {noClass.length>0&&(
@@ -7518,14 +7545,14 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
       </>)}
 
       {kind==="general"&&(<>
-        <button onClick={()=>newForm("general")} style={{...btn("#16a34a"),marginBottom:10}}>➕ {W2("Sinifa giştî ya nû","New general class")}</button>
+        <button onClick={()=>newForm("general")} style={{...btn(),marginBottom:10}}>➕ {W2("Sinifa giştî ya nû","New general class")}</button>
         {form&&form.kind==="general"&&renderForm()}
         {generalClasses.length===0&&!form&&<div style={{...small,textAlign:"center",padding:18}}>{W2("Hîn sinifa giştî tune.","No general classes yet.")}</div>}
         {generalClasses.map(renderClass)}
       </>)}
 
       {kind==="workshop"&&(<>
-        <button onClick={()=>newForm("workshop")} style={{...btn("#16a34a"),marginBottom:10}}>➕ {W2("Atolye veke","Open workshop")}</button>
+        <button onClick={()=>newForm("workshop")} style={{...btn(),marginBottom:10}}>➕ {W2("Atolye veke","Open workshop")}</button>
         {form&&form.kind==="workshop"&&renderForm()}
         {openWs.length===0&&!form&&<div style={{...small,textAlign:"center",padding:18}}>{W2("Atolyeya vekirî tune.","No open workshops.")}</div>}
         {openWs.map(renderClass)}
@@ -7535,109 +7562,138 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
         </>)}
       </>)}
 
-      {addLessonFor&&<AddLessonSheet open={true} onClose={()=>setAddLessonFor(null)} defaultArea={addLessonFor.area||"genel"} defaultClassId={addLessonFor.id} teachers={teachers} t={t} lang={lang} toast={toast}
-        onSave={(ls)=>{onDataChange("addSchedule",ls);setAddLessonFor(null);}}/>}
-      {editLesson&&<EditLessonSheet lesson={editLesson} onClose={()=>setEditLesson(null)} teachers={teachers} t={t} lang={lang} toast={toast}
-        onSave={(u)=>{onDataChange("updateSchedule",u);setEditLesson(null);toast("✓ "+u.name);}}/>}
+      {addLessonFor&&cfg.renderAddLesson(addLessonFor,()=>setAddLessonFor(null))}
+      {editLesson&&cfg.renderEditLesson&&cfg.renderEditLesson(editLesson,()=>setEditLesson(null))}
     </div>);
 }
 
-// Çocuk akademisi: sınıf öğretmeni ata, çocuğun sınıfını değiştir (kidClasses/L{seviye})
-//  members: [{key,name,no,area,level}] · teachers: [{no,name,area}]
-function KidClassBoard({members,teachers,areaLabel,lang,toast,onSetLevel}){
+
+// Ana akademi: classes + schedule (onDataChange) + attendance/{dersId}-{tarih}
+function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange}){
   const F=window.__FB;
   const W2=(ku,en)=>lang==="en"?en:K(ku);
-  const docs=useClassDocs("kidClasses");
-  const levels=KID_CLASS_LEVELS;
-  const [open,setOpen]=useState(null);
-  const [edit,setEdit]=useState(null);      // {id, sel:{no:true}}
-  const [q,setQ]=useState("");
-  const box={background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,padding:12,marginBottom:10};
-  const small={fontSize:11.5,color:"var(--text2)"};
-  const inp={padding:"8px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:13,fontFamily:"inherit",minHeight:38};
-  const btn=(bg,fg)=>({padding:"8px 12px",borderRadius:10,border:"none",background:bg||"#0f2f38",color:fg||"#fff",fontSize:12.5,fontWeight:700,cursor:"pointer",minHeight:36});
-  const ghost=btn("var(--bg2)","var(--text)");
-  const lvlOf=m=>+m.level||0;
-  const docOf=id=>docs.find(d=>d.id===id)||{};
-  const groups=levels.map(lv=>{
-    const id="L"+lv, d=docOf(id);
-    return {id,level:lv,d,ms:members.filter(m=>lvlOf(m)===lv).sort((a,b)=>(a.name||"").localeCompare(b.name||""))};
-  });
-  const unassigned=members.filter(m=>!levels.includes(lvlOf(m)));
-  const tName=no=>((teachers.find(t=>t.no===no)||{}).name)||"";
-  async function saveTeachers(g){
-    const nos=Object.keys(edit.sel).filter(k=>edit.sel[k]);
-    const names=nos.map(no=>tName(no)||(g.d.teacherNames||[])[(g.d.teacherNos||[]).indexOf(no)]||"");
-    try{
-      await F.setDoc(F.doc(F.db,"kidClasses",g.id),{level:g.level,teacherNos:nos,teacherNames:names,updatedAt:F.serverTimestamp()},{merge:true});
-      toast("✅ "+W2("Hate tomarkirin","Saved")); setEdit(null);
-    }catch(e){ toast("❌ "+(/permission/i.test(String(e&&e.code))?W2("Destûr tune: qaîdeyên Firestore yên nû biweşînin","Permission denied: publish the latest firestore.rules"):(e.code||e.message))); }
+  const studs=(students||[]).filter(s=>!s.isAdmin);
+  const DAYN=d=>(t&&t.days&&t.days[d])||d;
+  const lessonsOf=id=>(schedule||[]).filter(l=>l.classId===id);
+  const delLs=l=>onDataChange("deleteSchedule",{id:l.id,fireId:l.fireId||null});
+  const cfg={
+    coll:"classes",
+    members:studs,
+    teachers:(teachers||[]).filter(t2=>t2.no&&!t2.isGate&&!t2.isPress&&!t2.isRegistrar),
+    areas:AREAS.filter(a=>a.key!=="genel"),
+    areaLabel:a=>areaName(a,lang),
+    memberWord:["xwendekar","students"],
+    lessonsOf,
+    lessonLine:l=>({title:l.name,sub:(l.lessonType==="extra"?(l.extraDates||[]).join(", "):DAYN(l.day))+" · "+l.start+"–"+l.end
+      +(l.teacherName?" · 👨‍🏫 "+l.teacherName:" · ⚠ "+W2("mamoste tune","no teacher"))+(l.loc&&l.loc!=="—"?" · 📍 "+l.loc:"")}),
+    deleteLesson:delLs,
+    renderAddLesson:(cls,close)=><AddLessonSheet open={true} onClose={close} defaultArea={cls.area||"genel"} defaultClassId={cls.id} teachers={teachers} t={t} lang={lang} toast={toast}
+      onSave={(ls)=>{onDataChange("addSchedule",ls);close();}}/>,
+    renderEditLesson:(l,close)=><EditLessonSheet lesson={l} onClose={close} teachers={teachers} t={t} lang={lang} toast={toast}
+      onSave={(u)=>{onDataChange("updateSchedule",u);close();toast("✓ "+u.name);}}/>,
+    // Atölyenin ek dersi: schedule/ws_{sınıf} → öğretmen QR/yoklama açabilir, öğrenci programında görür
+    saveWorkshopLesson:async(classId,w,prev)=>{
+      const ls={...(prev||{}),id:prev?prev.id:Date.now(),fireId:prev&&prev.fireId?prev.fireId:"ws_"+classId,classId,area:"genel",name:w.name,
+        lessonType:"extra",day:null,extraDates:[w.date],start:w.start,end:w.end,loc:w.loc||"—",teacherNo:w.teacherNo,teacherName:w.teacherName,guestTeacher:w.guest||null};
+      onDataChange(prev?"updateSchedule":"addSchedule",ls);
+      return ls.id;
+    },
+    loadWsAtt:async d=>{ const s=await F.getDoc(F.doc(F.db,"attendance",String(d.lessonId)+"-"+d.date)); return s.exists()?(s.data().records||{}):{}; },
+    saveWsAtt:async(d,roster,records,close)=>{
+      await F.setDoc(F.doc(F.db,"attendance",String(d.lessonId)+"-"+d.date),{lessonId:d.lessonId,lessonName:d.name||"",area:"genel",classId:d.id,date:d.date,
+        teacherId:(d.teacherNos||[])[0]||null,teacherName:(d.teacherNames||[])[0]||d.guest||null,records,updatedAt:F.serverTimestamp()},{merge:true});
+      // Kapanışta devam istatistiği (öğretmen yoklamasıyla aynı ağırlık)
+      if(close) roster.forEach(s=>{ const st=getStudentStats(s.id); const v=records[s.id]; updateStudentStats(s.id,{att:Math.round((st.att*17+(v==="on"?100:v==="late"?50:0))/18),late:st.late+(v==="late"?1:0)}); });
+    },
+    // Eski düzen: classes/{alan}_{seviye} + öğrencinin classLevel'ı
+    convertLegacy:async legacy=>{
+      for(const d of legacy){
+        const ar=d.area||String(d.id).split("_")[0];
+        const nos=studs.filter(s=>s.area===ar&&(+s.classLevel||1)===(+d.level||1)).map(s=>String(s.no));
+        await F.setDoc(F.doc(F.db,"classes",d.id),{kind:"area",name:(+d.level||1)+". "+W2("Sînif","Class"),area:ar,studentNos:nos,updatedAt:F.serverTimestamp()},{merge:true});
+      }
+    },
+  };
+  return <ClassStudio cfg={cfg} lang={lang} t={t} toast={toast}/>;
+}
+
+// Çocuk akademisi: kidClasses + kidSchedule (classId) + kidAttendance ("in" kaydı = geldi)
+function KidClassStudio({kids,kteach,sched,areaLabel,user,lang,toast}){
+  const F=window.__FB;
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const dayName=i=>lang==="en"?ZAROK_DAYS_EN[i]:K(ZAROK_DAYS_KU[i]);
+  const members=(kids||[]).map(k=>({...k,id:k.fireId}));
+  const wsAttId=(d,k)=>"ws_"+d.id+"_"+k.id;
+  const cfg={
+    coll:"kidClasses",
+    members,
+    teachers:(kteach||[]).map(t2=>({no:String(t2.no),name:t2.name,area:t2.area})),
+    areas:ZAROK_AREAS.map(a=>({key:a,icon:""})),
+    areaLabel,
+    memberWord:["zarok","children"],
+    lessonsOf:id=>(sched||[]).filter(s=>s.classId===id),
+    lessonLine:l=>({title:l.title||"",sub:(l.date?l.date:dayName(+l.day||0))+" · "+(l.start||"")+"–"+(l.end||"")+(l.teacher?" · 👩‍🏫 "+l.teacher:"")+(l.room?" · 📍 "+l.room:"")}),
+    deleteLesson:l=>F.deleteDoc(F.doc(F.db,"kidSchedule",l.fireId)).catch(e=>toast("❌ "+(e.code||e.message))),
+    renderAddLesson:(cls,close)=><KidLessonSheet cls={cls} kteach={kteach} lang={lang} toast={toast} onClose={close}/>,
+    renderEditLesson:null,
+    // Atölye dersi: kidSchedule/ws_{sınıf} — yalnız o tarihte (date) görünür
+    saveWorkshopLesson:async(classId,w)=>{
+      const id="ws_"+classId;
+      await F.setDoc(F.doc(F.db,"kidSchedule",id),{classId,title:w.name,date:w.date,day:new Date(w.date+"T12:00:00").getDay(),start:w.start,end:w.end,
+        room:w.loc||"",area:"",teacherNo:w.teacherNo||"",teacher:w.teacherName||w.guest||"",guest:w.guest||"",updatedAt:F.serverTimestamp()});
+      return id;
+    },
+    loadWsAtt:async d=>{
+      const s=await F.getDocs(F.query(F.collection(F.db,"kidAttendance"),F.where("date","==",d.date)));
+      const rec={}; s.docs.forEach(x=>{ if(x.id.indexOf("ws_"+d.id+"_")===0){ const v=x.data(); rec[v.kidId]=v.late?"late":"on"; } });
+      return rec;
+    },
+    // Gelen çocuk için "in" kaydı (veli devam ekranında görünür); gelmeyenin kaydı silinir
+    saveWsAtt:async(d,roster,records)=>{
+      for(const k of roster){
+        const v=records[k.id], ref=F.doc(F.db,"kidAttendance",wsAttId(d,k));
+        if(v==="on"||v==="late") await F.setDoc(ref,{kidId:k.id,kidNo:k.no||"",kidName:k.name||"",guardianNos:k.guardianNos||[],type:"in",late:v==="late",
+          date:d.date,time:new Date(d.date+"T"+(d.start||"12:00")+":00").toISOString(),by:(user&&user.name)||"",workshop:d.name||"",classId:d.id,createdAt:F.serverTimestamp()});
+        else await F.deleteDoc(ref).catch(()=>{});
+      }
+    },
+    // Eski düzen: kidClasses/L{seviye} + çocuğun classLevel'ı → genel sınıf (belge kimliği korunur, eski paylaşımlar bağlı kalır)
+    convertLegacy:async legacy=>{
+      for(const d of legacy){
+        const lv=+d.level||+String(d.id).slice(1)||1;
+        const nos=members.filter(k=>+k.classLevel===lv).map(k=>String(k.no));
+        await F.setDoc(F.doc(F.db,"kidClasses",d.id),{kind:"general",name:lv+". "+W2("Sînif","Class"),area:"genel",studentNos:nos,updatedAt:F.serverTimestamp()},{merge:true});
+      }
+    },
+  };
+  return <ClassStudio cfg={cfg} lang={lang} t={null} toast={toast}/>;
+}
+// Çocuk sınıfına haftalık ders
+function KidLessonSheet({cls,kteach,lang,toast,onClose}){
+  const F=window.__FB;
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const [f,setF]=useState({day:1,start:"15:00",end:"16:00",title:cls.name||"",teacherNo:String((cls.teacherNos||[])[0]||""),room:""});
+  const inp={width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:14,boxSizing:"border-box",fontFamily:"inherit",minHeight:42,marginBottom:8};
+  async function save(){
+    if(!f.title.trim()){ toast("⚠ "+W2("Navê dersê pêwîst e","Lesson name required")); return; }
+    const t2=(kteach||[]).find(x=>String(x.no)===String(f.teacherNo));
+    try{ await F.addDoc(F.collection(F.db,"kidSchedule"),{day:+f.day,start:f.start,end:f.end,title:f.title.trim().slice(0,80),area:cls.kind==="area"?cls.area:"",
+        teacherNo:f.teacherNo||"",teacher:t2?t2.name:"",room:f.room.trim().slice(0,40),classId:cls.id,createdAt:F.serverTimestamp()});
+      toast("✅ "+W2("Hate tomarkirin","Saved")); onClose(); }
+    catch(e){ toast("❌ "+(e.code||e.message)); }
   }
-  const levelSel=(m)=>(
-    <select aria-label={W2("Sînif","Class")} style={{...inp,minHeight:32,padding:"4px 8px",fontSize:12}} value={lvlOf(m)} onChange={e=>onSetLevel(m,+e.target.value)}>
-      {!levels.includes(lvlOf(m))&&<option value={0}>—</option>}
-      {levels.map(l=><option key={l} value={l}>{classTitle(l)}</option>)}
-    </select>);
-  const memberRow=m=>(
-    <div key={m.key} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderTop:"1px solid var(--border2)"}}>
-      <div style={{flex:1,minWidth:0}}>
-        <div style={{fontSize:13,fontWeight:600,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</div>
-        <div style={small}>#{m.no}{m.area?" · "+areaLabel(m.area):""}</div>
-      </div>
-      {levelSel(m)}
-    </div>);
-  const ql=q.trim().toLocaleLowerCase();
   return(
-    <div>
-      <div style={{...box,background:"var(--bg2)"}}>
-        <div style={{fontWeight:800,color:"var(--text)",marginBottom:4}}>🏫 {W2("Sînif û mamosteyên sinifê","Classes & class teachers")}</div>
-        <div style={small}>{W2("Zarok li gorî sinifa xwe têne komkirin. Ji bo her sinifê mamosteyê sinifê diyar bike; sinifa zarokekî ji lîsteyê biguherîne.","Children are grouped by class. Assign class teachers to each class; change a child's class from the list.")}</div>
-        <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
-          <input style={{...inp,flex:1,minWidth:150}} value={q} onChange={e=>setQ(e.target.value)} placeholder={"🔎 "+W2("Nav an jimare bigere","Search name or number")}/>
-        </div>
+    <Sheet open={true} onClose={onClose} title={"📅 "+(cls.name||"")}>
+      <select aria-label={W2("Roj","Day")} style={inp} value={f.day} onChange={e=>setF(x=>({...x,day:e.target.value}))}>{[1,2,3,4,5,6,0].map(i=><option key={i} value={i}>{lang==="en"?ZAROK_DAYS_EN[i]:K(ZAROK_DAYS_KU[i])}</option>)}</select>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        <input aria-label={W2("Destpêk","Start")} style={inp} type="time" value={f.start} onChange={e=>setF(x=>({...x,start:e.target.value}))}/>
+        <input aria-label={W2("Dawî","End")} style={inp} type="time" value={f.end} onChange={e=>setF(x=>({...x,end:e.target.value}))}/>
       </div>
-      {ql&&(<div style={box}>
-        {members.filter(m=>(m.name||"").toLocaleLowerCase().includes(ql)||String(m.no||"").includes(ql)).slice(0,30).map(memberRow)}
-      </div>)}
-      {!ql&&unassigned.length>0&&(
-        <div style={{...box,border:"1.5px dashed #fb8500"}}>
-          <div style={{fontWeight:800,color:"var(--text)"}}>⚠ {W2("Sinif nehatiye diyarkirin","No class assigned")} <span style={small}>({unassigned.length})</span></div>
-          {unassigned.sort((a,b)=>(a.name||"").localeCompare(b.name||"")).map(memberRow)}
-        </div>)}
-      {!ql&&groups.map(g=>{
-        const isOpen=open===g.id, isEdit=edit&&edit.id===g.id;
-        const tns=(g.d.teacherNos||[]).map((no,i)=>tName(no)||(g.d.teacherNames||[])[i]||("#"+no));
-        return(
-        <div key={g.id} style={box}>
-          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-            <div onClick={()=>setOpen(isOpen?null:g.id)} style={{flex:1,minWidth:160,cursor:"pointer"}}>
-              <div style={{fontWeight:800,color:"var(--text)"}}>{isOpen?"▾":"▸"} {classTitle(g.level)} <span style={small}>({g.ms.length} {W2("zarok","children")})</span></div>
-              <div style={{...small,marginTop:2}}>👩‍🏫 {tns.length?tns.join(", "):W2("Mamosteyê sinifê tune","No class teacher")}</div>
-            </div>
-            <button onClick={()=>setEdit(isEdit?null:{id:g.id,sel:Object.fromEntries((g.d.teacherNos||[]).map(n=>[n,true]))})} style={ghost}>👩‍🏫 {W2("Mamosteyê sinifê","Class teacher")}</button>
-          </div>
-          {isEdit&&(
-            <div style={{marginTop:10,padding:10,borderRadius:10,background:"var(--bg2)"}}>
-              <div style={{...small,marginBottom:6}}>{W2("Yek an çend mamoste hilbijêre:","Choose one or more teachers:")}</div>
-              <div style={{maxHeight:240,overflowY:"auto"}}>
-                {teachers.slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"")).map(t=>(
-                  <label key={t.no} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 2px",fontSize:13,color:"var(--text)",cursor:"pointer"}}>
-                    <input type="checkbox" checked={!!edit.sel[t.no]} onChange={e=>{const v=e.target.checked;setEdit(x=>({...x,sel:{...x.sel,[t.no]:v}}));}}/>
-                    {t.name} <span style={small}>#{t.no}{t.area?" · "+areaLabel(t.area):""}</span>
-                  </label>))}
-                {teachers.length===0&&<div style={small}>{W2("Hîn mamoste tune.","No teachers yet.")}</div>}
-              </div>
-              <div style={{display:"flex",gap:8,marginTop:8}}>
-                <button onClick={()=>saveTeachers(g)} style={btn("#16a34a")}>💾 {W2("Tomar bike","Save")}</button>
-                <button onClick={()=>setEdit(null)} style={ghost}>{W2("Betal","Cancel")}</button>
-              </div>
-            </div>)}
-          {isOpen&&(<div style={{marginTop:8}}>
-            {g.ms.length===0&&<div style={small}>{W2("Di vê sinifê de kes tune.","Nobody in this class.")}</div>}
-            {g.ms.map(memberRow)}
-          </div>)}
-        </div>);})}
-    </div>);
+      <input aria-label={W2("Navê dersê","Lesson name")} style={inp} value={f.title} maxLength={80} onChange={e=>setF(x=>({...x,title:e.target.value}))} placeholder={W2("Navê dersê","Lesson name")}/>
+      <select aria-label={W2("Mamoste","Teacher")} style={inp} value={f.teacherNo} onChange={e=>setF(x=>({...x,teacherNo:e.target.value}))}><option value="">— {W2("Mamoste","Teacher")}</option>{(kteach||[]).map(t2=><option key={t2.no} value={t2.no}>{t2.name}</option>)}</select>
+      <input aria-label={W2("Ode","Room")} style={inp} value={f.room} maxLength={40} onChange={e=>setF(x=>({...x,room:e.target.value}))} placeholder={W2("Ode","Room")}/>
+      <PrimaryBtn onClick={save} icon="💾">{W2("Dersê Zêde Bike","Add Lesson")}</PrimaryBtn>
+    </Sheet>);
 }
 
 // Öğretmen: "Sınıflarım" — sınıf öğretmeni olduğu sınıflar ve öğrencileri
@@ -7700,7 +7756,7 @@ function PostCard({p,lang,onDelete,showClass,classLabel}){
         <span style={{fontSize:11,fontWeight:800,padding:"2px 8px",borderRadius:8,background:p.type==="odev"?"rgba(251,133,0,.14)":p.type==="belge"?"rgba(44,107,116,.14)":"rgba(15,47,56,.10)",color:"var(--text)"}}>{ic} {postTypeLabel(p.type)}</span>
         {showClass&&<span style={{fontSize:11,color:"var(--text2)"}}>🏫 {classLabel(p)}</span>}
         <span style={{fontSize:11,color:"var(--text2)",marginLeft:"auto"}}>{when?when.toLocaleDateString(lang==="en"?"en-GB":"tr-TR"):""}</span>
-        {onDelete&&<button aria-label="🗑" onClick={()=>onDelete(p)} style={{border:"none",background:"var(--bg2)",borderRadius:8,padding:"4px 8px",cursor:"pointer"}}>🗑</button>}
+        {onDelete&&<button aria-label="🗑" onClick={()=>onDelete(p)} style={{border:"none",background:"var(--bg2)",borderRadius:8,padding:"4px 8px",cursor:"pointer"}}><Ico n="trash" solo/></button>}
       </div>
       <div style={{fontWeight:800,color:"var(--text)",marginTop:6}}>{p.title}</div>
       {p.body&&<div style={{fontSize:13,color:"var(--text)",whiteSpace:"pre-wrap",marginTop:4,lineHeight:1.6}}>{p.body}</div>}
@@ -7836,7 +7892,8 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   const [gq,setGq]=useState("");                 // veli arama
   const [appG,setAppG]=useState({});             // başvuru kabulü: hangi veliye bağlanacak {appId: veliNo|"new"}
   const [sibPick,setSibPick]=useState(null);     // kardeş eşleştirme: {kidId, q, other}
-  const [sForm,setSForm]=useState({day:1,start:"15:00",end:"16:00",title:"",area:"",teacherNo:"",room:""});
+  const [sForm,setSForm]=useState({day:1,start:"15:00",end:"16:00",title:"",area:"",teacherNo:"",room:"",classId:""});
+  const kidCls=useClassDocs("kidClasses",live);
   const [aForm,setAForm]=useState({title:"",body:""});
   const today=new Date().toISOString().slice(0,10);
   const DAYS=lang==="en"?ZAROK_DAYS_EN:ZAROK_DAYS_KU.map(d=>K(d));
@@ -7948,7 +8005,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   async function createKid(d,gnos){
     const kno=zarokNextNo(kids.map(x=>x.no),"8"+yr);
     await F.addDoc(F.collection(F.db,"kids"),{no:kno,name:(d.kidName||"").trim(),dob:d.kidDob||"",area:d.area||"",school:d.school||"",
-      teacherNo:d.teacherNo||"",classLevel:+d.classLevel||0,guardianNos:gnos,health:d.health||"",consentPhoto:!!d.consentPhoto,consentShare:!!d.consentShare,pickups:[],
+      guardianNos:gnos,health:d.health||"",consentPhoto:!!d.consentPhoto,consentShare:!!d.consentShare,pickups:[],
       appId:d.appId||"",photo:d.photo||"",createdAt:F.serverTimestamp()});
     return kno;
   }
@@ -7979,7 +8036,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
     if(busy) return; setBusy(true);
     try{
       if(form.id){ // düzenleme
-        const patch={name:d.kidName.trim(),dob:d.kidDob||"",area:d.area||"",school:d.school||"",teacherNo:d.teacherNo||"",classLevel:+d.classLevel||0,health:d.health||"",
+        const patch={name:d.kidName.trim(),dob:d.kidDob||"",area:d.area||"",school:d.school||"",health:d.health||"",
           consentPhoto:!!d.consentPhoto,consentShare:!!d.consentShare,pickups:(d.pickupsText||"").split("\n").map(s=>s.trim()).filter(Boolean).slice(0,8)};
         if(d.photo&&d.photo!==form.orig.photo) patch.photo=d.photo;
         let gnos=[...(form.orig.guardianNos||[])];
@@ -8205,8 +8262,8 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
           <div style={{fontWeight:700,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{kind==="kidArchive"?p.year+" · ":""}{t}</div>
           <div style={small}>{p.date||""} {Object.keys(p.i18n||{}).map(l=>l.toUpperCase()).join(" · ")}</div>
         </div>
-        <button onClick={()=>{setPLang("ku");setForm({type:kind,id:p.fireId,data:{...p,year:p.year?String(p.year):""}});}} style={{...ghost,padding:"6px 10px"}}>✏️</button>
-        <button onClick={()=>{ if(window.confirm(Z("Were jêbirin?","Delete?"))) F.deleteDoc(F.doc(F.db,kind,p.fireId)).catch(err); }} style={{...ghost,padding:"6px 10px"}}>🗑</button>
+        <button onClick={()=>{setPLang("ku");setForm({type:kind,id:p.fireId,data:{...p,year:p.year?String(p.year):""}});}} style={{...ghost,padding:"6px 10px"}}><Ico n="edit" solo/></button>
+        <button onClick={()=>{ if(window.confirm(Z("Were jêbirin?","Delete?"))) F.deleteDoc(F.doc(F.db,kind,p.fireId)).catch(err); }} style={{...ghost,padding:"6px 10px"}}><Ico n="trash" solo/></button>
       </div>);
   }
 
@@ -8218,7 +8275,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   ]:[
     ["apps","📋",Z("Serlêdan","Applications"),newApps],
     ["kids","🎓",Z("Zarok","Children"),0],
-    ["classes","🏫",Z("Sînif","Classes"),0],
+    ["classes","🏫",Z("Sinif û Atolye","Classes & Workshops"),0],
     ["guards","👨‍👩‍👧",Z("Dêûbav","Parents"),0],
     ["teachers","👩‍🏫",Z("Mamoste","Teachers"),0],
     ["att","✅",Z("Amadebûn","Attendance"),0],
@@ -8293,13 +8350,13 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
             {reqFile?("📎 "+reqFile.fileName):Z("📎 Pelê şablonê (vebijarkî — PDF an wêne)","📎 Template file (optional — PDF or image)")}
           </div>
           <input ref={reqFileRef} type="file" accept="image/*,application/pdf" onChange={pickReqFile} style={{display:"none"}}/>
-          <button onClick={addReq} style={btn("#16a34a")}>➕ {Z("Belgeyê zêde bike","Add document")}</button>
+          <button onClick={addReq} style={btn()}>➕ {Z("Belgeyê zêde bike","Add document")}</button>
           {reqs.map(r=>(
             <div key={r.fireId} style={{display:"flex",alignItems:"center",gap:8,marginTop:8,paddingTop:8,borderTop:"1px solid var(--border2)"}}>
               <span>📄</span>
               <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,color:"var(--text)"}}>{r.name}</div>{r.file&&<div style={small}>📎 {r.fileName||""}</div>}</div>
               {safeHref(r.file)&&<a href={safeHref(r.file)} download={r.fileName||r.name} rel="noopener" style={{...ghost,padding:"6px 10px",textDecoration:"none"}}>⬇</a>}
-              <button onClick={()=>delReq(r)} style={{...ghost,padding:"6px 10px"}}>🗑</button>
+              <button onClick={()=>delReq(r)} style={{...ghost,padding:"6px 10px"}}><Ico n="trash" solo/></button>
             </div>))}
         </div>
         {apps.length===0&&<div style={{...box,...small,textAlign:"center"}}>{Z("Hîn serlêdan tune.","No applications yet.")}</div>}
@@ -8333,9 +8390,9 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
                     :<div style={{...small,marginTop:6}}>{m?Z("⚠ Bi heman têlefon/e-peyamê dêûbavek heye — heke xwişk/bira be, wê hilbijêre.","⚠ A parent with the same phone/e-mail exists — choose them if this is a sibling."):Z("Jimare û şîfreya dêûbav otomatîk tên çêkirin.","Parent number and password are generated automatically.")}</div>}
                 </div>);})()}
               <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
-                {st!=="accepted"&&<button disabled={busy} onClick={()=>accept(a)} style={btn("#16a34a")}>{busy?"⏳":Z("✅ Qebûl û Tescîl","✅ Accept & Register")}</button>}
+                {st!=="accepted"&&<button disabled={busy} onClick={()=>accept(a)} style={btn()}>{busy?"⏳":Z("✅ Qebûl û Tescîl","✅ Accept & Register")}</button>}
                 {st==="new"&&<button onClick={()=>F.updateDoc(F.doc(F.db,"kidApplications",a.fireId),{status:"rejected"}).catch(err)} style={btn("#dc2626")}>{Z("❌ Red bike","❌ Reject")}</button>}
-                <button onClick={()=>{ if(window.confirm(Z("Ev serlêdan were jêbirin?","Delete this application?"))) F.deleteDoc(F.doc(F.db,"kidApplications",a.fireId)).catch(err); }} style={ghost}>🗑</button>
+                <button onClick={()=>{ if(window.confirm(Z("Ev serlêdan were jêbirin?","Delete this application?"))) F.deleteDoc(F.doc(F.db,"kidApplications",a.fireId)).catch(err); }} style={ghost}><Ico n="trash" solo/></button>
               </div>
             </div>)}
           </div>);})}
@@ -8343,7 +8400,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
 
       {tab==="kids"&&(<div>
         <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
-          <button onClick={()=>setForm({type:"kid",data:{guardianMode:"new",consentPhoto:false,consentShare:false}})} style={btn("#16a34a")}>➕ {Z("Zarokê Tescîl Bike","Register Child")}</button>
+          <button onClick={()=>setForm({type:"kid",data:{guardianMode:"new",consentPhoto:false,consentShare:false}})} style={btn()}>➕ {Z("Zarokê Tescîl Bike","Register Child")}</button>
           <select style={{...inp,width:"auto",minHeight:38}} value={areaF} onChange={e=>setAreaF(e.target.value)}>
             <option value="all">{Z("Hemû qad","All fields")}</option>
             {ZAROK_AREAS.map(a=><option key={a} value={a}>{areaLabel(a)}</option>)}
@@ -8358,14 +8415,6 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
               {fld(Z("Nav û paşnavê zarokê *","Child's full name *"),"kidName")}
               {fld(Z("Roja jidayikbûnê","Date of birth"),"kidDob",{type:"date"})}
               <div><label style={lbl}>{Z("Qad","Field")}</label>{areaSel("area")}</div>
-              <div><label style={lbl}>{Z("Mamoste","Teacher")}</label>
-                <select style={inp} value={form.data.teacherNo||""} onChange={e=>{const v=e.target.value;setForm(f=>({...f,data:{...f.data,teacherNo:v}}));}}>
-                  <option value="">—</option>{kteach.map(t=><option key={t.no} value={t.no}>{t.name}</option>)}
-                </select></div>
-              <div><label style={lbl}>🏫 {Z("Sinif (li akademiyê)","Class (at the academy)")}</label>
-                <select style={inp} value={form.data.classLevel||""} onChange={e=>{const v=e.target.value;setForm(f=>({...f,data:{...f.data,classLevel:v}}));}}>
-                  <option value="">—</option>{KID_CLASS_LEVELS.map(l=><option key={l} value={l}>{classTitle(l)}</option>)}
-                </select></div>
               {fld(Z("Dibistan / sinif","School / grade"),"school")}
               {fld(Z("Nîşeya tenduristiyê","Health note"),"health")}
             </div>
@@ -8407,7 +8456,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
                   r.onload=async ev=>{ const c=await compressImage(ev.target.result,420,520,0.8); setForm(fm=>({...fm,data:{...fm.data,photo:c}})); }; r.readAsDataURL(f); }}/></label>
             </div>
             <div style={{display:"flex",gap:8,marginTop:12,flexWrap:"wrap"}}>
-              <button disabled={busy} onClick={saveKidForm} style={btn("#16a34a")}>{busy?"⏳":"💾 "+Z("Tomar bike","Save")}</button>
+              <button disabled={busy} onClick={saveKidForm} style={btn()}>{busy?"⏳":"💾 "+Z("Tomar bike","Save")}</button>
               <button onClick={()=>setForm(null)} style={ghost}>{Z("Betal","Cancel")}</button>
             </div>
           </div>)}
@@ -8416,7 +8465,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
           <div key={k.fireId} style={box}>
             <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"flex-start"}}>
               <div style={{minWidth:0}}>
-                <div style={{fontWeight:700,color:"var(--text)"}}>🎓 {k.name} <span style={small}>#{k.no} · {areaLabel(k.area)}{k.classLevel?" · 🏫 "+classTitle(k.classLevel):""}{k.teacherNo&&teacherOf(k.teacherNo)?" · 👩‍🏫 "+teacherOf(k.teacherNo).name:""}</span></div>
+                <div style={{fontWeight:700,color:"var(--text)"}}>🎓 {k.name} <span style={small}>#{k.no} · {areaLabel(k.area)}{kidCls.filter(c=>c.kind&&c.status!=="closed"&&inClass(c,k.no)).map(c=>" · 🏫 "+c.name).join("")}</span></div>
                 {(k.guardianNos||[]).map(gno=>{const g=guardOf(gno);return <div key={gno} style={{fontSize:13,color:"var(--text)",marginTop:3}}>👤 {g?g.name:"?"} <span style={small}>#{gno} · {g&&g.phone}</span></div>;})}
                 {siblingsOf(k).length>0&&<div style={{...small,marginTop:3}}>👨‍👧‍👦 {Z("Xwişk û bira","Siblings")}: {siblingsOf(k).map(o=>o.name).join(", ")}</div>}
                 <div style={{...small,marginTop:4}}>{k.consentPhoto?"📷 ✔":"📷 ✖"} · {k.consentShare?"🌐 ✔":"🌐 ✖"}{k.health?" · 🩺 "+k.health:""}{(k.pickups||[]).length?" · 🚸 "+k.pickups.join(", "):""}</div>
@@ -8425,8 +8474,8 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
                 <button title={Z("Xwişk/bira girê bide (ji lîsteyê)","Link a sibling (from the list)")} onClick={()=>setSibPick(sibPick&&sibPick.kidId===k.fireId?null:{kidId:k.fireId,q:"",other:""})} style={{...ghost,padding:"6px 10px"}}>👨‍👧</button>
                 <button title={Z("Kartê çap bike","Print card")} onClick={()=>issueAndPrintCards("kid",[k],lang,toast,{areaLabel})} style={{...ghost,padding:"6px 10px"}}>🪪</button>
                 {k.cardToken&&<button title={Z("Karta winda: ya nû çêke","Lost card: issue new")} onClick={()=>{ if(window.confirm(Z("Karteke NÛ were çêkirin? Karta kevn êdî naxebite.","Issue a NEW card? The old card will stop working."))) issueAndPrintCards("kid",[k],lang,toast,{renew:true,areaLabel}); }} style={{...ghost,padding:"6px 10px"}}>♻️</button>}
-                <button onClick={()=>setForm({type:"kid",id:k.fireId,orig:k,data:{photo:k.photo||"",kidName:k.name,kidDob:k.dob,area:k.area,school:k.school,teacherNo:k.teacherNo,classLevel:k.classLevel||"",health:k.health,consentPhoto:k.consentPhoto,consentShare:k.consentShare,pickupsText:(k.pickups||[]).join("\n")}})} style={{...ghost,padding:"6px 10px"}}>✏️</button>
-                <button onClick={()=>delKid(k)} style={{...ghost,padding:"6px 10px"}}>🗑</button>
+                <button onClick={()=>setForm({type:"kid",id:k.fireId,orig:k,data:{photo:k.photo||"",kidName:k.name,kidDob:k.dob,area:k.area,school:k.school,health:k.health,consentPhoto:k.consentPhoto,consentShare:k.consentShare,pickupsText:(k.pickups||[]).join("\n")}})} style={{...ghost,padding:"6px 10px"}}><Ico n="edit" solo/></button>
+                <button onClick={()=>delKid(k)} style={{...ghost,padding:"6px 10px"}}><Ico n="trash" solo/></button>
               </div>
             </div>
             {sibPick&&sibPick.kidId===k.fireId&&(()=>{const sib=siblingsOf(k).map(o=>o.fireId);
@@ -8440,24 +8489,21 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
                 </select>
                 <div style={{...small,marginTop:6}}>{Z("Dêûbavên her du zarokan dê bibin yek: her dêûbav hemû xwişk û birayan di sepana xwe de dibîne.","Both children's parents are merged: each parent sees all siblings in their app.")}</div>
                 <div style={{display:"flex",gap:8,marginTop:8}}>
-                  <button disabled={!sibPick.other} onClick={()=>{const o=kids.find(x=>x.fireId===sibPick.other); if(o) linkSiblings(k,o);}} style={btn("#16a34a")}>🔗 {Z("Girê bide","Link")}</button>
+                  <button disabled={!sibPick.other} onClick={()=>{const o=kids.find(x=>x.fireId===sibPick.other); if(o) linkSiblings(k,o);}} style={btn()}>🔗 {Z("Girê bide","Link")}</button>
                   <button onClick={()=>setSibPick(null)} style={ghost}>{Z("Betal","Cancel")}</button>
                 </div>
               </div>);})()}
           </div>))}
       </div>)}
 
-      {tab==="classes"&&<KidClassBoard areaLabel={areaLabel} lang={lang} toast={toast}
-        members={kids.map(k=>({key:k.fireId,name:k.name,no:k.no,area:k.area,level:k.classLevel||0}))}
-        teachers={kteach.map(t=>({no:t.no,name:t.name,area:t.area}))}
-        onSetLevel={(m,l)=>F.updateDoc(F.doc(F.db,"kids",m.key),{classLevel:l,updatedAt:F.serverTimestamp()}).catch(err)}/>}
+      {tab==="classes"&&<KidClassStudio kids={kids} kteach={kteach} sched={sched} areaLabel={areaLabel} user={user} lang={lang} toast={toast}/>}
 
       {tab==="guards"&&(<div>
         {form&&form.type==="guard"&&(
           <div style={{...box,border:"2px solid var(--accent)"}}>
             <div style={{fontWeight:800,color:"var(--text)"}}>✏️ {Z("Dêûbav biguherîne","Edit parent")} · #{form.id}</div>
             <div style={grid2}>{fld(Z("Nav","Name"),"name")}{fld(Z("Yekîtî","Relation"),"relation")}{fld(Z("Têlefon","Phone"),"phone",{type:"tel"})}{fld(Z("E-peyam","E-mail"),"email",{type:"email"})}{fld(Z("Têkiliya acil","Emergency contact"),"phone2")}</div>
-            <div style={{display:"flex",gap:8,marginTop:12}}><button onClick={saveGuardianForm} style={btn("#16a34a")}>💾 {Z("Tomar bike","Save")}</button><button onClick={()=>setForm(null)} style={ghost}>{Z("Betal","Cancel")}</button></div>
+            <div style={{display:"flex",gap:8,marginTop:12}}><button onClick={saveGuardianForm} style={btn()}>💾 {Z("Tomar bike","Save")}</button><button onClick={()=>setForm(null)} style={ghost}>{Z("Betal","Cancel")}</button></div>
           </div>)}
         <div style={{...small,marginBottom:8}}>{guards.length} {Z("dêûbav","parents")} · {Z("Dêûbav bi tomarkirina zarokê re tê çêkirin. Ji bo xwişk û birayan: «➕ Xwişk/bira» — zarok li heman hesabê tê zêdekirin.","Parents are created when a child is registered. For siblings use «➕ Sibling» — the child is added to the same account.")}</div>
         <input style={{...inp,marginBottom:10}} value={gq} onChange={e=>setGq(e.target.value)} placeholder={"🔎 "+Z("Nav, têlefon an jimareya dêûbav","Parent name, phone or number")}/>
@@ -8469,17 +8515,17 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
               <div style={{...small,marginTop:3}}>🎓 {ks.map(k=>k.name).join(", ")||"—"}</div>
             </div>
             <div style={{display:"flex",gap:6,flexShrink:0,flexWrap:"wrap",justifyContent:"flex-end"}}>
-              <button title={Z("Xwişk/bira zêde bike (heman hesab)","Add sibling (same account)")} onClick={()=>{setTab("kids");setForm({type:"kid",data:{guardianMode:"existing",existingGuardian:g.no,consentPhoto:false,consentShare:false}});}} style={{...btn("#16a34a"),padding:"6px 10px"}}>➕ {Z("Xwişk/bira","Sibling")}</button>
+              <button title={Z("Xwişk/bira zêde bike (heman hesab)","Add sibling (same account)")} onClick={()=>{setTab("kids");setForm({type:"kid",data:{guardianMode:"existing",existingGuardian:g.no,consentPhoto:false,consentShare:false}});}} style={{...btn(),padding:"6px 10px"}}>➕ {Z("Xwişk/bira","Sibling")}</button>
               <button title={Z("Şîfreya nû","New password")} disabled={busy} onClick={()=>resetPass(g.no,"guardian",g.name,g.email)} style={{...ghost,padding:"6px 10px"}}>🔑</button>
-              <button onClick={()=>setForm({type:"guard",id:g.no,data:{...g}})} style={{...ghost,padding:"6px 10px"}}>✏️</button>
-              <button onClick={()=>delGuardian(g)} style={{...ghost,padding:"6px 10px"}}>🗑</button>
+              <button onClick={()=>setForm({type:"guard",id:g.no,data:{...g}})} style={{...ghost,padding:"6px 10px"}}><Ico n="edit" solo/></button>
+              <button onClick={()=>delGuardian(g)} style={{...ghost,padding:"6px 10px"}}><Ico n="trash" solo/></button>
             </div>
           </div>);})}
       </div>)}
 
       {tab==="teachers"&&(<div>
         <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
-          <button onClick={()=>setForm({type:"teacher",data:{}})} style={btn("#16a34a")}>➕ {Z("Mamoste Tescîl Bike","Register Teacher")}</button>
+          <button onClick={()=>setForm({type:"teacher",data:{}})} style={btn()}>➕ {Z("Mamoste Tescîl Bike","Register Teacher")}</button>
           <span style={small}>{Z("Mamosteyên zarokan tenê sepana zarokan dibînin.","Kids' teachers only see the kids' app.")}</span>
         </div>
         {form&&form.type==="teacher"&&(
@@ -8488,7 +8534,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
             <div style={grid2}>{fld(Z("Nav û paşnav *","Full name *"),"name")}{fld(Z("E-peyam (agahiyên têketinê)","E-mail (login details)"),"email",{type:"email"})}{fld(Z("Têlefon","Phone"),"phone",{type:"tel"})}<div><label style={lbl}>{Z("Qad","Field")}</label>{areaSel("area",true)}</div></div>
             {!form.id&&<div style={{marginTop:8}}>{fld(Z("Mamosteyê konservatuarê? Jimara wî/wê (vebijarkî)","Conservatory teacher? Their number (optional)"),"academyNo",{inputMode:"numeric"})}</div>}
             {!form.id&&<div style={{...small,marginTop:6}}>{(form.data.academyNo||"").trim()?Z("Hesabê nû nayê vekirin: mamoste bi jimare û şîfreya xwe ya konservatuarê dikeve sepana zarokan.","No new account: the teacher signs in to the kids app with their conservatory number and password."):Z("Jimare û şîfre otomatîk tên çêkirin û bi e-peyamê tên şandin.","Number and password are generated automatically and e-mailed.")}</div>}
-            <div style={{display:"flex",gap:8,marginTop:12}}><button disabled={busy} onClick={saveTeacherForm} style={btn("#16a34a")}>{busy?"⏳":"💾 "+Z("Tomar bike","Save")}</button><button onClick={()=>setForm(null)} style={ghost}>{Z("Betal","Cancel")}</button></div>
+            <div style={{display:"flex",gap:8,marginTop:12}}><button disabled={busy} onClick={saveTeacherForm} style={btn()}>{busy?"⏳":"💾 "+Z("Tomar bike","Save")}</button><button onClick={()=>setForm(null)} style={ghost}>{Z("Betal","Cancel")}</button></div>
           </div>)}
         {kteach.length===0&&<div style={{...box,...small,textAlign:"center"}}>{Z("Hîn mamoste tune.","No teachers yet.")}</div>}
         {kteach.slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"")).map(t=>(
@@ -8496,12 +8542,12 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
             <div style={{minWidth:0}}>
               <div style={{fontWeight:700,color:"var(--text)"}}>👩‍🏫 {t.name}{t.academy&&<span style={{...small,marginLeft:6,padding:"1px 7px",borderRadius:8,background:"var(--bg2)"}}>🏛 {Z("Konservatuar","Conservatory")}</span>} <span style={small}>#{t.no}{t.area?" · "+areaLabel(t.area):""}</span></div>
               <div style={small}>{t.phone?"☎ "+t.phone:""}{t.email?" · ✉ "+t.email:""}</div>
-              <div style={{...small,marginTop:3}}>🎓 {kids.filter(k=>k.teacherNo===t.no).length} {Z("zarok","children")} · 📅 {sched.filter(s=>s.teacherNo===t.no).length} {Z("ders","lessons")}</div>
+              <div style={{...small,marginTop:3}}>🏫 {kidCls.filter(c=>c.kind&&c.status!=="closed"&&(c.teacherNos||[]).map(String).includes(String(t.no))).map(c=>c.name).join(", ")||"—"} · 📅 {sched.filter(s=>s.teacherNo===t.no).length} {Z("ders","lessons")}</div>
             </div>
             <div style={{display:"flex",gap:6,flexShrink:0,flexWrap:"wrap",justifyContent:"flex-end"}}>
               {!t.academy&&<button title={Z("Şîfreya nû","New password")} disabled={busy} onClick={()=>resetPass(t.no,"kidteacher",t.name,t.email)} style={{...ghost,padding:"6px 10px"}}>🔑</button>}
-              <button onClick={()=>setForm({type:"teacher",id:t.no,data:{...t}})} style={{...ghost,padding:"6px 10px"}}>✏️</button>
-              <button onClick={()=>delTeacher(t)} style={{...ghost,padding:"6px 10px"}}>🗑</button>
+              <button onClick={()=>setForm({type:"teacher",id:t.no,data:{...t}})} style={{...ghost,padding:"6px 10px"}}><Ico n="edit" solo/></button>
+              <button onClick={()=>delTeacher(t)} style={{...ghost,padding:"6px 10px"}}><Ico n="trash" solo/></button>
             </div>
           </div>))}
       </div>)}
@@ -8539,16 +8585,17 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
             <select style={inp} value={sForm.area} onChange={e=>setSForm(f=>({...f,area:e.target.value}))}><option value="">{Z("Qad","Field")}</option>{ZAROK_AREAS.map(a=><option key={a} value={a}>{areaLabel(a)}</option>)}</select>
             <select style={inp} value={sForm.teacherNo} onChange={e=>setSForm(f=>({...f,teacherNo:e.target.value}))}><option value="">{Z("Mamoste","Teacher")}</option>{kteach.map(t=><option key={t.no} value={t.no}>{t.name}</option>)}</select>
             <input style={inp} value={sForm.room} onChange={e=>setSForm(f=>({...f,room:e.target.value}))} placeholder={Z("Ode","Room")}/>
+            <select aria-label={Z("Sinif","Class")} style={inp} value={sForm.classId} onChange={e=>setSForm(f=>({...f,classId:e.target.value}))}><option value="">🏫 {Z("Hemû zarokên qadê (bê sinif)","All children of the field (no class)")}</option>{kidCls.filter(c=>c.kind&&c.kind!=="workshop").map(c=><option key={c.id} value={c.id}>{c.name}{c.kind==="area"?" · "+areaLabel(c.area):""}</option>)}</select>
           </div>
           <button onClick={addLesson} style={{...btn(),marginTop:10}}>➕ {Z("Dersê Zêde Bike","Add Lesson")}</button>
         </div>
-        {[1,2,3,4,5,6,0].map(d=>{const ls=sched.filter(s=>+s.day===d).sort((a,b)=>(a.start||"").localeCompare(b.start||""));if(!ls.length)return null;return(
+        {[1,2,3,4,5,6,0].map(d=>{const ls=sched.filter(s=>+s.day===d&&!s.date).sort((a,b)=>(a.start||"").localeCompare(b.start||""));if(!ls.length)return null;return(
           <div key={d} style={box}>
             <div style={{fontWeight:800,color:"var(--text)",marginBottom:4}}>{DAYS[d]}</div>
             {ls.map(s=>(
               <div key={s.fireId} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,fontSize:13,color:"var(--text)",padding:"4px 0"}}>
-                <span style={{minWidth:0}}>🕒 {s.start}–{s.end} · <b>{s.title}</b> <span style={small}>{[areaLabel(s.area),s.teacher,s.room].filter(Boolean).join(" · ")}</span></span>
-                <button onClick={()=>F.deleteDoc(F.doc(F.db,"kidSchedule",s.fireId)).catch(err)} style={{...ghost,padding:"3px 8px",flexShrink:0}}>🗑</button>
+                <span style={{minWidth:0}}>🕒 {s.start}–{s.end} · <b>{s.title}</b> <span style={small}>{[areaLabel(s.area),s.teacher,s.room,(kidCls.find(c=>c.id===s.classId)||{}).name].filter(Boolean).join(" · ")}</span></span>
+                <button onClick={()=>F.deleteDoc(F.doc(F.db,"kidSchedule",s.fireId)).catch(err)} style={{...ghost,padding:"3px 8px",flexShrink:0}}><Ico n="trash" solo/></button>
               </div>))}
           </div>);})}
       </div>)}
@@ -8563,7 +8610,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
           <div key={a.fireId} style={box}>
             <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
               <b style={{color:"var(--text)"}}>{a.title}</b>
-              <button onClick={()=>F.deleteDoc(F.doc(F.db,"kidAnnouncements",a.fireId)).catch(err)} style={{...ghost,padding:"3px 8px"}}>🗑</button>
+              <button onClick={()=>F.deleteDoc(F.doc(F.db,"kidAnnouncements",a.fireId)).catch(err)} style={{...ghost,padding:"3px 8px"}}><Ico n="trash" solo/></button>
             </div>
             <div style={{fontSize:13,color:"var(--text)",whiteSpace:"pre-wrap",marginTop:4}}>{a.body}</div>
             {a.by&&<div style={{...small,marginTop:4}}>— {a.by}</div>}
@@ -8597,7 +8644,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
 
       {tab==="news"&&(<div>
         <div style={{...small,marginBottom:8}}>{Z("Ev nûçe li ser malpera Akademiya Zarokan ji her kesî re xuya dibin.","These posts appear publicly on the Children's Academy site.")}</div>
-        {!form&&<button onClick={()=>{setPLang("ku");setForm({type:"kidNews",data:{date:today,images:[]}});}} style={{...btn("#16a34a"),marginBottom:10}}>➕ {Z("Nûçeya nû","New post")}</button>}
+        {!form&&<button onClick={()=>{setPLang("ku");setForm({type:"kidNews",data:{date:today,images:[]}});}} style={{...btn(),marginBottom:10}}>➕ {Z("Nûçeya nû","New post")}</button>}
         {form&&form.type==="kidNews"&&sitePostForm("kidNews")}
         {news.length===0&&!form&&<div style={{...box,...small,textAlign:"center"}}>{Z("Hîn nûçe tune.","No posts yet.")}</div>}
         {news.map(p=>sitePostRow("kidNews",p))}
@@ -8605,7 +8652,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
 
       {tab==="arch"&&(<div>
         <div style={{...small,marginBottom:8}}>{Z("Tomarên «Dîroka Akademiya Zarokan» ya malpera zarokan (bi salan). Nûçeyên weşandî jî bixweber tên zêdekirin.","Entries for the kids site's “History of the Children's Academy”, by year. Published news is added automatically.")}</div>
-        {!form&&<button onClick={()=>{setPLang("ku");setForm({type:"kidArchive",data:{images:[]}});}} style={{...btn("#16a34a"),marginBottom:10}}>➕ {Z("Tomara arşîvê","Archive entry")}</button>}
+        {!form&&<button onClick={()=>{setPLang("ku");setForm({type:"kidArchive",data:{images:[]}});}} style={{...btn(),marginBottom:10}}>➕ {Z("Tomara arşîvê","Archive entry")}</button>}
         {form&&form.type==="kidArchive"&&sitePostForm("kidArchive")}
         {arch.length===0&&!form&&<div style={{...box,...small,textAlign:"center"}}>{Z("Hîn tomar tune.","No entries yet.")}</div>}
         {arch.slice().sort((a,b)=>(b.year||0)-(a.year||0)).map(p=>sitePostRow("kidArchive",p))}
@@ -8935,7 +8982,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
                 {r.file&&<div style={{fontSize:10.5,color:"var(--text2)"}}>📎 {r.fileName||"şablon"}</div>}
               </div>
               {safeHref(r.file)&&<a href={safeHref(r.file)} rel="noopener" download={r.fileName||r.name} style={{background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,color:"var(--text)",textDecoration:"none"}}>⬇</a>}
-              <button onClick={()=>delReq(r)} style={{background:"var(--red-bg)",border:"0.5px solid var(--red)",color:"var(--red)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>🗑</button>
+              <button onClick={()=>delReq(r)} style={{background:"var(--red-bg)",border:"0.5px solid var(--red)",color:"var(--red)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}><Ico n="trash" solo/></button>
             </div>
           </Card>
         ))}
@@ -9287,7 +9334,7 @@ function AnnouncementsPanel({t,toast,lang,senderName,senderRole,senderArea}){
 
                 const annDelId = ann.fireId||(ann.id&&String(ann.id));
                 if(window.__FB &&window.__FB.isConfigured()&&annDelId){try{await window.__FB.deleteDoc(window.__FB.doc(window.__FB.db,"announcements",annDelId));}catch(e){console.warn("ann del:",e);}}
-              }} style={{fontSize:13,background:"var(--red-bg)",border:"none",borderRadius:6,padding:"5px 8px",cursor:"pointer",color:"var(--red)",flexShrink:0}}>🗑</button>
+              }} style={{fontSize:13,background:"var(--red-bg)",border:"none",borderRadius:6,padding:"5px 8px",cursor:"pointer",color:"var(--red)",flexShrink:0}}><Ico n="trash" solo/></button>
             </div>
           </div>
           );
@@ -9351,7 +9398,7 @@ function StatsDetailModal({type,students,teachers,schedule,onClose,t,lang,toast,
                       <div style={{fontSize:11,color:"var(--text2)",fontFamily:"monospace"}}>{s.no}</div>
                       <div style={{fontSize:10,color:a.color}}>{a.icon} {areaName(s.area,lang)}</div>
                     </div>
-                    <button onClick={()=>setEditingStudent(s)} style={{padding:"5px 10px",fontSize:11,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:6,cursor:"pointer",color:"var(--text)"}}>✏️</button>
+                    <button onClick={()=>setEditingStudent(s)} style={{padding:"5px 10px",fontSize:11,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:6,cursor:"pointer",color:"var(--text)"}}><Ico n="edit" solo/></button>
                   </div>
                 );
               })}
@@ -9370,7 +9417,7 @@ function StatsDetailModal({type,students,teachers,schedule,onClose,t,lang,toast,
                       <div style={{fontSize:10,color:a.color}}>{a.icon} {areaName(tc.area,lang)}</div>
                       {tc.email&&<div style={{fontSize:10,color:"var(--text2)"}}>{tc.email}</div>}
                     </div>
-                    <button onClick={()=>setEditingTeacher(tc)} style={{padding:"5px 10px",fontSize:11,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:6,cursor:"pointer",color:"var(--text)"}}>✏️</button>
+                    <button onClick={()=>setEditingTeacher(tc)} style={{padding:"5px 10px",fontSize:11,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:6,cursor:"pointer",color:"var(--text)"}}><Ico n="edit" solo/></button>
                   </div>
                 );
               })}
@@ -9395,8 +9442,8 @@ function StatsDetailModal({type,students,teachers,schedule,onClose,t,lang,toast,
                             <div style={{fontSize:10,color:a.color+"99",marginTop:1}}>{areaShortName(ls.area,lang)}</div>
                           </div>
                           <div style={{display:"flex",flexDirection:"column",gap:5,flexShrink:0}}>
-                            <button onClick={()=>setEditingLesson(ls)} style={{padding:"5px 8px",fontSize:11,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:6,cursor:"pointer",color:"var(--text)"}}>✏️</button>
-                            <button onClick={()=>deleteLesson(ls.id)} style={{padding:"5px 8px",fontSize:11,background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:6,cursor:"pointer",color:"var(--red)"}}>🗑</button>
+                            <button onClick={()=>setEditingLesson(ls)} style={{padding:"5px 8px",fontSize:11,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:6,cursor:"pointer",color:"var(--text)"}}><Ico n="edit" solo/></button>
+                            <button onClick={()=>deleteLesson(ls.id)} style={{padding:"5px 8px",fontSize:11,background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:6,cursor:"pointer",color:"var(--red)"}}><Ico n="trash" solo/></button>
                           </div>
                         </div>
                       );
@@ -9696,11 +9743,11 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
         </div>
         <div style={{display:"flex",flexDirection:"column",gap:5,justifyContent:"center",flexShrink:0}}>
           <button onClick={()=>setEditingLesson(ls)}
-            style={{padding:"6px 9px",fontSize:12,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:7,cursor:"pointer",color:"var(--text)"}}>✏️</button>
+            style={{padding:"6px 9px",fontSize:12,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:7,cursor:"pointer",color:"var(--text)"}}><Ico n="edit" solo/></button>
           <button onClick={()=>markTeacherAbsent(ls)} title={lang==="en"?"Teacher absent today":K("Mamoste nehat (îro)")}
             style={{padding:"6px 9px",fontSize:12,background:"rgba(220,38,38,0.06)",border:"0.5px solid rgba(220,38,38,0.3)",borderRadius:7,cursor:"pointer"}}>🚫</button>
           <button onClick={()=>deleteLesson(ls)}
-            style={{padding:"6px 9px",fontSize:12,background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:7,cursor:"pointer",color:"var(--red)"}}>🗑</button>
+            style={{padding:"6px 9px",fontSize:12,background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:7,cursor:"pointer",color:"var(--red)"}}><Ico n="trash" solo/></button>
         </div>
       </div>
     );
@@ -9746,7 +9793,7 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
                 {terms.activeId===tm.id
                   ? <span style={{fontSize:10,fontWeight:700,padding:"3px 9px",borderRadius:99,background:"rgba(22,163,74,0.12)",color:"#16a34a"}}>✓ {TL("active")}</span>
                   : <button onClick={()=>saveTerms({activeId:tm.id})} style={{fontSize:10,fontWeight:700,padding:"4px 9px",borderRadius:8,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",cursor:"pointer"}}>{TL("setActive")}</button>}
-                <button onClick={()=>delTerm(tm.id)} style={{fontSize:11,padding:"4px 8px",borderRadius:8,border:"0.5px solid var(--red)",background:"var(--red-bg)",color:"var(--red)",cursor:"pointer"}}>🗑</button>
+                <button onClick={()=>delTerm(tm.id)} style={{fontSize:11,padding:"4px 8px",borderRadius:8,border:"0.5px solid var(--red)",background:"var(--red-bg)",color:"var(--red)",cursor:"pointer"}}><Ico n="trash" solo/></button>
               </div>
             ))}
             <div style={{display:"grid",gridTemplateColumns:"1fr",gap:6,marginTop:10}}>
@@ -11846,7 +11893,7 @@ function SurveyStudio({mode,initial,teachers,lang,toast,onSave,onCancel}){
           <div style={{fontSize:13.5,fontWeight:700,color:"var(--text)",marginBottom:10}}>{i+1}. {q.text}{q.required&&<span style={{color:"#dc2626"}}> *</span>}</div>
           <SurveyQuestionInput q={{...q,choices:(q.choices||[]).filter(Boolean)}} value={pv[q.id]} onChange={v=>setPv(p=>({...p,[q.id]:v}))}/>
         </div>))}
-      <button onClick={()=>setPreview(false)} style={{...chip(true),width:"100%",padding:12,borderRadius:12,fontSize:14}}>✏️ {W2("Vegere sererastkirinê","Back to editing")}</button>
+      <button onClick={()=>setPreview(false)} style={{...chip(true),width:"100%",padding:12,borderRadius:12,fontSize:14}}><Ico n="edit"/> {W2("Vegere sererastkirinê","Back to editing")}</button>
     </div>);
   return(
     <div>
@@ -11903,7 +11950,7 @@ function SurveyStudio({mode,initial,teachers,lang,toast,onSave,onCancel}){
               <button aria-label="↑" onClick={()=>move(i,-1)} style={ib}>↑</button>
               <button aria-label="↓" onClick={()=>move(i,1)} style={ib}>↓</button>
               <button aria-label="⧉" title={W2("Dubare bike","Duplicate")} onClick={()=>setQs(a=>{const b=[...a]; b.splice(i+1,0,{...q,id:newSQ().id}); return b;})} style={ib}>⧉</button>
-              <button aria-label="🗑" onClick={()=>setQs(a=>a.filter((_,j)=>j!==i))} style={{...ib,color:"#dc2626"}}>🗑</button>
+              <button aria-label="🗑" onClick={()=>setQs(a=>a.filter((_,j)=>j!==i))} style={{...ib,color:"#dc2626"}}><Ico n="trash" solo/></button>
             </div>
             <input style={inp} value={q.text} maxLength={300} onChange={e=>upd(i,{text:e.target.value})} placeholder={W2("Pirsê binivîse","Write the question")}/>
             {(q.type==="choice"||q.type==="multi")&&(
@@ -12052,9 +12099,9 @@ function KidSurveysPanel({lang,toast}){
           </div>
           <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
             <button onClick={()=>{setEdit(sv);setAreaF("all");setView("results");}} style={{padding:"7px 11px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12,cursor:"pointer"}}>📊 {W2("Encam","Results")}</button>
-            <button onClick={()=>{setEdit(sv);setView("studio");}} style={{padding:"7px 11px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12,cursor:"pointer"}}>✏️</button>
+            <button onClick={()=>{setEdit(sv);setView("studio");}} style={{padding:"7px 11px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12,cursor:"pointer"}}><Ico n="edit" solo/></button>
             <button onClick={()=>F.updateDoc(F.doc(F.db,"kidSurveys",sv.fireId),{active:!sv.active}).catch(e=>toast("❌ "+e.code))} style={{padding:"7px 11px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12,cursor:"pointer"}}>{sv.active?"⏸ "+W2("Rawestîne","Pause"):"▶ "+W2("Biweşîne","Publish")}</button>
-            <button onClick={()=>{ if(window.confirm(W2("Ankêt were jêbirin?","Delete survey?"))) F.deleteDoc(F.doc(F.db,"kidSurveys",sv.fireId)).catch(e=>toast("❌ "+e.code)); }} style={{padding:"7px 11px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"#dc2626",fontWeight:700,fontSize:12,cursor:"pointer"}}>🗑</button>
+            <button onClick={()=>{ if(window.confirm(W2("Ankêt were jêbirin?","Delete survey?"))) F.deleteDoc(F.doc(F.db,"kidSurveys",sv.fireId)).catch(e=>toast("❌ "+e.code)); }} style={{padding:"7px 11px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"#dc2626",fontWeight:700,fontSize:12,cursor:"pointer"}}><Ico n="trash" solo/></button>
           </div>
         </div>);})}
     </div>);
@@ -12076,7 +12123,9 @@ function KidAcademyReport({lang,toast}){
   },[live,since]);
   if(!live) return <div style={{fontSize:13,color:"var(--text2)"}}>{W2("Firebase girêdayî nîne.","Firebase is not connected.")}</div>;
   const aName=a=>{ const z=ZAROK_AREA_NAMES[a]; return z?(lang==="en"?z[1]:K(z[0])):(a||"—"); };
-  const kidsF=d.kids.filter(k=>(lvlF==="all"||String(k.classLevel||0)===String(lvlF))&&(areaF==="all"||k.area===areaF));
+  const kcls=d.cls.filter(c=>c.kind&&c.status!=="closed");
+  const clsNames=k=>kcls.filter(c=>inClass(c,k.no)).map(c=>c.name).join(", ");
+  const kidsF=d.kids.filter(k=>(lvlF==="all"||inClass(kcls.find(c=>c.id===lvlF),k.no))&&(areaF==="all"||k.area===areaF));
   const presentDays=k=>new Set(d.att.filter(a=>a.kidId===k.fireId&&a.type==="in").map(a=>a.date)).size;
   const lessonDays=new Set(d.att.filter(a=>a.type==="in").map(a=>a.date)).size;
   const fam=new Set(); kidsF.forEach(k=>fam.add([...(k.guardianNos||[])].sort().join("+")));
@@ -12085,13 +12134,13 @@ function KidAcademyReport({lang,toast}){
   const box={background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:14,padding:14,marginBottom:12};
   const th={textAlign:"left",fontSize:11,color:"var(--text2)",padding:"6px 6px",borderBottom:"1px solid var(--border2)"}, td={fontSize:12.5,color:"var(--text)",padding:"7px 6px",borderBottom:"1px solid var(--border2)"};
   const byArea=ZAROK_AREAS.map(a=>[a,kidsF.filter(k=>k.area===a).length]).filter(x=>x[1]);
-  const byLvl=KID_CLASS_LEVELS.map(l=>[l,kidsF.filter(k=>+k.classLevel===l)]).filter(x=>x[1].length||d.cls.some(c=>c.id==="L"+x[0]));
-  const noLvl=kidsF.filter(k=>!+k.classLevel).length;
+  const byLvl=kcls.filter(c=>c.kind!=="workshop").map(c=>[c,kidsF.filter(k=>inClass(c,k.no))]);
+  const noLvl=kidsF.filter(k=>!kcls.some(c=>c.kind!=="workshop"&&inClass(c,k.no))).length;
   const appSt=s=>d.apps.filter(a=>(a.status||"new")===s).length;
   const rows=kidsF.slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"")).map(k=>{ const p=presentDays(k); return {k,p,pct:lessonDays?Math.round(p/lessonDays*100):null}; });
   function csv(){
     downloadCSV("cocuk-akademisi-rapor-"+new Date().toISOString().slice(0,10)+".csv",[[W2("Nav","Name"),W2("Jimare","No"),W2("Qad","Field"),W2("Sinif","Class"),W2("Dêûbav","Parents"),W2("Rojên hatinê","Days present"),"%"],
-      ...rows.map(r=>[r.k.name,r.k.no,aName(r.k.area),+r.k.classLevel?classTitle(+r.k.classLevel):"",(r.k.guardianNos||[]).map(g=>((d.guards.find(x=>x.no===g)||{}).name)||g).join(" | "),r.p,r.pct==null?"":r.pct])]);
+      ...rows.map(r=>[r.k.name,r.k.no,aName(r.k.area),clsNames(r.k),(r.k.guardianNos||[]).map(g=>((d.guards.find(x=>x.no===g)||{}).name)||g).join(" | "),r.p,r.pct==null?"":r.pct])]);
     try{ logReportArchive({type:"csv",label:"CSV · "+W2("Akademiya Zarokan","Children's Academy")}); }catch(_){}
   }
   return(
@@ -12101,7 +12150,7 @@ function KidAcademyReport({lang,toast}){
           {[7,30,90,365].map(n=><option key={n} value={n}>📅 {W2("Dawiya","Last")} {n} {W2("rojan","days")}</option>)}
         </select>
         <select aria-label={W2("Sînif","Class")} value={lvlF} onChange={e=>setLvlF(e.target.value)} style={{padding:"8px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:12}}>
-          <option value="all">🏫 {W2("Hemû sinif","All classes")}</option>{KID_CLASS_LEVELS.map(l=><option key={l} value={l}>{classTitle(l)}</option>)}
+          <option value="all">🏫 {W2("Hemû sinif","All classes")}</option>{kcls.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         <select aria-label={W2("Qad","Field")} value={areaF} onChange={e=>setAreaF(e.target.value)} style={{padding:"8px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:12}}>
           <option value="all">🎭 {W2("Hemû qad","All fields")}</option>{ZAROK_AREAS.map(a=><option key={a} value={a}>{aName(a)}</option>)}
@@ -12119,8 +12168,8 @@ function KidAcademyReport({lang,toast}){
       <div style={box}>
         <div style={{fontWeight:800,color:"var(--text)",marginBottom:8}}>🏫 {W2("Sinif","Classes")}</div>
         <table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr><th style={th}>{W2("Sinif","Class")}</th><th style={th}>{W2("Zarok","Children")}</th><th style={th}>{W2("Mamosteyê sinifê","Class teacher")}</th><th style={th}>{W2("Amadebûn","Attendance")}</th></tr></thead>
-          <tbody>{byLvl.map(([l,ks])=>{ const c=d.cls.find(x=>x.id==="L"+l); const ps=ks.map(presentDays); const avg=ks.length&&lessonDays?Math.round(ps.reduce((a,b)=>a+b,0)/ks.length/lessonDays*100):null;
-            return <tr key={l}><td style={td}>{classTitle(l)}</td><td style={td}>{ks.length}</td><td style={td}>{((c&&c.teacherNames)||[]).filter(Boolean).join(", ")||"—"}</td><td style={td}>{avg==null?"—":avg+"%"}</td></tr>; })}
+          <tbody>{byLvl.map(([c,ks])=>{ const ps=ks.map(presentDays); const avg=ks.length&&lessonDays?Math.round(ps.reduce((a,b)=>a+b,0)/ks.length/lessonDays*100):null;
+            return <tr key={c.id}><td style={td}>{c.name}{c.kind==="area"?" · "+aName(c.area):""}</td><td style={td}>{ks.length}</td><td style={td}>{((c&&c.teacherNames)||[]).filter(Boolean).join(", ")||"—"}</td><td style={td}>{avg==null?"—":avg+"%"}</td></tr>; })}
             {noLvl>0&&<tr><td style={{...td,color:"#b45309"}}>⚠ {W2("Sinif nehatiye diyarkirin","No class assigned")}</td><td style={td}>{noLvl}</td><td style={td}></td><td style={td}></td></tr>}</tbody></table>
       </div>
       <div style={box}>
@@ -12135,7 +12184,7 @@ function KidAcademyReport({lang,toast}){
       <div style={box}>
         <div style={{fontWeight:800,color:"var(--text)",marginBottom:8}}>✅ {W2("Amadebûna zarokan","Children's attendance")} <span style={{fontSize:11,color:"var(--text2)",fontWeight:500}}>({W2("Dawiya","Last")} {days} {W2("rojan","days")})</span></div>
         <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",minWidth:420}}><thead><tr><th style={th}>{W2("Nav","Name")}</th><th style={th}>{W2("Sinif","Class")}</th><th style={th}>{W2("Qad","Field")}</th><th style={th}>{W2("Roj","Days")}</th><th style={th}>%</th></tr></thead>
-          <tbody>{rows.map(r=><tr key={r.k.fireId}><td style={td}>{r.k.name}</td><td style={td}>{+r.k.classLevel?classTitle(+r.k.classLevel):"—"}</td><td style={td}>{aName(r.k.area)}</td><td style={td}>{r.p}</td><td style={{...td,fontWeight:700,color:r.pct==null?"var(--text2)":r.pct>=75?"#15803d":r.pct>=50?"#b45309":"#dc2626"}}>{r.pct==null?"—":r.pct+"%"}</td></tr>)}</tbody></table></div>
+          <tbody>{rows.map(r=><tr key={r.k.fireId}><td style={td}>{r.k.name}</td><td style={td}>{clsNames(r.k)||"—"}</td><td style={td}>{aName(r.k.area)}</td><td style={td}>{r.p}</td><td style={{...td,fontWeight:700,color:r.pct==null?"var(--text2)":r.pct>=75?"#15803d":r.pct>=50?"#b45309":"#dc2626"}}>{r.pct==null?"—":r.pct+"%"}</td></tr>)}</tbody></table></div>
         {!rows.length&&<div style={{fontSize:12,color:"var(--text2)"}}>—</div>}
       </div>
     </div>);
@@ -12413,8 +12462,8 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
             </div>
             {!(editQ&&editQ.id===q.id)&&(
               <div style={{display:"flex",gap:5,flexShrink:0}}>
-                <button onClick={()=>startEdit(q)} style={{width:28,height:28,borderRadius:7,background:"var(--bg2)",border:"0.5px solid var(--border2)",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>✏️</button>
-                <button onClick={()=>deleteQ(q.id)} style={{width:28,height:28,borderRadius:7,background:"var(--red-bg)",border:"0.5px solid var(--red)",cursor:"pointer",fontSize:13,color:"var(--red)",display:"flex",alignItems:"center",justifyContent:"center"}}>🗑</button>
+                <button onClick={()=>startEdit(q)} style={{width:28,height:28,borderRadius:7,background:"var(--bg2)",border:"0.5px solid var(--border2)",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}><Ico n="edit" solo/></button>
+                <button onClick={()=>deleteQ(q.id)} style={{width:28,height:28,borderRadius:7,background:"var(--red-bg)",border:"0.5px solid var(--red)",cursor:"pointer",fontSize:13,color:"var(--red)",display:"flex",alignItems:"center",justifyContent:"center"}}><Ico n="trash" solo/></button>
               </div>
             )}
           </div>
@@ -12580,7 +12629,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
               </button>
               <button onClick={()=>startEditSurvey(sv)}
                 style={{padding:"8px 4px",borderRadius:9,background:"var(--bg2)",border:"0.5px solid var(--border2)",cursor:"pointer",fontSize:10,fontWeight:600,color:"var(--text)"}}>
-                ✏️ {L("edit")}
+                <Ico n="edit"/> {L("edit")}
               </button>
               <button onClick={()=>{setSelectedSurvey(sv);setViewMode("results");}}
                 style={{padding:"8px 4px",borderRadius:9,background:"rgba(15,47,56,0.07)",border:"1px solid rgba(15,47,56,0.15)",cursor:"pointer",fontSize:10,fontWeight:600,color:"var(--text)"}}>
@@ -12588,7 +12637,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
               </button>
               <button onClick={()=>deleteSurvey(sv.id||sv.fireId)}
                 style={{padding:"8px 4px",borderRadius:9,background:"var(--red-bg)",border:"none",cursor:"pointer",fontSize:10,fontWeight:600,color:"var(--red)"}}>
-                🗑 {L("deleteS")}
+                <Ico n="trash"/> {L("deleteS")}
               </button>
             </div>
           </div>
@@ -13335,7 +13384,7 @@ function TeacherProfileView({teacher,a,lang,t,toast,avgAtt,riskCount,myStudents,
         </button>
         <button onClick={()=>deleteOwnAccount(teacher,"teacher",lang,toast,onLogout)}
           style={{width:"100%",marginTop:8,padding:"12px",background:"transparent",border:"0.5px solid var(--border2)",borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer",color:"var(--text2)",textAlign:"left",display:"flex",alignItems:"center",gap:10}}>
-          <span style={{fontSize:18}}>🗑</span> {lang==="en"?"Delete Account":K("Hesabê Min Jê Bibe")}
+          <Ico n="trash" size={18}/> {lang==="en"?"Delete Account":K("Hesabê Min Jê Bibe")}
           <span style={{marginLeft:"auto"}}>›</span>
         </button>
       </Card>
@@ -14389,7 +14438,7 @@ function SelfProfileSheet({user,userType,lang,toast,onClose,onSave}){
           </button>
           {photo&&<button onClick={()=>setPhoto(null)}
             style={{marginLeft:6,padding:"7px 11px",borderRadius:5,border:"1px solid var(--red)",background:"var(--red-bg)",
-              color:"var(--red)",fontSize:12,cursor:"pointer"}}>🗑</button>}
+              color:"var(--red)",fontSize:12,cursor:"pointer"}}><Ico n="trash" solo/></button>}
         </div>
       </div>
       <input ref={fileRef} type="file" accept="image/*" onChange={pickPhoto} style={{display:"none"}}/>
@@ -15808,7 +15857,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
               </button>
               <button onClick={()=>deleteOwnAccount(student,"student",lang,toast,onLogout)}
                 style={{width:"100%",marginTop:8,padding:"12px",background:"transparent",border:"0.5px solid var(--border2)",borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer",color:"var(--text2)",textAlign:"left",display:"flex",alignItems:"center",gap:10}}>
-                <span style={{fontSize:18}}>🗑</span> {lang==="en"?"Delete Account":K("Hesabê Min Jê Bibe")}
+                <Ico n="trash" size={18}/> {lang==="en"?"Delete Account":K("Hesabê Min Jê Bibe")}
                 <span style={{marginLeft:"auto"}}>›</span>
               </button>
             </Card>
