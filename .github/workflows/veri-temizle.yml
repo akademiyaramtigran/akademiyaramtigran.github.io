@@ -1,0 +1,109 @@
+# Yayın öncesi test verilerini temizler.
+#   mod = liste → HİÇBİR ŞEY SİLMEZ; koleksiyon sayıları, personel hesapları ve giriş hesabı sayılarını yazar.
+#   mod = sil   → İçerik ve kişi kayıtlarını siler; yönetici (admin@aramtigran.edu) ve "koru" listesindeki
+#                 personel numaraları KALIR. Ayarlar (config, şablonlar) her zaman kalır.
+#                 Onay kutusuna büyük harflerle SİL yazılmalı.
+# Elle çalıştırılır: GitHub → Actions → "Test verilerini temizle" → Run workflow.
+name: Test verilerini temizle
+
+on:
+  workflow_dispatch:
+    inputs:
+      mod:
+        description: "liste (yalnızca göster) / sil"
+        type: choice
+        default: liste
+        options: [liste, sil]
+      koru:
+        description: "Silinmeyecek personel numaraları (virgülle), ör. 98202601,99202601"
+        required: false
+        default: ""
+      onay:
+        description: "Silmek için büyük harflerle SİL yazın"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-deploy
+  cancel-in-progress: false
+
+jobs:
+  temizle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Çalıştır
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          MOD: ${{ inputs.mod }}
+          KORU: ${{ inputs.koru }}
+          ONAY: ${{ inputs.onay }}
+        run: |
+          if [ -z "$SA" ]; then echo "::error::FIREBASE_SERVICE_ACCOUNT sırrı yok"; exit 1; fi
+          if [ "$MOD" = "sil" ] && [ "$ONAY" != "SİL" ] && [ "$ONAY" != "SIL" ]; then echo "::error::Onay için SİL yazılmadı — hiçbir şey silinmedi"; exit 1; fi
+          KEY="$RUNNER_TEMP/sa.json"; printf '%s' "$SA" > "$KEY"
+          export GOOGLE_APPLICATION_CREDENTIALS="$KEY"
+          mkdir -p "$RUNNER_TEMP/t" && cd "$RUNNER_TEMP/t"
+          npm init -y >/dev/null && npm i --silent firebase-admin@12 >/dev/null
+          cat > temizle.js <<'EOF'
+          const admin = require("firebase-admin");
+          admin.initializeApp({ projectId: "aram2026-a9fd7", storageBucket: "aram2026-a9fd7.firebasestorage.app" });
+          const db = admin.firestore(), auth = admin.auth();
+          const MOD = process.env.MOD, KORU = new Set(String(process.env.KORU || "").split(/[,\s]+/).filter(Boolean).map(s => s.toLowerCase()));
+          const ADMIN = "admin@aramtigran.edu";
+          // Kişi ve içerik koleksiyonları (silinir). Ayarlar: config, applicationTemplates, kidApplicationTemplates, roles, admins KALIR.
+          const CONTENT = ["announcements","applications","archive","attendance","cards","classPosts","classes","devices","gateLog",
+            "guardians","idx_guardians","idx_kidstaff","idx_students","kidAnnouncements","kidApplications","kidArchive","kidAttendance",
+            "kidClassPosts","kidClasses","kidMessages","kidNews","kidSchedule","kidSurveyResponses","kidSurveys","kidTeachers","kids",
+            "messages","news","qrSessions","schedule","studentStats","studentSurveyResponses","studentSurveys","students","surveyResponses",
+            "teacherLessonLogs"];
+          const KEEP_ALWAYS = ["config","applicationTemplates","kidApplicationTemplates","roles","admins"];
+          const STORAGE = ["photos/","applications/","news/","kidNews/","posts/","attachments/"];
+          (async () => {
+            console.log("== Koleksiyonlar (silinecek içerik) ==");
+            for (const c of CONTENT) { const n = (await db.collection(c).count().get()).data().count; if (n) console.log("  " + c + ": " + n); }
+            console.log("== Her zaman kalan ayarlar ==");
+            for (const c of KEEP_ALWAYS) { const n = (await db.collection(c).count().get()).data().count; console.log("  " + c + ": " + n); }
+            console.log("== Personel (teachers + idx_staff) ==");
+            const staff = await db.collection("idx_staff").get(), tdocs = await db.collection("teachers").get();
+            const tByNo = {}; tdocs.docs.forEach(d => { const v = d.data(); tByNo[String(v.no || "").toLowerCase()] = { id: d.id, ...v }; });
+            const staffNos = new Set([...staff.docs.map(d => d.id.toLowerCase()), ...Object.keys(tByNo)]);
+            for (const no of [...staffNos].sort()) {
+              const s = staff.docs.find(d => d.id.toLowerCase() === no), t = tByNo[no] || {};
+              const lvl = s ? (s.data().lvl || "teacher") : "-";
+              const keep = KORU.has(no) ? "  ← KORUNUR" : "";
+              console.log("  " + no + "  [" + lvl + (t.isAdmin ? ",admin" : "") + (t.isRegistrar ? ",ogrenci-isleri" : "") + (t.isPress ? ",basin" : "") + (t.isGate ? ",kapi" : "") + "]  " + (t.name || "") + keep);
+            }
+            console.log("== Giriş hesapları (Auth) ==");
+            let users = [], page;
+            do { const r = await auth.listUsers(1000, page); users = users.concat(r.users); page = r.pageToken; } while (page);
+            const by = {}; users.forEach(u => { const k = (u.email || "?").replace(/^[^@]*/, ""); by[k] = (by[k] || 0) + 1; });
+            Object.entries(by).forEach(([k, n]) => console.log("  " + k + ": " + n));
+            const keepUser = u => u.email === ADMIN || (/@ogretmen\.aat$/.test(u.email || "") && KORU.has(String(u.email).split("@")[0].toLowerCase()));
+            console.log("  Kalacak giriş hesabı: " + users.filter(keepUser).map(u => u.email).join(", "));
+            const [files] = await admin.storage().bucket().getFiles().catch(() => [[]]);
+            console.log("== Dosyalar (Storage) ==  toplam " + files.length);
+            if (MOD !== "sil") { console.log("\nLİSTE MODU — hiçbir şey silinmedi."); return; }
+
+            console.log("\n=== SİLME BAŞLADI ===");
+            for (const c of CONTENT) { const n = (await db.collection(c).count().get()).data().count; if (!n) continue; await db.recursiveDelete(db.collection(c)); console.log("🗑 " + c + ": " + n); }
+            let tdel = 0; for (const d of tdocs.docs) { const no = String(d.data().no || "").toLowerCase(); if (!KORU.has(no)) { await db.recursiveDelete(d.ref); tdel++; } }
+            console.log("🗑 teachers: " + tdel + " (korunan: " + (tdocs.size - tdel) + ")");
+            let sdel = 0; for (const d of staff.docs) { if (!KORU.has(d.id.toLowerCase())) { await d.ref.delete(); sdel++; } }
+            console.log("🗑 idx_staff: " + sdel);
+            const gone = users.filter(u => !keepUser(u)).map(u => u.uid);
+            for (let i = 0; i < gone.length; i += 1000) { const r = await auth.deleteUsers(gone.slice(i, i + 1000)); if (r.failureCount) console.log("  ⚠ silinemeyen hesap: " + r.failureCount); }
+            console.log("🗑 giriş hesabı: " + gone.length);
+            let fdel = 0; for (const f of files) { if (STORAGE.some(p => f.name.startsWith(p))) { await f.delete().catch(() => {}); fdel++; } }
+            console.log("🗑 dosya: " + fdel);
+            console.log("✅ Bitti");
+          })().catch(e => { console.error(e); process.exit(1); });
+          EOF
+          node temizle.js
+          rm -f "$KEY"
