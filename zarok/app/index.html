@@ -255,6 +255,9 @@ async function initFirebase() {
   // App Check: veritabanına yalnızca bu uygulamadan gelen istekler (yerel testte kapalı)
   if (!EMU && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) { try { const ac = await import(SDK + "firebase-app-check.js"); ac.initializeAppCheck(app, { provider: new ac.ReCaptchaEnterpriseProvider(APPCHECK_KEY), isTokenAutoRefreshEnabled: true }); } catch (_) {} }
   const auth = authM.getAuth(app);
+  // Oturum: kurulu uygulamada (PWA) açık kalır; tarayıcı sekmesinde sekme kapanınca kapanır
+  try { const SA = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+    authM.setPersistence(auth, SA ? authM.browserLocalPersistence : authM.browserSessionPersistence).catch(() => {}); } catch (_) {}
   const db = fsM.getFirestore(app);
   if (EMU) { authM.connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true }); fsM.connectFirestoreEmulator(db, "127.0.0.1", 8080); }
   FB = { app, auth, db, fs: fsM, au: authM };
@@ -400,7 +403,7 @@ function viewLogin() {
 }
 function langRow() {
   // Dil seçimi: açılır menü, tam isimler
-  const sel = h("select", { "aria-label": "Ziman · Dil · Language", onchange: e => { lang = e.target.value; try { localStorage.setItem("zarok-lang", lang); } catch (_) {} document.documentElement.lang = lang; render(); } },
+  const sel = h("select", { "aria-label": "Ziman · Dil · Language", "data-langdd": "", "data-langdd-wide": "", onchange: e => { lang = e.target.value; try { localStorage.setItem("zarok-lang", lang); } catch (_) {} document.documentElement.lang = lang; render(); } },
     LANGS.map(([k, lb]) => { const o = h("option", { value: k }, lb); if (k === lang) o.selected = true; return o; }));
   return h("label", { class: "langsel", style: "margin-top:4px" }, h("span", { "aria-hidden": "true", style: "font-size:20px" }, "🌐"), sel, h("span", { "aria-hidden": "true", class: "muted" }, "▼"));
 }
@@ -1039,5 +1042,6 @@ document.documentElement.lang = lang;
 if ("serviceWorker" in navigator && !EMU) navigator.serviceWorker.register("sw.js").catch(() => {});
 S.phase = "boot"; render(); initFirebase().catch(e => { console.error(e); S.phase = "login"; S.err = "errNet"; render(); });
 </script>
+<script src="/langdd.js" defer></script>
 </body>
 </html>
