@@ -299,6 +299,23 @@ const { ref, uploadString, getBytes } = require('firebase/storage');
   await t('Çocuk paylaşımı: veli YAZAMAZ', setDoc(doc(cV, 'kidClassPosts/Q3'), post('92026001', 'L1')), false);
   await t('Çocuk paylaşımı: yetişkin öğrenci okuyamaz', getDoc(doc(cS, 'kidClassPosts/Q1')), false);
   await t('Çocuk paylaşımı: öğrenci işleri siler', deleteDoc(doc(cR, 'kidClassPosts/Q1')), true);
+  // Anlık bildirim cihaz kayıtları
+  {
+    const pS = as('10202601@ogrenci.aat'), pT = as('11202601@ogretmen.aat'), pV = as('92026001@veli.aat'), pK = as('72026001@zmamoste.aat');
+    const U = { S: 'uid-10202601@ogrenci.aat', T: 'uid-11202601@ogretmen.aat', V: 'uid-92026001@veli.aat', K: 'uid-72026001@zmamoste.aat' };
+    const tok = (ctx, no, role, app, x) => ({ uid: ctx === pS ? U.S : ctx === pT ? U.T : ctx === pV ? U.V : U.K, no, role, app, lang: 'tr', area: '', updatedAt: new Date(), ...(x || {}) });
+    await t('Bildirim: öğrenci kendi cihazını kaydeder', setDoc(doc(pS, 'pushTokens/TS1'), tok(pS, '10202601', 'student', 'aat')), true);
+    await t('Bildirim: öğrenci öğretmen rolüyle kaydolamaz', setDoc(doc(pS, 'pushTokens/TS2'), tok(pS, '10202601', 'teacher', 'aat')), false);
+    await t('Bildirim: başkasının numarasıyla kaydolunamaz', setDoc(doc(pS, 'pushTokens/TS3'), tok(pS, '10202602', 'student', 'aat')), false);
+    await t('Bildirim: öğretmen kaydolur', setDoc(doc(pT, 'pushTokens/TT1'), tok(pT, '11202601', 'teacher', 'aat')), true);
+    await t('Bildirim: veli çocuk uygulamasına kaydolur', setDoc(doc(pV, 'pushTokens/TV1'), tok(pV, '92026001', 'guardian', 'zarok')), true);
+    await t('Bildirim: veli öğretmen rolü alamaz', setDoc(doc(pV, 'pushTokens/TV2'), tok(pV, '92026001', 'kidteacher', 'zarok')), false);
+    await t('Bildirim: çocuk öğretmeni kaydolur', setDoc(doc(pK, 'pushTokens/TK1'), tok(pK, '72026001', 'kidteacher', 'zarok')), true);
+    await t('Bildirim: başkasının cihaz kaydını okuyamaz', getDoc(doc(pT, 'pushTokens/TS1')), false);
+    await t('Bildirim: başkasının cihaz kaydını ele geçiremez', setDoc(doc(pT, 'pushTokens/TS1'), tok(pT, '11202601', 'teacher', 'aat')), false);
+    await t('Bildirim: kendi kaydını siler', deleteDoc(doc(pS, 'pushTokens/TS1')), true);
+    await t('Bildirim: fazladan alan reddedilir', setDoc(doc(pV, 'pushTokens/TV3'), tok(pV, '92026001', 'guardian', 'zarok', { x: 1 })), false);
+  }
   // Çocuk Akademisi anketleri (veliler / çocuk öğretmenleri)
   const sgA = as('92026001@veli.aat'), sgB = as('92026002@veli.aat'), sgR = as('98202601@ogretmen.aat'), sgK = as('72026001@zmamoste.aat'), sgS = as('10202601@ogrenci.aat'), sgT = as('11202601@ogretmen.aat');
   const resp = (sid, no, role, x) => ({ surveyId: sid, role, no, name: 'V', areas: ['drama'], answers: { q1: 5 }, submittedAt: '2026-10-04', ...(x || {}) });

@@ -398,6 +398,25 @@ service cloud.firestore {
     }
     match /kidAnnouncements/{id} { allow read: if kidStaff() || isGuardian(); allow write: if kidStaff(); }
 
+    // Anlık bildirim cihaz kayıtları: herkes yalnızca KENDİ cihazını, KENDİ numarası ve rolüyle kaydeder.
+    // Okuma/silme yalnızca sahibi; gönderimi sunucu (Cloud Functions) yapar.
+    function pushRoleOk(r) {
+      return (isStudent() && r == 'student')
+        || (isStaff() && r in ['teacher', 'registrar', 'press', 'admin', 'gate'])
+        || (isGuardian() && r == 'guardian')
+        || (kidStaff() && r == 'kidteacher');
+    }
+    match /pushTokens/{t} {
+      allow read, delete: if authed() && resource.data.uid == request.auth.uid;
+      allow create, update: if authed()
+        && request.resource.data.keys().hasOnly(['uid', 'no', 'role', 'app', 'lang', 'area', 'updatedAt'])
+        && request.resource.data.uid == request.auth.uid
+        && string(request.resource.data.no) == prefix()
+        && request.resource.data.app in ['aat', 'zarok']
+        && pushRoleOk(request.resource.data.role)
+        && (resource == null || resource.data.uid == request.auth.uid);
+    }
+
     // Veli ↔ akademi mesajları
     match /kidMessages/{id} {
       allow read: if kidStaff() || (isGuardian() && resource.data.guardianNo == prefix());
