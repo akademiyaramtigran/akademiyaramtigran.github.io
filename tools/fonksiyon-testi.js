@@ -36,6 +36,8 @@ const { getFunctions, connectFunctionsEmulator, httpsCallable } = require('fireb
   await t('Öğrenci işleri kendi hesabını fonksiyonla değiştiremez',RG.fn({action:'delete',no:'98202601',role:'teacher'}),false);
   await t('Girişsiz çağrı REDDEDİLİR',X.fn({action:'create',no:'1',role:'teacher',password:'123456'}),false);
   await t('Kısa şifre reddedilir',A.fn({action:'setPassword',no:'10202601',role:'student',password:'123'}),false);
+  await t('Rakamsız şifre reddedilir (8 harf)',A.fn({action:'setPassword',no:'10202601',role:'student',password:'abcdefgh'}),false);
+  await t('7 karakterli şifre reddedilir',A.fn({action:'setPassword',no:'10202601',role:'student',password:'abc1234'}),false);
   await t('Yönetici öğrenciyi siler',A.fn({action:'delete',no:'10202601',role:'student'}),true);
   const S3=mk('s3');await t('Silinen öğrenci giremez',signInWithEmailAndPassword(S3.au,'10202601@ogrenci.aat','Yeni9999').then(()=>({data:'girdi'})),false);
   console.log(out.join('\n'));process.exit(0);

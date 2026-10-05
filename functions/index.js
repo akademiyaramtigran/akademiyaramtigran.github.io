@@ -57,7 +57,7 @@ exports.aatUser = onCall(async (req) => {
   const auth = admin.auth();
 
   if (action === "create" || action === "setPassword") {
-    if (typeof password !== "string" || password.length < 6) throw new HttpsError("invalid-argument", "Şifre en az 6 karakter");
+    if (typeof password !== "string" || password.length < 8 || !/[0-9]/.test(password)) throw new HttpsError("invalid-argument", "Şifre en az 8 karakter ve bir rakam");
     let u = null;
     try { u = await auth.getUserByEmail(email); }
     catch (e) { if (e.code !== "auth/user-not-found") throw new HttpsError("internal", e.message); }
