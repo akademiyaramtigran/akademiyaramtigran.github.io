@@ -260,6 +260,8 @@
   // Backend'i uygulama dışı/otomatik isteklere karşı korur.
   // Anahtar: Firebase Console > App Check > Apps > "Fraud Defense" ile kayıtlı site anahtarı
   // (klasik reCAPTCHA v3 kaydı Google tarafından kapatıldı). Yerel testte kapalı.
+  // Anlık bildirim (Web Push) — Firebase Console → Project settings → Cloud Messaging → Web Push certificates → Key pair (herkese açık anahtar)
+  const VAPID_KEY = "YOUR_VAPID_PUBLIC_KEY";
   const APPCHECK_SITE_KEY = "6Lc96-AtAAAAAIT8hv3VpdD_pG66SYnlErGv-_HV"; // reCAPTCHA (Fraud Defense / Enterprise) site anahtarı (herkese açık; gizli anahtar yalnızca Firebase konsolunda)
   try {
     // Yerel testte (localhost) App Check kapalı — reCAPTCHA yalnızca kayıtlı alan adlarında çalışır
@@ -663,6 +665,27 @@
     },
     isConfigured() {
       return firebaseConfig.apiKey !== "YOUR_API_KEY";
+    },
+    // Anlık bildirim: bu cihazı oturumdaki kullanıcı için kaydet (bildirim izni verilmişse).
+    // Uygulama kapalıyken de mesaj, duyuru, ödev vb. telefona gelir (sunucu: functions/index.js push*).
+    async enablePush(role, lang, area) {
+      try {
+        if (!VAPID_KEY || /^YOUR_/.test(VAPID_KEY) || EMU || !auth.currentUser) return { ok: false, reason: "off" };
+        if (typeof Notification === "undefined" || Notification.permission !== "granted" || !("serviceWorker" in navigator)) return { ok: false, reason: "perm" };
+        const m = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js");
+        if (!(await m.isSupported())) return { ok: false, reason: "unsupported" };
+        const reg = (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.ready);
+        const token = await m.getToken(m.getMessaging(app), { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+        if (!token) return { ok: false, reason: "notoken" };
+        await setDoc(doc(db, "pushTokens", token), { uid: auth.currentUser.uid, no: auth.currentUser.email.split("@")[0], role, app: "aat",
+          lang: lang || "ku", area: area || "", updatedAt: serverTimestamp() });
+        try { localStorage.setItem("aat-push-token", token); } catch (_) {}
+        return { ok: true };
+      } catch (e) { console.warn("[push]", e); return { ok: false, reason: (e && e.code) || "error" }; }
+    },
+    // Çıkışta bu cihazın kaydını sil (ortak cihazda bir sonraki kişiye bildirim gitmesin)
+    async disablePush() {
+      try { const t = localStorage.getItem("aat-push-token"); if (t) { localStorage.removeItem("aat-push-token"); await deleteDoc(doc(db, "pushTokens", t)); } } catch (_) {}
     },
     // Firebase Auth sign-in helper — okul numarası ile giriş
     async authSignIn(no, password, role) {
@@ -3447,6 +3470,7 @@ function printIdCards(items,lang,win){
             <div class="nm">${esc2(it.name)}</div>
             <div class="lb">Jimare · Numara</div><div class="no">${esc2(it.no)}</div>
             <div class="lb">Qad · Alan</div><div class="ar">${esc2(it.areaLabel||"")}</div>
+            ${it.classLabel?`<div class="lb">Sinif · Sınıf</div><div class="ar">${esc2(it.classLabel)}</div>`:""}
             <div class="lb">Sal · Yıl</div><div class="ar">${yr} – ${yr+1}</div>
           </div>
         </div>
@@ -3462,7 +3486,24 @@ function printIdCards(items,lang,win){
         <span class="sm">Heke hat dîtin, ji Konservatuara Aram Tîgran re bişînin.<br/>Bulunduğunda Aram Tigran Konservatuvarı'na teslim ediniz.<br/>konservatuaraaramtigran.org</span>
       </div>
     </div>`;
-    return `<div class="pair">${front}${back}</div>`;
+    // Dikey (yaka kartı, 54 × 85,6 mm): üstte askı deliği payı, büyük fotoğraf, ad ve sınıf; arkada büyük QR
+    const vfront=`<div class="card v front ${kid?"kid":""}">
+      <div class="vhole"></div>
+      <div class="vband"><img src="${logoD}" alt=""/><div><div class="vt1">${t1}</div><div class="vt2">${kid?"AKADEMIYA ZAROKAN":"KARTA XWENDEKAR"}</div></div></div>
+      <div class="vph">${ph?`<img src="${esc2(ph)}" alt=""/>`:`<span>${kid?"🎼":"👤"}</span>`}</div>
+      <div class="vnm">${esc2(it.name)}</div>
+      <div class="vcls">${esc2(it.classLabel||it.areaLabel||"")}</div>
+      <div class="vmeta"><span>${esc2(it.no)}</span><span>${yr} – ${yr+1}</span></div>
+      <div class="vaccent" style="background:${esc2(it.color||"#e7c77b")}"></div>
+    </div>`;
+    const vback=`<div class="card v back ${kid?"kid":""}">
+      <div class="vhole"></div>
+      <div class="vqr">${qr?`<img src="${qr}" alt="QR"/>`:""}<div class="code">${fmtCardCode(it.token)}</div></div>
+      <div class="vtxt"><b>Li dergeh û dersê bide xwendin</b><br/>Kurum girişinde ve derslerde okutunuz.<br/><br/>
+        <span class="sm">Heke hat dîtin, ji Konservatuara Aram Tîgran re bişînin.<br/>Bulunduğunda Aram Tigran Konservatuvarı'na teslim ediniz.<br/>konservatuaraaramtigran.org</span></div>
+      <img class="vlg" src="${logoL}" alt=""/>
+    </div>`;
+    return `<div class="pair h">${front}${back}</div><div class="pair v">${vfront}${vback}</div>`;
   }).join("");
   const html=`<!DOCTYPE html><html lang="${lang||"ku"}"><head><meta charset="UTF-8"/><title>Kart · ${items.length}</title><style>
   @page{size:A4;margin:10mm}
@@ -3502,22 +3543,50 @@ function printIdCards(items,lang,win){
   .kid .t1{color:#0f2f38;font-family:"Playfair Display",Georgia,serif;letter-spacing:.03em}
   .kid .ph{border-color:#b8923f}
   .kid.back{background:linear-gradient(135deg,#ffffff 55%,#f6f3ee)}
+  /* Yön seçimi: yatay (cüzdan kartı) / dikey (yaka kartı) */
+  body.yatay .pair.v,body.dikey .pair.h{display:none}
+  .bar .seg{display:inline-flex;border:1px solid rgba(255,255,255,.35);border-radius:9px;overflow:hidden}
+  .bar .seg button{background:transparent;color:#fff;border-radius:0;font-weight:700}
+  body.yatay .seg .bh,body.dikey .seg .bv{background:#e7c77b;color:#0f2f38}
+  .card.v{width:54mm;height:85.6mm;display:flex;flex-direction:column;align-items:center}
+  .vhole{width:12mm;height:2.6mm;border-radius:2mm;border:.25mm dashed #b9c3c6;margin:2.4mm auto 1.6mm;flex-shrink:0}
+  .vband{width:100%;display:flex;align-items:center;gap:2mm;padding:1.6mm 3mm;background:linear-gradient(90deg,#0f2f38,#1d5a66);color:#fff}
+  .kid .vband{background:linear-gradient(90deg,#b8923f,#6e4e1d)}
+  .vband img{height:7mm;width:auto}
+  .vt1{font-weight:900;font-size:2.2mm;letter-spacing:.05em;line-height:1.15}
+  .vt2{font-size:1.75mm;font-weight:800;letter-spacing:.16em;opacity:.9;margin-top:.4mm}
+  .vph{width:28mm;height:34mm;border-radius:2.6mm;overflow:hidden;border:.6mm solid #0f2f38;background:#f1f4f5;display:flex;align-items:center;justify-content:center;font-size:12mm;margin-top:3.2mm;flex-shrink:0}
+  .kid .vph{border-color:#b8923f}
+  .vph img{width:100%;height:100%;object-fit:cover}
+  .vnm{font-weight:900;font-size:3.9mm;line-height:1.15;text-align:center;margin:2.4mm 3mm 0;word-break:break-word}
+  .vcls{font-size:2.6mm;font-weight:800;color:#6e4e1d;text-align:center;margin:1mm 3mm 0}
+  .vmeta{margin-top:auto;margin-bottom:3.6mm;display:flex;gap:3mm;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:2.4mm;font-weight:800;color:#0f2f38}
+  .vaccent{position:absolute;left:0;right:0;bottom:0;height:2mm}
+  .card.v.back{background:linear-gradient(180deg,#ffffff 60%,#f6f3ee);padding:0 3mm}
+  .vqr{text-align:center;margin-top:2mm}
+  .vqr img{width:42mm;height:42mm;display:block;image-rendering:pixelated;margin:0 auto}
+  .vtxt{font-size:2.05mm;line-height:1.35;text-align:center;margin-top:2.4mm;color:#0b2530}
+  .vtxt .sm{font-size:1.75mm;color:#5b7079}
+  .vlg{height:6mm;margin-top:auto;margin-bottom:3mm}
   @media print{.bar{display:none}body{background:#fff}.sheet{padding:0}.card{box-shadow:none}}
   </style></head><body>
-  <div class="bar"><button onclick="window.print()">🖨 Çap bike · Yazdır</button><span>${items.length} kart · ön + arka yüz · CR80 (85,6×54 mm) · çift yüzlü kart yazıcısı veya kesip laminasyon</span></div>
+  <script>document.body.className="${items.some(it=>it.kind==="kid")?"dikey":"yatay"}";<\/script>
+  <div class="bar"><button onclick="window.print()">🖨 Çap bike · Yazdır</button>
+    <span class="seg"><button class="bh" onclick="document.body.className='yatay'">▭ Yatay</button><button class="bv" onclick="document.body.className='dikey'">▯ Dikey · Yaka</button></span>
+    <span>${items.length} kart · ön + arka yüz · CR80 (85,6 × 54 mm) · çift yüzlü kart yazıcısı veya kesip laminasyon</span></div>
   <div class="sheet">${rows}</div></body></html>`;
   if(win&&!win.closed){ win.document.open(); win.document.write(html); win.document.close(); return; }
   openPrintHtml(html);
 }
 // Kart listesi hazırla (eksik anahtar varsa çıkar) ve bas — tıklama anında pencere açılır
-async function issueAndPrintCards(kind,recs,lang,toast,{renew=false,areaLabel,colorOf}={}){
+async function issueAndPrintCards(kind,recs,lang,toast,{renew=false,areaLabel,colorOf,classOf}={}){
   const win=window.open("","_blank");
   if(win){ try{ win.document.write('<p style="font-family:sans-serif;padding:20px">⏳ …</p>'); }catch(_){} }
   const items=[];
   try{
     for(const r of recs){
       const token=(!renew&&r.cardToken)||await issueCard(kind,r);
-      items.push({kind,token,name:r.name,no:r.no,photo:r.photo,areaLabel:areaLabel?areaLabel(r.area):r.area,color:colorOf?colorOf(r.area):undefined});
+      items.push({kind,token,name:r.name,no:r.no,photo:r.photo,areaLabel:areaLabel?areaLabel(r.area):r.area,color:colorOf?colorOf(r.area):undefined,classLabel:classOf?classOf(r):""});
     }
   }catch(e){ if(win) win.close(); toast&&toast("❌ "+((lang==="en"?"Card could not be issued: ":K("Kart nehat çêkirin: "))+((e&&e.code)||(e&&e.message)||""))); return; }
   printIdCards(items,lang,win);
@@ -8030,6 +8099,8 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   const [sibPick,setSibPick]=useState(null);     // kardeş eşleştirme: {kidId, q, other}
   const [sForm,setSForm]=useState({day:1,start:"15:00",end:"16:00",title:"",area:"",teacherNo:"",room:"",classId:""});
   const kidCls=useClassDocs("kidClasses",live);
+  // Kartta yazan sınıf: çocuğun açık sınıfları (atölyeler hariç)
+  const kidClassOf=k=>kidCls.filter(d=>d.kind&&d.kind!=="workshop"&&d.status!=="closed"&&inClass(d,k.no)).map(d=>d.name).join(" · ");
   const [aForm,setAForm]=useState({title:"",body:""});
   const today=new Date().toISOString().slice(0,10);
   const DAYS=lang==="en"?ZAROK_DAYS_EN:ZAROK_DAYS_KU.map(d=>K(d));
@@ -8542,7 +8613,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
             {ZAROK_AREAS.map(a=><option key={a} value={a}>{areaLabel(a)}</option>)}
           </select>
           <span style={small}>{kids.length} {Z("zarok","children")}</span>
-          {kidsF.length>0&&<button onClick={()=>issueAndPrintCards("kid",kidsF,lang,toast,{areaLabel})} style={btn("#0f2f38","#e7c77b")}>🪪 {Z("Kartan çap bike","Print cards")} ({kidsF.length})</button>}
+          {kidsF.length>0&&<button onClick={()=>issueAndPrintCards("kid",kidsF,lang,toast,{areaLabel,classOf:kidClassOf})} style={btn("#0f2f38","#e7c77b")}>🪪 {Z("Kartan çap bike","Print cards")} ({kidsF.length})</button>}
         </div>
         {form&&form.type==="kid"&&(
           <div style={{...box,border:"2px solid var(--accent)"}}>
@@ -8608,8 +8679,8 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
               </div>
               <div style={{display:"flex",gap:6,flexShrink:0}}>
                 <button title={Z("Xwişk/bira girê bide (ji lîsteyê)","Link a sibling (from the list)")} onClick={()=>setSibPick(sibPick&&sibPick.kidId===k.fireId?null:{kidId:k.fireId,q:"",other:""})} style={{...ghost,padding:"6px 10px"}}>👨‍👧</button>
-                <button title={Z("Kartê çap bike","Print card")} onClick={()=>issueAndPrintCards("kid",[k],lang,toast,{areaLabel})} style={{...ghost,padding:"6px 10px"}}>🪪</button>
-                {k.cardToken&&<button title={Z("Karta winda: ya nû çêke","Lost card: issue new")} onClick={()=>{ if(window.confirm(Z("Karteke NÛ were çêkirin? Karta kevn êdî naxebite.","Issue a NEW card? The old card will stop working."))) issueAndPrintCards("kid",[k],lang,toast,{renew:true,areaLabel}); }} style={{...ghost,padding:"6px 10px"}}>♻️</button>}
+                <button title={Z("Kartê çap bike","Print card")} onClick={()=>issueAndPrintCards("kid",[k],lang,toast,{areaLabel,classOf:kidClassOf})} style={{...ghost,padding:"6px 10px"}}>🪪</button>
+                {k.cardToken&&<button title={Z("Karta winda: ya nû çêke","Lost card: issue new")} onClick={()=>{ if(window.confirm(Z("Karteke NÛ were çêkirin? Karta kevn êdî naxebite.","Issue a NEW card? The old card will stop working."))) issueAndPrintCards("kid",[k],lang,toast,{renew:true,areaLabel,classOf:kidClassOf}); }} style={{...ghost,padding:"6px 10px"}}>♻️</button>}
                 <button onClick={()=>setForm({type:"kid",id:k.fireId,orig:k,data:{photo:k.photo||"",kidName:k.name,kidDob:k.dob,area:k.area,school:k.school,health:k.health,consentPhoto:k.consentPhoto,consentShare:k.consentShare,pickupsText:(k.pickups||[]).join("\n")}})} style={{...ghost,padding:"6px 10px"}}><Ico n="edit" solo/></button>
                 <button onClick={()=>delKid(k)} style={{...ghost,padding:"6px 10px"}}><Ico n="trash" solo/></button>
               </div>
@@ -17443,6 +17514,7 @@ function useNotifications(){
     if(Notification.permission==="granted") return "granted";
     const result=await Notification.requestPermission();
     setPermission(result);
+    if(result==="granted") try{ window.dispatchEvent(new Event("aat-notif-granted")); }catch(_){}
     return result;
   },[]);
   
@@ -17794,6 +17866,15 @@ function App(){
   });
   
   // Request notification permission on first login
+  // Anlık bildirim kaydı: giriş yapılmış + izin verilmişse bu cihazı kaydet (dil/alan değişince güncellenir)
+  useEffect(()=>{
+    if(!currentUser||!window.__FB||!window.__FB.enablePush) return;
+    const roleOf=t=>t==="student"?"student":["registrar","press","admin","gate"].includes(t)?t:"teacher";
+    const go=()=>window.__FB.enablePush(roleOf(currentUser.type),lang,currentUser.area||"");
+    if(notifPerm==="granted") go();
+    window.addEventListener("aat-notif-granted",go);
+    return ()=>window.removeEventListener("aat-notif-granted",go);
+  },[currentUser&&currentUser.no,currentUser&&currentUser.type,notifPerm,lang]);
   const handleNotifRequest=useCallback(()=>{
     if(notifPerm==="default") requestPermission();
   },[notifPerm,requestPermission]);
@@ -18048,7 +18129,8 @@ function App(){
     // Firebase Auth'dan çıkış yap (listener'lar durur)
 
     if(window.__FB && window.__FB.isConfigured()){
-      window.__FB.authSignOut().catch(()=>{});
+      const F=window.__FB;
+      (F.disablePush?F.disablePush():Promise.resolve()).finally(()=>F.authSignOut().catch(()=>{}));
     }
     // Ortak cihaz güvenliği: kullanıcıya özel önbellekleri temizle (anket yanıtları, uyarılar, geri bildirim)
     try{
