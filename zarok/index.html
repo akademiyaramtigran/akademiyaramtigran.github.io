@@ -228,7 +228,7 @@ footer .flogo img{height:26px;width:auto}
       <span class="brand"><b data-t="title">Akademiya Zarokan</b><span data-t="sub">Konservatuara Aram Tîgran</span></span>
     </a>
     <nav class="hnav" aria-label="Menû"><a href="#nuce" data-t="navNews">Nûçe</a><a href="#qad" data-t="navDepts">Ders</a><a href="#derbare" data-t="navHistory">Dîrok</a><a href="#serledan" data-t="navApply">Serlêdan</a></nav>
-    <label class="langsel"><span aria-hidden="true">🌐</span><select id="lang" aria-label="Ziman · Dil · Language"></select></label>
+    <label class="langsel"><span aria-hidden="true">🌐</span><select id="lang" data-langdd aria-label="Ziman · Dil · Language"></select></label>
     <a class="btn sm" href="app/"><span aria-hidden="true">🔑</span><span class="login-t" data-t="login">Têketina Dêûbav</span></a>
   </div>
 </header>
@@ -589,5 +589,6 @@ async function loadPosts() {
 }
 applyLang(); renderForm(); loadCfg(); loadPosts();
 </script>
+<script src="/langdd.js" defer></script>
 </body>
 </html>

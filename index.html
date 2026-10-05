@@ -436,7 +436,7 @@ try{
       <a class="link" href="/app/" rel="nofollow" data-i18n="nav_login" style="font-weight:800">Têketin</a>
     </nav>
     <a class="zarok-btn" href="/zarok/" title="Akademiya Zarokan"><span class="zt" data-i18n="nav_zarok_btn">Akademiya Zarokan</span><span class="zt-s" data-i18n="nav_zarok">Akademiya Zarokan</span></a>
-    <div class="lang-wrap"><select class="lang-sel" aria-label="Ziman / Language"><option value="ku">Kurmancî</option><option value="zza">Zazakî</option><option value="tr">Türkçe</option></select></div>
+    <div class="lang-wrap"><select class="lang-sel" data-langdd aria-label="Ziman · Dil · Language"><option value="ku">Kurmancî</option><option value="zza">Zazakî</option><option value="tr">Türkçe</option></select></div>
   </div>
 </div>
 
@@ -445,7 +445,7 @@ try{
 <aside class="drawer" id="drawer" aria-hidden="true">
   <div class="drawer-head">
     <div class="dr-brand"><img src="app/icons/akademi-mesale.png" alt=""/><span data-i18n="brand_u">KONSERVATUARA ARAM TÎGRAN</span><button class="drawer-close" id="hb-close" aria-label="Bigire">✕</button></div>
-    <div class="dr-sub"><span class="drawer-title" data-i18n="menu">MENÛ</span><div class="lang-wrap lang-wrap-drawer"><select class="lang-sel" aria-label="Ziman / Language"><option value="ku">Kurmancî</option><option value="zza">Zazakî</option><option value="tr">Türkçe</option></select></div></div>
+    <div class="dr-sub"><span class="drawer-title" data-i18n="menu">MENÛ</span><div class="lang-wrap lang-wrap-drawer"><select class="lang-sel" data-langdd aria-label="Ziman · Dil · Language"><option value="ku">Kurmancî</option><option value="zza">Zazakî</option><option value="tr">Türkçe</option></select></div></div>
   </div>
   <nav class="drawer-nav">
     <a href="#top" data-close><span class="dr-ic" aria-hidden="true">🏠</span><span data-i18n="home">Serûpel</span></a>
@@ -1428,5 +1428,6 @@ document.addEventListener('sitelang', () => { try{ renderArchive(); }catch(e){} 
   renderArchive();
 })();
 </script>
+<script src="/langdd.js" defer></script>
 </body>
 </html>
