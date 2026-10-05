@@ -1,0 +1,41 @@
+# Siteyi (ana site, uygulama, çocuk sitesi ve uygulaması) Firebase Hosting'e yükler.
+# Alan adı: konservatuaraaramtigran.org — main dalına her birleştirmede kendiliğinden çalışır;
+# GitHub → Actions → "Siteyi Firebase Hosting'e yükle" → Run workflow ile elle de çalıştırılabilir.
+name: Siteyi Firebase Hosting'e yükle
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "functions/**"
+      - "tools/**"
+      - "firestore.rules"
+      - "storage.rules"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-deploy
+  cancel-in-progress: false
+
+jobs:
+  hosting:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Yükle
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then echo "::error::FIREBASE_SERVICE_ACCOUNT sırrı yok"; exit 1; fi
+          KEY="$RUNNER_TEMP/sa.json"; printf '%s' "$SA" > "$KEY"
+          export GOOGLE_APPLICATION_CREDENTIALS="$KEY"
+          npx --yes firebase-tools@13 deploy --only hosting --project aram2026-a9fd7 --non-interactive
+          rm -f "$KEY"
