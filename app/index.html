@@ -232,7 +232,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getFirestore, connectFirestoreEmulator, collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, query, orderBy, where, limit } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
   import { getAuth, connectAuthEmulator, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
+  import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
 
   // ── Güvenlik kuralları: depodaki firestore.rules / storage.rules (v4) geçerlidir.
   //    Rol = e-posta uzantısı + üyelik dizini (idx_staff / idx_students). Bkz. FIREBASE_SECURITY.md
@@ -255,17 +255,16 @@
 
   const app = initializeApp(firebaseConfig);
 
-  // ── Firebase App Check (reCAPTCHA v3) ────────────────────────────────
+  // ── Firebase App Check (Fraud Defense / reCAPTCHA Enterprise) ─────
   // Backend'i uygulama dışı/otomatik isteklere karşı korur.
-  // 1) Firebase Console > App Check > reCAPTCHA v3 ile site key oluştur.
-  // 2) Aşağıdaki APPCHECK_SITE_KEY'i o anahtarla değiştir.
-  // Anahtar girilene kadar App Check güvenli şekilde DEVRE DIŞI kalır.
-  const APPCHECK_SITE_KEY = "6Lc96-AtAAAAAIT8hv3VpdD_pG66SYnlErGv-_HV"; // reCAPTCHA v3 site anahtarı (herkese açık; gizli anahtar yalnızca Firebase konsolunda)
+  // Anahtar: Firebase Console > App Check > Apps > "Fraud Defense" ile kayıtlı site anahtarı
+  // (klasik reCAPTCHA v3 kaydı Google tarafından kapatıldı). Yerel testte kapalı.
+  const APPCHECK_SITE_KEY = "6Lc96-AtAAAAAIT8hv3VpdD_pG66SYnlErGv-_HV"; // reCAPTCHA (Fraud Defense / Enterprise) site anahtarı (herkese açık; gizli anahtar yalnızca Firebase konsolunda)
   try {
     // Yerel testte (localhost) App Check kapalı — reCAPTCHA yalnızca kayıtlı alan adlarında çalışır
     if (APPCHECK_SITE_KEY && APPCHECK_SITE_KEY !== "YOUR_RECAPTCHA_V3_SITE_KEY" && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
       initializeAppCheck(app, {
-        provider: new ReCaptchaV3Provider(APPCHECK_SITE_KEY),
+        provider: new ReCaptchaEnterpriseProvider(APPCHECK_SITE_KEY),
         isTokenAutoRefreshEnabled: true
       });
       if (window._appCheck) window._appCheck.configured = true;

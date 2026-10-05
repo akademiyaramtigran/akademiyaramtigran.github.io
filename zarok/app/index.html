@@ -185,7 +185,7 @@ const FB_CONFIG = {
   messagingSenderId: "326496145672",
   appId: "1:326496145672:web:199c6cdd6db08ac3ea9cbd"
 };
-const APPCHECK_KEY = "6Lc96-AtAAAAAIT8hv3VpdD_pG66SYnlErGv-_HV"; // reCAPTCHA v3 site anahtarı (herkese açık)
+const APPCHECK_KEY = "6Lc96-AtAAAAAIT8hv3VpdD_pG66SYnlErGv-_HV"; // reCAPTCHA (Fraud Defense / Enterprise) site anahtarı (herkese açık)
 const SDK = "https://www.gstatic.com/firebasejs/10.12.0/";
 const MAIN_APP = "../../app/";           // alan adı ayrılınca: "https://akademiyaramtigran.github.io/app/"
 const SITE = "../";                       // Zarok tanıtım/başvuru sayfası
@@ -253,7 +253,7 @@ async function initFirebase() {
   // Ayrı uygulama adı → ana akademi uygulamasının oturumuyla KARIŞMAZ (aynı alan adında olsa bile)
   const app = appM.initializeApp(FB_CONFIG, "zarok");
   // App Check: veritabanına yalnızca bu uygulamadan gelen istekler (yerel testte kapalı)
-  if (!EMU && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) { try { const ac = await import(SDK + "firebase-app-check.js"); ac.initializeAppCheck(app, { provider: new ac.ReCaptchaV3Provider(APPCHECK_KEY), isTokenAutoRefreshEnabled: true }); } catch (_) {} }
+  if (!EMU && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) { try { const ac = await import(SDK + "firebase-app-check.js"); ac.initializeAppCheck(app, { provider: new ac.ReCaptchaEnterpriseProvider(APPCHECK_KEY), isTokenAutoRefreshEnabled: true }); } catch (_) {} }
   const auth = authM.getAuth(app);
   const db = fsM.getFirestore(app);
   if (EMU) { authM.connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true }); fsM.connectFirestoreEmulator(db, "127.0.0.1", 8080); }
