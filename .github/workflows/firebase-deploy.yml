@@ -15,6 +15,7 @@ on:
           - hepsi
           - kurallar
           - fonksiyon
+          - site
 
 permissions:
   contents: read
@@ -44,7 +45,7 @@ jobs:
           fi
 
       - name: Fonksiyon bağımlılıkları
-        if: inputs.hedef != 'kurallar'
+        if: inputs.hedef != 'kurallar' && inputs.hedef != 'site'
         run: npm install --omit=dev --no-audit --no-fund
         working-directory: functions
 
@@ -66,7 +67,8 @@ jobs:
           case "$HEDEF" in
             kurallar)  ONLY="firestore:rules,storage" ;;
             fonksiyon) ONLY="functions" ;;
-            *)         ONLY="firestore:rules,storage,functions" ;;
+            site)      ONLY="hosting" ;;
+            *)         ONLY="firestore:rules,storage,functions,hosting" ;;
           esac
           npx --yes firebase-tools@13 deploy --only "$ONLY" --project aram2026-a9fd7 --non-interactive --force
           rm -f "$KEY"
