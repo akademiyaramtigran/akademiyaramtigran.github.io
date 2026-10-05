@@ -260,9 +260,10 @@
   // 1) Firebase Console > App Check > reCAPTCHA v3 ile site key oluştur.
   // 2) Aşağıdaki APPCHECK_SITE_KEY'i o anahtarla değiştir.
   // Anahtar girilene kadar App Check güvenli şekilde DEVRE DIŞI kalır.
-  const APPCHECK_SITE_KEY = "YOUR_RECAPTCHA_V3_SITE_KEY";
+  const APPCHECK_SITE_KEY = "6Lc96-AtAAAAAIT8hv3VpdD_pG66SYnlErGv-_HV"; // reCAPTCHA v3 site anahtarı (herkese açık; gizli anahtar yalnızca Firebase konsolunda)
   try {
-    if (APPCHECK_SITE_KEY && APPCHECK_SITE_KEY !== "YOUR_RECAPTCHA_V3_SITE_KEY") {
+    // Yerel testte (localhost) App Check kapalı — reCAPTCHA yalnızca kayıtlı alan adlarında çalışır
+    if (APPCHECK_SITE_KEY && APPCHECK_SITE_KEY !== "YOUR_RECAPTCHA_V3_SITE_KEY" && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
       initializeAppCheck(app, {
         provider: new ReCaptchaV3Provider(APPCHECK_SITE_KEY),
         isTokenAutoRefreshEnabled: true

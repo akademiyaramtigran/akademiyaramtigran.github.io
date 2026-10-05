@@ -6,7 +6,7 @@
 <style id="aat-antiframe">html{display:none!important}</style>
 <script>(function(){if(window.self===window.top){var s=document.getElementById('aat-antiframe');if(s)s.parentNode.removeChild(s);}else{try{window.top.location=window.self.location.href;}catch(e){}}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://www.gstatic.com http://127.0.0.1:9099 http://127.0.0.1:8080 ws://127.0.0.1:8080; base-uri 'self'; form-action 'self'; object-src 'none'"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://www.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://www.google.com https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://www.gstatic.com http://127.0.0.1:9099 http://127.0.0.1:8080 ws://127.0.0.1:8080; frame-src https://www.google.com https://recaptcha.google.com; base-uri 'self'; form-action 'self'; object-src 'none'"/>
 <meta name="referrer" content="strict-origin-when-cross-origin"/>
 <meta name="theme-color" content="#0f2f38"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -185,6 +185,7 @@ const FB_CONFIG = {
   messagingSenderId: "326496145672",
   appId: "1:326496145672:web:199c6cdd6db08ac3ea9cbd"
 };
+const APPCHECK_KEY = "6Lc96-AtAAAAAIT8hv3VpdD_pG66SYnlErGv-_HV"; // reCAPTCHA v3 site anahtarı (herkese açık)
 const SDK = "https://www.gstatic.com/firebasejs/10.12.0/";
 const MAIN_APP = "../../app/";           // alan adı ayrılınca: "https://akademiyaramtigran.github.io/app/"
 const SITE = "../";                       // Zarok tanıtım/başvuru sayfası
@@ -251,6 +252,8 @@ async function initFirebase() {
   const [appM, authM, fsM] = await Promise.all([import(SDK + "firebase-app.js"), import(SDK + "firebase-auth.js"), import(SDK + "firebase-firestore.js")]);
   // Ayrı uygulama adı → ana akademi uygulamasının oturumuyla KARIŞMAZ (aynı alan adında olsa bile)
   const app = appM.initializeApp(FB_CONFIG, "zarok");
+  // App Check: veritabanına yalnızca bu uygulamadan gelen istekler (yerel testte kapalı)
+  if (!EMU && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) { try { const ac = await import(SDK + "firebase-app-check.js"); ac.initializeAppCheck(app, { provider: new ac.ReCaptchaV3Provider(APPCHECK_KEY), isTokenAutoRefreshEnabled: true }); } catch (_) {} }
   const auth = authM.getAuth(app);
   const db = fsM.getFirestore(app);
   if (EMU) { authM.connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true }); fsM.connectFirestoreEmulator(db, "127.0.0.1", 8080); }

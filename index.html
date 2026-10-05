@@ -5,7 +5,7 @@
 <!-- Güvenlik: sayfa başka bir sitenin çerçevesine (iframe) gömülürse gizle ve çerçeveden çık (clickjacking koruması; GitHub Pages X-Frame-Options başlığı gönderemez) -->
 <style id="aat-antiframe">html{display:none!important}</style>
 <script>(function(){if(window.self===window.top){var s=document.getElementById('aat-antiframe');if(s)s.parentNode.removeChild(s);}else{try{window.top.location=window.self.location.href;}catch(e){}}})();</script>
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; media-src 'self' https: blob:; font-src 'self' data:; connect-src 'self' http://127.0.0.1:8080 https://*.googleapis.com https://*.firebaseio.com https://*.firebasestorage.app wss://*.firebaseio.com; frame-src https://www.youtube-nocookie.com https://www.youtube.com; base-uri 'self'; object-src 'none'; form-action 'self'"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://www.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; media-src 'self' https: blob:; font-src 'self' data:; connect-src 'self' http://127.0.0.1:8080 https://www.google.com https://*.googleapis.com https://*.firebaseio.com https://*.firebasestorage.app wss://*.firebaseio.com; frame-src https://www.youtube-nocookie.com https://www.youtube.com https://www.google.com https://recaptcha.google.com; base-uri 'self'; object-src 'none'; form-action 'self'"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>Konservatuara Aram Tîgran — Aram Tigran Konservatuvarı</title>
 <meta name="description" content="Konservatuara Aram Tîgran (Aram Tigran Konservatuvarı) — dibistana hunerê: muzîk, şano, sînema, dans, wêje û wênesazî. Nûçe, vîdyo û agahî."/>
@@ -644,6 +644,7 @@ document.getElementById('year').textContent = new Date().getFullYear();
 
 // ── Firestore'dan haberleri çek (yalnızca okuma) ─────────────────────────
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
 import { getFirestore, connectFirestoreEmulator, collection, doc, query, orderBy, limit, getDocs, getDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const app = initializeApp({
@@ -654,6 +655,8 @@ const app = initializeApp({
   messagingSenderId: "326496145672",
   appId: "1:326496145672:web:199c6cdd6db08ac3ea9cbd"
 });
+// App Check: veritabanına yalnızca bu siteden gelen istekler (yerel testte kapalı)
+try { if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) initializeAppCheck(app, { provider: new ReCaptchaV3Provider("6Lc96-AtAAAAAIT8hv3VpdD_pG66SYnlErGv-_HV"), isTokenAutoRefreshEnabled: true }); } catch (_) {}
 const db = getFirestore(app);
 // Yerel test: yalnızca localhost'ta ve ?emu ile emülatöre bağlanır (canlı sitede etkisiz)
 if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).has("emu")) connectFirestoreEmulator(db, "127.0.0.1", 8080);
