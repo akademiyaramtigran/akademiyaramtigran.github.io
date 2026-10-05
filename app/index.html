@@ -5644,8 +5644,9 @@ function AdminMessagesPanel({students,teachers,lang,t,toast,adminName}){
     </>
   );
 }
-function TeacherMessagesPanel({teacher,myStudents,aColor,lang,t,toast}){
+function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toast}){
   const [mode,setMode]=useState("inbox");
+  const [bulkTo,setBulkTo]=useState("all"); // "all" = sınıflarımın tüm öğrencileri | sınıf id
   const [msgType,setMsgType]=useState("private");
   const [recipient,setRecipient]=useState("");
   const [subject,setSubject]=useState("");
@@ -5681,7 +5682,10 @@ function TeacherMessagesPanel({teacher,myStudents,aColor,lang,t,toast}){
   },[teacher.id, teacher.area]);
 
   const inbox=messages.filter(m=>m.direction==="inbox");
-  const sent=messages.filter(m=>m.direction==="sent");
+  // Toplu mesaj öğrenci başına ayrı kayıttır — "Gönderilen"de tek satır görünsün
+  const sent=messages.filter(m=>m.direction==="sent").filter((m,i,a)=>!m.bulkId||a.findIndex(x=>x.bulkId===m.bulkId)===i);
+  const bulkGroup=(classGroups||[]).find(g=>g.id===bulkTo);
+  const bulkTargets=bulkGroup?bulkGroup.students:myStudents;
   const unreadCount=inbox.filter(m=>!m.read).length;
 
   const L={
@@ -5724,9 +5728,10 @@ function TeacherMessagesPanel({teacher,myStudents,aColor,lang,t,toast}){
   async function sendMsg(){
     if(!subject.trim()||!body.trim()){toast("⚠ "+L.subject+" & "+L.message);return;}
     if(msgType==="private"&&!recipient){toast(lang==="en"?"⚠ Select recipient":K("⚠ Wergir hilbijêre"));return;}
+    if(msgType==="bulk"&&!bulkTargets.length){toast(lang==="en"?"⚠ No students in this class":K("⚠ Di vê sinifê de xwendekar tune"));return;}
     const toLabel=msgType==="private"
       ? (recipient==="admin"?(lang==="en"?"Admin":K("Rêveber")):myStudents.find(s=>String(s.id)===recipient)?.name||recipient)
-      : L.allStudents;
+      : (bulkGroup?"🏫 "+bulkGroup.name:L.allStudents);
     const now=new Date();
     const timeStr=now.getHours().toString().padStart(2,"0")+":"+now.getMinutes().toString().padStart(2,"0");
     const newMsg={
@@ -5744,14 +5749,24 @@ function TeacherMessagesPanel({teacher,myStudents,aColor,lang,t,toast}){
       senderId:String(teacher.id),
       recipientId:msgType==="private"?(recipient==="admin"?"admin":"s_"+recipient):null,
       recipientNo:msgType==="private"&&recipient!=="admin"?String((myStudents.find(s=>String(s.id)===String(recipient))||{}).no||""):null,
-      recipientGroup:msgType==="bulk"?("area_"+teacher.area):null,
+      recipientGroup:null,
       area:teacher.area,
       isStudentFeedback:false,
       attachments:attachments.map(a=>({name:a.name,size:a.size,type:a.type,url:a.url,preview:a.preview}))
     };
-    try { await fbSave("message", newMsg); } catch(e){ /* silent */ }
+    // Toplu mesaj yalnızca SEÇİLEN SINIFIN (ya da öğretmenin tüm sınıflarının) öğrencilerine gider:
+    // alan grubuna değil, her öğrenciye kendi numarasıyla ayrı kayıt.
+    let fail=0;
+    if(msgType==="bulk"){
+      const bulkId="b_"+teacher.id+"_"+Date.now();
+      for(const st of bulkTargets){
+        try { await fbSave("message", {...newMsg, id:bulkId+"_"+st.id, bulkId, recipientId:"s_"+st.id, recipientNo:String(st.no||"")}); } catch(e){ fail++; }
+      }
+      newMsg.bulkId=bulkId;
+    } else { try { await fbSave("message", newMsg); } catch(e){ fail++; } }
+    if(fail){ toast("⚠ "+(lang==="en"?"Some messages could not be sent — check the connection":K("Hin peyam nehatin şandin — girêdanê kontrol bike")),6000); }
     setMessages(p=>[newMsg,...p]);
-    toast("✓ "+L.send+(msgType==="bulk"?" → "+myStudents.length+" "+(lang==="en"?"students":K("xwendekar")):""));
+    toast("✓ "+L.send+(msgType==="bulk"?" → "+(bulkTargets.length-fail)+" "+(lang==="en"?"students":K("xwendekar")):""));
     setSubject("");setBody("");setRecipient("");setAttachments([]);setMode("inbox");
   }
 
@@ -5845,7 +5860,13 @@ function TeacherMessagesPanel({teacher,myStudents,aColor,lang,t,toast}){
         ):(
           <div style={{padding:"10px 12px",background:"rgba(15,47,56,0.05)",borderRadius:10,marginBottom:12,
             border:"1px solid rgba(15,47,56,0.18)",fontSize:12,color:"var(--text)",fontWeight:600}}>
-            📣 {L.allStudents} ({myStudents.length} {lang==="en"?"students":K("xwendekar")})
+            <select style={{...selectStyle,marginBottom:8}} value={bulkTo} onChange={e=>setBulkTo(e.target.value)} aria-label="bulk-to">
+              <option value="all">📣 {L.allStudents} ({myStudents.length})</option>
+              {(classGroups||[]).map(g=><option key={g.id} value={g.id}>🏫 {g.name} ({g.students.length})</option>)}
+            </select>
+            <div style={{fontWeight:500,color:"var(--text2)",fontSize:11}}>
+              {lang==="en"?"Only students in your classes receive it.":K("Tenê xwendekarên sinifên te digirin.")} · {bulkTargets.length} {lang==="en"?"students":K("xwendekar")}
+            </div>
           </div>
         )}
         <FieldWrap label={L.subject}>
@@ -13667,6 +13688,13 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
       .forEach(d=>students.forEach(s=>{ if(!s.isAdmin&&inClass(d,s.no)) m.set(s.id,s); }));
     return [...m.values()].sort((x,y)=>(x.name||"").localeCompare(y.name||""));
   })();
+  // Toplu mesaj hedefleri: öğretmenin sınıfları (sınıf öğretmeni ya da sınıfa ders veren)
+  const myClassGroups=(()=>{
+    const lc=new Set(mySchedule.map(l=>l.classId).filter(Boolean));
+    return clsDocs.filter(d=>d.kind&&d.status!=="closed"&&((d.teacherNos||[]).map(String).includes(String(teacher.no))||lc.has(d.id)))
+      .map(d=>({id:d.id,name:classLabel(d,lang),students:students.filter(s=>!s.isAdmin&&inClass(d,s.no))}))
+      .sort((a,b)=>a.name.localeCompare(b.name));
+  })();
 
   // ── Anlık / sıradaki ders hesapla ──────────────────────────────────────────
   // Günün ders programından şu anda ya da en yakın ders hangisi?
@@ -14468,7 +14496,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
           </div>
         )}
         {view==="messages"&&(
-          <TeacherMessagesPanel teacher={teacher} myStudents={myStudents} aColor="#0f2f38" lang={lang} t={t} toast={toast}/>
+          <TeacherMessagesPanel teacher={teacher} myStudents={myStudents} classGroups={myClassGroups} aColor="#0f2f38" lang={lang} t={t} toast={toast}/>
         )}
         {view==="myclass"&&<ClassPostsPanel mode="teacher" teacher={teacher} lang={lang} toast={toast}/>}
         {view==="students"&&(

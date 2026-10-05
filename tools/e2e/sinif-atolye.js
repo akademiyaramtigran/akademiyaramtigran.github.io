@@ -163,6 +163,18 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   ok('Öğretmen: Sinifên Min (alan + genel, kapanan atölye yok)', t8.includes('Sinifên Min') && t8.includes('Muzîk · 1. Sînif') && t8.includes('🌐 Koro') && !t8.includes('Atolyeya Deng'), t8.split('\n').filter(l => /Sinif|Koro|Atolye|Sînif/.test(l)).join(' / '));
   ok('Öğretmenin öğrenci listesi sınıflarından (başka alandan Jîyan var, sınıfsız Baran yok)', t8.includes('Jîyan Roj') && t8.includes('Rojîn Aram') && !t8.includes('Baran Şêx'));
 
+  // ── 8b) Toplu mesaj yalnızca seçilen sınıfın öğrencilerine (alanın tamamına değil) ──
+  await tp.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('💬') && x.offsetParent && x.textContent.trim().length < 14); b[b.length - 1].click(); });
+  await tp.waitForTimeout(800);
+  await tp.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.includes('Peyamek Nû')).click()); await tp.waitForTimeout(400);
+  await tp.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.trim().endsWith('Hemûyan')).click()); await tp.waitForTimeout(300);
+  const koroOpt = await tp.evaluate(() => [...document.querySelectorAll('select[aria-label=bulk-to] option')].find(o => o.textContent.includes('Koro (')).value);
+  await tp.selectOption('select[aria-label=bulk-to]', koroOpt);
+  await tp.locator('input[placeholder="Sernav..."]').fill('Prova'); await tp.locator('textarea').first().fill('Sibê prova heye');
+  await tp.evaluate(() => [...document.querySelectorAll('button')].filter(x => x.textContent.includes('Bişîne')).pop().click()); await tp.waitForTimeout(2500);
+  const bm = (await list('messages')).filter(d => d.fields.subject && d.fields.subject.stringValue === 'Prova').map(d => d.fields.recipientNo.stringValue).sort();
+  ok('Toplu mesaj yalnızca sınıfın öğrencilerine (alan grubu yok)', JSON.stringify(bm) === JSON.stringify(['10202601', '20202601']), JSON.stringify(bm));
+
   // ── 9) Öğretmen elle yoklama (QR sorununda yedek) ──
   // Bugünün dersi: sınıfı 1. Sînif (yalnız Rojîn). Elle "geç" işaretle → kaydet → yeniden açınca
   // işaret yüklü → QR aç/kapat: okutmayan ama elle işaretlenen öğrenci "yok"a düşmez.
