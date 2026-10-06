@@ -169,6 +169,7 @@ function page(lang, rows, sections) {
 <html lang="tr">
 <head>
 <meta charset="UTF-8"/>
+<script>/* Eski adres (GitHub Pages) → yeni alan adı */if(location.hostname==="akademiyaramtigran.github.io")location.replace("https://konservatuaraaramtigran.org"+location.pathname+location.search+location.hash);</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="robots" content="noindex,nofollow"/>
 <title>${title} — Konservatuara Aram Tîgran</title>
