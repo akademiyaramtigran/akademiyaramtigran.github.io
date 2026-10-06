@@ -3300,7 +3300,7 @@ function openQRPrintPage(qrVal, lesson, teacherName, dateStr, lang) {
     URL.revokeObjectURL(blobUrl);
   } catch(e) {}
 
-  alert(L==="en"?"Please allow popups for QR printing":K("QR çıktısı için tarayıcıda popup iznine izin verin"));
+  alert(L==="en"?"Please allow popups for QR printing":K("Ji bo çapkirina QR-ê di gerokê de destûra paceyên vekirî (pop-up) bide"));
 }
 
 function useT(lang){return React.useMemo(()=>({...T.ku,...(T[lang]||{})}),[lang]);}
@@ -4098,7 +4098,7 @@ function ForgotScreen({t, lang, onBack, onSuccess, students, teachers, onDataCha
                   en:"Check your email and click the link to set a new password."},
     emailErr:   {get ku(){return K("E-posta şandin neçû. Rêveber têkilî bike.")},
                  en:"Could not send email. Contact administrator."},
-    adminReset: {get ku(){return K("Rêveber şîfreyê sıfırla bike")},  en:"Admin Password Reset"},
+    adminReset: {get ku(){return K("Rêveber şîfreyê nû bike")},  en:"Admin Password Reset"},
     newPassLabel:{get ku(){return K("Şîfreya Nû (Otomatîk)")},        en:"New Password (Auto)"},
     newPassHint:{get ku(){return K("Ev şîfre ji bo têketinê bide bikarhêner")},
                  en:"Give this password to the user for login"},
@@ -4908,7 +4908,7 @@ function DeviceResetBtn({no, lang, toast}){
     setLoading(false);
     if(ok){
       setStatus("none");
-      toast("✅ "+(lang==="en"?"Device reset — can login from new device":K("Cîhaz sıfırlandı — nû têketin dikare bibe")));
+      toast("✅ "+(lang==="en"?"Device reset — can login from new device":K("Cîhaz hate paqijkirin — têketina nû dikare bibe")));
     } else {
       toast("⚠ "+(lang==="en"?"An error occurred":K("Çewtiyek çêbû")));
     }
@@ -4937,7 +4937,7 @@ function DeviceResetBtn({no, lang, toast}){
           style={{width:"100%",padding:"8px",background:"var(--red-bg)",border:"1px solid var(--red)",
             borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",color:"var(--red)",
             opacity:loading?0.6:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-          {loading?"⏳ ...":"🔄 "+(lang==="en"?"Reset Device":K("Cîhazê Sıfırla"))}
+          {loading?"⏳ ...":"🔄 "+(lang==="en"?"Reset Device":K("Cîhazê Paqij Bike"))}
         </button>
       )}
     </div>
@@ -8902,7 +8902,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
     saved:{get ku(){return K("✅ Hate tomarkirin")},en:"✅ Saved"},
     reqHead:{get ku(){return K("📄 Belgeyên Pêwîst")},en:"📄 Required Documents"},
     reqHint:{get ku(){return K("Ev belge li ser malperê xuya dibin; serlêder her yekê cuda bar dike.")},en:"Shown on the site; applicants upload each one separately."},
-    reqName:{get ku(){return K("Navê belgeyê (ör. Forma Tomarkirinê)")},en:"Document name"},
+    reqName:{get ku(){return K("Navê belgeyê (mînak: Forma Tomarkirinê)")},en:"Document name"},
     reqFile:{get ku(){return K("📎 Şablona vala (wêne/PDF — vebijarkî)")},en:"📎 Blank template (image/PDF — optional)"},
     reqAdd:{get ku(){return K("➕ Belgeyê Zêde Bike")},en:"➕ Add Document"},
     reqEmpty:{get ku(){return K("Hîn belge nehatiye danîn.")},en:"No documents defined yet."},
@@ -9864,11 +9864,11 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
   const SEASONS={bihar:{ku:"🌱 Bihar",tr:"Bahar",en:"Spring"},payiz:{ku:"🍂 Payîz",tr:"Sonbahar",en:"Autumn"},havin:{ku:"☀️ Havîn",tr:"Yaz",en:"Summer"},zivistan:{ku:"❄️ Zivistan",tr:"Kış",en:"Winter"}};
   const seasonName=v=>{const [ic,...w]=v.ku.split(" ");const n=w.join(" ");return ic+" "+(lang==="en"?v.en:K(n));};
   const TL=(k)=>({
-    terms:{get ku(){return K("📆 Demsal (Dönemler)")},en:"📆 Terms"},
+    terms:{get ku(){return K("📆 Demsal")},en:"📆 Terms"},
     active:{get ku(){return K("Çalak")},en:"Active"},
     setActive:{get ku(){return K("Çalak bike")},en:"Set active"},
     add:{get ku(){return K("➕ Demsalê Zêde Bike")},en:"➕ Add Term"},
-    label:{get ku(){return K("Nav (ör. 2026 Bihar)")},en:"Name (e.g. 2026 Spring)"},
+    label:{get ku(){return K("Nav (mînak: 2026 Bihar)")},en:"Name (e.g. 2026 Spring)"},
     empty:{get ku(){return K("Hîn demsal nehatiye danîn. Ders bê demsal jî dixebitin.")},en:"No terms defined yet. Lessons work without terms too."},
     needAll:{get ku(){return K("⚠ Nav û tarîx pêwîst in")},en:"⚠ Name and dates required"},
     allTerms:{get ku(){return K("Hemû demsal")},en:"All terms"},
@@ -12654,8 +12654,8 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
       step5:      {get ku(){return K("Belge")},             en:"Document"},
       next:       {get ku(){return K("Pêştir →")},          en:"Next →"},
       back:       {get ku(){return K("← Vegere")},          en:"← Back"},
-      percent:    {get ku(){return K("Rêjeya % (yüzdelik)")},en:"Percentage %"},
-      points:     {get ku(){return K("Pûan (puan sistemi)")},en:"Points system"},
+      percent:    {get ku(){return K("Rêjeya %")},en:"Percentage %"},
+      points:     {get ku(){return K("Pûan (sîstema pûanan)")},en:"Points system"},
       qa:         {get ku(){return K("Sual – Cewab")},      en:"Q&A (text answers)"},
       mixed:      {get ku(){return K("Tevlihev (hemû)")},   en:"Mixed (all types)"},
       docOpt:     {get ku(){return K("Belge an wêne piştgirî?")},en:"Allow document/image upload?"},
@@ -13900,7 +13900,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     if(nowMin<sMin){
       const diff=sMin-nowMin;
       const h=Math.floor(diff/60), m=diff%60;
-      return lang==="en"?`⏰ in ${h>0?h+"h ":""}${m}m`:KF("⏰ {0}{1}d sonra",[h>0?h+"s ":"",m]);
+      return lang==="en"?`⏰ in ${h>0?h+"h ":""}${m}m`:KF("⏰ piştî {0}{1}d",[h>0?h+"s ":"",m]);
     }
     return lang==="en"?"✓ Done":K("✓ Biqedî");
   }
@@ -16477,7 +16477,7 @@ function LoginScreen({students,teachers,t,lang,rawLang,setLang,onLogin,onForgot,
           recordFailedAttempt(uid);
           hapticError();
           setErr(
-            lang==="en"?"🔒 This account is registered on another device. Ask admin to reset your device.":K("🔒 Ev hesab li cîhazekî din tomar bûye. Ji rêveber re vebêje ku cîhazê sıfırla bike.")
+            lang==="en"?"🔒 This account is registered on another device. Ask admin to reset your device.":K("🔒 Ev hesab li cîhazekî din tomar bûye. Ji rêveber re vebêje ku cîhazê ji nû ve saz bike.")
           );
           return;
         }
