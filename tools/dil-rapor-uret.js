@@ -169,7 +169,12 @@ function page(lang, rows, sections) {
 <html lang="tr">
 <head>
 <meta charset="UTF-8"/>
-<script>/* Eski adres (GitHub Pages) → yeni alan adı */if(location.hostname==="akademiyaramtigran.github.io")location.replace("https://konservatuaraaramtigran.org"+location.pathname+location.search+location.hash);</script>
+<script>/* Eski adres (GitHub Pages) → yeni alan adı. Bu tarayıcıda eski adreste doldurulmuş rapor varsa yönlendirme YAPILMAZ:
+   kişi yazdıklarını 📤 Gönder ile dosya olarak alıp yeni adreste 📥 Yükle ile devam eder. */
+(function(){if(location.hostname!=="akademiyaramtigran.github.io")return;var has=false;try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(/^aat-dil-(ku|zz)-/.test(k)&&localStorage.getItem(k)&&localStorage.getItem(k)!=="{}"){has=true;break;}}}catch(e){}
+if(!has){location.replace("https://konservatuaraaramtigran.org"+location.pathname+location.search+location.hash);return;}
+document.addEventListener("DOMContentLoaded",function(){var b=document.createElement("div");b.style.cssText="position:sticky;top:0;z-index:99;background:#fff3cd;color:#664d03;padding:12px 16px;font:600 14px/1.5 system-ui,sans-serif;border-bottom:1px solid #e0c97a";
+b.innerHTML="⚠ Rapor yeni adrese taşındı: <b>konservatuaraaramtigran.org</b>. Bu sayfadaki yazılarınız korunuyor. Lütfen önce <b>📤 Gönder</b> ile dosyanızı alın, sonra yeni adreste raporu açıp <b>📥 Yükle</b> ile devam edin.";document.body.insertBefore(b,document.body.firstChild);});})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="robots" content="noindex,nofollow"/>
 <title>${title} — Konservatuara Aram Tîgran</title>
