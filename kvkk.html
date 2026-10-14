@@ -55,10 +55,10 @@ th{background:var(--soft)}
   <div class="tbl"><table>
     <tr><th>Kişi grubu</th><th>Veri kategorileri</th></tr>
     <tr><td>Başvuru sahipleri</td><td>Ad-soyad, doğum tarihi, telefon, e-posta, ilgi alanı, not, başvuru belgeleri</td></tr>
-    <tr><td>Öğrenciler</td><td>Kimlik ve iletişim bilgileri, fotoğraf, öğrenci numarası, alan/sınıf, burs durumu, devam (QR yoklama) kayıtları, anket yanıtları, değerlendirmeler, mesajlar, giriş yapılan cihaz bilgisi</td></tr>
-    <tr><td>Öğretmen ve personel</td><td>Kimlik ve iletişim bilgileri, fotoğraf, görev bilgisi, ders kayıtları</td></tr>
-    <tr><td>Çocuk Akademisi (Aram Tigran Konservatuvarı çocuk ve gençlik bölümü) — veliler ve öğrenciler</td><td>Veli kimlik/iletişim bilgileri; çocuğun adı, doğum tarihi, alanı, devam kayıtları; veli tarafından verilmişse sağlık notu (özel nitelikli veri) ve teslim alabilecek kişiler</td></tr>
-    <tr><td>Site ziyaretçileri</td><td>Tarayıcıda saklanan dil/tema tercihleri (çerez veya reklam takibi kullanılmaz)</td></tr>
+    <tr><td>Öğrenciler</td><td>Kimlik ve iletişim bilgileri, fotoğraf, öğrenci numarası, alan/sınıf, burs durumu, devam (QR, kart veya öğretmenin elle girdiği yoklama) kayıtları, kartla bina giriş kayıtları, anket yanıtları, değerlendirmeler, mesajlar, giriş yapılan cihaz bilgisi, bildirim izni verilmişse cihaz bildirim anahtarı</td></tr>
+    <tr><td>Öğretmen ve personel</td><td>Kimlik ve iletişim bilgileri, fotoğraf, görev bilgisi, ders ve yoklama kayıtları, bildirim izni verilmişse cihaz bildirim anahtarı</td></tr>
+    <tr><td>Çocuk Akademisi (Aram Tigran Konservatuvarı çocuk ve gençlik bölümü) — veliler ve öğrenciler</td><td>Veli kimlik/iletişim bilgileri; çocuğun adı, doğum tarihi, alanı, sınıfı, devam (yaka kartı veya elle yoklama) kayıtları, öğretmen değerlendirmeleri ve ödevler; bildirim izni verilmişse cihaz bildirim anahtarı; veli tarafından verilmişse sağlık notu (özel nitelikli veri) ve teslim alabilecek kişiler</td></tr>
+    <tr><td>Site ziyaretçileri</td><td>Tarayıcıda saklanan dil/tema tercihleri; güvenlik için teknik bağlantı bilgileri (IP adresi, tarayıcı türü) — bot koruması ve barındırma hizmeti tarafından işlenir. Reklam veya izleme çerezi kullanılmaz.</td></tr>
   </table></div>
 
   <h2>3. İşleme Amaçları ve Hukuki Sebepler</h2>
@@ -76,15 +76,22 @@ th{background:var(--soft)}
   sunulabilmesi için aşağıdaki altyapı sağlayıcılarından yararlanılır; bu sağlayıcıların sunucuları
   yurt dışında bulunabilir (KVKK m.9 kapsamında):</p>
   <ul>
-    <li>Google Firebase (veritabanı, kimlik doğrulama, dosya depolama) — Google Ireland Ltd.</li>
+    <li>Google Firebase — Google Ireland Ltd.: veritabanı (Cloud Firestore), kimlik doğrulama, dosya depolama,
+      sunucu işlevleri, web sitesinin ve uygulamaların barındırılması (Firebase Hosting) ve anlık bildirimler
+      (Firebase Cloud Messaging; yalnızca bildirim izni verilen cihazlara)</li>
+    <li>Google reCAPTCHA Enterprise / Firebase App Check — sitenin ve uygulamaların otomatik saldırılara
+      (bot) karşı korunması; bu amaçla tarayıcı ve bağlantı bilgileri işlenir</li>
+    <li>Google Fonts (yazı tipleri) ve YouTube (gizlilik geliştirilmiş mod, youtube-nocookie.com; yalnızca
+      sitede video bulunan bölümlerde) — bağlantı sırasında IP adresi bu hizmetlere iletilir</li>
     <li>EmailJS (giriş bilgisi e-postalarının gönderimi)</li>
-    <li>GitHub Pages (web sitesinin barındırılması)</li>
+    <li>Cloudflare, Inc. (alan adı ve DNS hizmeti; kurum e-posta adresine gelen iletilerin kurum
+      posta kutusuna yönlendirilmesi)</li>
   </ul>
   <p>Yasal zorunluluk hâlinde yetkili kamu kurumlarına aktarım yapılabilir.</p>
 
   <h2>5. Toplama Yöntemi</h2>
   <p>Veriler; web sitesindeki başvuru formu, mobil uygulama (öğrenci/öğretmen/veli girişi),
-  QR yoklama sistemi ve öğrenci işleri birimi aracılığıyla elektronik ortamda toplanır.</p>
+  QR ve kartlı yoklama sistemi, bina giriş kart okuyucusu ve öğrenci işleri birimi aracılığıyla elektronik ortamda toplanır.</p>
 
   <h2>6. Saklama Süresi</h2>
   <p>Reddedilen başvurular <span class="ph">[6 ay]</span>, öğrenci ve veli kayıtları kaydın sona
