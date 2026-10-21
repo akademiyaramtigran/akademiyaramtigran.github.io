@@ -950,6 +950,39 @@ button:has(> .ico-solo){background:transparent!important;border:1px solid var(--
 button:has(> .ico-trash.ico-solo):hover{color:#b42318!important;border-color:#e8b4ad!important;background:#fdf3f1!important}
 button:has(> .ico-edit.ico-solo):hover{color:var(--accent)!important;border-color:var(--accent)!important}
 .sm-burger{border-radius:10px}
+/* Pano (telefon) ve yan menü (geniş ekran) gezinmeyi üstlenir: eski alt çubuk ve menüyü tekrarlayan sekme şeritleri gizli */
+.app-nav,.menu-dup{display:none!important}
+
+/* ══ PANO — telefonda tam ekran kare kartlı menü (panel bununla açılır) ══ */
+.pano{position:fixed;inset:0;z-index:1201;background:var(--bg3);display:flex;flex-direction:column;
+  opacity:0;visibility:hidden;transform:translateY(10px);transition:opacity .2s,transform .22s,visibility 0s .22s}
+.pano.open{opacity:1;visibility:visible;transform:none;transition:opacity .2s,transform .22s}
+.pano .sm-head{background:#0f2f38;color:#fff;border-bottom:0;padding:calc(env(safe-area-inset-top,0px) + 16px) 18px 56px}
+html.theme-dark .pano .sm-head{background:#0b2229}
+.pano .sm-brand span{color:#e7c77b}
+.pano .sm-x{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2);color:#fff;width:40px;height:40px}
+.pano .sm-av{width:54px;height:54px;background:rgba(255,255,255,.08);border-color:#e7c77b;color:#e7c77b;font-size:19px}
+.pano .sm-head .sm-nm{color:#fff;font-size:22px}
+.pano .sm-head .sm-rl{color:#c9d6d9}
+.pano-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 14px calc(env(safe-area-inset-bottom,0px) + 22px);margin-top:-38px}
+.pano-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;max-width:720px;margin:0 auto}
+.pano-tile{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:16px;min-height:106px;
+  padding:14px 6px 12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;cursor:pointer;
+  color:var(--text);font:inherit;box-shadow:0 6px 18px rgba(15,47,56,.07);transition:transform .12s,border-color .15s}
+.pano-tile:active{transform:scale(.97)}
+.pano-ic{width:46px;height:46px;border-radius:50%;background:#E6EFF0;color:#1c4a55;display:flex;align-items:center;justify-content:center;font-size:20px}
+.pano-lb{font-size:12.5px;font-weight:600;text-align:center;line-height:1.25;overflow-wrap:anywhere}
+.pano-tile.active{border-color:#b8923f}
+.pano-tile.active .pano-ic{background:#0f2f38;color:#e7c77b}
+.pano-tile .sm-bdg{position:absolute;top:8px;right:8px;margin:0}
+html.theme-dark .pano-ic{background:#1c4a55;color:#e7c77b}
+.pano-extra{max-width:720px;margin:16px auto 0;background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+.pano-row{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:0 16px;background:none;border:0;
+  border-bottom:1px solid var(--border);color:var(--text);font:inherit;font-size:15px;cursor:pointer;text-align:left}
+.pano-row:last-child{border-bottom:0}
+.pano-row.sm-danger{color:var(--red)}
+@media (max-width:359px){.pano-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:600px){.pano-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 
 /* ── BOTTOM NAV ── */
 .app-nav{
@@ -1429,6 +1462,22 @@ html,body{width:100%;height:100%;overflow:hidden;background:#ffffff;margin:0;pad
   .app-nav{display:none!important;}
   .sm-it{font-size:14px;padding:14px 16px;}
   .sm-head{padding-top:22px;}
+  /* Lacivert, gruplu yan menü (C) */
+  .sm{background:#0f2f38!important;border-right:0!important}
+  html.theme-dark .sm{background:#0b2229!important}
+  .sm-head{background:transparent!important;border-bottom:1px solid rgba(231,199,123,.22)!important;color:#fff}
+  .sm-head .sm-nm{color:#fff}
+  .sm-head .sm-rl{color:#c9d6d9}
+  .sm-brand span{color:#e7c77b}
+  .sm-av{background:#1c4a55;color:#e7c77b;border-color:rgba(231,199,123,.6)}
+  .sm-items{padding:6px 12px 16px}
+  .sm-gt{padding:16px 10px 6px;font-size:10.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#e7c77b}
+  .sm-it{color:#dbe5e7!important;border-left:0!important;border-radius:10px!important;padding:10px!important;min-height:44px;font-weight:500}
+  .sm-it .sm-ic{background:transparent!important;border:0!important;width:24px;height:24px;filter:none!important;color:inherit}
+  .sm-it:hover{background:rgba(255,255,255,.06)}
+  .sm-it.active{background:#e7c77b!important;color:#0f2f38!important;font-weight:700}
+  .sm-it.sm-danger{color:#f2b8a8!important}
+  .sm-sep{background:rgba(231,199,123,.22)}
   /* Panel gövdesi menünün sağında */
   .panel-shell{padding-left:272px;}
   .scroll-area{padding-left:30px!important;padding-right:30px!important;}
@@ -2655,7 +2704,7 @@ const T = {
     late:"Geç",
     saveAttendance:"Kaydet",
     attendanceSaved:"Yoklama kaydedildi!",
-    home:"Ana Sayfa",
+    home:"Özet",
     attendance:"Devam",
     profile:"Profil",
     myQR:"QR Kodum",
@@ -2851,7 +2900,7 @@ const T = {
     get "late"(){return K("Dereng")},
     get "saveAttendance"(){return K("Tomar bike")},
     get "attendanceSaved"(){return K("Amadekarî hate tomarkirin")},
-    get "home"(){return K("Mal")},
+    get "home"(){return K("Kurte")},
     get "attendance"(){return K("Amadebûn")},
     get "profile"(){return K("Profîl")},
     get "myQR"(){return K("QR-a Min")},
@@ -3056,7 +3105,7 @@ const T = {
     late:"Late",
     saveAttendance:"Save",
     attendanceSaved:"Attendance saved!",
-    home:"Home",
+    home:"Overview",
     attendance:"Attendance",
     profile:"Profile",
     myQR:"My QR Code",
@@ -3713,7 +3762,53 @@ function GatePanel({user,lang,toast,onLogout}){
 // Çizgi simgeler (site ile uyumlu, emoji yerine) — currentColor ile boyanır
 const ICO={trash:"M4 7h16M9 7V4.5h6V7m-8.5 0 1 12.5h9l1-12.5M10 11v5.5M14 11v5.5",edit:"M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4zM13.5 6.5l4 4",
   close:"M6 6l12 12M18 6 6 18",plus:"M12 5v14M5 12h14",out:"M14 4h4.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H14M10 16l4-4-4-4M14 12H4",
-  save:"M5 4h11l3 3v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4zM8 4v5h7V4M8 20v-6h8v6",globe:"M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c2.5 2.8 2.5 15.2 0 18M12 3c-2.5 2.8-2.5 15.2 0 18"};
+  save:"M5 4h11l3 3v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4zM8 4v5h7V4M8 20v-6h8v6",globe:"M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c2.5 2.8 2.5 15.2 0 18M12 3c-2.5 2.8-2.5 15.2 0 18",
+  // Menü / Pano simgeleri
+  grid:"M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z",
+  today:"M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM8 13h3v3H8z",
+  cal:"M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01",
+  att:"M9 4h6v3H9zM8 5H6a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2M9 14l2 2 4-4",
+  ann:"M4 10v4h3l7 4V6l-7 4zM18 9a4 4 0 0 1 0 6",msg:"M4 5h16v11H9l-5 4z",
+  users:"M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 6.5M18 14.5c1.8.8 3 2.9 3 5.5",
+  cls:"M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11",
+  qr:"M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M4 12h16",
+  star:"M12 4l2.4 5 5.6.6-4.2 3.8 1.2 5.6-5-2.9-5 2.9 1.2-5.6L4 9.6 9.6 9z",
+  user:"M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c0-4.4 3.6-8 8-8s8 3.6 8 8",
+  poll:"M5 20V10M12 20V4M19 20v-7M3 20h18",
+  idea:"M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.9V16h5v-.2c0-.8.4-1.5 1-1.9A6 6 0 0 0 12 3z",
+  news:"M5 4h11a1 1 0 0 1 1 1v14a1 1 0 0 0 2 0V9h-2M5 4a1 1 0 0 0-1 1v13a2 2 0 0 0 2 2h13M8 8h6M8 12h6M8 16h4",
+  archive:"M3 5h18v4H3zM5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4",
+  report:"M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM14 3v5h5M9 13h6M9 17h6",
+  bell:"M6 16V11a6 6 0 1 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0",
+  kid:"M12 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 21l2-7-2-3 3-1.5h6l3 1.5-2 3 2 7",
+  inbox:"M4 13l2-8h12l2 8v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM4 13h5l1 2h4l1-2h5",
+  music:"M9 18V5l11-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM20 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z",
+  settings:"M4 7h10M18 7h2M4 17h4M12 17h8M16 5v4M10 15v4"};
+// Menü bölümü → simge ve (geniş ekranda) grup
+const NAV_ICO={home:"today",attendance:"att",scanner:"qr",checkin:"qr",myclass:"cls",sinif:"cls",students:"users",schedule:"cal",
+  qad:"music",serledan:"inbox",announce:"ann",announcements:"ann",messages:"msg",feedback:"idea",alerts:"bell",
+  press:"news",nuce:"news",arsiv:"archive",reports:"report",rapor:"report",surveys:"poll",anket:"poll",evaluation:"star",
+  profile:"user",zarok:"kid"};
+const NAV_GRP={zarok:"zarok",home:"ders",attendance:"ders",scanner:"ders",checkin:"ders",myclass:"ders",sinif:"ders",students:"ders",schedule:"ders",
+  qad:"kayit",serledan:"kayit",announce:"iletisim",announcements:"iletisim",messages:"iletisim",feedback:"iletisim",alerts:"iletisim",
+  press:"yayin",nuce:"yayin",arsiv:"yayin",reports:"rapor",rapor:"rapor",surveys:"rapor",anket:"rapor",evaluation:"rapor",profile:"hesap"};
+const NAV_GRP_ORDER=["kayit","ders","iletisim","yayin","rapor","zarok","","hesap"];
+function navGrpLabel(g){ const en=RL()==="en";
+  return g==="kayit"?(en?"Registration & Applications":K("Tomar û Serlêdan")):g==="ders"?(en?"Lessons":K("Ders")):g==="iletisim"?(en?"Communication":K("Têkilî")):g==="yayin"?(en?"Publishing":K("Weşan"))
+    :g==="rapor"?(en?"Reports & Evaluation":K("Rapor û Nirxandin")):g==="hesap"?(en?"Account":K("Hesab")):""; }
+// Telefon / dar ekran (geniş ekranda yan menü sabit durur)
+const PHONE_Q="(max-width:999.98px)";
+function isPhoneNow(){ try{ return !!(window.matchMedia&&window.matchMedia(PHONE_Q).matches); }catch(_){ return false; } }
+function useIsPhone(){
+  const [p,setP]=useState(isPhoneNow);
+  useEffect(()=>{
+    if(!window.matchMedia) return;
+    const m=window.matchMedia(PHONE_Q), f=()=>setP(m.matches);
+    if(m.addEventListener) m.addEventListener("change",f); else m.addListener(f);
+    return ()=>{ if(m.removeEventListener) m.removeEventListener("change",f); else m.removeListener(f); };
+  },[]);
+  return p;
+}
 function Ico({n,size=16,solo,style}){
   return <svg className={"ico ico-"+n+(solo?" ico-solo":"")} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{flexShrink:0,verticalAlign:"-3px",...style}}><path d={ICO[n]}/></svg>;
@@ -6893,50 +6988,93 @@ function AdminPressPanel({teachers,onDataChange,lang,toast,t}){
 // items: [{key,icon,label,badge?}] — onSelect(key) menüyü kapatıp bölüme gider.
 // extraItems: menü altına ayraçla eklenen ikincil eylemler (ayarlar, çıkış...)
 function SideMenu({open,onClose,items,activeKey,onSelect,user,roleLabel,extraItems}){
+  const phone=useIsPhone();
   useEffect(()=>{
     if(!open) return;
     const onKey=e=>{ if(e.key==="Escape") onClose(); };
     window.addEventListener("keydown",onKey);
     return ()=>window.removeEventListener("keydown",onKey);
   },[open,onClose]);
+  const ini=(user?.name||"").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+  const icoOf=it=>{ const n=it.ico||NAV_ICO[it.key]; return n?<Ico n={n} size={phone?22:18} style={{verticalAlign:"middle"}}/>:(it.icon||null); };
+  const exIco=it=>it.ico||(it.danger?"out":it.icon==="⚙️"?"settings":"globe");
+  const bdg=n=>n>0?<span className="sm-bdg">{n>99?"99+":n}</span>:null;
+  const head=(
+    <div className="sm-head">
+      <div className="sm-brand">
+        <img src="icons/akademi-mesale.png" alt="" width="22" height="22"/>
+        <span>Konservatuara Aram Tîgran</span>
+        <button className="sm-x" onClick={onClose} aria-label="✕"><Ico n="close" size={16}/></button>
+      </div>
+      <div className="sm-user">
+        {user?.photo?<img className="sm-av" src={user.photo} alt=""/>:<div className="sm-av">{ini}</div>}
+        <div style={{flex:1,minWidth:0}}>
+          <div className="sm-nm">{user?.name||""}</div>
+          <div className="sm-rl">{roleLabel||""}{user?.no?(" · "+user.no):""}</div>
+        </div>
+      </div>
+    </div>
+  );
+  // ── Telefon: tam ekran Pano (kare kartlar) — panel bununla açılır ──
+  if(phone) return(
+    <div className={"pano"+(open?" open":"")} role="navigation" aria-label="Menu" aria-hidden={!open}>
+      {head}
+      <div className="pano-body">
+        <div className="pano-grid">
+          {items.map(it=>(
+            <button key={it.key} data-key={it.key} className={"pano-tile"+(activeKey===it.key?" active":"")}
+              onClick={()=>{onSelect(it.key);onClose();}}>
+              <span className="pano-ic" aria-hidden="true">{icoOf(it)}</span>
+              <span className="pano-lb">{it.label}</span>
+              {bdg(it.badge)}
+            </button>
+          ))}
+        </div>
+        {extraItems&&extraItems.length>0&&(
+          <div className="pano-extra">
+            {extraItems.map((it,i)=>(
+              <button key={i} className={"pano-row"+(it.danger?" sm-danger":"")} onClick={()=>{it.onClick();onClose();}}>
+                <Ico n={exIco(it)} size={19} style={{verticalAlign:"middle"}}/>
+                <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{it.label}</span>
+                <span className="sm-ar" aria-hidden="true">›</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+  // ── Geniş ekran: sabit, gruplu yan menü ──
+  const groups=[];
+  NAV_GRP_ORDER.forEach(g=>{ const its=items.filter(it=>(NAV_GRP[it.key]||"")===g); if(its.length) groups.push({g,its}); });
+  const titled=groups.length>1;
+  const row=it=>(
+    <button key={it.key} data-key={it.key} className={"sm-it"+(activeKey===it.key?" active":"")}
+      onClick={()=>{onSelect(it.key);onClose();}}>
+      <span className="sm-ic" aria-hidden="true">{icoOf(it)}</span>
+      <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{it.label}</span>
+      {bdg(it.badge)}
+    </button>
+  );
   return(
     <>
       <div className={"sm-ov"+(open?" open":"")} onClick={onClose}/>
       <aside className={"sm"+(open?" open":"")} role="navigation" aria-label="Menu" aria-hidden={!open}>
-        <div className="sm-head">
-          <div className="sm-brand">
-            <img src="icons/akademi-mesale.png" alt="" width="22" height="22"/>
-            <span>Konservatuara Aram Tîgran</span>
-            <button className="sm-x" onClick={onClose} aria-label="✕"><Ico n="close" size={16}/></button>
-          </div>
-          <div className="sm-user">
-            {user?.photo
-              ? <img className="sm-av" src={user.photo} alt=""/>
-              : <div className="sm-av">{(user?.name||"").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}</div>}
-            <div style={{flex:1,minWidth:0}}>
-              <div className="sm-nm">{user?.name||""}</div>
-              <div className="sm-rl">{roleLabel||""}{user?.no?(" · "+user.no):""}</div>
-            </div>
-          </div>
-        </div>
+        {head}
         <div className="sm-items">
-          {items.map(it=>(
-            <button key={it.key} className={"sm-it"+(activeKey===it.key?" active":"")}
-              onClick={()=>{onSelect(it.key);onClose();}}>
-              {it.icon&&<span className="sm-ic" aria-hidden="true">{it.icon}</span>}
-              <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{it.label}</span>
-              {it.badge>0&&<span className="sm-bdg">{it.badge>99?"99+":it.badge}</span>}
-              <span className="sm-ar" aria-hidden="true">›</span>
-            </button>
+          {groups.map(({g,its})=>(
+            <div key={g||"_"} className="sm-grp">
+              {titled&&(navGrpLabel(g)?<div className="sm-gt">{navGrpLabel(g)}</div>:<div className="sm-sep"/>)}
+              {its.map(row)}
+            </div>
           ))}
           {extraItems&&extraItems.length>0&&(
             <>
               <div className="sm-sep"/>
               {extraItems.map((it,i)=>(
                 <button key={i} className={"sm-it"+(it.danger?" sm-danger":"")} onClick={()=>{it.onClick();onClose();}}>
-                  {it.icon&&<span className="sm-ic" aria-hidden="true">{it.icon}</span>}
+                  <span className="sm-ic" aria-hidden="true"><Ico n={exIco(it)} size={18} style={{verticalAlign:"middle"}}/></span>
                   <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{it.label}</span>
-                  <span className="sm-ar" aria-hidden="true">›</span>
                 </button>
               ))}
             </>
@@ -6952,7 +7090,7 @@ function SpecialPanelHeader({user,icon,roleLabel,lang,onLogout,siteLink,onMenu,t
   return(
     <div className="ph" style={{padding:"calc(env(safe-area-inset-top,0px) + 18px) 16px 14px",borderRadius:"0 0 22px 22px"}}>
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}>
-        {onMenu&&<button className="sm-burger" onClick={onMenu} aria-label="Menu">☰</button>}
+        {onMenu&&<button className="sm-burger" onClick={onMenu} aria-label="Menu"><Ico n="grid" size={18} style={{verticalAlign:"middle"}}/></button>}
         {user.photo
           ? <img src={user.photo} alt="" style={{width:46,height:46,borderRadius:14,objectFit:"cover",border:"2px solid rgba(255,255,255,0.35)",flexShrink:0}}/>
           : <div style={{width:46,height:46,borderRadius:"50%",background:"rgba(255,255,255,0.10)",border:"2px solid #e7c77b",color:"#e7c77b",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--serif)",fontSize:17,letterSpacing:".04em",flexShrink:0}}>{(user.name||"").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()||icon}</div>}
@@ -6972,7 +7110,7 @@ function SpecialPanelHeader({user,icon,roleLabel,lang,onLogout,siteLink,onMenu,t
         </button>
       </div>
       {tabs&&tabs.length>0&&(
-        <div style={{display:"flex",gap:0,overflowX:"auto",marginTop:12,borderBottom:"1px solid rgba(255,255,255,0.15)"}}>
+        <div className="menu-dup" style={{display:"flex",gap:0,overflowX:"auto",marginTop:12,borderBottom:"1px solid rgba(255,255,255,0.15)"}}>
           {tabs.map(tb=>(
             <button key={tb.key} onClick={()=>onTab&&onTab(tb.key)}
               style={{flexShrink:0,padding:"9px 12px",fontSize:12,fontWeight:activeKey===tb.key?700:500,background:"none",border:"none",cursor:"pointer",whiteSpace:"nowrap",
@@ -7308,7 +7446,7 @@ function AdminArchivePanel({lang,toast,adminName}){
 
 /* ─── PRESS PANEL (basın kullanıcısının ekranı — yalnızca malper haberleri) ── */
 function PressPanel({user,lang,toast,onLogout}){
-  const [menuOpen,setMenuOpen]=useState(false);
+  const [menuOpen,setMenuOpen]=useState(isPhoneNow);
   const [ptab,setPtab]=useState("nuce");
   const pressTabs=[
     {key:"nuce",label:lang==="en"?"Website News":K("Nûçeyên Malperê")},
@@ -7326,7 +7464,7 @@ function PressPanel({user,lang,toast,onLogout}){
         ]}/>
       <SpecialPanelHeader user={user} icon="📰" lang={lang} onLogout={onLogout} siteLink={true} onMenu={()=>setMenuOpen(true)}
         roleLabel={lang==="en"?"Press · Website Editor":K("Çapemenî · Edîtorê Malperê")}/>
-      <div className="tab-bar" style={{padding:"0 14px",background:"var(--bg3)"}}>
+      <div className="tab-bar menu-dup" style={{padding:"0 14px",background:"var(--bg3)"}}>
         {pressTabs.map(tb=>(
           <button key={tb.key} onClick={()=>setPtab(tb.key)} className={`tab-btn${ptab===tb.key?" active":""}`}>
             {tb.label}
@@ -8871,7 +9009,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
 function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,onDataChange}){
   // ── Bölümler: serledan | qad (kayıt + program + dönem) | sinif | anket | rapor | zarok ──
   const [section,setSection]=useState("serledan");
-  const [menuOpen,setMenuOpen]=useState(false);
+  const [menuOpen,setMenuOpen]=useState(isPhoneNow);
   const regTabs=[
     {key:"serledan",icon:"📋",label:lang==="en"?"Applications":K("Serlêdan")},
     {key:"qad",icon:"🎭",label:lang==="en"?"Art Fields · Registration · Schedule":K("Qad · Tescîl · Bername")},
@@ -10229,7 +10367,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
   const [showProfileEdit,setShowProfileEdit]=useState(false);
   const [adminData,setAdminData]=useState(admin);
   const [showAdminAddLesson,setShowAdminAddLesson]=useState(false);
-  const [menuOpen,setMenuOpen]=useState(false);
+  const [menuOpen,setMenuOpen]=useState(isPhoneNow);
 
   const tabs=[
     {key:"announcements",icon:"📢",label:t.announcements},
@@ -10265,7 +10403,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
       {/* Admin Header */}
       <div className="admin-header">
         <div style={{display:"flex",alignItems:"center",gap:12,paddingBottom:14,cursor:"pointer"}} onClick={()=>setShowProfileEdit(true)}>
-          <button className="sm-burger" onClick={e=>{e.stopPropagation();setMenuOpen(true);}} aria-label="Menu">☰</button>
+          <button className="sm-burger" onClick={e=>{e.stopPropagation();setMenuOpen(true);}} aria-label="Menu"><Ico n="grid" size={18} style={{verticalAlign:"middle"}}/></button>
           <Avatar name={adminData.name} color={"rgba(255,255,255,.2)"} size={48} photo={adminData.photo}/>
           <div style={{flex:1}}>
             <div style={{color:"rgba(255,255,255,.5)",fontSize:10,fontWeight:600,letterSpacing:"0.07em",textTransform:"uppercase"}}>🛡 {lang==="en"?"Admin":K("Rêveber")}</div>
@@ -10273,15 +10411,15 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
             <span className="glass-pill" style={{marginTop:4,display:"inline-flex"}}>{adminData.no}</span>
           </div>
           <div style={{display:"flex",gap:6,flexShrink:0}}>
-            {onSettings&&<button onClick={e=>{e.stopPropagation();onSettings();}} style={{color:"rgba(255,255,255,.6)",background:"rgba(255,255,255,.1)",border:"none",borderRadius:"50%",width:36,height:36,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>⚙️</button>}
+            {onSettings&&<button onClick={e=>{e.stopPropagation();onSettings();}} style={{color:"rgba(255,255,255,.6)",background:"rgba(255,255,255,.1)",border:"none",borderRadius:"50%",width:36,height:36,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}><Ico n="settings" size={17} style={{verticalAlign:"middle"}}/></button>}
             <button onClick={e=>{e.stopPropagation();onLogout();}}
               style={{color:"rgba(255,255,255,.6)",background:"rgba(255,255,255,.1)",border:"none",
                 borderRadius:"50%",width:36,height:36,cursor:"pointer",flexShrink:0,
-                display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>↩</button>
+                display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}><Ico n="out" size={17} style={{verticalAlign:"middle"}}/></button>
           </div>
         </div>
         {/* Tab bar */}
-        <div className="tab-bar">
+        <div className="tab-bar menu-dup">
           {tabs.map(tb=>(
             <button key={tb.key} onClick={()=>setTab(tb.key)} className={`tab-btn${tab===tb.key?" active":""}`}>
               {tb.label}
@@ -13751,7 +13889,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
   const _terms=useTerms();
   schedule=(schedule||[]).filter(l=>lessonInActiveTerm(l,_terms));
   const [view,setView]=usePanelNav("home");
-  const [menuOpen,setMenuOpen]=useState(false);
+  const [menuOpen,setMenuOpen]=useState(isPhoneNow);
   const [attendance,setAttendance]=useState({});
   const [attLsId,setAttLsId]=useState(null);   // elle yoklama: seçili bugünkü ders
   const [activeQRSession,setActiveQRSession]=useState(null);
@@ -14167,7 +14305,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
       {/* Teacher Header — professional strip */}
       <div className="ph" style={{
         padding:"10px 14px",flexShrink:0,display:"flex",alignItems:"center",gap:10}}>
-        <button className="sm-burger" onClick={()=>setMenuOpen(true)} aria-label="Menu">☰</button>
+        <button className="sm-burger" onClick={()=>setMenuOpen(true)} aria-label="Menu"><Ico n="grid" size={18} style={{verticalAlign:"middle"}}/></button>
         <Avatar name={teacher.name} color={a.color} size={40} photo={teacher.photo} onDark/>
         <div style={{flex:1,minWidth:0}}>
           <div style={{color:"#fff",fontSize:15,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{teacher.name}</div>
@@ -14180,7 +14318,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
         <div style={{display:"flex",gap:6,flexShrink:0}}>
           <button onClick={onLogout} style={{color:"rgba(255,255,255,.6)",background:"rgba(255,255,255,.1)",
             border:"none",borderRadius:"50%",width:36,height:36,cursor:"pointer",flexShrink:0,
-            display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>↩</button>
+            display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}><Ico n="out" size={17} style={{verticalAlign:"middle"}}/></button>
         </div>
       </div>
       <div className="scroll-area" style={{padding:"14px 16px 90px"}}>
@@ -15554,7 +15692,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
   const _terms=useTerms();
   schedule=(schedule||[]).filter(l=>lessonInActiveTerm(l,_terms));
   const [view,setView]=usePanelNav("home");
-  const [menuOpen,setMenuOpen]=useState(false);
+  const [menuOpen,setMenuOpen]=useState(isPhoneNow);
   const [showScanner,setShowScanner]=useState(false);
   const [showBiometric,setShowBiometric]=useState(false);
   const [biometricTarget,setBiometricTarget]=useState(null); // "scanner" | "qr"
@@ -15697,7 +15835,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
       {/* Student Hero Header */}
       <div className="student-hero">
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <button className="sm-burger" onClick={()=>setMenuOpen(true)} aria-label="Menu">☰</button>
+          <button className="sm-burger" onClick={()=>setMenuOpen(true)} aria-label="Menu"><Ico n="grid" size={18} style={{verticalAlign:"middle"}}/></button>
           <Avatar name={student.name} color={a.color} size={44} photo={student.photo} onDark/>
           <div style={{flex:1,minWidth:0}}>
             <div style={{color:"#fff",fontSize:16,fontWeight:800,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{student.name}</div>
@@ -15709,7 +15847,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
           </div>
           <button onClick={onLogout} style={{color:"rgba(255,255,255,.6)",background:"rgba(255,255,255,.1)",
             border:"none",borderRadius:"50%",width:36,height:36,fontSize:16,cursor:"pointer",flexShrink:0,
-            display:"flex",alignItems:"center",justifyContent:"center"}}>↩</button>
+            display:"flex",alignItems:"center",justifyContent:"center"}}><Ico n="out" size={17} style={{verticalAlign:"middle"}}/></button>
         </div>
       </div>
 

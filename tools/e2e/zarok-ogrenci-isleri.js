@@ -11,6 +11,7 @@ const val = v => v instanceof Date ? { timestampValue: v.toISOString() } : Array
 const put = (path, obj) => fetch(`${FS}/${path}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, val(v)])) }) }).then(r => { if (!r.ok) throw new Error('seed ' + path + ' ' + r.status); });
 const list = col => fetch(`${FS}/${col}?pageSize=100`, { headers: H }).then(r => r.json()).then(j => j.documents || []);
 const clickText = (p, text, top) => p.evaluate(([t, top]) => {
+  if (top) { const mv = [...document.querySelectorAll('.sm-it,.pano-tile')].filter(x => x.getClientRects().length); const m = mv.find(x => x.textContent.trim() === t) || mv.find(x => x.textContent.includes(t)); if (m) { m.click(); return; } }
   const ok = x => { const r = x.getBoundingClientRect(); return r.width > 0 && (!top || (r.top > 60 && r.top < 260)); };
   // Önce ekrandaki, yoksa yatay şeritte kaymış olanı al (kapalı yan menüdeki kopyalar -left ile elenir)
   const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes(t) && x.offsetParent !== null && ok(x))
@@ -34,6 +35,8 @@ async function routes(ctx) {
   });
 }
 
+const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects().length; const f = () => [...document.querySelectorAll('[data-tab="' + k + '"]')].find(vis);
+  let el = f(); if (!el) { const pb = document.querySelector('.pano-btn'); if (pb) pb.click(); el = f(); } el.click(); }, k);
 (async () => {
   await put('idx_staff/13202601', { no: '13202601', lvl: 'registrar' });
   await put('teachers/T13', { no: '13202601', name: 'Karûbarên Xwendekaran', isRegistrar: true, area: 'genel' });
@@ -63,7 +66,7 @@ async function routes(ctx) {
   await p.waitForTimeout(8000);
   const t0 = await p.evaluate(() => document.body.innerText);
   ok('Öğrenci İşleri girişi', /Serlêdan|Applications/.test(t0), t0.slice(0, 80).replace(/\n/g, ' '));
-  await p.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('Akademiya Zarokan')).find(x => { const r = x.getBoundingClientRect(); return r.top > 80 && r.top < 220; }); b.scrollIntoView(); b.click(); });
+  await p.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('Akademiya Zarokan')).find(x => { if (x.matches('.sm-it,.pano-tile')) return true; const r = x.getBoundingClientRect(); return r.top > 80 && r.top < 220; }); b.scrollIntoView(); b.click(); });
   await p.waitForTimeout(2500);
   const t1 = await p.evaluate(() => document.body.innerText);
   ok('Zarok sekmesi açılır, başvuru listelenir', t1.includes('Hêvîn Demir'));
@@ -85,7 +88,7 @@ async function routes(ctx) {
   await vp.setViewportSize({ width: 390, height: 844 });
   await vp.goto('http://localhost:8765/zarok/app/?emu=1'); await vp.waitForSelector('#l-no', { timeout: 20000 });
   await vp.fill('#l-no', gno); await vp.fill('#l-pw', pass); await vp.click('.login .btn');
-  await vp.waitForSelector('.status', { timeout: 20000 });
+  await vp.waitForSelector('.top', { timeout: 20000 }); await goZ(vp, 'today'); await vp.waitForSelector('.status', { timeout: 20000 });
   ok('Veli yeni hesapla girer ve çocuğunu görür', (await vp.evaluate(() => document.body.innerText)).includes('Hêvîn'));
 
   // Öğrenci İşleri "Hat" işaretler → veliye bildirim
@@ -99,10 +102,10 @@ async function routes(ctx) {
   await p.locator('button:visible', { hasText: 'Ragihandin' }).first().click(); await p.waitForTimeout(500);
   await p.fill('input[placeholder="Sernav"]', 'Roja vekirî'); await p.fill('textarea[placeholder^="Ji bo dêûbavan"]', 'Şemiyê em we vedixwînin.');
   await p.getByText('Ji Dêûbavan re Bişîne').click(); await p.waitForTimeout(2000);
-  await vp.click('.nav button:nth-child(4)'); await vp.waitForTimeout(800);
+  await goZ(vp, 'ann'); await vp.waitForTimeout(800);
   ok('Duyuru veliye ulaşır', (await vp.evaluate(() => document.body.innerText)).includes('Roja vekirî'));
   // Veli mesaj → Öğrenci İşleri görür ve yanıtlar
-  await vp.click('.nav button:nth-child(5)'); await vp.fill('#m-text', 'Hêvîn îro nexweş e.'); await vp.click('main .btn'); await vp.waitForTimeout(1500);
+  await goZ(vp, 'msg'); await vp.fill('#m-text', 'Hêvîn îro nexweş e.'); await vp.click('main .btn'); await vp.waitForTimeout(1500);
   await p.locator('button:visible', { hasText: '💬' }).first().click();
   await p.waitForTimeout(1500);
   ok('Veli mesajı Öğrenci İşleri panelinde', (await p.evaluate(() => document.body.innerText)).includes('Hêvîn îro nexweş e'));

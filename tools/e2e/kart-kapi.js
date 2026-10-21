@@ -27,6 +27,7 @@ async function routes(ctx) {
   });
 }
 const clickText = (p, text, top) => p.evaluate(([t, top]) => {
+  if (top) { const mv = [...document.querySelectorAll('.sm-it,.pano-tile')].filter(x => x.getClientRects().length); const m = mv.find(x => x.textContent.trim() === t) || mv.find(x => x.textContent.includes(t)); if (m) { m.click(); return; } }
   const ok = x => { const r = x.getBoundingClientRect(); return r.width > 0 && (!top || (r.top > 60 && r.top < 260)); };
   // Önce ekrandaki, yoksa yatay şeritte kaymış olanı al (kapalı yan menüdeki kopyalar -left ile elenir)
   const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes(t) && x.offsetParent !== null && ok(x))
@@ -34,6 +35,8 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   if (!b) throw new Error('düğme yok: ' + t); b.scrollIntoView({ inline: 'center', block: 'nearest' }); b.click();
 }, [text, top]);
 
+const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects().length; const f = () => [...document.querySelectorAll('[data-tab="' + k + '"]')].find(vis);
+  let el = f(); if (!el) { const pb = document.querySelector('.pano-btn'); if (pb) pb.click(); el = f(); } el.click(); }, k);
 (async () => {
   // Kişiler: öğrenci işleri, kapı güvenliği, yetişkin öğrenci, çocuk + çocuk öğretmeni
   await put('idx_staff/98202601', { no: '98202601', lvl: 'registrar' });
@@ -62,7 +65,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   };
   const mk = async () => { const c = await b.newContext({ viewport: { width: 1280, height: 900 } }); await routes(c);
     await c.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); localStorage.setItem('zarok-lang', 'ku'); } catch (_) {} }); return c; };
-  const topTab = (p, txt) => p.evaluate(t => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes(t)).find(x => { const r = x.getBoundingClientRect(); return r.top > 60 && r.top < 240; }); b.scrollIntoView(); b.click(); }, txt);
+  const topTab = (p, txt) => p.evaluate(t => { const mv = [...document.querySelectorAll('.sm-it,.pano-tile')].filter(x => x.getClientRects().length); const m = mv.find(x => x.textContent.trim() === t) || mv.find(x => x.textContent.includes(t)); if (m) { m.click(); return; } const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes(t)).find(x => { if (x.matches('.sm-it,.pano-tile')) return true; const r = x.getBoundingClientRect(); return r.top > 60 && r.top < 240; }); b.scrollIntoView(); b.click(); }, txt);
   // Baskı penceresinin görüntüsü (açılır pencere yerine aynı HTML'i normal sayfada çiz)
   const shot = async (pp, name) => { try { const html = await pp.content(); const sp = await (await b.newContext({ viewport: { width: 820, height: 400 }, deviceScaleFactor: 2 })).newPage();
     await sp.goto('http://localhost:8765/app/'); await sp.setContent(html.replace('<head>', '<head><base href="http://localhost:8765/app/">'), { waitUntil: 'load', timeout: 15000 }).catch(() => {});
@@ -133,12 +136,12 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await vp.goto('http://localhost:8765/zarok/app/?emu=1'); await vp.waitForSelector('#l-no', { timeout: 20000 });
   await signUp('92026001@veli.aat', 'Veli1234');
   await vp.click('.roles button:nth-child(1)'); await vp.fill('#l-no', '92026001'); await vp.fill('#l-pw', 'Veli1234'); await vp.click('.login .btn');
-  await vp.waitForSelector('.status', { timeout: 20000 });
+  await vp.waitForSelector('.top', { timeout: 20000 }); await goZ(vp, 'today'); await vp.waitForSelector('.status', { timeout: 20000 });
   const tc = await mk(); const tp = await tc.newPage(); tp.on('pageerror', e => errs.push('öğretmen: ' + e.message));
   await tp.goto('http://localhost:8765/zarok/app/?emu=1'); await tp.waitForSelector('#l-no', { timeout: 20000 });
   await tp.click('.roles button:nth-child(2)'); await tp.fill('#l-no', '72026001'); await tp.fill('#l-pw', 'Kid12345'); await tp.click('.login .btn');
-  await tp.waitForSelector('.attrow', { timeout: 20000 });
-  await tp.evaluate(e => [...document.querySelectorAll('.nav button')].find(b => b.textContent.includes(e)).click(), '📇'); await tp.waitForTimeout(600);
+  await tp.waitForSelector('.top', { timeout: 20000 }); await goZ(tp, 'home'); await tp.waitForSelector('.attrow', { timeout: 20000 });
+  await goZ(tp, 'card'); await tp.waitForTimeout(600);
   await tp.getByText('Kartê bixwîne').first().click(); await tp.waitForTimeout(500);
   await tp.fill('.scanov input[aria-label=card-code]', 'AAT1:' + ktok); await tp.click('.scanov .btn.sm'); await tp.waitForTimeout(2500);
   ok('Öğretmen çocuk kartını okutur → "ket dersê"', (await tp.evaluate(() => document.querySelector('.scanres').textContent)).includes('Rojda'));

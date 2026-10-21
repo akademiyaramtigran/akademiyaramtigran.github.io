@@ -27,6 +27,7 @@ async function routes(ctx) {
   });
 }
 const clickText = (p, text, top) => p.evaluate(([t, top]) => {
+  if (top) { const mv = [...document.querySelectorAll('.sm-it,.pano-tile')].filter(x => x.getClientRects().length); const m = mv.find(x => x.textContent.trim() === t) || mv.find(x => x.textContent.includes(t)); if (m) { m.click(); return; } }
   const ok = x => { const r = x.getBoundingClientRect(); return r.width > 0 && (!top || (r.top > 60 && r.top < 260)); };
   // Önce ekrandaki, yoksa yatay şeritte kaymış olanı al (kapalı yan menüdeki kopyalar -left ile elenir)
   const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes(t) && x.offsetParent !== null && ok(x))
@@ -34,6 +35,8 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   if (!b) throw new Error('düğme yok: ' + t); b.scrollIntoView({ inline: 'center', block: 'nearest' }); b.click();
 }, [text, top]);
 
+const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects().length; const f = () => [...document.querySelectorAll('[data-tab="' + k + '"]')].find(vis);
+  let el = f(); if (!el) { const pb = document.querySelector('.pano-btn'); if (pb) pb.click(); el = f(); } el.click(); }, k);
 (async () => {
   await put('idx_staff/1000', { no: '1000', lvl: 'admin' });
   await put('teachers/TA', { no: '1000', name: 'Rêveber', isAdmin: true, area: 'genel' });
@@ -56,7 +59,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await p.locator('input[type=password]').first().fill('Reg12345');
   await p.getByText('Têkeve', { exact: true }).last().click();
   await p.waitForTimeout(8000);
-  const openZarok = () => p.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('Akademiya Zarokan')).find(x => { const r = x.getBoundingClientRect(); return r.top > 80 && r.top < 220; }); b.scrollIntoView(); b.click(); });
+  const openZarok = () => p.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('Akademiya Zarokan')).find(x => { if (x.matches('.sm-it,.pano-tile')) return true; const r = x.getBoundingClientRect(); return r.top > 80 && r.top < 220; }); b.scrollIntoView(); b.click(); });
   await openZarok(); await p.waitForTimeout(1500);
   ok('Öğrenci İşleri panelinde Zarok yönetimi', (await p.evaluate(() => document.body.innerText)).includes('Serlêdana zarokan'));
 
@@ -142,7 +145,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await tp.setViewportSize({ width: 390, height: 844 });
   await tp.goto('http://localhost:8765/zarok/app/?emu=1'); await tp.waitForSelector('#l-no', { timeout: 20000 });
   await tp.click('.roles button:nth-child(2)'); await tp.fill('#l-no', tno); await tp.fill('#l-pw', tpass); await tp.click('.login .btn');
-  await tp.waitForSelector('.attrow', { timeout: 20000 });
+  await tp.waitForSelector('.top', { timeout: 20000 }); await goZ(tp, 'home'); await tp.waitForSelector('.attrow', { timeout: 20000 });
   ok('Çocuk öğretmeni Zarok uygulamasına girer', (await tp.evaluate(() => document.body.innerText)).includes('Mamoste Hêvî'));
   const vctx = await b.newContext({ viewport: { width: 390, height: 844 } }); await routes(vctx);
   await vctx.addInitScript(() => { try { localStorage.setItem('zarok-lang', 'ku'); } catch (_) {} });
@@ -150,13 +153,13 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await vp.setViewportSize({ width: 390, height: 844 });
   await vp.goto('http://localhost:8765/zarok/app/?emu=1'); await vp.waitForSelector('#l-no', { timeout: 20000 });
   await vp.click('.roles button:nth-child(1)'); await vp.fill('#l-no', gno); await vp.fill('#l-pw', gpass); await vp.click('.login .btn');
-  await vp.waitForSelector('.status', { timeout: 20000 });
-  await tp.evaluate(e => [...document.querySelectorAll('.nav button')].find(b => b.textContent.includes(e)).click(), '📋'); await tp.waitForTimeout(600);
+  await vp.waitForSelector('.top', { timeout: 20000 }); await goZ(vp, 'today'); await vp.waitForSelector('.status', { timeout: 20000 });
+  await goZ(tp, 'att'); await tp.waitForTimeout(600);
   await tp.evaluate(() => { const r = [...document.querySelectorAll('.attrow')].find(x => x.textContent.includes('Rojîn')); r.querySelector('.attbtn').click(); });
   await vp.waitForTimeout(2500);
   const toast = await vp.locator('.toast').textContent().catch(() => '');
   ok('Öğretmen "Hat" → veliye anında bildirim', /Rojîn/.test(toast), toast);
-  await tp.evaluate(() => { const b = [...document.querySelectorAll('.nav button')][2]; b.click(); });
+  await goZ(tp, 'ann');
   await tp.waitForTimeout(500);
 
   // 5) Çocuk sitesinde haber
@@ -173,11 +176,11 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   t = await p.evaluate(() => document.body.innerText);
   const npass = (t.match(/Şîfre:\s*(\S+)/) || [])[1];
   const lctx = await b.newContext(); await routes(lctx); const lp = await lctx.newPage();
-  const tryLogin = async pw => { await lp.goto('http://localhost:8765/zarok/app/?emu=1'); await lp.waitForSelector('#l-no', { timeout: 20000 }); await lp.click('.roles button:nth-child(2)'); await lp.fill('#l-no', tno); await lp.fill('#l-pw', pw); await lp.click('.login .btn'); return lp.waitForSelector('.attrow', { timeout: 8000 }).then(() => true, () => false); };
+  const tryLogin = async pw => { await lp.goto('http://localhost:8765/zarok/app/?emu=1'); await lp.waitForSelector('#l-no', { timeout: 20000 }); await lp.click('.roles button:nth-child(2)'); await lp.fill('#l-no', tno); await lp.fill('#l-pw', pw); await lp.click('.login .btn'); return lp.waitForSelector('.top', { timeout: 8000 }).then(() => true, () => false); };
   ok('Şifre yenilenir, öğretmen YENİ şifreyle girer', npass && npass !== tpass && await tryLogin(npass), 'tno ' + tno + ' eski ' + tpass + ' yeni ' + npass);
   await lctx.close(); const l2 = await b.newContext(); await routes(l2); const lp2 = await l2.newPage();
   await lp2.goto('http://localhost:8765/zarok/app/?emu=1'); await lp2.waitForSelector('#l-no', { timeout: 20000 }); await lp2.click('.roles button:nth-child(2)'); await lp2.fill('#l-no', tno); await lp2.fill('#l-pw', tpass); await lp2.click('.login .btn');
-  ok('Eski şifre artık çalışmaz', await lp2.waitForSelector('.attrow', { timeout: 6000 }).then(() => false, () => true));
+  ok('Eski şifre artık çalışmaz', await lp2.waitForSelector('.top', { timeout: 6000 }).then(() => false, () => true));
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   await b.close(); process.exit(0);
 })().catch(async e => { console.error('E2E HATA', e.message.split('\n')[0]); try { await global.__P.screenshot({ path: require('os').tmpdir() + '/e2e-fail.png' }); } catch (_) {} process.exit(1); });

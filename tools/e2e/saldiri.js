@@ -27,6 +27,7 @@ async function routes(ctx) {
   });
 }
 const clickText = (p, text, top) => p.evaluate(([t, top]) => {
+  if (top) { const mv = [...document.querySelectorAll('.sm-it,.pano-tile')].filter(x => x.getClientRects().length); const m = mv.find(x => x.textContent.trim() === t) || mv.find(x => x.textContent.includes(t)); if (m) { m.click(); return; } }
   const ok = x => { const r = x.getBoundingClientRect(); return r.width > 0 && (!top || (r.top > 60 && r.top < 260)); };
   // Önce ekrandaki, yoksa yatay şeritte kaymış olanı al (kapalı yan menüdeki kopyalar -left ile elenir)
   const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes(t) && x.offsetParent !== null && ok(x))
@@ -87,7 +88,7 @@ const S = v => ({ stringValue: v }), A = a => ({ arrayValue: { values: a } }), M
   await p3.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => /PDF/.test(x.textContent) && x.offsetParent); b && b.click(); }); await p3.waitForTimeout(2500);
   for (const pg of pops) { const rr = await probe(pg).catch(() => ({ x: false, bad: 0, handlers: 0 })); ok('Yazdırma sayfası: zararlı ad betik çalıştırmaz', verdict(rr), JSON.stringify(rr)); }
   // Tescîl + Zarok bölümleri
-  const tab = t => p3.evaluate(t => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes(t)).find(x => { const q = x.getBoundingClientRect(); return q.top > 60 && q.top < 240; }); b && b.click(); }, t);
+  const tab = t => p3.evaluate(t => { const mv = [...document.querySelectorAll('.sm-it,.pano-tile')].filter(x => x.getClientRects().length); const m = mv.find(x => x.textContent.trim() === t) || mv.find(x => x.textContent.includes(t)); if (m) { m.click(); return; } const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes(t)).find(x => { if (x.matches('.sm-it,.pano-tile')) return true; const q = x.getBoundingClientRect(); return q.top > 60 && q.top < 240; }); b && b.click(); }, t);
   await tab('Qad · Tescîl'); await p3.waitForTimeout(1000);
   await p3.evaluate(() => { const c = [...document.querySelectorAll('.area-card')].find(x => x.textContent.includes('Hemû Xwendekar')); c && c.click(); }); await p3.waitForTimeout(1200);
   r = await probe(p3); ok('Öğrenci işleri: alan penceresi (öğrenci listesi) güvenli', verdict(r), JSON.stringify(r));

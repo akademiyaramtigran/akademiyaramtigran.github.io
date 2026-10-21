@@ -27,6 +27,7 @@ async function routes(ctx) {
   });
 }
 const clickText = (p, text, top) => p.evaluate(([t, top]) => {
+  if (top) { const mv = [...document.querySelectorAll('.sm-it,.pano-tile')].filter(x => x.getClientRects().length); const m = mv.find(x => x.textContent.trim() === t) || mv.find(x => x.textContent.includes(t)); if (m) { m.click(); return; } }
   const ok = x => { const r = x.getBoundingClientRect(); return r.width > 0 && (!top || (r.top > 60 && r.top < 260)); };
   // Önce ekrandaki, yoksa yatay şeritte kaymış olanı al (kapalı yan menüdeki kopyalar -left ile elenir)
   const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes(t) && x.offsetParent !== null && ok(x))
@@ -34,6 +35,8 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   if (!b) throw new Error('düğme yok: ' + t); b.scrollIntoView({ inline: 'center', block: 'nearest' }); b.click();
 }, [text, top]);
 
+const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects().length; const f = () => [...document.querySelectorAll('[data-tab="' + k + '"]')].find(vis);
+  let el = f(); if (!el) { const pb = document.querySelector('.pano-btn'); if (pb) pb.click(); el = f(); } el.click(); }, k);
 (async () => {
   const YR = String(new Date().getFullYear());
   // Kişiler: öğrenci işleri, akademi öğretmeni + öğrenci, çocuk akademisi öğretmeni
@@ -71,7 +74,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
     await p.locator('input.inp').first().fill(no); await p.locator('input[type=password]').first().fill(pw);
     await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000); return p;
   };
-  const topTab = (p, txt) => p.evaluate(t => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes(t)).find(x => { const r = x.getBoundingClientRect(); return r.top > 60 && r.top < 240; }); b.scrollIntoView(); b.click(); }, txt);
+  const topTab = (p, txt) => p.evaluate(t => { const mv = [...document.querySelectorAll('.sm-it,.pano-tile')].filter(x => x.getClientRects().length); const m = mv.find(x => x.textContent.trim() === t) || mv.find(x => x.textContent.includes(t)); if (m) { m.click(); return; } const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes(t)).find(x => { if (x.matches('.sm-it,.pano-tile')) return true; const r = x.getBoundingClientRect(); return r.top > 60 && r.top < 240; }); b.scrollIntoView(); b.click(); }, txt);
   const txt = p => p.evaluate(() => document.body.innerText);
   const getDocF = path => fetch(`${FS}/${path}`, { headers: H }).then(r => r.json());
   const kidsOf = async g => (await list('kids')).filter(d => JSON.stringify(d.fields.guardianNos || {}).includes(g));
@@ -196,7 +199,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   ok('Kardeş eşleştir: ayrı aile birleşir (4 çocuk, iki veli)', JSON.stringify(az.fields.guardianNos).includes(gno) && fam.length === 4, fam.length + ' çocuk');
 
   // ── 5c) Rapor: öğretmen filtresi (sınıf öğretmeninin sınıfları) ──
-  await p.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.trim().endsWith('Rapor') && x.textContent.trim().length < 12).find(x => { const r = x.getBoundingClientRect(); return r.top > 60 && r.top < 240; }); b.scrollIntoView(); b.click(); });
+  await p.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.trim().endsWith('Rapor') && x.textContent.trim().length < 12).find(x => { if (x.matches('.sm-it,.pano-tile')) return true; const r = x.getBoundingClientRect(); return r.top > 60 && r.top < 240; }); b.scrollIntoView(); b.click(); });
   await p.waitForTimeout(1500);
   await clickText(p, 'Lîste').catch(() => {}); await p.waitForTimeout(600);
   const before = await p.evaluate(() => { const c = [...document.querySelectorAll('div')].find(d => /Kurte/.test(d.textContent) && d.children.length > 1); return c ? c.innerText : ''; });
@@ -208,7 +211,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   const vc = await mk(390); const vp = await vc.newPage(); vp.on('pageerror', e => errs.push('veli: ' + e.message));
   await vp.goto('http://localhost:8765/zarok/app/?emu=1'); await vp.waitForSelector('#l-no', { timeout: 20000 });
   await vp.click('.roles button:nth-child(1)'); await vp.fill('#l-no', gno); await vp.fill('#l-pw', gpass); await vp.click('.login .btn');
-  await vp.waitForSelector('.status', { timeout: 20000 }); await vp.waitForTimeout(1500);
+  await vp.waitForSelector('.top', { timeout: 20000 }); await goZ(vp, 'today'); await vp.waitForSelector('.status', { timeout: 20000 }); await vp.waitForTimeout(1500);
   ok('Veli tek hesapla tüm kardeşleri görür (eşleştirilen dahil)', (await vp.locator('.kidchip').count()) === 4, (await vp.locator('.kidchip').count()) + ' çocuk');
   await vp.evaluate(() => [...document.querySelectorAll('.kidchip')].find(x => x.textContent.includes('Dilan')).click()); await vp.waitForTimeout(500);
   const v6 = await txt(vp);
@@ -218,14 +221,14 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   const tc = await mk(390); const tp = await tc.newPage(); tp.on('pageerror', e => errs.push('kidteacher: ' + e.message));
   await tp.goto('http://localhost:8765/zarok/app/?emu=1'); await tp.waitForSelector('#l-no', { timeout: 20000 });
   await tp.click('.roles button:nth-child(2)'); await tp.fill('#l-no', KT); await tp.fill('#l-pw', 'Kid12345'); await tp.click('.login .btn');
-  await tp.waitForSelector('.nav', { timeout: 20000 }); await tp.waitForTimeout(1500);
-  const navT = await tp.evaluate(() => [...document.querySelectorAll('.nav button')].map(b => b.textContent.trim()).join('|'));
-  ok('Çocuk öğretmeni alt menüsü akademi öğretmeniyle aynı düzende', ['🏠', '📋', '📢', '💬', '🎓', '🏫', '📇', '📝', '👤'].every((e, i) => navT.split('|')[i] && navT.split('|')[i].startsWith(e)), navT);
-  await tp.evaluate(e => [...document.querySelectorAll('.nav button')].find(b => b.textContent.includes(e)).click(), '📋'); await tp.waitForTimeout(600);
+  await tp.waitForSelector('.top', { timeout: 20000 }); await tp.waitForTimeout(1500);
+  const navT = await tp.evaluate(() => [...document.querySelectorAll('.pano-tile')].map(b => b.dataset.tab).join('|'));
+  ok('Çocuk öğretmeni Pano menüsü akademi öğretmeniyle aynı düzende', navT === 'home|att|ann|msg|kids|myclass|card|eval|profile', navT);
+  await goZ(tp, 'att'); await tp.waitForTimeout(600);
   const t7 = await txt(tp);
   ok('Öğretmen yalnızca kendi sınıfının çocuklarını görür (aynı alan/başka çocuk yok)', t7.includes('Dilan Aram') && t7.includes('Zîlan Aram') && !t7.includes('Serhat Aram'));
   // Sınıfa ödev gönder → velide görünür
-  await tp.evaluate(e => [...document.querySelectorAll('.nav button')].find(b => b.textContent.includes(e)).click(), '🏫'); await tp.waitForTimeout(600);
+  await goZ(tp, 'myclass'); await tp.waitForTimeout(600);
   ok('Çocuk öğretmeni: "Ji sinifa xwe re bişîne" kartı', (await txt(tp)).includes('Ji sinifa xwe re bişîne'));
   await tp.evaluate(() => [...document.querySelectorAll('.chipb')].find(x => x.textContent.includes('Erka malê')).click()); await tp.waitForTimeout(200);
   await tp.evaluate(() => [...document.querySelectorAll('.chipb')].find(x => x.textContent.trim() === '1. Sînif').click()); await tp.waitForTimeout(200);
@@ -235,20 +238,20 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   ok('Çocuk sınıf ödevi kaydedildi (1. sınıf)', kcp.some(d => d.fields.title.stringValue === 'Stranê dubare bikin' && d.fields.classId.stringValue === KCid));
   ok('Sınıfım: sınıftaki çocukların adları görünür', (await txt(tp)).includes('Dilan Aram · Zîlan Aram') || /Dilan Aram.*Zîlan Aram|Zîlan Aram.*Dilan Aram/.test(await txt(tp)));
   // Öğretmen yeni mesaj: tüm sınıfın ailelerine
-  await tp.evaluate(() => [...document.querySelectorAll('.nav button')].find(b => b.textContent.includes('💬')).click()); await tp.waitForTimeout(500);
+  await goZ(tp, 'msg'); await tp.waitForTimeout(500);
   await tp.selectOption('#t-nm-to', { label: '🏫 1. Sînif · hemû malbat' }); await tp.fill('#t-nm', 'Sibê konser heye');
   await tp.evaluate(() => [...document.querySelectorAll('main button.btn')].find(b => b.textContent.includes('Bişîne')).click()); await tp.waitForTimeout(2000);
   const kmsg = (await list('kidMessages')).filter(d => d.fields.text && d.fields.text.stringValue === 'Sibê konser heye');
   ok('Öğretmen sınıfın ailelerine yeni mesaj gönderir (aile başına bir)', kmsg.length >= 1 && kmsg.every(d => d.fields.from.stringValue === 'staff'), kmsg.length + ' mesaj');
   const vToast = await vp.locator('.toast').textContent().catch(() => '');
   ok('Veliye anında bildirim: sınıftan yeni ödev', /Stranê dubare bikin/.test(vToast), vToast);
-  await vp.bringToFront(); await vp.click('.nav button:nth-child(1)'); await vp.waitForTimeout(1500);
+  await vp.bringToFront(); await goZ(vp, 'today'); await vp.waitForTimeout(1500);
   const vToday = await txt(vp);
-  await vp.click('.nav button:nth-child(4)'); await vp.waitForTimeout(800);
+  await goZ(vp, 'ann'); await vp.waitForTimeout(800);
   const vAnn = await txt(vp);
   ok('Veli: çocuğun sınıf ödevi Bugün + Duyurular ekranında', vToday.includes('Stranê dubare bikin') && vAnn.includes('Stranê dubare bikin') && vAnn.includes('2030-01-10'));
   // Çocuk modu: yıldızlar + "Erkên min" (ödev görünür, "Min kir" ile işaretlenir)
-  await vp.click('.top .iconbtn'); await vp.waitForTimeout(400);
+  await vp.click('.top .iconbtn:not(.pano-btn)'); await vp.waitForTimeout(400);
   await vp.evaluate(() => [...document.querySelectorAll('.sheet button')].find(b => b.textContent.includes('Moda Xwendekar Veke')).click()); await vp.waitForTimeout(800);
   const km0 = await txt(vp);
   await vp.evaluate(() => [...document.querySelectorAll('.ktile')].find(b => b.textContent.includes('Erkên min')).click()); await vp.waitForTimeout(500);

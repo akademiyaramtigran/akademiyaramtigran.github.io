@@ -27,6 +27,7 @@ async function routes(ctx) {
   });
 }
 const clickText = (p, text, top) => p.evaluate(([t, top]) => {
+  if (top) { const mv = [...document.querySelectorAll('.sm-it,.pano-tile')].filter(x => x.getClientRects().length); const m = mv.find(x => x.textContent.trim() === t) || mv.find(x => x.textContent.includes(t)); if (m) { m.click(); return; } }
   const ok = x => { const r = x.getBoundingClientRect(); return r.width > 0 && (!top || (r.top > 60 && r.top < 260)); };
   // Önce ekrandaki, yoksa yatay şeritte kaymış olanı al (kapalı yan menüdeki kopyalar -left ile elenir)
   const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes(t) && x.offsetParent !== null && ok(x))
@@ -34,6 +35,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   if (!b) throw new Error('düğme yok: ' + t); b.scrollIntoView({ inline: 'center', block: 'nearest' }); b.click();
 }, [text, top]);
 
+const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-key="' + k + '"],.sm-it[data-key="' + k + '"]').click(), k);
 (async () => {
   const TODAY = new Date().toISOString().slice(0, 10);
   await put('idx_staff/98202601', { no: '98202601', lvl: 'registrar' });
@@ -63,7 +65,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
     await p.locator('input.inp').first().fill(no); await p.locator('input[type=password]').first().fill(pw);
     await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000); return p;
   };
-  const topTab = (p, t) => p.evaluate(t => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes(t)).find(x => { const r = x.getBoundingClientRect(); return r.top > 60 && r.top < 240; }); b.scrollIntoView(); b.click(); }, t);
+  const topTab = (p, t) => p.evaluate(t => { const mv = [...document.querySelectorAll('.sm-it,.pano-tile')].filter(x => x.getClientRects().length); const m = mv.find(x => x.textContent.trim() === t) || mv.find(x => x.textContent.includes(t)); if (m) { m.click(); return; } const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes(t)).find(x => { if (x.matches('.sm-it,.pano-tile')) return true; const r = x.getBoundingClientRect(); return r.top > 60 && r.top < 240; }); b.scrollIntoView(); b.click(); }, t);
   const txt = p => p.evaluate(() => document.body.innerText);
   const getDocF = path => fetch(`${FS}/${path}`, { headers: H }).then(r => r.json());
   const cls = async n => (await list('classes')).find(d => d.fields.name && d.fields.name.stringValue === n);
@@ -136,7 +138,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   ok('Kapanan atölye arşivde', /Atolyeyên girtî \(1\)/.test(await txt(p)));
 
   // ── 6) Rapor: sınıf filtresi ──
-  await p.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.trim().endsWith('Rapor') && x.textContent.trim().length < 12).find(x => { const r = x.getBoundingClientRect(); return r.top > 60 && r.top < 240; }); b.scrollIntoView(); b.click(); });
+  await p.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.trim().endsWith('Rapor') && x.textContent.trim().length < 12).find(x => { if (x.matches('.sm-it,.pano-tile')) return true; const r = x.getBoundingClientRect(); return r.top > 60 && r.top < 240; }); b.scrollIntoView(); b.click(); });
   await p.waitForTimeout(1500);
   await clickText(p, 'Lîste').catch(() => {}); await p.waitForTimeout(600);
   await p.selectOption('select[aria-label="Sînif"]', Aid); await p.waitForTimeout(600);
@@ -164,7 +166,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   ok('Öğretmenin öğrenci listesi sınıflarından (başka alandan Jîyan var, sınıfsız Baran yok)', t8.includes('Jîyan Roj') && t8.includes('Rojîn Aram') && !t8.includes('Baran Şêx'));
 
   // ── 8b) Toplu mesaj yalnızca seçilen sınıfın öğrencilerine (alanın tamamına değil) ──
-  await tp.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('💬') && x.offsetParent && x.textContent.trim().length < 14); b[b.length - 1].click(); });
+  await goA(tp, 'messages');
   await tp.waitForTimeout(800);
   await tp.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.includes('Peyamek Nû')).click()); await tp.waitForTimeout(400);
   await tp.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.trim().endsWith('Hemûyan')).click()); await tp.waitForTimeout(300);
@@ -182,7 +184,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await put('schedule/MAN1', { id: 'MAN1', name: 'Teorî', day: KUD, start: '00:00', end: '23:59', area: 'muzik', lessonType: 'main',
     classId: Aid, teacherNo: '50202601', teacher: 'Mamoste Dilovan' });
   const tm = await login(await mk(430), '50202601', 'Tea12345');
-  const goAtt = async () => { await tm.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('📋') && x.offsetParent && x.textContent.trim().length < 20); b[b.length - 1].click(); }); await tm.waitForTimeout(1500); };
+  const goAtt = async () => { await goA(tm, 'attendance'); await tm.evaluate(() => { }); await tm.waitForTimeout(1500); };
   const pickLs = () => tm.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.includes('Teorî') && x.textContent.includes('📅')); b && b.click(); });
   await goAtt(); await pickLs(); await tm.waitForTimeout(800);
   const rowBtn = (cls) => tm.evaluate(c => { const row = [...document.querySelectorAll('div')].filter(d => d.textContent.includes('Rojîn Aram') && d.querySelectorAll('.att-btn').length === 3).pop();
@@ -195,7 +197,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   await tm.reload(); await tm.waitForTimeout(7000); await goAtt(); await pickLs(); await tm.waitForTimeout(1500);
   ok('Yeniden açınca kaydedilen elle yoklama yüklü', await rowBtn(false));
   // QR'ı bu ders için aç ve kimse okutmadan kapat: elle "geç" işaretli öğrenci korunur
-  await tm.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('🏠') && x.offsetParent && x.textContent.trim().length < 12); b[b.length - 1].click(); });
+  await goA(tm, 'home');
   await tm.waitForTimeout(1000);
   await tm.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.includes('📷') && x.textContent.includes('QR') && x.offsetParent && !x.closest('nav') && x.getBoundingClientRect().left >= 0); b.click(); });
   await tm.waitForTimeout(2000);
