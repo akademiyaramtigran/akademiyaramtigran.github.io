@@ -188,6 +188,18 @@ footer .flogo img{height:26px;width:auto}
 .dr-ic{width:32px;height:32px;border-radius:9px;background:var(--soft);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;filter:saturate(.75)}
 .dr-nav a.dr-login{margin:14px 16px 4px;border:1px solid color-mix(in srgb,var(--gold) 50%,transparent);border-radius:10px;background:color-mix(in srgb,var(--gold) 12%,transparent);color:var(--ink);font-weight:700;justify-content:center;padding:12px 16px}
 .dr-nav a.dr-login::after{content:none}
+/* Lacivert, çizgi simgeli menü (uygulamadaki yan menüyle aynı dil) */
+.dr{background:#0f2f38;color:#dbe5e7}
+.dr .dr-head{background:transparent;border-bottom:1px solid rgba(231,199,123,.22);color:#fff}
+.dr .dr-brand span{color:#e7c77b}
+.dr .dr-x{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.22);color:#fff;width:38px;height:38px}
+.dr .dr-title{color:#fff}
+.dr .dr-nav{padding:8px 12px 18px}
+.dr .dr-nav a{color:#dbe5e7;border-left:0;border-radius:10px;padding:0 10px;min-height:46px}
+.dr .dr-nav a::after{color:rgba(219,229,231,.5)}
+.dr .dr-nav a:hover,.dr .dr-nav a:active{background:rgba(255,255,255,.07)}
+.dr .dr-ic{background:transparent;border:0;width:24px;height:24px;filter:none;color:inherit}
+.dr .dr-nav a.dr-login{margin:18px 0 4px;background:#e7c77b;border:0;color:#0f2f38;gap:10px;min-height:48px}
 @media (max-width:1100px){ .hnav{display:none} }
 @media (max-width:900px){
   .hero .grid,.formwrap,.about{grid-template-columns:1fr}
@@ -241,12 +253,12 @@ footer .flogo img{height:26px;width:auto}
     <div class="dr-title" data-t="title">Akademiya Zarokan</div>
   </div>
   <nav class="dr-nav">
-    <a href="#qad" data-close><span class="dr-ic" aria-hidden="true">🎼</span><span data-t="navDepts">Ders</span></a>
-    <a href="#nuce" data-close><span class="dr-ic" aria-hidden="true">📰</span><span data-t="navNews">Nûçe</span></a>
-    <a href="#derbare" data-close><span class="dr-ic" aria-hidden="true">🏛</span><span data-t="navHistory">Dîrok</span></a>
-    <a href="#serledan" data-close><span class="dr-ic" aria-hidden="true">📝</span><span data-t="navApply">Serlêdan</span></a>
-    <a href="../"><span class="dr-ic" aria-hidden="true">🎭</span><span data-t="backAcademy">Konservatuara Aram Tîgran</span></a>
-    <a href="app/" class="dr-login"><span data-t="login">Têketina Dêûbav</span></a>
+    <a href="#qad" data-close><span class="dr-ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM20 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/></svg></span><span data-t="navDepts">Ders</span></a>
+    <a href="#nuce" data-close><span class="dr-ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11a1 1 0 0 1 1 1v14a1 1 0 0 0 2 0V9h-2M5 4a1 1 0 0 0-1 1v13a2 2 0 0 0 2 2h13M8 8h6M8 12h6M8 16h4"/></svg></span><span data-t="navNews">Nûçe</span></a>
+    <a href="#derbare" data-close><span class="dr-ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2"/></svg></span><span data-t="navHistory">Dîrok</span></a>
+    <a href="#serledan" data-close><span class="dr-ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7zM14 3v4h4M9 13h6M9 17h4"/></svg></span><span data-t="navApply">Serlêdan</span></a>
+    <a href="../"><span class="dr-ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/></svg></span><span data-t="backAcademy">Konservatuara Aram Tîgran</span></a>
+    <a href="app/" class="dr-login"><span class="dr-ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h4.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H14M10 16l4-4-4-4M14 12H4"/></svg></span><span data-t="login">Têketina Dêûbav</span></a>
   </nav>
 </aside>
 <script>(function(){var d=document.getElementById('dr'),bd=document.getElementById('dr-bd'),o=document.getElementById('hb-open');
