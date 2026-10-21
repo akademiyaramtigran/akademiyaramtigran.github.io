@@ -12,6 +12,8 @@ const put = (path, obj) => fetch(`${FS}/${path}`, { method: 'PATCH', headers: H,
 const getDocs = path => fetch(`${FS}/${path}`, { headers: H }).then(r => r.json());
 const signUp = (email, password) => fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=x', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, returnSecureToken: true }) }).then(r => r.json());
 
+const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects().length; const f = () => [...document.querySelectorAll('[data-tab="' + k + '"]')].find(vis);
+  let el = f(); if (!el) { const pb = document.querySelector('.pano-btn'); if (pb) pb.click(); el = f(); } el.click(); }, k);
 (async () => {
   const today = new Date().toISOString().slice(0, 10), dow = new Date().getDay();
   await put('idx_guardians/92026001', { no: '92026001' });
@@ -44,7 +46,8 @@ const signUp = (email, password) => fetch('http://127.0.0.1:9099/identitytoolkit
   await login('92026001', 'yanlis'); await p.waitForTimeout(2000);
   ok('Yanlış şifre reddedilir', /xelet/i.test(await p.locator('.err').textContent()));
   // 3) Gerçek veli
-  await login('92026001', 'Veli1234'); await p.waitForSelector('.status', { timeout: 20000 });
+  await login('92026001', 'Veli1234'); await p.waitForSelector('.pano-tile', { timeout: 20000 });
+  ok('Veli Pano ile açılır (kare kartlar)', (await p.locator('.pano-tile').count()) === 5); await goZ(p, 'today'); await p.waitForSelector('.status', { timeout: 20000 });
   const body = await p.evaluate(() => document.body.innerText);
   ok('Veli girer, kendi çocuğunu görür', body.includes('Rojda'));
   ok('Başka ailenin çocuğu görünmez', !body.includes('BaşkaZarok'));
@@ -57,7 +60,7 @@ const signUp = (email, password) => fetch('http://127.0.0.1:9099/identitytoolkit
   ok('Öğretmen "geldi" işaretleyince veliye anında bildirim', /Rojda/.test(t1), t1);
   ok('Durum kartı "Di dersê de ye"', (await p.locator('.status').textContent()).includes('Di dersê de'));
   // 5) Mesaj gönder
-  await p.click('.nav button:nth-child(5)'); await p.fill('#m-text', 'Silav ji E2E'); await p.click('main .btn'); await p.waitForTimeout(1500);
+  await goZ(p, 'msg'); await p.fill('#m-text', 'Silav ji E2E'); await p.click('main .btn'); await p.waitForTimeout(1500);
   const msgs = await getDocs('kidMessages');
   const mine = (msgs.documents || []).find(d => d.fields.text && d.fields.text.stringValue === 'Silav ji E2E');
   ok('Mesaj Firestore\'a veli numarasıyla yazılır', mine && mine.fields.guardianNo.stringValue === '92026001');
@@ -65,7 +68,7 @@ const signUp = (email, password) => fetch('http://127.0.0.1:9099/identitytoolkit
   await p.waitForTimeout(1500);
   ok('Akademinin yanıtı veliye düşer', (await p.evaluate(() => document.body.innerText)).includes('Bersiva akademiyê'));
   // 6) İzinler: teslim listesi
-  await p.click('.iconbtn'); await p.fill('#s-pick', 'Xalê Rênas'); await p.click('.sheet .btn.sm >> text=Zêde bike'); await p.waitForTimeout(1500);
+  await p.click('.top .iconbtn:not(.pano-btn)'); await p.fill('#s-pick', 'Xalê Rênas'); await p.click('.sheet .btn.sm >> text=Zêde bike'); await p.waitForTimeout(1500);
   const k1 = await getDocs('kids/K1');
   ok('Teslim listesi çocuğun kaydına yazılır', JSON.stringify(k1.fields.pickups || {}).includes('Xalê Rênas'));
   // 7) Çıkış

@@ -26,6 +26,7 @@ async function routes(ctx) {
   });
 }
 const clickText = (p, text, top) => p.evaluate(([t, top]) => {
+  if (top) { const mv = [...document.querySelectorAll('.sm-it,.pano-tile')].filter(x => x.getClientRects().length); const m = mv.find(x => x.textContent.trim() === t) || mv.find(x => x.textContent.includes(t)); if (m) { m.click(); return; } }
   const ok = x => { const r = x.getBoundingClientRect(); return r.width > 0 && (!top || (r.top > 60 && r.top < 260)); };
   // Önce ekrandaki, yoksa yatay şeritte kaymış olanı al (kapalı yan menüdeki kopyalar -left ile elenir)
   const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes(t) && x.offsetParent !== null && ok(x))
@@ -33,6 +34,8 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   if (!b) throw new Error('düğme yok: ' + t); b.scrollIntoView({ inline: 'center', block: 'nearest' }); b.click();
 }, [text, top]);
 
+const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects().length; const f = () => [...document.querySelectorAll('[data-tab="' + k + '"]')].find(vis);
+  let el = f(); if (!el) { const pb = document.querySelector('.pano-btn'); if (pb) pb.click(); el = f(); } el.click(); }, k);
 (async () => {
   const YR = String(new Date().getFullYear());
   await put('idx_staff/98202601', { no: '98202601', lvl: 'registrar' });
@@ -62,7 +65,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
     await p.locator('input.inp').first().fill(no); await p.locator('input[type=password]').first().fill(pw);
     await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000); return p;
   };
-  const topTab = (p, t) => p.evaluate(t => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.trim().endsWith(t) && x.textContent.trim().length < t.length + 4).find(x => { const r = x.getBoundingClientRect(); return r.top > 60 && r.top < 240; }); b.scrollIntoView(); b.click(); }, t);
+  const topTab = (p, t) => p.evaluate(t => { const mv = [...document.querySelectorAll('.sm-it,.pano-tile')].filter(x => x.getClientRects().length); const m = mv.find(x => x.textContent.trim() === t) || mv.find(x => x.textContent.includes(t)); if (m) { m.click(); return; } const b = [...document.querySelectorAll('button')].filter(x => x.textContent.trim().endsWith(t) && x.textContent.trim().length < t.length + 4).find(x => { if (x.matches('.sm-it,.pano-tile')) return true; const r = x.getBoundingClientRect(); return r.top > 60 && r.top < 240; }); b.scrollIntoView(); b.click(); }, t);
   const btn = (p, t, exact) => p.evaluate(([t, exact]) => { const b = [...document.querySelectorAll('button')].filter(x => x.offsetParent && (exact ? x.textContent.trim() === t : x.textContent.includes(t))).pop(); if (!b) throw new Error('düğme yok: ' + t); b.scrollIntoView({ block: 'center' }); b.click(); }, [t, !!exact]);
   const txt = p => p.evaluate(() => document.body.innerText);
   const shot = (pg, n) => process.env.SHOT_DIR ? pg.screenshot({ path: process.env.SHOT_DIR + '/' + n, fullPage: true }).catch(() => {}) : null;
@@ -140,7 +143,7 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   const vc = await mk(390); const vp = await vc.newPage(); vp.on('pageerror', e => errs.push('veli: ' + e.message));
   await vp.goto('http://localhost:8765/zarok/app/?emu=1'); await vp.waitForSelector('#l-no', { timeout: 20000 });
   await vp.click('.roles button:nth-child(1)'); await vp.fill('#l-no', G); await vp.fill('#l-pw', 'Veli12345'); await vp.click('.login .btn');
-  await vp.waitForSelector('.status', { timeout: 20000 }); await vp.waitForTimeout(1500);
+  await vp.waitForSelector('.top', { timeout: 20000 }); await goZ(vp, 'today'); await vp.waitForSelector('.status', { timeout: 20000 }); await vp.waitForTimeout(1500);
   ok('Veli: Bugün ekranında bekleyen anket', (await txt(vp)).includes('Ankêtek li benda bersiva we ye'));
   await vp.evaluate(() => [...document.querySelectorAll('.card')].find(c => c.textContent.includes('Ankêtek li benda')).click()); await vp.waitForTimeout(600);
   await vp.evaluate(() => [...document.querySelectorAll('.chipb')].filter(b => b.textContent.trim().endsWith('5 · Gelek razî me')).forEach(b => b.click()));
@@ -155,8 +158,8 @@ const clickText = (p, text, top) => p.evaluate(([t, top]) => {
   const tc = await mk(390); const tp = await tc.newPage(); tp.on('pageerror', e => errs.push('kidteacher: ' + e.message));
   await tp.goto('http://localhost:8765/zarok/app/?emu=1'); await tp.waitForSelector('#l-no', { timeout: 20000 });
   await tp.click('.roles button:nth-child(2)'); await tp.fill('#l-no', KT); await tp.fill('#l-pw', 'Kid12345'); await tp.click('.login .btn');
-  await tp.waitForSelector('.nav', { timeout: 20000 }); await tp.waitForTimeout(1500);
-  await tp.evaluate(e => [...document.querySelectorAll('.nav button')].find(b => b.textContent.includes(e)).click(), '📝'); await tp.waitForTimeout(600);
+  await tp.waitForSelector('.top', { timeout: 20000 }); await tp.waitForTimeout(1500);
+  await goZ(tp, 'eval'); await tp.waitForTimeout(600);
   const t5 = await txt(tp);
   ok('Çocuk öğretmeni kendi anketini görür, veli anketini görmez', t5.includes('Nêrîna mamosteyên zarokan') && !t5.includes('Razîbûna dêûbavan'));
   await tp.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Bersiv bide').click()); await tp.waitForTimeout(500);
