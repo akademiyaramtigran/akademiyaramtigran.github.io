@@ -26,6 +26,9 @@
   --shadow:0 1px 2px rgba(15,47,56,.05),0 8px 24px rgba(15,47,56,.06)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bar:#10262d;--bg:#0b1d23;--paper:#10262d;--card:#132c34;--ink:#eef2f1;--muted:#a3b3b8;--line:#244049;--soft:#162f37;--shadow:0 8px 24px rgba(0,0,0,.35)}}
 :root[data-theme="dark"]{--bar:#10262d;--bg:#0b1d23;--paper:#10262d;--card:#132c34;--ink:#eef2f1;--muted:#a3b3b8;--line:#244049;--soft:#162f37;--shadow:0 8px 24px rgba(0,0,0,.35)}
+/* Koyu tema: mürekkep rengini zemin olarak kullanan öğeler (koyu temada --ink açıktır) */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn:not(.gold):not(.line):not(.ghost):not(.coral){background:#2c6b74} :root:not([data-theme="light"]) .quote{background:#0f2f38} :root:not([data-theme="light"]) .years button.on{background:#e7c77b;border-color:#e7c77b;color:#0f2f38}}
+:root[data-theme="dark"] .btn:not(.gold):not(.line):not(.ghost):not(.coral){background:#2c6b74} :root[data-theme="dark"] .quote{background:#0f2f38} :root[data-theme="dark"] .years button.on{background:#e7c77b;border-color:#e7c77b;color:#0f2f38}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,"Segoe UI",system-ui,Arial,sans-serif;font-size:16.5px;line-height:1.6;-webkit-text-size-adjust:100%}
