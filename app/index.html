@@ -976,6 +976,7 @@ html.theme-dark .pano .sm-head{background:#0b2229}
 .pano-tile.active .pano-ic{background:#0f2f38;color:#e7c77b}
 .pano-tile .sm-bdg{position:absolute;top:8px;right:8px;margin:0}
 html.theme-dark .pano-ic{background:#1c4a55;color:#e7c77b}
+html.theme-dark .pano-tile.active .pano-ic{background:#e7c77b;color:#0f2f38}
 .pano-extra{max-width:720px;margin:16px auto 0;background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden}
 .pano-row{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:0 16px;background:none;border:0;
   border-bottom:1px solid var(--border);color:var(--text);font:inherit;font-size:15px;cursor:pointer;text-align:left}
@@ -17578,6 +17579,80 @@ function PWAInstallBanner(){
   );
 }
 
+/* ─── KOYU TEMA DÜZELTİCİ ─────────────────────────────────────────────────
+   Bileşenlerin bir kısmında açık temaya göre sabit yazılmış satır içi renkler var
+   (beyaz/açık gri/pastel zeminler, koyu gri yazılar, şeffaf siyah kenarlıklar).
+   Koyu temada bunlar "gömülür". Bu düzeltici yalnızca koyu temada çalışır:
+   açık zeminleri koyu yüzeyin hafif tonuna, okunmayan yazıları tema yazı rengine,
+   görünmeyen kenarlıkları tema kenarlığına çevirir; açık temaya dönünce geri alır. */
+const DarkFix=(()=>{
+  const orig=new WeakMap(); const touched=new Set(); let on=false, mo=null, queued=new Set(), raf=0, busy=false;
+  const SURF=[19,45,52];
+  const parse=c=>{ const m=String(c||"").match(/rgba?\(([^)]+)\)/); if(!m) return null; const p=m[1].split(/[\s,\/]+/).filter(Boolean).map(Number); return {r:p[0],g:p[1],b:p[2],a:p.length>3?p[3]:1}; };
+  const lum=({r,g,b})=>{ const f=v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4);}; return .2126*f(r)+.7152*f(g)+.0722*f(b); };
+  const light=c=>{ const mx=Math.max(c.r,c.g,c.b), mn=Math.min(c.r,c.g,c.b); return (mx+mn)/510>=.86; }; // HSL açıklığı ≥ %86 (beyaz, açık gri, pastel)
+  const ratio=(a,b)=>{ const x=lum(a),y=lum(b); return (Math.max(x,y)+.05)/(Math.min(x,y)+.05); };
+  // Not: geçiş animasyonu sürerken hesaplanan değer ara renktir — düzelttiğimiz zeminde kendi (hedef) değerimizi kullan
+  const bgUnder=el=>{ const L=[]; let e=el; while(e&&e.nodeType===1){ const cs=getComputedStyle(e); if(cs.backgroundImage&&cs.backgroundImage!=="none"&&!/^url/.test(cs.backgroundImage)) return null;
+      const ov=e.style&&e.style.getPropertyPriority("background-color")==="important"?e.style.getPropertyValue("background-color"):null; const c=parse(ov||cs.backgroundColor); if(c&&c.a>0){ L.push(c); if(c.a>=1) break; } e=e.parentElement; }
+    let r={r:10,g:30,b:35,a:1}; for(let i=L.length-1;i>=0;i--){ const t=L[i]; r={r:t.r*t.a+r.r*(1-t.a),g:t.g*t.a+r.g*(1-t.a),b:t.b*t.a+r.b*(1-t.a),a:1}; } return r; };
+  const save=(el,prop)=>{ let o=orig.get(el); if(!o){o={};orig.set(el,o);touched.add(el);} if(!(prop in o)) o[prop]=el.style.getPropertyValue(prop); };
+  const styled=el=>el&&el.nodeType===1&&el.getAttribute&&el.getAttribute("style")&&!el.closest(".sm,.pano,.no-darkfix");
+  // Zemin + kenarlık (önce tüm öğelerde yapılır; yazı kontrolü düzeltilmiş zemine göre ölçer)
+  function fixBg(el){
+    if(!styled(el)) return;
+    const st=el.getAttribute("style"), o=orig.get(el);
+    // React kendi değerini yeniden yazdıysa (öncelik düştüyse) eski kaydı bırak, yeniden değerlendir
+    if(o) ["background-color","border-color"].forEach(k=>{ if(k in o&&el.style.getPropertyPriority(k)!=="important") delete o[k]; });
+    const cs=getComputedStyle(el);
+    if(/background/.test(st)&&!(o&&"background-color" in o)){
+      const c=parse(cs.backgroundColor);
+      if(c&&c.a>.3&&light(c)&&(!cs.backgroundImage||cs.backgroundImage==="none")){
+        const m=k=>Math.round(SURF[k]*.86+[c.r,c.g,c.b][k]*.14);
+        save(el,"background-color"); el.style.setProperty("background-color","rgb("+m(0)+","+m(1)+","+m(2)+")","important");
+      }
+    }
+    if(/border/.test(st)&&cs.borderTopStyle!=="none"&&!(o&&"border-color" in o)){
+      const b=parse(cs.borderTopColor);
+      if(b&&lum(b)<.06&&b.a<.4){ save(el,"border-color"); el.style.setProperty("border-color","var(--border2)","important"); }
+    }
+  }
+  // Yazı: kendi özgün rengiyle, altındaki (düzeltilmiş) zemine göre ölçülür
+  function fixColor(el){
+    if(!styled(el)||!/color/.test(el.getAttribute("style"))||!el.childNodes.length) return;
+    const o=orig.get(el);
+    if(o&&"color" in o){ el.style.removeProperty("color"); if(o.color) el.style.setProperty("color",o.color); delete o.color; }
+    const cs=getComputedStyle(el), bg=bgUnder(el); let fc=parse(cs.color);
+    if(!fc||!bg) return;
+    if(fc.a<1) fc={r:fc.r*fc.a+bg.r*(1-fc.a),g:fc.g*fc.a+bg.g*(1-fc.a),b:fc.b*fc.a+bg.b*(1-fc.a),a:1};
+    const need=parseFloat(cs.fontSize)>=18||(parseFloat(cs.fontSize)>=14&&+cs.fontWeight>=700)?3:4.5;
+    if(ratio(fc,bg)>=need) return;
+    // Rengin tonunu koruyarak açılt (koyu zeminde) / koyulaştır (açık zeminde), okunur olana kadar
+    const up=lum(bg)<.4; let c=fc;
+    for(let t=.15;t<=1.001&&ratio(c,bg)<need;t+=.15) c=up?{r:fc.r+(255-fc.r)*t,g:fc.g+(255-fc.g)*t,b:fc.b+(255-fc.b)*t}:{r:fc.r*(1-t),g:fc.g*(1-t),b:fc.b*(1-t)};
+    save(el,"color"); el.style.setProperty("color","rgb("+Math.round(c.r)+","+Math.round(c.g)+","+Math.round(c.b)+")","important");
+  }
+  const run=()=>{ raf=0; busy=true; const list=[...queued]; queued.clear(); const els=new Set();
+    for(const n of list){ if(!n.isConnected) continue; els.add(n); if(n.querySelectorAll) n.querySelectorAll("[style]").forEach(e=>els.add(e)); }
+    els.forEach(fixBg); els.forEach(fixColor); mo&&mo.takeRecords(); busy=false; };
+  const q=n=>{ if(n&&n.nodeType===1){ queued.add(n); if(!raf) raf=requestAnimationFrame(run); } };
+  return {
+    set(dark){
+      if(dark===on) return; on=dark;
+      if(dark){
+        // Bir öğenin zemini değişince (ör. seçili çip) altındaki yazılar da yeniden ölçülsün: üst öğe kuyruğa girer
+        mo=new MutationObserver(ms=>{ if(busy) return; for(const m of ms){ if(m.type==="attributes") q(m.target); else m.addedNodes.forEach(q); } });
+        mo.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:["style"]});
+        q(document.body);
+      } else {
+        if(mo){ mo.disconnect(); mo=null; }
+        touched.forEach(el=>{ const o=orig.get(el); if(o) for(const k in o){ el.style.removeProperty(k); if(o[k]) el.style.setProperty(k,o[k]); } orig.delete(el); });
+        touched.clear();
+      }
+    }
+  };
+})();
+
 /* ─── THEME CONTEXT ──────────────────────────────────────────────────────── */
 // Uygulama her zaman koyu tema kullanır — gelecek için light mode altyapısı hazır
 function useTheme(){
@@ -17589,6 +17664,7 @@ function useTheme(){
     try{localStorage.setItem("aat-theme",dark?"dark":"light");}catch{}
     // Tüm tema renkleri html.theme-dark sınıfındaki CSS değişkenleriyle gelir.
     document.documentElement.classList.toggle("theme-dark", dark);
+    try{ DarkFix.set(dark); }catch(_){}
     // Tarayıcı/durum çubuğu rengi
     try{
       const meta=document.querySelector('meta[name="theme-color"]');
