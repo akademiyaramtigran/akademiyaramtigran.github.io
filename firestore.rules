@@ -27,6 +27,8 @@ rules_version = '2';
 //                                  başvurular, Akademiya Zarokan yönetimi (çocuk/veli/öğretmen)
 //    • Basın (press)             : yalnızca site haberleri + arşiv (ana site ve çocuk sitesi)
 //    • Öğretmen (teacher)        : ders, yoklama, duyuru, anket; öğrenci ekleyebilir
+//    • Bölüm sorumlusu (head)    : bölümünün raporlarını okur; yalnızca kendi bölümüne duyuru,
+//                                  personele mesaj; öğrenciden mesaj alır (öğrenciye mesaj YAZAMAZ)
 //    Hiçbir rol kendi seviyesini yükseltemez; basın/öğrenci işleri dizine "admin" yazamaz.
 //    YAYIN SIRASI: önce yeni uygulama sürümü → yönetici bir kez giriş yapar →
 //    Console'da idx_staff/idx_students dolu mu kontrol et → SONRA bu kuralları yayınla.
@@ -69,12 +71,21 @@ service cloud.firestore {
     function isPress()     { return authed() && lvlIn(['admin', 'press']); }       // site haberleri + arşiv
     function isTeacherLvl(){ return authed() && mail() != 'admin@aramtigran.edu' && isStaff()
                                   && get(dbPath('idx_staff')).data.get('lvl', 'teacher') == 'teacher'; }
+    // Bölüm sorumlusu (lvl "head"): kendi bölümünün raporlarını okur; yazabildiği tek şeyler
+    // kendi bölümüne duyuru, öğrenci OLMAYAN personele mesaj ve gelen mesajın okundu işareti.
+    function headLvl() {
+      return authed() && mail().matches('.*@ogretmen[.]aat$') && exists(dbPath('idx_staff'))
+        && get(dbPath('idx_staff')).data.get('lvl', 'teacher') == 'head';
+    }
+    function headArea() { return get(dbPath('idx_staff')).data.get('area', ''); }
+    // Personel yazması (bölüm sorumlusu HARİÇ)
+    function staffW() { return isStaff() && !headLvl(); }
     // Geriye dönük ad: hesap yönetimi = admin + öğrenci işleri (basın DEĞİL)
     function isManager()   { return isRegistrar(); }
     // Özel yetki bayrağı taşımayan sıradan öğretmen kaydı
     function plainTeacher(d) {
       return d.get('isAdmin', false) != true && d.get('isPress', false) != true && d.get('isRegistrar', false) != true
-        && d.get('isGate', false) != true;
+        && d.get('isGate', false) != true && d.get('isHead', false) != true;
     }
     // Akademi üyesi (giriş yapmış + dizinde kayıtlı)
     function member() { return isStaff() || isStudent(); }
@@ -82,7 +93,7 @@ service cloud.firestore {
     // Kendi kaydında değiştirilemeyecek alanlar (alan, sınıf, burs, yetki bayrakları…)
     function selfEditOk() {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(
-        ['no','name','isAdmin','isPress','isRegistrar','isGate','area','classLevel','burs','scholarship','grade','regYear','status','role','cardToken']);
+        ['no','name','isAdmin','isPress','isRegistrar','isGate','isHead','area','classLevel','burs','scholarship','grade','regYear','status','role','cardToken']);
     }
 
     // Bir öğrenci/öğretmen dokümanı bu kullanıcıya mı ait? ("no" alanı = e-posta öneki)
@@ -193,7 +204,7 @@ service cloud.firestore {
 
     // ── Ortak koleksiyonlar — okuma: giriş yapmış herkes ───────────────
     // (öğrenci paneli program/duyuru/anket/QR okur; yazma personel)
-    match /schedule/{id}          { allow read: if member(); allow write: if isStaff(); }
+    match /schedule/{id}          { allow read: if member(); allow write: if staffW(); }
     // Sınıflar: öğrencinin sınıfı students.classLevel; sınıf öğretmeni burada (doc id = <alan>_<seviye>)
     match /classes/{id}           { allow read: if member(); allow write: if isRegistrar(); }
     // Sınıf paylaşımları (duyuru/ödev/belge): öğretmen YALNIZCA sınıf öğretmeni olduğu sınıfa, kendi adıyla yazar
@@ -215,15 +226,26 @@ service cloud.firestore {
     }
     match /classPosts/{id} {
       allow read: if member();
-      allow create: if isRegistrar() || (isStaff() && classPostOk('classes', 'schedule'));
+      allow create: if isRegistrar() || (staffW() && classPostOk('classes', 'schedule'));
       allow update: if isRegistrar();
       allow delete: if isRegistrar() || (isStaff() && resource.data.teacherNo == prefix());
     }
-    match /announcements/{id}     { allow read: if member(); allow write: if isStaff(); }
-    match /studentSurveys/{id}    { allow read: if member(); allow write: if isStaff(); }
-    match /studentStats/{id}      { allow read: if isStaff(); allow write: if isStaff(); }
-    match /teacherLessonLogs/{id} { allow read: if isStaff(); allow write: if isStaff(); }
-    match /qrSessions/{id}        { allow read: if member(); allow write: if isStaff(); }
+    // Duyuru: bölüm sorumlusu yalnızca KENDİ adıyla ve YALNIZCA kendi bölümüne
+    function headAnnOk(d) {
+      return d.get('senderRole', '') == 'head' && d.get('senderNo', '') == prefix()
+        && d.get('targets', []) is list && d.get('targets', []).size() == 1 && d.get('targets', [])[0] == headArea()
+        && d.get('senderArea', '') == headArea();
+    }
+    match /announcements/{id} {
+      allow read: if member();
+      allow create: if staffW() || (headLvl() && headAnnOk(request.resource.data));
+      allow update: if staffW() || (headLvl() && headAnnOk(resource.data) && headAnnOk(request.resource.data));
+      allow delete: if staffW() || (headLvl() && headAnnOk(resource.data));
+    }
+    match /studentSurveys/{id}    { allow read: if member(); allow write: if staffW(); }
+    match /studentStats/{id}      { allow read: if isStaff(); allow write: if staffW(); }
+    match /teacherLessonLogs/{id} { allow read: if isStaff(); allow write: if staffW(); }
+    match /qrSessions/{id}        { allow read: if member(); allow write: if staffW(); }
     match /config/{id}            { allow read: if member(); allow write: if isRegistrar(); }
     match /admins/{id}            { allow read: if isStaff(); allow write: if isAdmin(); }
 
@@ -241,11 +263,11 @@ service cloud.firestore {
     // Yoklama: personel her kaydı yazar; öğrenci yalnızca KENDİ adına QR girişi yazar (silemez)
     match /attendance/{id} {
       allow read: if member();
-      allow create, update: if isStaff()
+      allow create, update: if staffW()
         || (isStudent()
             && string(request.resource.data.get('studentNo', '')) == prefix()
             && (resource == null || string(resource.data.get('studentNo', '')) == prefix()));
-      allow delete: if isStaff();
+      allow delete: if staffW();
     }
     // Mesajlar: personel hepsini okur/yazar. Öğrenci yalnızca KENDİNE gelen özel mesajı
     // (recipientNo == kendi no) ve öğrencilere yönelik toplu mesajları okur; yalnızca
@@ -253,36 +275,48 @@ service cloud.firestore {
     function studentGroup(d) {
       return d.get('recipientGroup', '') in ['allStudents', 'all'] || string(d.get('recipientGroup', '')).matches('area_[a-z]+');
     }
+    // Bölüm sorumlusunun mesajı: kendi adıyla, tek alıcıya; alıcı yönetici ya da ÖĞRENCİ OLMAYAN personel
+    // (öğrencilere yalnızca duyuru gönderir)
+    function headMsgOk(d) {
+      return d.get('fromType', '') == 'head' && d.get('senderNo', '') == prefix()
+        && d.get('recipientGroup', null) == null
+        && ((d.get('recipientId', '') == 'admin' && d.get('recipientNo', null) == null)
+            || (d.get('recipientNo', null) is string && d.get('recipientNo', '') != ''
+                && exists(/databases/$(database)/documents/idx_staff/$(d.get('recipientNo', '')))))
+        && string(d.get('body', '')).size() <= 5000 && string(d.get('subject', '')).size() <= 300;
+    }
     match /messages/{id} {
       allow read: if isStaff()
         || (isStudent() && (resource.data.get('recipientNo', '') == prefix() || studentGroup(resource.data)));
-      allow create: if isStaff()
+      allow create: if staffW()
+        || (headLvl() && headMsgOk(request.resource.data))
         || (isStudent()
             && request.resource.data.get('fromType', '') == 'student'
             && request.resource.data.get('senderId', '') != 'admin'
             && request.resource.data.get('recipientGroup', null) == null
             && request.resource.data.get('recipientNo', null) == null
-            && request.resource.data.get('toRole', '') in ['admin', 'teacher']
+            && request.resource.data.get('toRole', '') in ['admin', 'teacher', 'head']
             && string(request.resource.data.get('body', '')).size() <= 5000
             && string(request.resource.data.get('subject', '')).size() <= 300);
-      allow update: if isStaff()
-        || (isStudent() && resource.data.get('recipientNo', '') == prefix()
+      allow update: if staffW()
+        || ((headLvl() || (isStudent() && resource.data.get('recipientNo', '') == prefix()))
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']));
-      allow delete: if isStaff();
+      allow delete: if staffW();
     }
     // Öğretmen haftalık anketleri: yalnızca personel
-    match /surveyResponses/{id} { allow read, write: if isStaff(); }
+    match /surveyResponses/{id} { allow read: if isStaff(); allow write: if staffW(); }
     // Öğrenci anket yanıtları: öğrenci yalnızca KENDİ yanıtını (studentNo == kendi no) okur/yazar
     match /studentSurveyResponses/{id} {
       allow read: if isStaff() || (isStudent() && resource.data.get('studentNo', '') == prefix());
-      allow create, update: if isStaff()
+      allow create, update: if staffW()
         || (isStudent() && request.resource.data.get('studentNo', '') == prefix()
             && (resource == null || resource.data.get('studentNo', '') == prefix()));
-      allow delete: if isStaff();
+      allow delete: if staffW();
     }
     // Cihaz kaydı: doküman kimliği = kullanıcı no; herkes yalnızca kendi cihazını
     match /devices/{no} {
-      allow read, write: if isStaff() || (member() && prefix() == no);
+      allow read: if isStaff() || (member() && prefix() == no);
+      allow write: if staffW() || (member() && prefix() == no);
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -402,7 +436,7 @@ service cloud.firestore {
     // Okuma/silme yalnızca sahibi; gönderimi sunucu (Cloud Functions) yapar.
     function pushRoleOk(r) {
       return (isStudent() && r == 'student')
-        || (isStaff() && r in ['teacher', 'registrar', 'press', 'admin', 'gate'])
+        || (isStaff() && r in ['teacher', 'registrar', 'press', 'admin', 'gate', 'head'])
         || (isGuardian() && r == 'guardian')
         || (kidStaff() && r == 'kidteacher');
     }
@@ -437,13 +471,13 @@ service cloud.firestore {
     //    • Yalnızca öğrenci işleri + yönetici kart çıkarır / iptal eder
     // ════════════════════════════════════════════════════════════════════
     match /cards/{token} {
-      allow get:  if isStaff() || isGate() || (isKidTeacher() && resource.data.kind == 'kid');
+      allow get:  if staffW() || isGate() || (isKidTeacher() && resource.data.kind == 'kid');
       allow list: if isRegistrar();
       allow create, update, delete: if isRegistrar();
     }
     // Kapı / ders girişi kaydı — okutan kişi kendi numarasıyla yazar; değiştirilemez, silinemez
     match /gateLog/{id} {
-      allow create: if (isGate() || isStaff() || isKidTeacher())
+      allow create: if (isGate() || staffW() || isKidTeacher())
         && request.resource.data.keys().hasOnly(['token','no','kind','name','ok','by','byName','at','date','place'])
         && request.resource.data.by == prefix()
         && request.resource.data.date is string && request.resource.data.date.size() <= 10
