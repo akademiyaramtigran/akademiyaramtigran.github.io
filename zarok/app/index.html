@@ -337,14 +337,16 @@ async function onSignedIn(u) {
   }
   cleanup();
   const listen = (q, fn) => unsubs.push(onSnapshot(q, snap => { fn(snap.docs.map(d => ({ ...d.data(), id: d.id }))); render(); }, err => console.warn("[zarok]", err.code)));
-  listen(query(collection(FB.db, "kids"), where("guardianNos", "array-contains", no)), v => { S.kids = v.sort((a, b) => (a.name || "").localeCompare(b.name || "")); if (S.kidIdx >= S.kids.length) S.kidIdx = 0; notifyNewPosts(S.cposts); });
+  // Bölüm sorumlusunun duyurusu (area dolu) yalnızca o dersteki çocukların velilerine görünür
+  const annsMine = v => (v || []).filter(a => !a.area || S.kids.some(k => k.area === a.area));
+  listen(query(collection(FB.db, "kids"), where("guardianNos", "array-contains", no)), v => { S.kids = v.sort((a, b) => (a.name || "").localeCompare(b.name || "")); if (S.kidIdx >= S.kids.length) S.kidIdx = 0; S.anns = annsMine(S.annsAll); notifyNewPosts(S.cposts); });
   listen(query(collection(FB.db, "kidAttendance"), where("guardianNos", "array-contains", no)), v => { notifyNewAtt(v); S.att = v.sort((a, b) => (b.time || "").localeCompare(a.time || "")); });
   listen(collection(FB.db, "kidSchedule"), v => { S.sched = v; });
   listen(collection(FB.db, "kidClasses"), v => { S.cls = v; notifyNewPosts(S.cposts); });
   listen(query(collection(FB.db, "kidClassPosts"), orderBy("createdAt", "desc"), limit(60)), v => { S.cposts = v; S.postsLoaded = true; notifyNewPosts(v); });
   listen(query(collection(FB.db, "kidSurveys"), where("active", "==", true)), v => { S.ksv = v; });
   listen(query(collection(FB.db, "kidSurveyResponses"), where("no", "==", no)), v => { S.kresp = v; });
-  listen(query(collection(FB.db, "kidAnnouncements"), orderBy("createdAt", "desc"), limit(30)), v => { S.anns = v; });
+  listen(query(collection(FB.db, "kidAnnouncements"), orderBy("createdAt", "desc"), limit(30)), v => { S.annsAll = v; S.anns = annsMine(v); });
   listen(query(collection(FB.db, "kidMessages"), where("guardianNo", "==", no)), v => { S.msgs = v.sort((a, b) => tsMs(a.createdAt) - tsMs(b.createdAt)); });
   S.phase = "home"; render(); enablePush();
   setTimeout(() => { if (!S.kidMode) { resumeKidMode(); render(); } }, 1500);

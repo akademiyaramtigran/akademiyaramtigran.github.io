@@ -71,6 +71,7 @@ async function routes(ctx) {
   await btn(ap, 'Kartê Tescîl Bike'); await ap.waitForTimeout(5000);
   const heads = (await list('teachers')).filter(d => d.fields.isHead && d.fields.isHead.booleanValue);
   const H1 = heads[0]; const hno = H1 && H1.fields.no.stringValue;
+  ok('Kayıtta şifre özeti TUTULMAZ (passHash boş)', H1 && (!H1.fields.passHash || H1.fields.passHash.stringValue === ''));
   ok('Bölüm sorumlusu kaydı (isHead, alan = tiyatro, numara 96…)', heads.length === 1 && H1.fields.area.stringValue === 'tiyatro' && /^96/.test(hno), hno);
   const hpass = await ap.evaluate(() => { const m = document.body.innerText.match(/Şîfre \(otomatîk\)\s*\n\s*(\S+)/); return m ? m[1] : ''; });
   await ap.waitForTimeout(1500);
@@ -82,7 +83,7 @@ async function routes(ctx) {
   // 2) Sorumlu girer: yalnızca Duyuru / Mesaj / Rapor
   const hp = await login(await mk(), hno, hpass);
   const keys = await hp.evaluate(() => [...document.querySelectorAll('.sm-it[data-key]')].map(e => e.dataset.key).join(','));
-  ok('Sorumlu paneli: yalnızca duyuru, mesaj, rapor', keys === 'announce,messages,reports', keys);
+  ok('Sorumlu paneli: yalnızca duyuru, mesaj, anket, rapor', keys === 'announce,messages,surveys,reports', keys);
   // Duyuru (kendi bölümüne kilitli) + belge
   const t0 = await txt(hp);
   ok('Duyuru hedefi kendi bölümüne kilitli', t0.includes('Kilkkirî') && t0.includes('Şano'));
@@ -119,6 +120,13 @@ async function routes(ctx) {
   // 4) Sorumlu: gelen kutusunda öğrenci mesajı; yöneticiye + öğretmene belgeli mesaj (öğrenci seçeneği YOK)
   await goA(hp, 'messages'); await hp.waitForTimeout(1500);
   ok('Sorumlunun gelen kutusunda öğrenci mesajı', (await txt(hp)).includes('Kostûm'));
+  // Cevap: sorumlu öğrencinin mesajına cevap verir → öğrenci görür
+  await hp.evaluate(() => { const c = [...document.querySelectorAll('div')].filter(d => d.textContent.includes('Kostûm') && d.style && d.style.cursor === 'pointer').pop(); c && c.click(); }); await hp.waitForTimeout(600);
+  await hp.fill('#hm-reply', 'Erê, li odeya provayê ye'); await btn(hp, 'Bersiv bide'); await hp.waitForTimeout(2000);
+  const rp = (await list('messages')).filter(d => d.fields.body && d.fields.body.stringValue === 'Erê, li odeya provayê ye');
+  ok('Sorumlu öğrenciye cevap verir (replyTo + öğrenci numarası)', rp.length === 1 && rp[0].fields.recipientNo.stringValue === '20202601' && !!rp[0].fields.replyTo);
+  await goA(s1, 'messages'); await s1.waitForTimeout(2000);
+  ok('Öğrenci sorumlunun cevabını görür', (await txt(s1)).includes('Erê, li odeya provayê ye') || (await txt(s1)).includes('Re: Kostûm'));
   await btn(hp, 'Peyamek Nû'); await hp.waitForTimeout(400);
   const opts = await hp.locator('[data-head-to] option').allTextContents();
   ok('Mesaj alıcıları: yönetici + yalnızca bölüm öğretmenleri (öğrenci yok)', opts.length === 2 && opts.join('|').includes('Mamoste Şano') && !opts.join('|').includes('Mamoste Muzîk') && !opts.join('|').includes('Rojîn'), opts.join(' | '));

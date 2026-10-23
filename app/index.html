@@ -420,6 +420,9 @@
     students.forEach(x => { const id = idxId(x.no); if (id) want.idx_students.set(id, { no: id }); });
     teachers.forEach(x => { const id = idxId(x.no); if (id) want.idx_staff.set(id, staffIdx(x, id)); });
     let added = 0, removed = 0;
+    // Eski kayıtlarda kalan şifre özetlerini sil (artık kullanılmıyor; personel okuyabiliyordu)
+    for (const [col, list] of [["students", students], ["teachers", teachers]])
+      for (const x of list) if (x && x.fireId && x.pass) { try { await updateDoc(doc(db, col, x.fireId), { passHash: "" }); } catch (_) {} }
     for (const col of Object.keys(want)) {
       const snap = await getDocs(collection(db, col));
       const have = new Map(snap.docs.map(d => [d.id, d.data()]));
@@ -496,7 +499,8 @@
     async saveStudent(s) {
       const hasPhoto = !!(s.photo);
       // _plainPass (personelin ürettiği şifrenin düz hâli) yalnızca o oturumda gösterilir, Firestore'a yazılmaz.
-      const SKIP = new Set(["pass","_authEmail","docs","id","_authDone","_plainPass"]);
+      // Şifre özeti (passHash) Firestore'a YAZILMAZ: giriş yalnızca Firebase Auth ile (özet personelce okunup kırılabiliyordu)
+      const SKIP = new Set(["pass","passHash","_authEmail","docs","id","_authDone","_plainPass"]);
       const cleanData = {};
       for(const [k,v] of Object.entries(s)){
         if(SKIP.has(k)) continue;
@@ -515,13 +519,14 @@
           photoToSave = sizeKB <= 500 ? s.photo : null;
         }
       }
-      await setDoc(ref, {...cleanData, passHash: s.pass || "", fireId: ref.id, hasPhoto, photo: photoToSave, updatedAt: serverTimestamp()});
+      await setDoc(ref, {...cleanData, passHash: "", fireId: ref.id, hasPhoto, photo: photoToSave, updatedAt: serverTimestamp()});
       await idxPut("student", s);
       return ref.id;
     },
     async saveTeacher(tc) {
       const hasPhoto = !!(tc.photo);
-      const SKIP = new Set(["pass","_authEmail","docs","id","_authDone","_plainPass"]);
+      // Şifre özeti (passHash) Firestore'a YAZILMAZ: giriş yalnızca Firebase Auth ile (özet personelce okunup kırılabiliyordu)
+      const SKIP = new Set(["pass","passHash","_authEmail","docs","id","_authDone","_plainPass"]);
       const cleanData = {};
       for(const [k,v] of Object.entries(tc)){
         if(SKIP.has(k)) continue;
@@ -538,7 +543,7 @@
           photoToSave = sizeKB <= 500 ? tc.photo : null;
         }
       }
-      await setDoc(ref, {...cleanData, passHash: tc.pass || "", fireId: ref.id, hasPhoto, photo: photoToSave, updatedAt: serverTimestamp()});
+      await setDoc(ref, {...cleanData, passHash: "", fireId: ref.id, hasPhoto, photo: photoToSave, updatedAt: serverTimestamp()});
       const idxOk = await idxPut("staff", tc);
       // Özel personel (Öğrenci İşleri / Basın / Güvenlik) yetki kaydı yazılamadıysa hesap
       // açılır ama kurallar onu tanımaz ("Yetki yok"). Sessiz geçme — kaydedene bildir.
@@ -1677,6 +1682,13 @@ async function hashPassword(password) {
   const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
+// Oturumdaki kullanıcının şifresini Firebase Auth ile doğrula (true/false; oturum yoksa null)
+async function checkCurrentPassword(plain){
+  try{
+    const F=window.__FB; const cu=F&&F.auth&&F.auth.currentUser; if(!cu||!cu.email) return null;
+    await F.reauthenticateWithCredential(cu, F.EmailAuthProvider.credential(cu.email, plain)); return true;
+  }catch(e){ const c=(e&&e.code)||""; return /wrong-password|invalid-credential|invalid-login/.test(c)?false:null; }
 }
 async function verifyPassword(plain, storedHash) {
   if (!storedHash) return false;
@@ -6655,6 +6667,13 @@ const SPECIAL_TYPES = {
     name:{get ku(){return K("Berpirsê Beşê")},en:"Department Head"},
     desc:{get ku(){return K("Raporên beşa xwe dibîne; ji xwendekarên beşê re ragihandin dişîne, belge û peyam dişîne; peyamên xwendekaran digire")},en:"Sees own department's reports; sends announcements to its students, documents and messages to staff; receives student messages"} },
 };
+// Sorumlunun bölümü: ana akademi bölümü · "genel" (tüm bölümler) · çocuk akademisi dersi
+const isKidArea=a=>["solfej","ziman","teori","dalcroze","drama","enstruman"].includes(a);
+function headAreaLabel(a,lang){
+  if(a==="genel") return lang==="en"?"All departments (general)":K("Hemû beş (giştî)");
+  if(isKidArea(a)){ const z=(typeof ZAROK_AREA_NAMES!=="undefined"&&ZAROK_AREA_NAMES[a])||[a,a]; return "🎼 "+(lang==="en"?"Children's Academy · "+z[1]:K("Akademiya Zarokan")+" · "+K(z[0])); }
+  return areaName(a,lang);
+}
 const specialOf=tc=>tc.isPress?SPECIAL_TYPES.press:tc.isGate?SPECIAL_TYPES.gate:tc.isHead?SPECIAL_TYPES.head:SPECIAL_TYPES.registrar;
 // Öğrenci tarafı "bölüm sorumlum" seçeneği için: config/heads = {areas:{<alan>:{name,no}}}
 async function syncHeadsCfg(list){
@@ -6789,9 +6808,10 @@ function AddSpecialCardSheet({open,onClose,kind,teachers,t,lang,toast,onSave}){
         <FieldWrap label={lang==="en"?"Department":K("Beş")}>
           <select style={selectStyle} value={hArea} onChange={e=>setHArea(e.target.value)} data-head-area="1">
             <option value="">{lang==="en"?"— Select —":K("— Hilbijêre —")}</option>
-            {AREAS.filter(a2=>a2.key!=="genel").map(a2=>{
-              const taken=(teachers||[]).some(x=>x.isHead&&x.area===a2.key);
-              return <option key={a2.key} value={a2.key}>{a2.icon} {areaName(a2.key,lang)}{taken?" · "+(lang==="en"?"has a head":K("berpirsê wê heye")):""}</option>;
+            {[{k:"genel",g:"top"},...AREAS.filter(a2=>a2.key!=="genel").map(a2=>({k:a2.key,g:"aat"})),...ZAROK_AREAS.map(z=>({k:z,g:"kid"}))].map(o=>{
+              const taken=(teachers||[]).some(x=>x.isHead&&x.area===o.k);
+              const lbl=o.k==="genel"?"⭐ "+(lang==="en"?"General head (all departments)":K("Berpirsê Giştî (hemû beş)")):o.g==="aat"?((AREA_MAP[o.k]||{}).icon||"")+" "+areaName(o.k,lang):headAreaLabel(o.k,lang);
+              return <option key={o.k} value={o.k}>{lbl}{taken?" · "+(lang==="en"?"has a head":K("berpirsê wê heye")):""}</option>;
             })}
           </select>
         </FieldWrap>
@@ -6988,7 +7008,7 @@ function AdminPressPanel({teachers,onDataChange,lang,toast,t}){
               : <span style={{fontSize:24}}>{tK.icon}</span>}
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>{tc.name}</div>
-              <div style={{fontSize:11,color:"var(--text2)"}}>{tK.icon} {tK.name[lang]||tK.name.ku}{tc.isHead?" · "+areaName(tc.area,lang):""} · <span style={{fontFamily:"monospace"}}>{tc.no}</span></div>
+              <div style={{fontSize:11,color:"var(--text2)"}}>{tK.icon} {tK.name[lang]||tK.name.ku}{tc.isHead?" · "+headAreaLabel(tc.area,lang):""} · <span style={{fontFamily:"monospace"}}>{tc.no}</span></div>
             </div>
             <button onClick={()=>setEditing(tc)}
               style={{background:"var(--bg2)",border:"0.5px solid var(--border2)",color:"var(--text)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>
@@ -7511,14 +7531,19 @@ function PressPanel({user,lang,toast,onLogout}){
    Yalnızca üç bölüm: Duyuru (kendi bölümünün öğrencilerine, belge/foto ekli),
    Mesaj (öğrenciden gelen; yöneticiye ve bölüm öğretmenlerine belgeli mesaj —
    öğrencilere mesaj YAZILMAZ, yalnızca duyuru), Rapor (yalnızca kendi bölümü). */
-function HeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onSettings}){
+function HeadPanel(props){
+  if(isKidArea(props.user&&props.user.area)) return <KidHeadPanel {...props}/>;
+  return <AatHeadPanel {...props}/>;
+}
+function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onSettings}){
   const [menuOpen,setMenuOpen]=useState(isPhoneNow);
   const [tab,setTab]=useState("announce");
   const [msgs,setMsgs]=useState([]);
   const area=user.area||"";
-  const aStudents=(students||[]).filter(s=>s.area===area);
-  const aTeachers=(teachers||[]).filter(tc=>tc.area===area&&!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&!tc.isHead);
-  const aSchedule=(schedule||[]).filter(l=>l.area===area);
+  const ALL=area==="genel"; // genel sorumlu: tüm bölümler
+  const aStudents=(students||[]).filter(s=>ALL||s.area===area);
+  const aTeachers=(teachers||[]).filter(tc=>(ALL||tc.area===area)&&!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&!tc.isHead);
+  const aSchedule=(schedule||[]).filter(l=>ALL||l.area===area);
   const myNo=String(user.no||"");
   useEffect(()=>{
     if(!window.__FB||!window.__FB.isConfigured()) return;
@@ -7532,9 +7557,10 @@ function HeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onSett
   const items=[
     {key:"announce",label:lang==="en"?"Announcements":K("Ragihandin")},
     {key:"messages",label:lang==="en"?"Messages":K("Peyam"),badge:unread},
+    {key:"surveys",label:lang==="en"?"Surveys":K("Ankêt")},
     {key:"reports",label:lang==="en"?"Reports":K("Rapor")},
   ];
-  const roleLabel=(lang==="en"?"Department Head":K("Berpirsê Beşê"))+" · "+areaName(area,lang);
+  const roleLabel=ALL?(lang==="en"?"General Head":K("Berpirsê Giştî")):(lang==="en"?"Department Head":K("Berpirsê Beşê"))+" · "+areaName(area,lang);
   return(
     <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
       <SideMenu open={menuOpen} onClose={()=>setMenuOpen(false)} items={items} activeKey={tab} onSelect={setTab} user={user} roleLabel={roleLabel}
@@ -7543,7 +7569,165 @@ function HeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onSett
       <div className="scroll-area" style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
         {tab==="announce"&&<AnnouncementsPanel t={t} toast={toast} lang={lang} senderName={user.name} senderRole="head" senderArea={area} senderNo={myNo}/>}
         {tab==="messages"&&<HeadMessagesPanel user={user} inbox={inbox} sent={sent} teachers={aTeachers} lang={lang} t={t} toast={toast}/>}
+        {tab==="surveys"&&<HeadSurveysPanel user={user} students={aStudents} teachers={aTeachers} lang={lang} toast={toast}/>}
         {tab==="reports"&&<AdminReportCenter students={aStudents} teachers={aTeachers} schedule={aSchedule} lang={lang} t={t} toast={toast} byName={user.name} headArea={area}/>}
+      </div>
+    </div>
+  );
+}
+
+/* Bölüm sorumlusunun anketleri — kendi bölümünün öğrencilerine / öğretmenlerine (genel sorumlu: tüm bölümler).
+   Yönetici ve Öğrenci İşleri sonuçları Rapor → Ankêt bölümünde görür. */
+function HeadSurveysPanel({user,students,teachers,lang,toast}){
+  const F=window.__FB; const live=!!(F&&F.isConfigured());
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const myNo=String(user.no||""), ALL=user.area==="genel";
+  const [list,setList]=useState([]); const [resps,setResps]=useState([]);
+  const [view,setView]=useState("list"); const [edit,setEdit]=useState(null);
+  useEffect(()=>{
+    if(!live) return; const subs=[];
+    try{ subs.push(F.onSnapshot(F.query(F.collection(F.db,"studentSurveys"),F.where("ownerNo","==",myNo)),s=>setList(s.docs.map(d=>({...d.data(),fireId:d.id})).sort((a,b)=>String(b.createdAt||"").localeCompare(String(a.createdAt||"")))))); }catch(_){}
+    try{ subs.push(F.onSnapshot(F.collection(F.db,"studentSurveyResponses"),s=>setResps(s.docs.map(d=>d.data())))); }catch(_){}
+    return ()=>subs.forEach(u=>{ try{u();}catch(_){} });
+  },[live,myNo]);
+  const today=new Date().toISOString().slice(0,10);
+  const rOf=sv=>resps.filter(r=>String(r.surveyId)===String(sv.id)||String(r.surveyId)===String(sv.fireId));
+  const isT=sv=>sv.targetType==="teachers"||sv.targetType==="teachers_area";
+  const exp=sv=>isT(sv)?(teachers||[]).filter(t2=>!(sv.targetAreas||[]).length||(sv.targetAreas||[]).includes(t2.area)).length
+    :(students||[]).filter(st=>!(sv.targetAreas||[]).length||(sv.targetAreas||[]).includes(st.area)).length;
+  async function save(part){
+    const now=new Date().toISOString();
+    const id=edit&&edit.fireId?edit.fireId:String(Date.now());
+    const sv={...(edit||{}),...part,id:edit?(edit.id||id):id,ownerNo:myNo,ownerName:user.name||"",createdAt:(edit&&edit.createdAt)||now,updatedAt:now};
+    delete sv.fireId;
+    try{ await F.setDoc(F.doc(F.db,"studentSurveys",id),sv); toast("✅ "+sv.title+(sv.active?" — "+W2("hate weşandin","published"):"")); setView("list"); setEdit(null); }
+    catch(e){ toast("❌ "+((e&&e.code)||e)); }
+  }
+  if(!live) return <div style={{fontSize:13,color:"var(--text2)"}}>{W2("Firebase girêdayî nîne.","Firebase is not connected.")}</div>;
+  if(view==="studio") return <SurveyStudio mode="academy" initial={edit} teachers={teachers} lang={lang} toast={toast} onSave={save} onCancel={()=>{setView("list");setEdit(null);}} lockAreas={ALL?null:[user.area]}/>;
+  if(view==="results"&&edit) return(
+    <div>
+      <button onClick={()=>{setView("list");setEdit(null);}} style={{padding:"7px 14px",fontSize:12,background:"var(--bg2)",border:"1px solid var(--border2)",borderRadius:10,cursor:"pointer",color:"var(--text)",fontWeight:600,marginBottom:10}}>← {W2("Vegere","Back")}</button>
+      <div style={{background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:14,padding:14}}>
+        <div style={{fontSize:15,fontWeight:800,color:"var(--text)",marginBottom:10}}>{edit.title}</div>
+        <SurveyStats survey={edit} resps={rOf(edit)} lang={lang} expected={exp(edit)} whoLabel={isT(edit)?W2("mamoste","teachers"):W2("xwendekar","students")}/>
+      </div>
+    </div>);
+  const btn={padding:"7px 11px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12,cursor:"pointer"};
+  return(
+    <div>
+      <button data-new-survey="1" onClick={()=>{setEdit(null);setView("studio");}} style={{width:"100%",padding:13,borderRadius:12,border:"none",background:"#0f2f38",color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer",marginBottom:12}}>✨ {W2("Ankêta nû","New survey")}</button>
+      <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>{ALL?W2("Ankêt dikare ji hemû beşan re be.","Surveys may target all departments."):W2("Ankêt tenê ji beşa te re ye (xwendekar an mamoste). Rêveber encaman di raporan de dibîne.","Surveys go to your department only (students or teachers). The admin sees the results in reports.")}</div>
+      {list.length===0&&<div style={{textAlign:"center",padding:28,color:"var(--text2)",fontSize:13}}>📭 {W2("Hîn ankêt tune","No surveys yet")}</div>}
+      {list.map(sv=>{ const closed=sv.endDate&&sv.endDate<today; return(
+        <div key={sv.fireId} style={{background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:14,padding:12,marginBottom:10}}>
+          <div style={{fontWeight:800,color:"var(--text)"}}>{sv.title}</div>
+          <div style={{fontSize:11,color:"var(--text2)",marginTop:3}}>{!sv.active?"⏸ "+W2("Reşnivîs","Draft"):closed?"⌛ "+W2("Dem qediya","Closed"):"🟢 "+W2("Çalak","Live")} · {isT(sv)?"👩‍🏫":"🎓"} · {(sv.questions||[]).length} {W2("pirs","questions")} · 📝 {rOf(sv).length} / {exp(sv)}</div>
+          <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
+            <button onClick={()=>{setEdit(sv);setView("results");}} style={btn}>📊 {W2("Encam","Results")}</button>
+            <button onClick={()=>{setEdit(sv);setView("studio");}} style={btn}><Ico n="edit" solo/></button>
+            <button onClick={()=>F.updateDoc(F.doc(F.db,"studentSurveys",sv.fireId),{active:!sv.active}).catch(e=>toast("❌ "+e.code))} style={btn}>{sv.active?"⏸ "+W2("Rawestîne","Pause"):"▶ "+W2("Biweşîne","Publish")}</button>
+            <button onClick={()=>{ if(window.confirm(W2("Ankêt were jêbirin?","Delete survey?"))) F.deleteDoc(F.doc(F.db,"studentSurveys",sv.fireId)).catch(e=>toast("❌ "+e.code)); }} style={{...btn,color:"#dc2626"}}><Ico n="trash" solo/></button>
+          </div>
+        </div>); })}
+    </div>
+  );
+}
+
+/* Çocuk akademisi bölüm sorumlusu: Duyuru (kendi dersinin velilerine) · Mesaj (velilerle) · Anket · Rapor */
+function KidHeadPanel({user,t,lang,toast,onLogout,onSettings}){
+  const [menuOpen,setMenuOpen]=useState(isPhoneNow);
+  const [tab,setTab]=useState("announce");
+  const F=window.__FB; const live=!!(F&&F.isConfigured());
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const area=user.area||"", myNo=String(user.no||"");
+  const [kids,setKids]=useState([]); const [msgs,setMsgs]=useState([]); const [anns,setAnns]=useState([]); const [guards,setGuards]=useState([]);
+  useEffect(()=>{
+    if(!live) return; const subs=[];
+    const L=(q,set)=>{ try{ subs.push(F.onSnapshot(q,s=>set(s.docs.map(d=>({...d.data(),fireId:d.id}))),e=>console.warn("[kidHead]",e&&e.code))); }catch(_){} };
+    L(F.query(F.collection(F.db,"kids"),F.where("area","==",area)),setKids);
+    L(F.collection(F.db,"kidMessages"),setMsgs);
+    L(F.collection(F.db,"kidAnnouncements"),v=>setAnns(v.filter(a=>a.byNo===myNo).sort((a,b)=>((b.createdAt&&b.createdAt.seconds)||0)-((a.createdAt&&a.createdAt.seconds)||0))));
+    L(F.collection(F.db,"guardians"),setGuards);
+    return ()=>subs.forEach(u=>{ try{u();}catch(_){} });
+  },[live,area,myNo]);
+  const gset=new Set(); kids.forEach(k=>(k.guardianNos||[]).forEach(g=>gset.add(String(g))));
+  const myMsgs=msgs.filter(m=>gset.has(String(m.guardianNo)));
+  const unread=myMsgs.filter(m=>m.from==="guardian"&&!m.read).length;
+  const items=[
+    {key:"announce",label:lang==="en"?"Announcements":K("Ragihandin")},
+    {key:"messages",label:lang==="en"?"Messages":K("Peyam"),badge:unread},
+    {key:"surveys",label:lang==="en"?"Surveys":K("Ankêt")},
+    {key:"reports",label:lang==="en"?"Reports":K("Rapor")},
+  ];
+  const roleLabel=(lang==="en"?"Department Head":K("Berpirsê Beşê"))+" · "+headAreaLabel(area,lang);
+  // Duyuru
+  const [aT,setAT]=useState(""); const [aB,setAB]=useState("");
+  async function sendAnn(){
+    if(!aT.trim()||!aB.trim()){ toast("⚠ "+W2("Sernav û nivîs pêwîst in","Title and text are required")); return; }
+    try{ await F.addDoc(F.collection(F.db,"kidAnnouncements"),{title:aT.trim(),body:aB.trim(),by:user.name||"",byNo:myNo,area,createdAt:F.serverTimestamp()});
+      toast("✅ "+W2("Ji dêûbavan re hate şandin","Sent to parents")); setAT(""); setAB(""); }catch(e){ toast("❌ "+((e&&e.code)||e)); }
+  }
+  // Mesaj (veli konuşmaları)
+  const [thread,setThread]=useState(null); const [rep,setRep]=useState("");
+  const threads=[...new Set(myMsgs.map(m=>String(m.guardianNo)))].map(g=>{ const ms=myMsgs.filter(m=>String(m.guardianNo)===g).sort((a,b)=>((a.createdAt&&a.createdAt.seconds)||0)-((b.createdAt&&b.createdAt.seconds)||0));
+    const gd=guards.find(x=>String(x.no)===g); return {g,name:(gd&&gd.name)||(ms.find(m=>m.guardianName)||{}).guardianName||g,ms,unread:ms.filter(m=>m.from==="guardian"&&!m.read).length,last:ms[ms.length-1]}; })
+    .sort((a,b)=>((b.last.createdAt&&b.last.createdAt.seconds)||0)-((a.last.createdAt&&a.last.createdAt.seconds)||0));
+  async function sendRep(g){
+    const tx=rep.trim(); if(!tx) return; const gd=guards.find(x=>String(x.no)===g);
+    try{ await F.addDoc(F.collection(F.db,"kidMessages"),{guardianNo:g,guardianName:(gd&&gd.name)||"",text:tx,from:"staff",by:user.name||"",byNo:myNo,read:false,createdAt:F.serverTimestamp()}); setRep(""); }
+    catch(e){ toast("❌ "+((e&&e.code)||e)); }
+  }
+  const card={background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:14,padding:14,marginBottom:12};
+  const ts=x=>x&&x.seconds?new Date(x.seconds*1000).toLocaleString(lang==="tr"?"tr-TR":"en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"";
+  return(
+    <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
+      <SideMenu open={menuOpen} onClose={()=>setMenuOpen(false)} items={items} activeKey={tab} onSelect={setTab} user={user} roleLabel={roleLabel}
+        extraItems={[...(onSettings?[{icon:"⚙️",label:t.settings||"Mîheng",onClick:onSettings}]:[]),{icon:"↩",label:t.logout||"Derkeve",onClick:onLogout,danger:true}]}/>
+      <SpecialPanelHeader user={user} icon="🎼" lang={lang} onLogout={onLogout} onMenu={()=>setMenuOpen(true)} roleLabel={roleLabel}/>
+      <div className="scroll-area" style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
+        {tab==="announce"&&(<div>
+          <div style={card}>
+            <div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:6}}>📢 {W2("Ji dêûbavên beşê re ragihandin","Announcement to the department's parents")}</div>
+            <div style={{fontSize:11,color:"var(--text2)",marginBottom:10}}>🔒 {headAreaLabel(area,lang)} · {kids.length} {W2("zarok","children")}</div>
+            <input style={inputStyle} value={aT} onChange={e=>setAT(e.target.value)} placeholder={W2("Sernav","Title")} id="kh-ann-t"/>
+            <div style={{height:8}}/>
+            <textarea style={{...inputStyle,minHeight:90,resize:"vertical"}} value={aB} onChange={e=>setAB(e.target.value)} placeholder={W2("Nivîs…","Text…")} id="kh-ann-b"/>
+            <div style={{height:8}}/>
+            <PrimaryBtn onClick={sendAnn} icon="📢">{W2("Bişîne","Send")}</PrimaryBtn>
+          </div>
+          {anns.map(a=>(<div key={a.fireId} style={card}>
+            <div style={{display:"flex",gap:8}}><div style={{flex:1,fontWeight:800,color:"var(--text)"}}>{a.title}</div>
+              <button aria-label="✕" onClick={()=>{ if(window.confirm(W2("Were jêbirin?","Delete?"))) F.deleteDoc(F.doc(F.db,"kidAnnouncements",a.fireId)).catch(e=>toast("❌ "+e.code)); }} style={{border:"none",background:"none",cursor:"pointer",color:"var(--red)"}}><Ico n="trash"/></button></div>
+            <div style={{fontSize:13,color:"var(--text)",whiteSpace:"pre-wrap",marginTop:4}}>{a.body}</div>
+            <div style={{fontSize:11,color:"var(--text2)",marginTop:6}}>{ts(a.createdAt)}</div>
+          </div>))}
+        </div>)}
+        {tab==="messages"&&(thread?(()=>{ const th=threads.find(x=>x.g===thread); if(!th) return null;
+          th.ms.filter(m=>m.from==="guardian"&&!m.read).forEach(m=>{ try{ F.updateDoc(F.doc(F.db,"kidMessages",m.fireId),{read:true}); }catch(_){} });
+          return(<div>
+            <button onClick={()=>setThread(null)} style={{padding:"7px 14px",fontSize:12,background:"var(--bg2)",border:"1px solid var(--border2)",borderRadius:10,cursor:"pointer",color:"var(--text)",fontWeight:600,marginBottom:10}}>← {W2("Vegere","Back")}</button>
+            <div style={card}>
+              <div style={{fontWeight:800,color:"var(--text)",marginBottom:10}}>👤 {th.name}</div>
+              {th.ms.map(m=>(<div key={m.fireId} style={{margin:"6px 0",display:"flex",justifyContent:m.from==="staff"?"flex-end":"flex-start"}}>
+                <div style={{maxWidth:"80%",padding:"8px 12px",borderRadius:12,background:m.from==="staff"?"#0f2f38":"var(--bg2)",color:m.from==="staff"?"#fff":"var(--text)",fontSize:13,whiteSpace:"pre-wrap"}}>
+                  {m.kidName&&m.from!=="staff"?<div style={{fontSize:11,opacity:.75,fontWeight:700}}>🎓 {m.kidName}</div>:null}{m.text}
+                  <div style={{fontSize:10,opacity:.7,marginTop:3}}>{m.from==="staff"&&m.by?m.by+" · ":""}{ts(m.createdAt)}</div>
+                </div></div>))}
+              <textarea style={{...inputStyle,minHeight:70,resize:"vertical",marginTop:10}} value={rep} onChange={e=>setRep(e.target.value)} placeholder={W2("Bersiv binivîse…","Write a reply…")} id="kh-rep"/>
+              <button onClick={()=>sendRep(th.g)} style={{marginTop:6,padding:"10px 16px",borderRadius:10,border:"none",background:"#0f2f38",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>↩ {W2("Bersiv bide","Reply")}</button>
+            </div>
+          </div>); })():(<div>
+            {threads.length===0&&<div style={{...card,textAlign:"center",color:"var(--text2)",fontSize:13}}>{W2("Peyam tune","No messages")}</div>}
+            {threads.map(th=>(<button key={th.g} data-thread={th.g} onClick={()=>setThread(th.g)} style={{...card,width:"100%",textAlign:"left",cursor:"pointer",display:"block"}}>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                {th.unread>0&&<span style={{width:8,height:8,borderRadius:4,background:"var(--red)"}}/>}
+                <div style={{flex:1,fontWeight:700,color:"var(--text)"}}>👤 {th.name}</div><div style={{fontSize:10,color:"var(--text2)"}}>{ts(th.last.createdAt)}</div></div>
+              <div style={{fontSize:12,color:"var(--text2)",marginTop:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{th.last.text}</div>
+            </button>))}
+          </div>))}
+        {tab==="surveys"&&<KidSurveysPanel lang={lang} toast={toast} lockArea={area} ownerNo={myNo}/>}
+        {tab==="reports"&&<KidAcademyReport lang={lang} toast={toast} lockArea={area}/>}
       </div>
     </div>
   );
@@ -7558,8 +7742,21 @@ function HeadMessagesPanel({user,inbox,sent,teachers,lang,t,toast}){
   const [body,setBody]=useState("");
   const [files,setFiles]=useState([]);
   const [busy,setBusy]=useState(false);
+  const [reply,setReply]=useState("");
   const fileRef=useRef();
   const myNo=String(user.no||"");
+  // Öğrencinin mesajına cevap (yalnızca kendisine yazmış öğrenciye — anonim mesaja cevap verilemez)
+  async function sendReply(m){
+    const txt=reply.trim(); if(!txt) return;
+    const now=new Date();
+    const r={id:Date.now(),from:user.name,fromType:"head",fromId:user.id,senderId:"h_"+myNo,senderNo:myNo,to:m.from||"",type:"private",
+      subject:"Re: "+(m.subject||""),body:txt,time:now.toISOString().slice(0,10)+" "+String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0"),
+      read:false,recipientId:"s_"+(m.fromId||""),recipientNo:String(m.fromNo),recipientGroup:null,replyTo:m.fireId,area:user.area||"",isStudentFeedback:false,attachments:[]};
+    setBusy(true);
+    try{ await fbSave("message",r); toast("✅ "+W("Bersiv hat şandin","Reply sent")); setReply(""); }
+    catch(e){ toast("❌ "+W("Nehat şandin","Not sent")+" — "+(e.message||e)); }
+    setBusy(false);
+  }
   function addFiles(e){
     Array.from(e.target.files||[]).forEach(file=>{
       if(file.size>700*1024){ toast("⚠ "+file.name+" — "+W("pir mezin e (herî zêde 700 KB)","too large (max 700 KB)")); return; }
@@ -7640,6 +7837,12 @@ function HeadMessagesPanel({user,inbox,sent,teachers,lang,t,toast}){
                   {(m.attachments||[]).map((a,i)=>safeHref(a.url)&&(
                     <a key={i} href={safeHref(a.url)} download={a.name} rel="noopener" style={{display:"inline-block",marginTop:8,marginRight:6,fontSize:11,padding:"5px 9px",borderRadius:8,background:"var(--bg2)",color:"var(--text)",textDecoration:"none"}}>{a.type==="image"?"🖼":"📄"} {a.name}</a>
                   ))}
+                  {mode==="inbox"&&m.fromType==="student"&&(m.fromNo&&!m.anonymous?(
+                    <div style={{marginTop:10}}>
+                      <textarea style={{...inputStyle,minHeight:70,resize:"vertical"}} value={reply} onChange={e=>setReply(e.target.value)} placeholder={W("Bersiva xwe binivîse…","Write your reply…")} id="hm-reply"/>
+                      <button onClick={()=>sendReply(m)} disabled={busy} style={{marginTop:6,padding:"9px 16px",borderRadius:10,border:"none",background:"#0f2f38",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>↩ {W("Bersiv bide","Reply")}</button>
+                    </div>
+                  ):(m.anonymous?<div style={{marginTop:8,fontSize:11,color:"var(--text2)"}}>🔒 {W("Peyama bênav — bersiv nayê dayîn","Anonymous message — cannot be answered")}</div>:null))}
                 </div>
               )}
             </Card>
@@ -9184,7 +9387,6 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
     {key:"serledan",icon:"📋",label:lang==="en"?"Applications":K("Serlêdan")},
     {key:"qad",icon:"🎭",label:lang==="en"?"Art Fields · Registration · Schedule":K("Qad · Tescîl · Bername")},
     {key:"sinif",icon:"🏫",label:lang==="en"?"Classes & Workshops":K("Sinif û Atolye")},
-    {key:"anket",icon:"📊",label:lang==="en"?"Surveys":K("Ankêt")},
     {key:"rapor",icon:"📄",label:lang==="en"?"Reports":K("Rapor")},
     {key:"zarok",icon:"🎼",label:lang==="en"?"Children's Academy":K("Akademiya Zarokan")},
   ];
@@ -9442,9 +9644,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
             </div>
           </>
         )}
-        {section==="anket"&&(
-          <AdminSurveyPanel lang={lang} t={t||T.ku} schedule={schedule||[]} teachers={teachers||[]} students={students||[]} toast={toast}/>
-        )}
+
         {section==="zarok"&&<ZarokAdminPanel lang={lang} toast={toast} user={user}/>}
         {section==="sinif"&&<AcademyClassBoard students={students||[]} teachers={teachers||[]} schedule={schedule||[]} lang={lang} t={t||T.ku} toast={toast} onDataChange={onDataChange}/>}
         {section==="rapor"&&(
@@ -9614,7 +9814,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
 
 /* ─── ANNOUNCEMENTS ─────────────────────────────────────────────────────── */
 function AnnouncementsPanel({t,toast,lang,senderName,senderRole,senderArea,senderNo}){
-  const locked=senderRole==="teacher"||senderRole==="head"; // öğretmen + bölüm sorumlusu: yalnızca kendi bölümü
+  const locked=senderRole==="teacher"||(senderRole==="head"&&senderArea!=="genel"); // öğretmen + bölüm sorumlusu: yalnızca kendi bölümü (genel sorumlu: serbest)
   const [title,setTitle]=useState("");
   const [msg,setMsg]=useState("");
   const [targets,setTargets]=useState(locked?{[senderArea]:true}:{"all":true});
@@ -11600,7 +11800,11 @@ function AdminReportCenter({students,teachers,schedule,lang,t,toast,byName,headA
       </div>
       {rTab==="liste"&&<AdminReportsPanel students={students} teachers={teachers} schedule={schedule} lang={lang} t={t} toast={toast}/>}
       {rTab==="nirxandin"&&<AdminWeeklyReportPanel students={students} teachers={teachers} schedule={schedule} lang={lang} toast={toast}/>}
-      {rTab==="anket"&&<AdminSurveyResultsReport lang={lang} toast={toast} byName={byName}/>}
+      {rTab==="anket"&&<>
+        <AdminSurveyResultsReport lang={lang} toast={toast} byName={byName}/>
+        <SectionHeader>🎼 {lang==="en"?"Children's Academy surveys":K("Ankêtên Akademiya Zarokan")}</SectionHeader>
+        <KidSurveysPanel lang={lang} toast={toast} readOnly={true}/>
+      </>}
       {rTab==="zarok"&&<KidAcademyReport lang={lang} toast={toast}/>}
       {rTab==="mamoste"&&<TeacherAttendanceReport teachers={teachers} schedule={schedule} lang={lang} toast={toast}/>}
       {rTab==="arsiv"&&<ReportArchiveTab lang={lang}/>}
@@ -12498,14 +12702,14 @@ function surveyMissing(sv,answers){
     if(empty&&(q.required||(q.required==null&&false))) out.push(i+1); });
   return out;
 }
-function SurveyStudio({mode,initial,teachers,lang,toast,onSave,onCancel}){
+function SurveyStudio({mode,initial,teachers,lang,toast,onSave,onCancel,lockAreas}){
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   const kids=mode==="kids";
   const init=initial||{};
   const [title,setTitle]=useState(init.title||"");
   const [desc,setDesc]=useState(init.desc||"");
   const [aud,setAud]=useState(kids?(init.targetType==="kidteachers"?"kidteachers":"guardians"):(init.targetType==="teachers"||init.targetType==="teachers_area"?"teachers":"students"));
-  const [areas,setAreas]=useState(init.targetAreas||[]);
+  const [areas,setAreas]=useState(lockAreas&&lockAreas.length?lockAreas:(init.targetAreas||[]));
   const [endDate,setEndDate]=useState(init.endDate||"");
   const [anon,setAnon]=useState(!!init.anonymous);
   const [qs,setQs]=useState(()=>(init.questions||[]).map(q=>({...q,required:q.required!==false})));
@@ -12582,9 +12786,9 @@ function SurveyStudio({mode,initial,teachers,lang,toast,onSave,onCancel}){
             <button onClick={()=>setAud("teachers")} style={chip(aud==="teachers")}>👩‍🏫 {W2("Hemû mamoste","All teachers")}</button>
           </>}
         </div>
-        <div style={{fontSize:11.5,color:"var(--text2)",margin:"4px 0 6px"}}>🎭 {W2("Qad (vala = hemû)","Fields (empty = all)")}</div>
+        <div style={{fontSize:11.5,color:"var(--text2)",margin:"4px 0 6px"}}>🎭 {lockAreas&&lockAreas.length?W2("Beşa te (kilîtkirî)","Your department (locked)"):W2("Qad (vala = hemû)","Fields (empty = all)")}</div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-          {areaList.map(a2=>{ const on=areas.includes(a2.key); return <button key={a2.key} onClick={()=>setAreas(x=>on?x.filter(y=>y!==a2.key):[...x,a2.key])} style={chip(on)}>{a2.icon?a2.icon+" ":""}{a2.label}</button>; })}
+          {(lockAreas&&lockAreas.length?areaList.filter(a2=>lockAreas.includes(a2.key)):areaList).map(a2=>{ const on=areas.includes(a2.key); return <button key={a2.key} onClick={()=>{ if(lockAreas&&lockAreas.length) return; setAreas(x=>on?x.filter(y=>y!==a2.key):[...x,a2.key]); }} style={chip(on)}>{a2.icon?a2.icon+" ":""}{a2.label}</button>; })}
         </div>
         <div style={{fontSize:11,color:"var(--text2)",marginTop:8}}>{kids
           ?(aud==="guardians"?W2("Dêûbavên zarokên di qadên bijartî de bersiv didin.","Parents of children in the selected fields answer."):W2("Mamosteyên qadên bijartî bersiv didin.","Teachers of the selected fields answer."))
@@ -12692,7 +12896,7 @@ function SurveyStats({survey,resps,lang,expected,whoLabel}){
     </div>);
 }
 // Çocuk Akademisi veli anketleri (kidSurveys) — oluştur, yayınla, sonuçlar
-function KidSurveysPanel({lang,toast}){
+function KidSurveysPanel({lang,toast,lockArea,ownerNo,readOnly}){
   const F=window.__FB; const live=!!(F&&F.isConfigured());
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   const [list,setList]=useState([]); const [resps,setResps]=useState([]); const [kids,setKids]=useState([]); const [kteach,setKteach]=useState([]);
@@ -12700,7 +12904,7 @@ function KidSurveysPanel({lang,toast}){
   useEffect(()=>{
     if(!live) return; const subs=[];
     const L=(c,set)=>{ try{ subs.push(F.onSnapshot(F.collection(F.db,c),s=>set(s.docs.map(d=>({...d.data(),fireId:d.id}))),e=>console.warn("[kidSurveys]",e&&e.code))); }catch(_){} };
-    L("kidSurveys",v=>setList(v.sort((a,b)=>String(b.createdAtIso||"").localeCompare(String(a.createdAtIso||""))))); L("kidSurveyResponses",setResps); L("kids",setKids); L("kidTeachers",setKteach);
+    L("kidSurveys",v=>setList(v.filter(sv=>!ownerNo||sv.ownerNo===ownerNo).sort((a,b)=>String(b.createdAtIso||"").localeCompare(String(a.createdAtIso||""))))); L("kidSurveyResponses",setResps); L("kids",setKids); L("kidTeachers",setKteach);
     return ()=>subs.forEach(u=>{ try{u();}catch(_){} });
   },[live]);
   const today=new Date().toISOString().slice(0,10);
@@ -12714,13 +12918,14 @@ function KidSurveysPanel({lang,toast}){
   const rOf=sv=>resps.filter(r=>r.surveyId===sv.fireId);
   async function save(sv){
     try{
-      if(edit&&edit.fireId) await F.setDoc(F.doc(F.db,"kidSurveys",edit.fireId),{...sv,updatedAt:F.serverTimestamp()},{merge:true});
-      else await F.addDoc(F.collection(F.db,"kidSurveys"),{...sv,createdAtIso:new Date().toISOString(),createdAt:F.serverTimestamp()});
+      const own=ownerNo?{ownerNo,targetAreas:[lockArea]}:{};
+      if(edit&&edit.fireId) await F.setDoc(F.doc(F.db,"kidSurveys",edit.fireId),{...sv,...own,updatedAt:F.serverTimestamp()},{merge:true});
+      else await F.addDoc(F.collection(F.db,"kidSurveys"),{...sv,...own,createdAtIso:new Date().toISOString(),createdAt:F.serverTimestamp()});
       toast("✅ "+sv.title+(sv.active?" — "+W2("hate weşandin","published"):"")); setView("list"); setEdit(null);
     }catch(e){ toast("❌ "+(/permission/i.test(String(e&&e.code))?W2("Destûr tune: qaîdeyên Firestore yên nû biweşînin","Permission denied: publish the latest firestore.rules"):(e.code||e.message))); }
   }
   if(!live) return <div style={{fontSize:13,color:"var(--text2)"}}>{W2("Firebase girêdayî nîne.","Firebase is not connected.")}</div>;
-  if(view==="studio") return <SurveyStudio mode="kids" initial={edit} lang={lang} toast={toast} onSave={save} onCancel={()=>{setView("list");setEdit(null);}}/>;
+  if(view==="studio"&&!readOnly) return <SurveyStudio mode="kids" initial={edit} lang={lang} toast={toast} onSave={save} onCancel={()=>{setView("list");setEdit(null);}} lockAreas={lockArea?[lockArea]:null}/>;
   if(view==="results"&&edit){
     const rs=rOf(edit).filter(r=>areaF==="all"||(r.areas||[]).includes(areaF));
     return(<div>
@@ -12738,7 +12943,7 @@ function KidSurveysPanel({lang,toast}){
   }
   return(
     <div>
-      <button onClick={()=>{setEdit(null);setView("studio");}} style={{width:"100%",padding:13,borderRadius:12,border:"none",background:"#0f2f38",color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer",marginBottom:12}}>✨ {W2("Ankêta nû (dêûbav / mamoste)","New survey (parents / teachers)")}</button>
+      {!readOnly&&<button onClick={()=>{setEdit(null);setView("studio");}} style={{width:"100%",padding:13,borderRadius:12,border:"none",background:"#0f2f38",color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer",marginBottom:12}}>✨ {W2("Ankêta nû (dêûbav / mamoste)","New survey (parents / teachers)")}</button>}
       <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>{W2("Dêûbav û mamosteyên Akademiya Zarokan ankêtê di sepana xwe de (Ragihandin) dibînin û bersiv didin. Her malbat / mamoste carekê bersiv dide.","Children's Academy parents and teachers see and answer the survey in their app (Announcements). Each family / teacher answers once.")}</div>
       {list.length===0&&<div style={{textAlign:"center",padding:28,color:"var(--text2)",fontSize:13}}>📭 {W2("Hîn ankêt tune","No surveys yet")}</div>}
       {list.map(sv=>{ const [ic,lb,col]=status(sv); const n=rOf(sv).length, ex=famOf(sv); return(
@@ -12754,19 +12959,19 @@ function KidSurveysPanel({lang,toast}){
           </div>
           <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
             <button onClick={()=>{setEdit(sv);setAreaF("all");setView("results");}} style={{padding:"7px 11px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12,cursor:"pointer"}}>📊 {W2("Encam","Results")}</button>
-            <button onClick={()=>{setEdit(sv);setView("studio");}} style={{padding:"7px 11px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12,cursor:"pointer"}}><Ico n="edit" solo/></button>
+            {!readOnly&&<><button onClick={()=>{setEdit(sv);setView("studio");}} style={{padding:"7px 11px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12,cursor:"pointer"}}><Ico n="edit" solo/></button>
             <button onClick={()=>F.updateDoc(F.doc(F.db,"kidSurveys",sv.fireId),{active:!sv.active}).catch(e=>toast("❌ "+e.code))} style={{padding:"7px 11px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12,cursor:"pointer"}}>{sv.active?"⏸ "+W2("Rawestîne","Pause"):"▶ "+W2("Biweşîne","Publish")}</button>
-            <button onClick={()=>{ if(window.confirm(W2("Ankêt were jêbirin?","Delete survey?"))) F.deleteDoc(F.doc(F.db,"kidSurveys",sv.fireId)).catch(e=>toast("❌ "+e.code)); }} style={{padding:"7px 11px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"#dc2626",fontWeight:700,fontSize:12,cursor:"pointer"}}><Ico n="trash" solo/></button>
+            <button onClick={()=>{ if(window.confirm(W2("Ankêt were jêbirin?","Delete survey?"))) F.deleteDoc(F.doc(F.db,"kidSurveys",sv.fireId)).catch(e=>toast("❌ "+e.code)); }} style={{padding:"7px 11px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"#dc2626",fontWeight:700,fontSize:12,cursor:"pointer"}}><Ico n="trash" solo/></button></>}
           </div>
         </div>);})}
     </div>);
 }
 // Yönetici / Öğrenci İşleri: Çocuk Akademisi raporu
-function KidAcademyReport({lang,toast}){
+function KidAcademyReport({lang,toast,lockArea}){
   const F=window.__FB; const live=!!(F&&F.isConfigured());
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   const [d,setD]=useState({kids:[],guards:[],kteach:[],cls:[],att:[],apps:[]});
-  const [days,setDays]=useState(30); const [lvlF,setLvlF]=useState("all"); const [areaF,setAreaF]=useState("all");
+  const [days,setDays]=useState(30); const [lvlF,setLvlF]=useState("all"); const [areaF0,setAreaF]=useState("all"); const areaF=lockArea||areaF0;
   const since=new Date(Date.now()-days*864e5).toISOString().slice(0,10);
   useEffect(()=>{
     if(!live) return; const subs=[];
@@ -15186,7 +15391,8 @@ function StudentChangePassSheet({onClose,toast,user,onSavePass,userType,lang}){
 
     // 1. Mevcut şifreyi Firestore hash ile doğrula
     const currentHash = user&&user.pass ? user.pass : "";
-    const curOk = await verifyPassword(cur, currentHash);
+    const authOk = await checkCurrentPassword(cur);
+    const curOk = authOk!==null ? authOk : await verifyPassword(cur, currentHash);
     if(!curOk){setErr(l("errWrong"));setLoading(false);return;}
 
     // 2. Firebase Auth + Firestore güncelle
@@ -15312,8 +15518,9 @@ function BiometricModal({ open, onSuccess, onCancel, lang, aColor, user }) {
     }
     setPinError("");
     // Kullanıcının Firestore hash'i ile doğrula
-    if (user && user.pass) {
-      const ok = await verifyPassword(pin, user.pass);
+    {
+      const a = await checkCurrentPassword(pin);
+      const ok = a!==null ? a : (user && user.pass ? await verifyPassword(pin, user.pass) : false);
       if (!ok) {
         setPinError(lang==="en"?"⚠ Incorrect password":K("⚠ Şîfre xelet e"));
         setPin("");
@@ -15722,12 +15929,14 @@ function StudentFeedbackPanel({student, a, lang, toast}) {
   // Load sent feedback from localStorage
   const FEEDBACK_KEY = `aat-feedback-${student.id}`;
   // Bölümün sorumlusu (varsa): config/heads → {areas:{<alan>:{name,no}}}
-  const [head,setHead]=useState(null);
-  const [toHead,setToHead]=useState(false);
+  const [heads,setHeads]=useState({});
+  const [dest,setDest]=useState("admin"); // admin | area | genel
   useEffect(()=>{
     const F=window.__FB; if(!F||!F.isConfigured()) return;
-    F.getDoc(F.doc(F.db,"config","heads")).then(d=>{ const h=d.exists()&&((d.data().areas||{})[student.area]); setHead(h&&h.no?h:null); }).catch(()=>{});
+    F.getDoc(F.doc(F.db,"config","heads")).then(d=>{ const a=d.exists()?(d.data().areas||{}):{}; const o={};
+      if(a[student.area]&&a[student.area].no) o.area=a[student.area]; if(a.genel&&a.genel.no) o.genel=a.genel; setHeads(o); }).catch(()=>{});
   },[student.area]);
+  const head=heads[dest]||null; const toHead=dest!=="admin"&&!!head;
   const [history, setHistory] = useState(()=>{
     try { const r=localStorage.getItem(FEEDBACK_KEY); return r?JSON.parse(r):[]; } catch { return []; }
   });
@@ -15758,7 +15967,8 @@ function StudentFeedbackPanel({student, a, lang, toast}) {
       fromType: "student",
       direction: viaHead ? "inbox_head" : "inbox_admin",
       toRole: viaHead ? "head" : "admin",
-      ...(viaHead ? {toArea: student.area} : {}),
+      ...(viaHead ? {toArea: dest==="genel" ? "genel" : student.area} : {}),
+      ...(anonymous ? {} : {fromNo: String(student.no||"")}),
       isStudentFeedback: true,
     };
     try { await fbSave("message", msg); } catch(e) { console.warn("feedback send:", e); }
@@ -15783,16 +15993,19 @@ function StudentFeedbackPanel({student, a, lang, toast}) {
       </div>
 
       {/* Alıcı: yönetim ya da bölüm sorumlusu */}
-      {head&&(
+      {(heads.area||heads.genel)&&(
         <Card style={{marginBottom:10}}>
           <div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:10}}>{lang==="en"?"Send to":K("Ji kê re")}</div>
-          <div style={{display:"flex",gap:8}}>
-            {[[false,"🛡 "+(lang==="en"?"Admin":K("Rêveber"))],[true,"🎓 "+(lang==="en"?"Department head":K("Berpirsê beşê"))+" · "+head.name]].map(([v,lb])=>(
-              <button key={String(v)} data-to-head={v?"1":"0"} onClick={()=>setToHead(v)}
-                style={{flex:1,padding:"10px 6px",borderRadius:10,fontSize:12,fontWeight:toHead===v?700:500,cursor:"pointer",
-                  background:toHead===v?"#0f2f38":"var(--bg2)",color:toHead===v?"#fff":"var(--text2)",border:"1.5px solid "+(toHead===v?"#0f2f38":"var(--border)")}}>{lb}</button>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {[["admin","🛡 "+(lang==="en"?"Admin":K("Rêveber"))],
+              ...(heads.area?[["area","🎓 "+(lang==="en"?"Department head":K("Berpirsê beşê"))+" · "+heads.area.name]]:[]),
+              ...(heads.genel?[["genel","⭐ "+(lang==="en"?"General head":K("Berpirsê giştî"))+" · "+heads.genel.name]]:[])].map(([v,lb])=>(
+              <button key={v} data-to-head={v==="admin"?"0":v==="area"?"1":"g"} onClick={()=>setDest(v)}
+                style={{flex:"1 1 140px",padding:"10px 6px",borderRadius:10,fontSize:12,fontWeight:dest===v?700:500,cursor:"pointer",
+                  background:dest===v?"#0f2f38":"var(--bg2)",color:dest===v?"#fff":"var(--text2)",border:"1.5px solid "+(dest===v?"#0f2f38":"var(--border)")}}>{lb}</button>
             ))}
           </div>
+          <div style={{fontSize:10.5,color:"var(--text2)",marginTop:8}}>ℹ️ {lang==="en"?"The admin can also see messages sent to heads.":K("Rêveber jî peyamên ji berpirsan re dibîne.")}</div>
         </Card>
       )}
 

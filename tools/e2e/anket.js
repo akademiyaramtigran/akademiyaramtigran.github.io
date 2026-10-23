@@ -41,6 +41,13 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await put('idx_staff/98202601', { no: '98202601', lvl: 'registrar' });
   await put('teachers/TR', { no: '98202601', name: 'Karûbar', isRegistrar: true, area: 'genel' });
   await signUp('98202601@ogretmen.aat', 'Reg12345');
+  // Anketleri bölüm sorumluları açar: Müzik (ana akademi) ve Drama (çocuk akademisi)
+  await put('idx_staff/96202601', { no: '96202601', lvl: 'head', area: 'muzik' });
+  await put('teachers/TH1', { id: 'TH1', no: '96202601', name: 'Berpirsê Muzîkê', isHead: true, area: 'muzik' });
+  await signUp('96202601@ogretmen.aat', 'Head1234');
+  await put('idx_staff/96202602', { no: '96202602', lvl: 'head', area: 'drama' });
+  await put('teachers/TH2', { id: 'TH2', no: '96202602', name: 'Berpirsa Dramayê', isHead: true, area: 'drama' });
+  await signUp('96202602@ogretmen.aat', 'Head1234');
   await put('idx_students/20202601', { no: '20202601' });
   await put('students/S1', { no: '20202601', name: 'Rojîn Aram', area: 'muzik', classLevel: 1, fireId: 'S1', id: 101 });
   await signUp('20202601@ogrenci.aat', 'Stu12345');
@@ -70,9 +77,12 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   const txt = p => p.evaluate(() => document.body.innerText);
   const shot = (pg, n) => process.env.SHOT_DIR ? pg.screenshot({ path: process.env.SHOT_DIR + '/' + n, fullPage: true }).catch(() => {}) : null;
 
-  // 1) Öğrenci işleri: Anket Stüdyosu → şablon → yayınla
+  // 1) Bölüm sorumlusu (Müzik): Anket Stüdyosu → şablon → yayınla (Öğrenci İşleri'nde anket oluşturma YOK)
   const rc = await mk(); const p = await login(rc, '98202601', 'Reg12345');
-  await topTab(p, 'Ankêt'); await p.waitForTimeout(1200);
+  ok('Öğrenci İşleri menüsünde anket oluşturma yok', !(await p.evaluate(() => [...document.querySelectorAll('.sm-it[data-key]')].some(e => e.dataset.key === 'anket'))));
+  const hp = await login(await mk(), '96202601', 'Head1234');
+  await hp.evaluate(() => document.querySelector('.sm-it[data-key="surveys"]').click()); await hp.waitForTimeout(1200);
+  { const p = hp;
   await btn(p, 'Ankêta nû'); await p.waitForTimeout(600);
   const s1 = await txt(p);
   ok('Anket Stüdyosu açılır (şablon, hedef, soru türleri)', /bi şablonê dest pê bike/i.test(s1) && /kî dê bersiv bide/i.test(s1) && s1.includes('Çend bijare'));
@@ -91,6 +101,8 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   const svs = await list('studentSurveys');
   const sv = svs.find(d => d.fields.title && d.fields.title.stringValue === 'Razîbûna dersê');
   ok('Anket yayınlandı (6 soru, likert + çoklu)', sv && sv.fields.active.booleanValue === true && sv.fields.questions.arrayValue.values.length === 6 && JSON.stringify(sv.fields.questions).includes('"multi"'));
+  ok('Anket sorumlunun bölümüne kilitli (Müzik, sahibi sorumlu)', sv && sv.fields.ownerNo.stringValue === '96202601' && JSON.stringify(sv.fields.targetAreas).includes('muzik') && !JSON.stringify(sv.fields.targetAreas).includes('sinema'));
+  }
 
   // 2) Öğrenci yanıtlar (zorunlu kontrolü + yeni türler)
   const sc = await mk(430); const sp = await login(sc, '20202601', 'Stu12345', 'Xwendekar');
@@ -110,27 +122,30 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   const r0 = rs[0] && JSON.stringify(rs[0].fields.answers);
   ok('Öğrenci yanıtı kaydedildi (likert 4, puan 8, çoklu 2 seçim)', rs.length === 1 && /"integerValue":"4"/.test(r0) && /"integerValue":"8"/.test(r0) && r0.includes('Tembûr') && r0.includes('Def'), rs.length + ' yanıt');
 
-  // 3) Sonuçlar: istatistik + katılım
-  await p.bringToFront(); await p.waitForTimeout(1500);
-  await topTab(p, 'Rapor'); await p.waitForTimeout(500); await topTab(p, 'Ankêt'); await p.waitForTimeout(1200);
-  await p.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('📊') && x.textContent.length < 20 && x.offsetParent && !x.closest('.sm')); b[0].click(); }); await p.waitForTimeout(1200);
-  const r3 = await txt(p);
+  // 3) Sonuçlar: sorumlunun kendi panelinde + yönetimin raporunda
+  await hp.bringToFront(); await hp.waitForTimeout(1500);
+  await btn(hp, 'Encam'); await hp.waitForTimeout(1200);
+  const r3 = await txt(hp);
+  await p.bringToFront(); await topTab(p, 'Rapor'); await p.waitForTimeout(800); await btn(p, 'Ankêt', true); await p.waitForTimeout(1500);
+  ok('Öğrenci İşleri raporunda sorumlunun anketi görünür', (await txt(p)).includes('Razîbûna dersê'));
   await shot(p, 'sonuc.png');
   ok('Sonuçlar: ortalama, dağılım ve katılım', r3.includes('Beşdarî') && r3.includes('100%') && r3.includes('Tembûr'));
 
-  // 4) Çocuk Akademisi veli anketi
-  await p.evaluate(() => window.scrollTo(0, 0)); await p.waitForTimeout(300);
-  await p.evaluate(() => [...document.querySelectorAll('button')].filter(x => x.textContent.trim() === '🎼 Akademiya Zarokan' && x.offsetParent).pop().click()); await p.waitForTimeout(800);
+  // 4) Çocuk Akademisi veli anketi — Drama bölüm sorumlusu açar
+  let kid = '';
+  const kp = await login(await mk(), '96202602', 'Head1234');
+  ok('Çocuk akademisi sorumlusu paneli: duyuru, mesaj, anket, rapor', (await kp.evaluate(() => [...document.querySelectorAll('.sm-it[data-key]')].map(e => e.dataset.key).join(','))) === 'announce,messages,surveys,reports');
+  await kp.evaluate(() => document.querySelector('.sm-it[data-key="surveys"]').click()); await kp.waitForTimeout(1200);
+  { const p = kp;
   await btn(p, 'Ankêta nû (dêûbav'); await p.waitForTimeout(500);
   const k1 = await txt(p);
   ok('Çocuk anketi: hedef veliler/öğretmenler + alan (sınıf yok)', k1.includes('Hemû dêûbav') && k1.includes('Hemû mamoste') && k1.includes('Drama') && !/\b1\. Sînif\b/.test(k1));
   await btn(p, 'Razîbûna dêûbavan'); await p.waitForTimeout(300);
-  await btn(p, 'Drama', true); await p.waitForTimeout(200);
   await btn(p, '🚀 Biweşîne'); await p.waitForTimeout(800);
   await p.waitForTimeout(1500);
   const ks = await list('kidSurveys');
   ok('Veli anketi yayınlandı (Drama alanı)', ks.length === 1 && ks[0].fields.active.booleanValue === true && ks[0].fields.targetType.stringValue === 'guardians' && JSON.stringify(ks[0].fields.targetAreas).includes('drama'));
-  const kid = ks[0].name.split('/').pop();
+  kid = ks[0].name.split('/').pop();
   // Öğretmen anketi
   await btn(p, 'Ankêta nû (dêûbav'); await p.waitForTimeout(500);
   await btn(p, 'Nêrîna mamosteyên zarokan'); await p.waitForTimeout(300);
@@ -138,6 +153,8 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   const ks2 = await list('kidSurveys');
   const tsv = ks2.find(d => d.fields.targetType.stringValue === 'kidteachers');
   ok('Çocuk öğretmenleri anketi yayınlandı', !!tsv);
+  ok('Çocuk anketleri sorumlunun dersine kilitli', ks2.every(d => JSON.stringify(d.fields.targetAreas).includes('drama') && d.fields.ownerNo.stringValue === '96202602'));
+  }
 
   // 5) Veli uygulaması: bekleyen anket → yanıtla
   const vc = await mk(390); const vp = await vc.newPage(); vp.on('pageerror', e => errs.push('veli: ' + e.message));
@@ -169,9 +186,10 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   ok('Çocuk öğretmeni yanıtı kaydedildi', !!kr2 && kr2.name.endsWith('_' + KT));
   ok('Yanıttan sonra anket "yanıtlandı" görünür', (await txt(vp)).includes('Bersiv hat dayîn'));
 
-  // 6) Öğrenci işleri: veli anketi sonuçları + Çocuk Akademisi raporu
-  await p.bringToFront(); await p.waitForTimeout(1500);
-  ok('Veli anketi listesinde 1/1 aile', (await txt(p)).includes('1 / 1 malbat'));
+  // 6) Sorumlu: veli anketi sonuçları · Öğrenci işleri: Çocuk Akademisi raporu + anketler (salt okunur)
+  await kp.bringToFront(); await kp.waitForTimeout(1500);
+  ok('Veli anketi listesinde 1/1 aile', (await txt(kp)).includes('1 / 1 malbat'));
+  await p.bringToFront(); await p.waitForTimeout(500);
   await topTab(p, 'Rapor'); await p.waitForTimeout(1200);
   await btn(p, 'Akademiya Zarokan', true); await p.waitForTimeout(1500);
   const r6 = await txt(p);

@@ -63,6 +63,12 @@ const { ref, uploadString, getBytes } = require('firebase/storage');
     await setDoc(doc(db, 'announcements/AH1'), { title: 'x', senderRole: 'head', senderNo: '96202601', senderArea: 'tiyatro', targets: ['tiyatro'] });
     await setDoc(doc(db, 'announcements/AT1'), { title: 'öğretmenin', senderRole: 'teacher', targets: ['muzik'] });
     await setDoc(doc(db, 'messages/MH1'), { toRole: 'head', toArea: 'tiyatro', fromType: 'student', subject: 's', read: false });
+    await setDoc(doc(db, 'messages/MH2'), { toRole: 'head', toArea: 'tiyatro', fromType: 'student', fromNo: '10202601', subject: 'cevap bekliyor' });
+    await setDoc(doc(db, 'messages/MH3'), { toRole: 'head', toArea: 'muzik', fromType: 'student', fromNo: '10202602', subject: 'başka bölüm' });
+    // Genel sorumlu + çocuk akademisi (Drama) sorumlusu
+    await setDoc(doc(db, 'idx_staff/96202602'), { no: '96202602', lvl: 'head', area: 'genel' });
+    await setDoc(doc(db, 'idx_staff/96202603'), { no: '96202603', lvl: 'head', area: 'drama' });
+    await setDoc(doc(db, 'kids/K3'), { no: '82026003', name: 'Zarok D', area: 'drama', guardianNos: ['92026001'] });
   });
   const as = e => env.authenticatedContext('uid-' + e, { email: e }).firestore();
   const admin = as('1000@ogretmen.aat'), teacher = as('11202601@ogretmen.aat'), student = as('10202601@ogrenci.aat');
@@ -350,6 +356,42 @@ const { ref, uploadString, getBytes } = require('firebase/storage');
   await t('B.sorumlusu: kendi bölümünü/yetkisini değiştiremez', updateDoc(doc(head, 'teachers/TH'), { area: 'muzik' }), false);
   await t('B.sorumlusu: kendini yönetici yapamaz', updateDoc(doc(head, 'teachers/TH'), { isAdmin: true }), false);
   await t('B.sorumlusu: dizine yazamaz', setDoc(doc(head, 'idx_staff/96202601'), { no: '96202601', lvl: 'admin' }), false);
+  // Cevap: yalnızca kendisine (bölümüne) yazmış öğrenciye
+  const rep = x => hMsg({ subject: 'Re', recipientId: 's_S1', recipientNo: '10202601', replyTo: 'MH2', ...(x || {}) });
+  await t('B.sorumlusu: kendisine yazan öğrenciye CEVAP verir', addDoc(collection(head, 'messages'), rep()), true);
+  await t('B.sorumlusu: cevabı BAŞKA öğrenciye yönlendiremez', addDoc(collection(head, 'messages'), rep({ recipientNo: '10202602' })), false);
+  await t('B.sorumlusu: başka bölüme yazılmış mesaja cevap veremez', addDoc(collection(head, 'messages'), rep({ replyTo: 'MH3', recipientNo: '10202602' })), false);
+  await t('B.sorumlusu: uydurma mesaja "cevap" diye yazamaz', addDoc(collection(head, 'messages'), rep({ replyTo: 'YOK' })), false);
+  await t('Öğrenci gönderen numarasını başkası gibi gösteremez', addDoc(collection(student, 'messages'), { fromType: 'student', senderId: 'S1', toRole: 'head', toArea: 'sinema', fromNo: '10202602', subject: 's', body: 'b' }), false);
+  // Anket: sorumlu kendi bölümüne
+  const hSv = x => ({ title: 'A', ownerNo: '96202601', targetType: 'area', targetAreas: ['tiyatro'], active: true, questions: [], ...(x || {}) });
+  await t('B.sorumlusu: kendi bölümüne anket açar', setDoc(doc(head, 'studentSurveys/HS1'), hSv()), true);
+  await t('B.sorumlusu: kendi anketini günceller', setDoc(doc(head, 'studentSurveys/HS1'), hSv({ active: false })), true);
+  await t('B.sorumlusu: BAŞKA bölüme anket açamaz', setDoc(doc(head, 'studentSurveys/HS2'), hSv({ targetAreas: ['muzik'] })), false);
+  await t('B.sorumlusu: herkese (hedefsiz) anket açamaz', setDoc(doc(head, 'studentSurveys/HS3'), hSv({ targetType: 'all', targetAreas: [] })), false);
+  await t('B.sorumlusu: başkası adına anket açamaz', setDoc(doc(head, 'studentSurveys/HS4'), hSv({ ownerNo: '1000' })), false);
+  await t('B.sorumlusu: kendi anketini siler', deleteDoc(doc(head, 'studentSurveys/HS1')), true);
+  // Genel sorumlu
+  const gen = as('96202602@ogretmen.aat');
+  await t('Genel sorumlu: herkese duyuru gönderir', addDoc(collection(gen, 'announcements'), { title: 'G', senderRole: 'head', senderNo: '96202602', senderArea: 'genel', targets: ['all'] }), true);
+  await t('Genel sorumlu: tüm bölümlere anket açar', setDoc(doc(gen, 'studentSurveys/GS1'), { title: 'G', ownerNo: '96202602', targetType: 'all', targetAreas: [], active: true }), true);
+  await t('Genel sorumlu: yoklama YAZAMAZ', addDoc(collection(gen, 'attendance'), { x: 1 }), false);
+  await t('Genel sorumlu: öğrenciye (cevapsız) mesaj GÖNDEREMEZ', addDoc(collection(gen, 'messages'), { fromType: 'head', senderNo: '96202602', subject: 's', body: 'b', recipientGroup: null, recipientNo: '10202601' }), false);
+  // Çocuk akademisi bölüm sorumlusu (Drama)
+  const kh = as('96202603@ogretmen.aat');
+  await t('Ç.sorumlu: çocukları okur (rapor)', getDocs(collection(kh, 'kids')), true);
+  await t('Ç.sorumlu: veli mesajlarını okur', getDocs(collection(kh, 'kidMessages')), true);
+  await t('Ç.sorumlu: kendi dersine duyuru gönderir', addDoc(collection(kh, 'kidAnnouncements'), { title: 'D', body: 'b', by: 'x', byNo: '96202603', area: 'drama' }), true);
+  await t('Ç.sorumlu: BAŞKA derse duyuru gönderemez', addDoc(collection(kh, 'kidAnnouncements'), { title: 'D', body: 'b', byNo: '96202603', area: 'solfej' }), false);
+  await t('Ç.sorumlu: tüm velilere (alansız) duyuru gönderemez', addDoc(collection(kh, 'kidAnnouncements'), { title: 'D', body: 'b', byNo: '96202603' }), false);
+  await t('Ç.sorumlu: veliye cevap yazar', addDoc(collection(kh, 'kidMessages'), { guardianNo: '92026001', guardianName: 'V', text: 'Silav', from: 'staff', by: 'x', byNo: '96202603', read: false }), true);
+  await t('Ç.sorumlu: veli adına mesaj YAZAMAZ', addDoc(collection(kh, 'kidMessages'), { guardianNo: '92026001', text: 'x', from: 'guardian', byNo: '96202603' }), false);
+  await t('Ç.sorumlu: olmayan veliye yazamaz', addDoc(collection(kh, 'kidMessages'), { guardianNo: '99999999', text: 'x', from: 'staff', by: 'x', byNo: '96202603', read: false }), false);
+  await t('Ç.sorumlu: kendi dersine anket açar', setDoc(doc(kh, 'kidSurveys/KS1'), { title: 'K', ownerNo: '96202603', targetType: 'guardians', targetAreas: ['drama'], active: true, questions: [] }), true);
+  await t('Ç.sorumlu: başka derse anket açamaz', setDoc(doc(kh, 'kidSurveys/KS2'), { title: 'K', ownerNo: '96202603', targetType: 'guardians', targetAreas: ['solfej'], active: true }), false);
+  await t('Ç.sorumlu: çocuk yoklaması YAZAMAZ', addDoc(collection(kh, 'kidAttendance'), { kidId: 'K3', type: 'in' }), false);
+  await t('Ç.sorumlu: çocuk kaydı DEĞİŞTİREMEZ', updateDoc(doc(kh, 'kids/K3'), { name: 'x' }), false);
+  await t('Ç.sorumlu: ana akademiye duyuru gönderemez', addDoc(collection(kh, 'announcements'), { title: 'x', senderRole: 'head', senderNo: '96202603', senderArea: 'drama', targets: ['drama'] }), false);
   await t('Öğrenci bölüm sorumlusuna mesaj gönderir', addDoc(collection(student, 'messages'), { fromType: 'student', senderId: 'S1', toRole: 'head', toArea: 'sinema', subject: 's', body: 'b' }), true);
   await t('Öğretmen bölüm sorumlusu kartı AÇAMAZ', setDoc(doc(teacher, 'teachers/TX'), { no: '96202699', name: 'x', isHead: true, area: 'muzik' }), false);
   await t('Öğrenci işleri bölüm sorumlusu kartı AÇAMAZ (yalnızca yönetici)', setDoc(doc(as('98202601@ogretmen.aat'), 'teachers/TX'), { no: '96202699', name: 'x', isHead: true, area: 'muzik' }), false);
