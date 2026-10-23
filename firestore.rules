@@ -78,6 +78,12 @@ service cloud.firestore {
         && get(dbPath('idx_staff')).data.get('lvl', 'teacher') == 'head';
     }
     function headArea() { return get(dbPath('idx_staff')).data.get('area', ''); }
+    // Genel sorumlu (bölüm = "genel"): ana akademinin TÜM bölümleri
+    function headGeneral() { return headLvl() && headArea() == 'genel'; }
+    // Çocuk akademisi bölüm sorumlusu (bölüm = çocuk akademisi dersi)
+    function kidHeadLvl() { return headLvl() && headArea() in ['solfej', 'ziman', 'teori', 'dalcroze', 'drama', 'enstruman']; }
+    // Bir hedef listesi sorumlunun yetki alanında mı? (genel sorumlu: her bölüm)
+    function headTargetsOk(ts) { return ts is list && ts.size() >= 1 && (headArea() == 'genel' || (ts.size() == 1 && ts[0] == headArea())); }
     // Personel yazması (bölüm sorumlusu HARİÇ)
     function staffW() { return isStaff() && !headLvl(); }
     // Geriye dönük ad: hesap yönetimi = admin + öğrenci işleri (basın DEĞİL)
@@ -232,9 +238,8 @@ service cloud.firestore {
     }
     // Duyuru: bölüm sorumlusu yalnızca KENDİ adıyla ve YALNIZCA kendi bölümüne
     function headAnnOk(d) {
-      return d.get('senderRole', '') == 'head' && d.get('senderNo', '') == prefix()
-        && d.get('targets', []) is list && d.get('targets', []).size() == 1 && d.get('targets', [])[0] == headArea()
-        && d.get('senderArea', '') == headArea();
+      return d.get('senderRole', '') == 'head' && d.get('senderNo', '') == prefix() && !kidHeadLvl()
+        && headTargetsOk(d.get('targets', [])) && d.get('senderArea', '') == headArea();
     }
     match /announcements/{id} {
       allow read: if member();
@@ -242,7 +247,17 @@ service cloud.firestore {
       allow update: if staffW() || (headLvl() && headAnnOk(resource.data) && headAnnOk(request.resource.data));
       allow delete: if staffW() || (headLvl() && headAnnOk(resource.data));
     }
-    match /studentSurveys/{id}    { allow read: if member(); allow write: if staffW(); }
+    // Anket: bölüm sorumlusu KENDİ anketini, KENDİ bölümüne (genel sorumlu: her bölüme) açar
+    function headSurveyOk(d) {
+      return d.get('ownerNo', '') == prefix() && !kidHeadLvl()
+        && (headArea() == 'genel' || (d.get('targetType', '') in ['area', 'teachers_area'] && headTargetsOk(d.get('targetAreas', []))));
+    }
+    match /studentSurveys/{id} {
+      allow read: if member();
+      allow create: if staffW() || (headLvl() && headSurveyOk(request.resource.data));
+      allow update: if staffW() || (headLvl() && headSurveyOk(resource.data) && headSurveyOk(request.resource.data));
+      allow delete: if staffW() || (headLvl() && headSurveyOk(resource.data));
+    }
     match /studentStats/{id}      { allow read: if isStaff(); allow write: if staffW(); }
     match /teacherLessonLogs/{id} { allow read: if isStaff(); allow write: if staffW(); }
     match /qrSessions/{id}        { allow read: if member(); allow write: if staffW(); }
@@ -282,8 +297,18 @@ service cloud.firestore {
         && d.get('recipientGroup', null) == null
         && ((d.get('recipientId', '') == 'admin' && d.get('recipientNo', null) == null)
             || (d.get('recipientNo', null) is string && d.get('recipientNo', '') != ''
-                && exists(/databases/$(database)/documents/idx_staff/$(d.get('recipientNo', '')))))
+                && exists(/databases/$(database)/documents/idx_staff/$(d.get('recipientNo', ''))))
+            || headReplyOk(d))
         && string(d.get('body', '')).size() <= 5000 && string(d.get('subject', '')).size() <= 300;
+    }
+    // Sorumlunun öğrenciye CEVABI: yalnızca o öğrencinin sorumluya (bu bölüme) yazdığı mesaja
+    function origMsg(d) { return get(/databases/$(database)/documents/messages/$(d.replyTo)).data; }
+    function headReplyOk(d) {
+      return d.get('replyTo', '') is string && d.get('replyTo', '') != ''
+        && exists(/databases/$(database)/documents/messages/$(d.get('replyTo', '')))
+        && origMsg(d).get('toRole', '') == 'head'
+        && (origMsg(d).get('toArea', '') == headArea())
+        && origMsg(d).get('fromNo', '') != '' && origMsg(d).get('fromNo', '') == d.get('recipientNo', '');
     }
     match /messages/{id} {
       allow read: if isStaff()
@@ -296,6 +321,7 @@ service cloud.firestore {
             && request.resource.data.get('recipientGroup', null) == null
             && request.resource.data.get('recipientNo', null) == null
             && request.resource.data.get('toRole', '') in ['admin', 'teacher', 'head']
+            && request.resource.data.get('fromNo', prefix()) == prefix()
             && string(request.resource.data.get('body', '')).size() <= 5000
             && string(request.resource.data.get('subject', '')).size() <= 300);
       allow update: if staffW()
@@ -341,13 +367,15 @@ service cloud.firestore {
       return isRegistrar() || isKidTeacher()
         || (isStaff() && exists(dbPath('idx_kidstaff')));
     }
+    // Çocuk tarafını OKUYABİLEN: personel + çocuk akademisi bölüm sorumlusu (yazma ayrı kurallarla)
+    function kidRead() { return kidStaff() || kidHeadLvl(); }
 
     match /idx_guardians/{no} { allow read: if isStaff() || (authed() && prefix() == no); allow write: if isRegistrar(); }
     match /idx_kidstaff/{no}  { allow read: if isStaff() || (authed() && prefix() == no); allow write: if isRegistrar(); }
 
     // Çocuk akademisi öğretmen kayıtları (doc id = öğretmen no)
     match /kidTeachers/{no} {
-      allow read:  if kidStaff();
+      allow read:  if kidRead();
       allow write: if isRegistrar();
     }
     // Çocuk akademisi sitesi: haberler ve arşiv (tarih) — herkese açık okuma, yazma BASIN
@@ -382,13 +410,13 @@ service cloud.firestore {
 
     // Veli kaydı (doc id = veli no)
     match /guardians/{no} {
-      allow read:  if kidStaff() || (isGuardian() && prefix() == no);
+      allow read:  if kidRead() || (isGuardian() && prefix() == no);
       allow write: if isRegistrar();
     }
 
     // Çocuk kaydı — veli yalnızca izin/teslim/sağlık alanlarını güncelleyebilir
     match /kids/{id} {
-      allow read:   if kidStaff() || myKid(resource.data);
+      allow read:   if kidRead() || myKid(resource.data);
       allow create, delete: if isRegistrar();
       allow update: if isRegistrar()
         || (myKid(resource.data)
@@ -397,19 +425,27 @@ service cloud.firestore {
 
     // Giriş/çıkış yoklaması (öğretmen/öğrenci işleri yazar, veli okur)
     match /kidAttendance/{id} {
-      allow read:  if kidStaff() || myKid(resource.data);
+      allow read:  if kidRead() || myKid(resource.data);
       allow write: if kidStaff();
     }
 
-    match /kidSchedule/{id}      { allow read: if kidStaff() || isGuardian(); allow write: if isRegistrar(); }
+    match /kidSchedule/{id}      { allow read: if kidRead() || isGuardian(); allow write: if isRegistrar(); }
     // Sınıflar (1., 2., …): çocuğun sınıfı kids.classLevel; sınıf öğretmeni burada (doc id = L<seviye>)
-    match /kidClasses/{id}       { allow read: if kidStaff() || isGuardian(); allow write: if isRegistrar(); }
+    match /kidClasses/{id}       { allow read: if kidRead() || isGuardian(); allow write: if isRegistrar(); }
     // Çocuk Akademisi anketleri: öğrenci işleri/yönetici oluşturur (hedef: "guardians" veliler | "kidteachers" öğretmenler).
     // Veli / çocuk öğretmeni yalnızca KENDİ adına ve kendisine yönelik aktif ankete BİR kez (güncelleyerek) yanıt verir.
-    match /kidSurveys/{id} { allow read: if kidStaff() || isGuardian(); allow write: if isRegistrar(); }
+    function kidHeadSurveyOk(d) {
+      return kidHeadLvl() && d.get('ownerNo', '') == prefix() && headTargetsOk(d.get('targetAreas', []));
+    }
+    match /kidSurveys/{id} {
+      allow read: if kidRead() || isGuardian();
+      allow create: if isRegistrar() || kidHeadSurveyOk(request.resource.data);
+      allow update: if isRegistrar() || (kidHeadSurveyOk(resource.data) && kidHeadSurveyOk(request.resource.data));
+      allow delete: if isRegistrar() || kidHeadSurveyOk(resource.data);
+    }
     function kidSurveyTarget(sid) { return get(/databases/$(database)/documents/kidSurveys/$(sid)).data; }
     match /kidSurveyResponses/{id} {
-      allow read: if isRegistrar() || (authed() && resource.data.no == prefix());
+      allow read: if isRegistrar() || kidHeadLvl() || (authed() && resource.data.no == prefix());
       allow create, update: if authed()
         && id == request.resource.data.surveyId + '_' + prefix()
         && request.resource.data.no == prefix()
@@ -425,12 +461,19 @@ service cloud.firestore {
       allow delete: if isRegistrar();
     }
     match /kidClassPosts/{id} {
-      allow read: if kidStaff() || isGuardian();
+      allow read: if kidRead() || isGuardian();
       allow create: if isRegistrar() || (kidStaff() && classPostOk('kidClasses', 'kidSchedule'));
       allow update: if isRegistrar();
       allow delete: if isRegistrar() || (kidStaff() && resource.data.teacherNo == prefix());
     }
-    match /kidAnnouncements/{id} { allow read: if kidStaff() || isGuardian(); allow write: if kidStaff(); }
+    // Duyuru: çocuk akademisi bölüm sorumlusu YALNIZCA kendi bölümüne, kendi adıyla
+    function kidHeadAnnOk(d) { return kidHeadLvl() && d.get('byNo', '') == prefix() && d.get('area', '') == headArea(); }
+    match /kidAnnouncements/{id} {
+      allow read: if kidRead() || isGuardian();
+      allow create: if kidStaff() || kidHeadAnnOk(request.resource.data);
+      allow update: if kidStaff() || (kidHeadAnnOk(resource.data) && kidHeadAnnOk(request.resource.data));
+      allow delete: if kidStaff() || kidHeadAnnOk(resource.data);
+    }
 
     // Anlık bildirim cihaz kayıtları: herkes yalnızca KENDİ cihazını, KENDİ numarası ve rolüyle kaydeder.
     // Okuma/silme yalnızca sahibi; gönderimi sunucu (Cloud Functions) yapar.
@@ -453,14 +496,21 @@ service cloud.firestore {
 
     // Veli ↔ akademi mesajları
     match /kidMessages/{id} {
-      allow read: if kidStaff() || (isGuardian() && resource.data.guardianNo == prefix());
+      allow read: if kidRead() || (isGuardian() && resource.data.guardianNo == prefix());
       allow create: if kidStaff()
+        // Çocuk akademisi bölüm sorumlusu veliye cevap yazar (kendi adıyla, kayıtlı veliye)
+        || (kidHeadLvl()
+            && request.resource.data.keys().hasOnly(['guardianNo','guardianName','text','from','by','byNo','read','createdAt'])
+            && request.resource.data.from == 'staff' && request.resource.data.byNo == prefix()
+            && exists(/databases/$(database)/documents/guardians/$(request.resource.data.guardianNo))
+            && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000)
         || (isGuardian()
             && request.resource.data.keys().hasOnly(['guardianNo','guardianName','kidId','kidName','text','from','read','createdAt'])
             && request.resource.data.guardianNo == prefix()
             && request.resource.data.from == 'guardian'
             && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000);
-      allow update: if kidStaff();
+      allow update: if kidStaff()
+        || (kidHeadLvl() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']));
       allow delete: if isRegistrar();
     }
 

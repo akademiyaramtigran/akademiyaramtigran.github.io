@@ -219,6 +219,12 @@ exports.pushKidMessage = onDocumentCreated("kidMessages/{id}", async (ev) => {
 // Çocuk akademisi: duyuru → tüm veliler ve çocuk öğretmenleri
 exports.pushKidAnnouncement = onDocumentCreated("kidAnnouncements/{id}", async (ev) => {
   const a = ev.data && ev.data.data(); if (!a) return;
-  const docs = await tokens("zarok");
+  let docs;
+  if (a.area) { // bölüm sorumlusunun duyurusu: yalnızca o dersteki çocukların velileri
+    const ks = await admin.firestore().collection("kids").where("area", "==", a.area).get();
+    const g = [...new Set(ks.docs.flatMap(d => (d.get("guardianNos") || []).map(String)))];
+    docs = g.length ? await tokens("zarok", "no", g) : [];
+  } else docs = await tokens("zarok");
+  if (!docs.length) return;
   await push(docs, l => ({ title: tx(l, "ann"), body: a.title || "" }), "/zarok/app/", "zarok-ann");
 });
