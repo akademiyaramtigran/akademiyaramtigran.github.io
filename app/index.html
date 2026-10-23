@@ -399,11 +399,12 @@
     return /@ogretmen\.aat$/i.test(e) || e === ADMIN_EMAIL;
   }
   // Personel yetki seviyesi (kurallar yönetici işlemlerini buna göre açar)
-  function staffLvl(tc) { return tc.isAdmin ? "admin" : tc.isRegistrar ? "registrar" : tc.isPress ? "press" : tc.isGate ? "gate" : "teacher"; }
+  function staffLvl(tc) { return tc.isAdmin ? "admin" : tc.isRegistrar ? "registrar" : tc.isPress ? "press" : tc.isGate ? "gate" : tc.isHead ? "head" : "teacher"; }
+  function staffIdx(tc, id) { const l = staffLvl(tc); return l === "head" ? { no: id, lvl: l, area: String(tc.area || "") } : { no: id, lvl: l }; }
   async function idxPut(kind, rec) {
     const id = idxId(rec && rec.no);
     if (!id || !isStaffSession()) return false;
-    const data = kind === "student" ? { no: id } : { no: id, lvl: staffLvl(rec) };
+    const data = kind === "student" ? { no: id } : staffIdx(rec, id);
     try { await setDoc(doc(db, kind === "student" ? "idx_students" : "idx_staff", id), { ...data, updatedAt: serverTimestamp() }); return true; } catch (_) { return false; }
   }
   async function idxDel(kind, no) {
@@ -417,14 +418,14 @@
     // id → istenen veri
     const want = { idx_students: new Map(), idx_staff: new Map() };
     students.forEach(x => { const id = idxId(x.no); if (id) want.idx_students.set(id, { no: id }); });
-    teachers.forEach(x => { const id = idxId(x.no); if (id) want.idx_staff.set(id, { no: id, lvl: staffLvl(x) }); });
+    teachers.forEach(x => { const id = idxId(x.no); if (id) want.idx_staff.set(id, staffIdx(x, id)); });
     let added = 0, removed = 0;
     for (const col of Object.keys(want)) {
       const snap = await getDocs(collection(db, col));
       const have = new Map(snap.docs.map(d => [d.id, d.data()]));
       for (const [id, data] of want[col]) {
         const h = have.get(id);
-        if (!h || (data.lvl && h.lvl !== data.lvl)) { await setDoc(doc(db, col, id), { ...data, updatedAt: serverTimestamp() }); added++; }
+        if (!h || (data.lvl && h.lvl !== data.lvl) || (data.area != null && h.area !== data.area)) { await setDoc(doc(db, col, id), { ...data, updatedAt: serverTimestamp() }); added++; }
       }
       // Liste gerçekten yüklendiyse (boş değilse) artık olmayanları kaldır
       if (want[col].size > 0) for (const id of have.keys()) if (!want[col].has(id)) { await deleteDoc(doc(db, col, id)); removed++; }
@@ -541,7 +542,7 @@
       const idxOk = await idxPut("staff", tc);
       // Özel personel (Öğrenci İşleri / Basın / Güvenlik) yetki kaydı yazılamadıysa hesap
       // açılır ama kurallar onu tanımaz ("Yetki yok"). Sessiz geçme — kaydedene bildir.
-      if (!idxOk && (tc.isRegistrar || tc.isPress || tc.isGate)) {
+      if (!idxOk && (tc.isRegistrar || tc.isPress || tc.isGate || tc.isHead)) {
         const me = ((auth.currentUser && auth.currentUser.email) || "").split("@")[0];
         try { window.dispatchEvent(new CustomEvent("aat-idx-fail", { detail: { no: idxId(tc.no), me } })); } catch (_) {}
       }
@@ -4689,7 +4690,7 @@ function AddTeacherSheet({open,onClose,defaultArea,teachers,t,lang,toast,onSave,
 
   function handleSave(){
     if(!name.trim()){toast("⚠ "+t.fullName); return;}
-    const areaTeachers=teachers.filter(tc=>tc.area===area&&!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate);
+    const areaTeachers=teachers.filter(tc=>tc.area===area&&!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&!tc.isHead);
     const seqs=areaTeachers.map(tc=>{
       const s=parseInt((tc.no||"").slice(-2))||0;
       return s;
@@ -4921,7 +4922,7 @@ function AddLessonSheet({open,onClose,defaultArea,defaultClassId,t,lang,toast,on
       <FieldWrap label={(lang==="en"?"Teacher (optional)":K("Mamosteyê Dersê (vebijarkî)"))}>
         <select style={selectStyle} value={teacherNo} onChange={e=>setTeacherNo(e.target.value)}>
           <option value="">— {lang==="en"?"Unassigned (all field teachers see it)":K("Ne diyar (hemû mamosteyên qadê dibînin)")}</option>
-          {(teachers||[]).filter(tc=>!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&(area==="genel"||tc.area===area||tc.area==="genel")).map(tc=>(
+          {(teachers||[]).filter(tc=>!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&!tc.isHead&&(area==="genel"||tc.area===area||tc.area==="genel")).map(tc=>(
             <option key={tc.no} value={tc.no}>👨‍🏫 {tc.name} ({tc.no})</option>
           ))}
         </select>
@@ -5336,8 +5337,8 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
   // "genel" alanı: tüm öğrenciler görünür + genel alan öğretmen/dersleri
   const aStudents = isGenel ? students.filter(s=>!s.isAdmin) : students.filter(s=>s.area===areaKey);
   const aTeachers = isGenel
-    ? teachers.filter(t2=>t2.area==="genel"&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate)
-    : teachers.filter(t2=>t2.area===areaKey&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate);
+    ? teachers.filter(t2=>t2.area==="genel"&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate&&!t2.isHead)
+    : teachers.filter(t2=>t2.area===areaKey&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate&&!t2.isHead);
   const cardOpts={areaLabel:x=>areaName(x,lang),colorOf:x=>AREA_MAP[x]?.color};
 
   const tabs=[
@@ -5890,7 +5891,7 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
     try {
       unsub = window.__FB.onAllMessages(allMsgs=>{
         const myMsgs = allMsgs.map(m=>{
-          if((m.senderId==="admin"||m.fromType==="admin")&&m.recipientId===myId)
+          if((m.senderId==="admin"||m.fromType==="admin"||m.fromType==="head")&&m.recipientId===myId)
             return {...m, direction:"inbox"};
           if((m.senderId==="admin"||m.fromType==="admin")&&(m.recipientGroup==="allTeachers"||m.recipientGroup==="all"||m.recipientGroup==="area_"+teacher.area))
             return {...m, direction:"inbox"};
@@ -6650,7 +6651,19 @@ const SPECIAL_TYPES = {
   gate:      { flag:"isGate",      icon:"🛡", prefix:"97",
     name:{get ku(){return K("Ewlehî")},en:"Security"},
     desc:{get ku(){return K("Li dergehê kartên xwendekaran kontrol dike; tu daneyên din nabîne")},en:"Checks student cards at the gate; sees no other data"} },
+  head:      { flag:"isHead",      icon:"🎓", prefix:"96",
+    name:{get ku(){return K("Berpirsê Beşê")},en:"Department Head"},
+    desc:{get ku(){return K("Raporên beşa xwe dibîne; ji xwendekarên beşê re ragihandin dişîne, belge û peyam dişîne; peyamên xwendekaran digire")},en:"Sees own department's reports; sends announcements to its students, documents and messages to staff; receives student messages"} },
 };
+const specialOf=tc=>tc.isPress?SPECIAL_TYPES.press:tc.isGate?SPECIAL_TYPES.gate:tc.isHead?SPECIAL_TYPES.head:SPECIAL_TYPES.registrar;
+// Öğrenci tarafı "bölüm sorumlum" seçeneği için: config/heads = {areas:{<alan>:{name,no}}}
+async function syncHeadsCfg(list){
+  try{
+    const F=window.__FB; if(!F||!F.isConfigured()) return;
+    const areas={}; (list||[]).filter(x=>x&&x.isHead&&x.area).forEach(x=>{ areas[x.area]={name:x.name||"",no:String(x.no||"")}; });
+    await F.setDoc(F.doc(F.db,"config","heads"),{areas,updatedAt:F.serverTimestamp()});
+  }catch(_){}
+}
 
 /* Karta taybet tescîl bike — AddTeacherSheet ile aynı format */
 function AddSpecialCardSheet({open,onClose,kind,teachers,t,lang,toast,onSave}){
@@ -6664,9 +6677,10 @@ function AddSpecialCardSheet({open,onClose,kind,teachers,t,lang,toast,onSave}){
   const [bio,setBio]=useState("");
   const [photo,setPhoto]=useState(null);
   const [savedCreds,setSavedCreds]=useState(null);
+  const [hArea,setHArea]=useState("");
   const fileRef=useRef();
 
-  useEffect(()=>{ if(open){ setSavedCreds(null); setName(""); setPhone(""); setDob(""); setAddress(""); setBio(""); setPhoto(null); } },[open]);
+  useEffect(()=>{ if(open){ setSavedCreds(null); setName(""); setPhone(""); setDob(""); setAddress(""); setBio(""); setPhoto(null); setHArea(""); } },[open]);
 
   function handlePhoto(e){
     const f=e.target.files[0];
@@ -6681,6 +6695,7 @@ function AddSpecialCardSheet({open,onClose,kind,teachers,t,lang,toast,onSave}){
 
   function handleSave(){
     if(!name.trim()){toast("⚠ "+t.fullName); return;}
+    if(kind==="head"&&!hArea){toast("⚠ "+(lang==="en"?"Select the department":K("Beşê hilbijêre"))); return;}
     const same=(teachers||[]).filter(tc=>tc[SP.flag]);
     const seqs=same.map(tc=>parseInt((tc.no||"").slice(-2))||0);
     const seq=(seqs.length>0?Math.max(...seqs):0)+1;
@@ -6693,7 +6708,7 @@ function AddSpecialCardSheet({open,onClose,kind,teachers,t,lang,toast,onSave}){
     reserveNo(cands,"teacher",rawPass).then(no=>hashPassword(rawPass).then(hashed=>{
       savingRef.current=false;
       const {name:nm,phone,dob,address,bio,photo}=snap;
-      const tc={id:no,name:nm,area:"genel",no,pass:hashed,passHash:hashed,
+      const tc={id:no,name:nm,area:kind==="head"?hArea:"genel",no,pass:hashed,passHash:hashed,
         isAdmin:false,[SP.flag]:true,phone,dob,address,bio:bio||(SP.name.ku),photo,
         _plainPass:rawPass, _authDone:true};
       onSave(tc);
@@ -6770,6 +6785,17 @@ function AddSpecialCardSheet({open,onClose,kind,teachers,t,lang,toast,onSave}){
         </div>
         <div style={{fontSize:10,color:"var(--text2)",marginTop:5}}>{SP.desc[lang]||SP.desc.ku}</div>
       </FieldWrap>
+      {kind==="head"&&(
+        <FieldWrap label={lang==="en"?"Department":K("Beş")}>
+          <select style={selectStyle} value={hArea} onChange={e=>setHArea(e.target.value)} data-head-area="1">
+            <option value="">{lang==="en"?"— Select —":K("— Hilbijêre —")}</option>
+            {AREAS.filter(a2=>a2.key!=="genel").map(a2=>{
+              const taken=(teachers||[]).some(x=>x.isHead&&x.area===a2.key);
+              return <option key={a2.key} value={a2.key}>{a2.icon} {areaName(a2.key,lang)}{taken?" · "+(lang==="en"?"has a head":K("berpirsê wê heye")):""}</option>;
+            })}
+          </select>
+        </FieldWrap>
+      )}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <FieldWrap label={t.regYear}>
           <select style={selectStyle} value={year} onChange={e=>setYear(e.target.value)}>
@@ -6796,7 +6822,7 @@ function AddSpecialCardSheet({open,onClose,kind,teachers,t,lang,toast,onSave}){
 
 /* ─── EDIT SPECIAL CARD (Basın / Öğrenci İşleri — öğretmen profili düzeniyle) ── */
 function EditSpecialCardSheet({card,onClose,t,lang,toast,onSave}){
-  const SP=card.isPress?SPECIAL_TYPES.press:card.isGate?SPECIAL_TYPES.gate:SPECIAL_TYPES.registrar;
+  const SP=specialOf(card);
   const [name,setName]=useState(card.name||"");
   const [phone,setPhone]=useState(card.phone||"");
   const [email,setEmail]=useState(card.email||"");
@@ -6921,7 +6947,7 @@ function AdminPressPanel({teachers,onDataChange,lang,toast,t}){
   const [showAdd,setShowAdd]=useState(false);
   const [editing,setEditing]=useState(null);
   const SP=SPECIAL_TYPES[kind];
-  const cards=(teachers||[]).filter(tc=>tc.isPress||tc.isRegistrar||tc.isGate);
+  const cards=(teachers||[]).filter(tc=>tc.isPress||tc.isRegistrar||tc.isGate||tc.isHead);
   const L=(k)=>({
     heading:{get ku(){return K("📇 Kartên Taybet")},en:"📇 Staff Cards"},
     hint:{get ku(){return K("Ev kart ji beşa MAMOSTE têkevin û tenê erka xwe dibînin.")},en:"These cards sign in via the TEACHER entry and only see their own duty."},
@@ -6948,12 +6974,12 @@ function AdminPressPanel({teachers,onDataChange,lang,toast,t}){
       </Card>
 
       <AddSpecialCardSheet open={showAdd} onClose={()=>setShowAdd(false)} kind={kind} teachers={teachers} t={t} lang={lang} toast={toast}
-        onSave={(tc)=>onDataChange("addTeacher",tc)}/>
+        onSave={(tc)=>{onDataChange("addTeacher",tc); if(tc.isHead) syncHeadsCfg([...cards,tc]);}}/>
 
       <SectionHeader>{L("list")} ({cards.length})</SectionHeader>
       {cards.length===0&&<Card><div style={{fontSize:13,color:"var(--text2)",textAlign:"center",padding:"8px 0"}}>{L("empty")}</div></Card>}
       {cards.map(tc=>{
-        const tK=tc.isPress?SPECIAL_TYPES.press:tc.isGate?SPECIAL_TYPES.gate:SPECIAL_TYPES.registrar;
+        const tK=specialOf(tc);
         return(
         <Card key={tc.no}>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -6962,13 +6988,13 @@ function AdminPressPanel({teachers,onDataChange,lang,toast,t}){
               : <span style={{fontSize:24}}>{tK.icon}</span>}
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>{tc.name}</div>
-              <div style={{fontSize:11,color:"var(--text2)"}}>{tK.icon} {tK.name[lang]||tK.name.ku} · <span style={{fontFamily:"monospace"}}>{tc.no}</span></div>
+              <div style={{fontSize:11,color:"var(--text2)"}}>{tK.icon} {tK.name[lang]||tK.name.ku}{tc.isHead?" · "+areaName(tc.area,lang):""} · <span style={{fontFamily:"monospace"}}>{tc.no}</span></div>
             </div>
             <button onClick={()=>setEditing(tc)}
               style={{background:"var(--bg2)",border:"0.5px solid var(--border2)",color:"var(--text)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>
               <Ico n="edit"/> {L("edit")}
             </button>
-            <button onClick={()=>onDataChange("deleteTeacher",tc)}
+            <button onClick={()=>{onDataChange("deleteTeacher",tc); if(tc.isHead) syncHeadsCfg(cards.filter(x=>x.no!==tc.no));}}
               style={{background:"var(--red-bg)",border:"0.5px solid var(--red)",color:"var(--red)",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>
               <Ico n="trash"/>
             </button>
@@ -6979,7 +7005,7 @@ function AdminPressPanel({teachers,onDataChange,lang,toast,t}){
 
       {editing&&(
         <EditSpecialCardSheet card={editing} onClose={()=>setEditing(null)} t={t} lang={lang} toast={toast}
-          onSave={(tc)=>{onDataChange("updateTeacher",tc);setEditing(null);toast("✅ "+tc.name);}}/>
+          onSave={(tc)=>{onDataChange("updateTeacher",tc); if(tc.isHead) syncHeadsCfg(cards.map(x=>x.no===tc.no?tc:x)); setEditing(null);toast("✅ "+tc.name);}}/>
       )}
     </div>
   );
@@ -7481,6 +7507,149 @@ function PressPanel({user,lang,toast,onLogout}){
   );
 }
 
+/* ─── BÖLÜM SORUMLUSU PANELİ (Berpirsê Beşê) ─────────────────────────────
+   Yalnızca üç bölüm: Duyuru (kendi bölümünün öğrencilerine, belge/foto ekli),
+   Mesaj (öğrenciden gelen; yöneticiye ve bölüm öğretmenlerine belgeli mesaj —
+   öğrencilere mesaj YAZILMAZ, yalnızca duyuru), Rapor (yalnızca kendi bölümü). */
+function HeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onSettings}){
+  const [menuOpen,setMenuOpen]=useState(isPhoneNow);
+  const [tab,setTab]=useState("announce");
+  const [msgs,setMsgs]=useState([]);
+  const area=user.area||"";
+  const aStudents=(students||[]).filter(s=>s.area===area);
+  const aTeachers=(teachers||[]).filter(tc=>tc.area===area&&!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&!tc.isHead);
+  const aSchedule=(schedule||[]).filter(l=>l.area===area);
+  const myNo=String(user.no||"");
+  useEffect(()=>{
+    if(!window.__FB||!window.__FB.isConfigured()) return;
+    let unsub=()=>{};
+    try{ unsub=window.__FB.onAllMessages(all=>setMsgs(all)); }catch(_){}
+    return ()=>unsub();
+  },[]);
+  const inbox=msgs.filter(m=>String(m.senderNo||"")!==myNo&&((m.toRole==="head"&&m.toArea===area)||m.recipientNo===myNo||m.recipientId==="h_"+myNo));
+  const sent=msgs.filter(m=>m.fromType==="head"&&String(m.senderNo||"")===myNo);
+  const unread=inbox.filter(m=>!m.read).length;
+  const items=[
+    {key:"announce",label:lang==="en"?"Announcements":K("Ragihandin")},
+    {key:"messages",label:lang==="en"?"Messages":K("Peyam"),badge:unread},
+    {key:"reports",label:lang==="en"?"Reports":K("Rapor")},
+  ];
+  const roleLabel=(lang==="en"?"Department Head":K("Berpirsê Beşê"))+" · "+areaName(area,lang);
+  return(
+    <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
+      <SideMenu open={menuOpen} onClose={()=>setMenuOpen(false)} items={items} activeKey={tab} onSelect={setTab} user={user} roleLabel={roleLabel}
+        extraItems={[...(onSettings?[{icon:"⚙️",label:t.settings||"Mîheng",onClick:onSettings}]:[]),{icon:"↩",label:t.logout||"Derkeve",onClick:onLogout,danger:true}]}/>
+      <SpecialPanelHeader user={user} icon="🎓" lang={lang} onLogout={onLogout} onMenu={()=>setMenuOpen(true)} roleLabel={roleLabel}/>
+      <div className="scroll-area" style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
+        {tab==="announce"&&<AnnouncementsPanel t={t} toast={toast} lang={lang} senderName={user.name} senderRole="head" senderArea={area} senderNo={myNo}/>}
+        {tab==="messages"&&<HeadMessagesPanel user={user} inbox={inbox} sent={sent} teachers={aTeachers} lang={lang} t={t} toast={toast}/>}
+        {tab==="reports"&&<AdminReportCenter students={aStudents} teachers={aTeachers} schedule={aSchedule} lang={lang} t={t} toast={toast} byName={user.name} headArea={area}/>}
+      </div>
+    </div>
+  );
+}
+
+function HeadMessagesPanel({user,inbox,sent,teachers,lang,t,toast}){
+  const W=(ku,en)=>lang==="en"?en:K(ku);
+  const [mode,setMode]=useState("inbox");
+  const [open,setOpen]=useState(null);
+  const [to,setTo]=useState("admin");
+  const [subject,setSubject]=useState("");
+  const [body,setBody]=useState("");
+  const [files,setFiles]=useState([]);
+  const [busy,setBusy]=useState(false);
+  const fileRef=useRef();
+  const myNo=String(user.no||"");
+  function addFiles(e){
+    Array.from(e.target.files||[]).forEach(file=>{
+      if(file.size>700*1024){ toast("⚠ "+file.name+" — "+W("pir mezin e (herî zêde 700 KB)","too large (max 700 KB)")); return; }
+      const isImg=file.type.startsWith("image/"); const r=new FileReader();
+      r.onload=ev=>setFiles(p=>[...p,{id:Date.now()+Math.random(),name:file.name,size:(file.size/1024).toFixed(0)+"KB",type:isImg?"image":"file",url:ev.target.result,preview:isImg?ev.target.result:null}]);
+      r.readAsDataURL(file);
+    });
+    e.target.value="";
+  }
+  async function send(){
+    if(!subject.trim()||!body.trim()){ toast("⚠ "+W("Sernav û peyam pêwîst in","Subject and message are required")); return; }
+    const tc=to==="admin"?null:(teachers||[]).find(x=>"t_"+x.id===to);
+    if(to!=="admin"&&!tc){ toast(W("⚠ Wergir hilbijêre","⚠ Select recipient")); return; }
+    const now=new Date();
+    const msg={id:Date.now(),from:user.name,fromType:"head",fromId:user.id,senderId:"h_"+myNo,senderNo:myNo,
+      to:tc?tc.name:W("Rêveber","Admin"),type:"private",subject:subject.trim(),body:body.trim(),
+      time:now.toISOString().slice(0,10)+" "+String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0"),
+      read:false,recipientId:tc?"t_"+tc.id:"admin",recipientNo:tc?String(tc.no):null,recipientGroup:null,area:user.area||"",isStudentFeedback:false,
+      attachments:files.map(f=>({name:f.name,size:f.size,type:f.type,url:f.url,preview:f.preview}))};
+    setBusy(true);
+    try{ await fbSave("message",msg); toast("✅ "+W("Peyam hat şandin","Message sent")); setSubject(""); setBody(""); setFiles([]); setMode("sent"); }
+    catch(e){ toast("❌ "+W("Nehat şandin","Not sent")+" — "+(e.message||e)); }
+    setBusy(false);
+  }
+  const fmt=m=>m.time||(m.createdAt&&m.createdAt.seconds?new Date(m.createdAt.seconds*1000).toLocaleString():"");
+  const list=mode==="inbox"?inbox:sent;
+  const tabBtn=(k,lbl)=>(
+    <button key={k} onClick={()=>{setMode(k);setOpen(null);}} style={{flex:1,padding:"9px 6px",borderRadius:9,border:"none",cursor:"pointer",fontSize:12,fontWeight:mode===k?800:600,
+      background:mode===k?"var(--surface)":"transparent",color:mode===k?"var(--accent)":"var(--text2)"}}>{lbl}</button>);
+  return(
+    <div>
+      <div style={{display:"flex",gap:5,marginBottom:12,background:"var(--bg2)",padding:4,borderRadius:12}}>
+        {tabBtn("inbox",W("Gihîştî","Inbox")+(inbox.filter(m=>!m.read).length?" ("+inbox.filter(m=>!m.read).length+")":""))}
+        {tabBtn("sent",W("Şandî","Sent"))}
+        {tabBtn("compose",W("Peyamek Nû","New Message"))}
+      </div>
+      {mode==="compose"?(
+        <Card>
+          <div style={{fontSize:11,color:"var(--text2)",marginBottom:12,lineHeight:1.6}}>
+            ℹ️ {W("Ji xwendekaran re tenê ragihandin tê şandin. Peyam ji rêveber û mamosteyên beşê re ye.","Students receive announcements only. Messages go to the admin and the department's teachers.")}
+          </div>
+          <FieldWrap label={W("Bo","To")}>
+            <select style={selectStyle} value={to} onChange={e=>setTo(e.target.value)} data-head-to="1">
+              <option value="admin">🛡 {W("Rêveber","Admin")}</option>
+              {(teachers||[]).map(tc=><option key={tc.id} value={"t_"+tc.id}>👨‍🏫 {tc.name}</option>)}
+            </select>
+          </FieldWrap>
+          <FieldWrap label={W("Sernav","Subject")}><input style={inputStyle} value={subject} onChange={e=>setSubject(e.target.value)} id="hm-subject"/></FieldWrap>
+          <FieldWrap label={W("Peyam","Message")}><textarea style={{...inputStyle,minHeight:110,resize:"vertical"}} value={body} onChange={e=>setBody(e.target.value)} id="hm-body"/></FieldWrap>
+          <input ref={fileRef} type="file" multiple accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx" style={{display:"none"}} onChange={addFiles}/>
+          <button onClick={()=>fileRef.current&&fileRef.current.click()} style={{width:"100%",padding:"11px",marginBottom:10,borderRadius:10,border:"1.5px dashed var(--border2)",background:"transparent",color:"var(--text2)",fontSize:13,cursor:"pointer"}}>
+            📎 {W("Belge / Wêne Zêde Bike","Attach Document / Photo")}
+          </button>
+          {files.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
+            {files.map(f=><span key={f.id} style={{fontSize:11,padding:"4px 8px",borderRadius:8,background:"var(--bg2)",color:"var(--text)"}}>{f.type==="image"?"🖼":"📄"} {f.name} <button onClick={()=>setFiles(p=>p.filter(x=>x.id!==f.id))} aria-label="✕" style={{border:"none",background:"none",color:"var(--red)",cursor:"pointer"}}>✕</button></span>)}
+          </div>}
+          <PrimaryBtn onClick={send} icon="📤">{busy?"…":W("Bişîne","Send")}</PrimaryBtn>
+        </Card>
+      ):(
+        list.length===0?<Card><div style={{textAlign:"center",color:"var(--text2)",fontSize:13,padding:"10px 0"}}>{W("Peyam tune","No messages")}</div></Card>:
+        list.map(m=>{
+          const isOpen=open===m.fireId;
+          return(
+            <Card key={m.fireId||m.id}>
+              <div onClick={()=>{ setOpen(isOpen?null:m.fireId); if(mode==="inbox"&&!m.read&&m.fireId) try{window.__FB.markRead(m.fireId);}catch(_){} }} style={{cursor:"pointer"}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  {mode==="inbox"&&!m.read&&<span style={{width:8,height:8,borderRadius:4,background:"var(--red)",flexShrink:0}}/>}
+                  <div style={{flex:1,minWidth:0,fontSize:13,fontWeight:700,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.subject||"—"}</div>
+                  <div style={{fontSize:10,color:"var(--text2)",flexShrink:0}}>{fmt(m)}</div>
+                </div>
+                <div style={{fontSize:11,color:"var(--text2)",marginTop:3}}>
+                  {mode==="inbox"?(W("Ji","From")+": "+(m.from||"—")+(m.fromType==="student"?" · 🎓":"")):(W("Bo","To")+": "+(m.to||"—"))}
+                </div>
+              </div>
+              {isOpen&&(
+                <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid var(--border)"}}>
+                  <div style={{fontSize:13,color:"var(--text)",lineHeight:1.6,whiteSpace:"pre-wrap"}}>{m.body}</div>
+                  {(m.attachments||[]).map((a,i)=>safeHref(a.url)&&(
+                    <a key={i} href={safeHref(a.url)} download={a.name} rel="noopener" style={{display:"inline-block",marginTop:8,marginRight:6,fontSize:11,padding:"5px 9px",borderRadius:8,background:"var(--bg2)",color:"var(--text)",textDecoration:"none"}}>{a.type==="image"?"🖼":"📄"} {a.name}</a>
+                  ))}
+                </div>
+              )}
+            </Card>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
 /* ─── REGISTRAR PANEL (Karûbarên Xwendekaran — serlêdanên tomarkirinê) ──── */
 // Print penceresi (rapor/başvuru PDF'i — yazdır → PDF olarak kaydet)
 function esc(x){ return String(x==null?"":x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
@@ -7923,7 +8092,7 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
   const cfg={
     coll:"classes",
     members:studs,
-    teachers:(teachers||[]).filter(t2=>t2.no&&!t2.isGate&&!t2.isPress&&!t2.isRegistrar),
+    teachers:(teachers||[]).filter(t2=>t2.no&&!t2.isGate&&!t2.isHead&&!t2.isPress&&!t2.isRegistrar),
     areas:AREAS.filter(a=>a.key!=="genel"),
     areaLabel:a=>areaName(a,lang),
     memberWord:["xwendekar","students"],
@@ -9257,7 +9426,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
               {AREAS.filter(ar=>ar.key!=="genel").map(ar=>{
                 const am=AREA_MAP[ar.key];
                 const cnt=(students||[]).filter(st=>st.area===ar.key).length;
-                const tcnt=(teachers||[]).filter(t2=>t2.area===ar.key&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate).length;
+                const tcnt=(teachers||[]).filter(t2=>t2.area===ar.key&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate&&!t2.isHead).length;
                 return(
                   <div key={ar.key} onClick={()=>setActiveArea(ar.key)} className="area-card"
                     style={{background:"var(--surface)",borderLeft:"4px solid "+am.color,boxShadow:"0 1px 4px rgba(15,23,42,.07)"}}>
@@ -9444,17 +9613,18 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
 }
 
 /* ─── ANNOUNCEMENTS ─────────────────────────────────────────────────────── */
-function AnnouncementsPanel({t,toast,lang,senderName,senderRole,senderArea}){
+function AnnouncementsPanel({t,toast,lang,senderName,senderRole,senderArea,senderNo}){
+  const locked=senderRole==="teacher"||senderRole==="head"; // öğretmen + bölüm sorumlusu: yalnızca kendi bölümü
   const [title,setTitle]=useState("");
   const [msg,setMsg]=useState("");
-  const [targets,setTargets]=useState(senderRole==="teacher"?{[senderArea]:true}:{"all":true});
+  const [targets,setTargets]=useState(locked?{[senderArea]:true}:{"all":true});
   const [sentList,setSentList]=useState([]);
   const [mediaFiles,setMediaFiles]=useState([]); // [{id,name,size,type,url,preview}]
   const [expandedAnn,setExpandedAnn]=useState(null);
   const mediaRef=useRef();
 
   const toggleTarget=k=>{
-    if(senderRole==="teacher") return;
+    if(locked) return;
     if(k==="all"){
       setTargets({"all":true});
     } else {
@@ -9521,16 +9691,17 @@ function AnnouncementsPanel({t,toast,lang,senderName,senderRole,senderArea}){
       id:Date.now(),
       title:title.trim(),
       msg:msg.trim(),
-      to:senderRole==="teacher"?areaName(senderArea,lang):selected.map(k=>k==="all"?L.allStudents:k==="teachers"?L.teachers:areaName(k,lang)).join(", "),
+      to:locked?areaName(senderArea,lang):selected.map(k=>k==="all"?L.allStudents:k==="teachers"?L.teachers:areaName(k,lang)).join(", "),
       time:timeStr,
       targets:selected,
       senderName:senderName||"Rêveber",
       senderRole:senderRole||"admin",
       senderArea:senderArea||null,
+      ...(senderNo?{senderNo:String(senderNo)}:{}),
       createdAt:new Date().toISOString(),
       media:mediaFiles.map(f=>({name:f.name,size:f.size,type:f.type,url:f.url,preview:f.preview}))
     };
-    fbSave("announcement", ann);
+    Promise.resolve(fbSave("announcement", ann)).catch(e=>toast("❌ "+(e&&e.message||e)));
     setSentList(p=>[ann,...p]);
     toast("✓ "+title.trim());
     setTitle(""); setMsg(""); setMediaFiles([]);
@@ -9544,7 +9715,7 @@ function AnnouncementsPanel({t,toast,lang,senderName,senderRole,senderArea}){
         {lang==="en"?"Send Announcement":K("Ragihandinek Bişîne")}
       </div>
 
-      {senderRole==="teacher"?(
+      {locked?(
         <div style={{marginBottom:14}}>
           <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>{L.targetLabel}</div>
           <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"var(--bg2)",borderRadius:10,border:"1.5px solid var(--border2)"}}>
@@ -9894,7 +10065,7 @@ function EditLessonSheet({lesson,onClose,t,lang,toast,onSave,teachers}){
       <FieldWrap label={(lang==="en"?"Teacher (optional)":K("Mamosteyê Dersê (vebijarkî)"))}>
         <select style={selectStyle} value={teacherNo} onChange={e=>setTeacherNo(e.target.value)}>
           <option value="">— {lang==="en"?"Unassigned (all field teachers see it)":K("Ne diyar (hemû mamosteyên qadê dibînin)")}</option>
-          {(teachers||[]).filter(tc=>!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&(lesson.area==="genel"||tc.area===lesson.area||tc.area==="genel")).map(tc=>(
+          {(teachers||[]).filter(tc=>!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&!tc.isHead&&(lesson.area==="genel"||tc.area===lesson.area||tc.area==="genel")).map(tc=>(
             <option key={tc.no} value={tc.no}>👨‍🏫 {tc.name} ({tc.no})</option>
           ))}
         </select>
@@ -10386,7 +10557,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
 
   const statsCards=[
     {key:"students", label:t.totalStudents, val:students.length, icon:"🎓", color:"#0f2f38", bg:"rgba(15,47,56,0.08)"},
-    {key:"teachers", label:t.totalTeachers, val:teachers.filter(t2=>!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate).length, icon:"👨‍🏫", color:"#16a34a", bg:"rgba(22,163,74,0.08)"},
+    {key:"teachers", label:t.totalTeachers, val:teachers.filter(t2=>!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate&&!t2.isHead).length, icon:"👨‍🏫", color:"#16a34a", bg:"rgba(22,163,74,0.08)"},
     {key:"programs", label:t.activePrograms, val:schedule.length, icon:"📅", color:"#d97706", bg:"rgba(217,119,6,0.08)"},
     {key:"pending", label:t.pendingApproval, val:0, icon:"⏳", color:"#dc2626", bg:"rgba(220,38,38,0.08)"},
   ];
@@ -11404,9 +11575,9 @@ function AdminSurveyResultsReport({lang,toast,byName}){
 }
 
 /* ─── RAPOR MERKEZİ — lîste + heftane/demsalî raporlar tek çatıda ────────── */
-function AdminReportCenter({students,teachers,schedule,lang,t,toast,byName}){
+function AdminReportCenter({students,teachers,schedule,lang,t,toast,byName,headArea}){
   const [rTab,setRTab]=useState("liste"); // liste | nirxandin | anket | karne | arsiv
-  const tabs=[
+  const allTabs=[
     {key:"liste",icon:"📄",label:lang==="en"?"Lists":K("Lîste")},
     {key:"nirxandin",icon:"📅",label:lang==="en"?"Evaluation":K("Nirxandin")},
     {key:"anket",icon:"📊",label:lang==="en"?"Surveys":K("Ankêt")},
@@ -11414,6 +11585,7 @@ function AdminReportCenter({students,teachers,schedule,lang,t,toast,byName}){
     {key:"zarok",icon:"🎼",label:lang==="en"?"Children's Academy":K("Akademiya Zarokan")},
     {key:"arsiv",icon:"🗂",label:lang==="en"?"Archive":K("Arşîv")},
   ];
+  const tabs=headArea?allTabs.filter(x=>["liste","nirxandin","mamoste"].includes(x.key)):allTabs;
   return(
     <div>
       <div style={{display:"flex",gap:5,marginBottom:14,background:"var(--bg2)",padding:4,borderRadius:12,overflowX:"auto"}}>
@@ -11460,7 +11632,7 @@ function TeacherAttendanceReport({teachers,schedule,lang,toast}){
     return ()=>{ try{u();}catch(_){} };
   },[from]);
   const byId=new Map((att||[]).filter(d=>d.date).map(d=>[String(d.lessonId)+"-"+d.date,d]));
-  const plain=(teachers||[]).filter(t2=>t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate);
+  const plain=(teachers||[]).filter(t2=>t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate&&!t2.isHead);
   const rows=plain.map(tc=>{
     const ls=(schedule||[]).filter(l=>String(l.teacherNo||"")===String(tc.no));
     const occ=[];
@@ -11536,7 +11708,7 @@ function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
   const [teachF,setTeachF]=useState("all");
   const [stuF,setStuF]=useState("all");
   const [stuQ,setStuQ]=useState("");
-  const plainTeachers=(teachers||[]).filter(t2=>t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate);
+  const plainTeachers=(teachers||[]).filter(t2=>t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate&&!t2.isHead);
   const teachObj=teachF==="all"?null:plainTeachers.find(t2=>String(t2.no)===String(teachF));
   const teachCls=teachObj?clsDocs.filter(d=>d.kind&&(d.teacherNos||[]).map(String).includes(String(teachObj.no))):null;
   const clsObj=clsF==="all"?null:clsDocs.find(d=>d.id===clsF);
@@ -11718,7 +11890,7 @@ ${`</html>`}`;
   // Survey data for report
   const allResponses = loadSurveyResponses();
   const allQuestions = loadSurveyQuestions();
-  const filteredTeachers = teachObj ? [teachObj] : selectedArea==="all" ? teachers.filter(t2=>!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate) : teachers.filter(t2=>t2.area===selectedArea&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate);
+  const filteredTeachers = teachObj ? [teachObj] : selectedArea==="all" ? teachers.filter(t2=>!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate&&!t2.isHead) : teachers.filter(t2=>t2.area===selectedArea&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate&&!t2.isHead);
 
   // Survey target helpers
  // area_teachers = handled separately
@@ -12710,7 +12882,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
   const [sResAreaFilter, setSResAreaFilter] = useState("all");
   // Sonuç filtreleri: alan · sınıf · sınıf öğretmeni · öğrenci
   const [sResStu,setSResStu]=useState("");
-  const svTeachers=(teachers||[]).filter(t2=>t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate);
+  const svTeachers=(teachers||[]).filter(t2=>t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate&&!t2.isHead);
   const respPass=r=>{
     const st=(students||[]).find(x=>String(x.no)===String(r.studentNo))||{};
     const area=r.studentArea||st.area;
@@ -12826,7 +12998,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
     setStudio(null); setViewMode("list");
   }
   const expectedFor=sv=>{
-    if(sv.targetType==="teachers"||sv.targetType==="teachers_area") return (teachers||[]).filter(t2=>t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate&&(sv.targetType==="teachers"||(sv.targetAreas||[]).includes(t2.area))).length;
+    if(sv.targetType==="teachers"||sv.targetType==="teachers_area") return (teachers||[]).filter(t2=>t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate&&!t2.isHead&&(sv.targetType==="teachers"||(sv.targetAreas||[]).includes(t2.area))).length;
     return (students||[]).filter(st=>!st.isAdmin&&(sv.targetType!=="area"||(sv.targetAreas||[]).includes(st.area))).length;
   };
   function startCreateSurvey(){
@@ -14270,7 +14442,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
       unsub = window.__FB.onAllMessages(allMsgs=>{
         const unread = allMsgs.filter(m=>{
           if(m.read) return false;
-          if((m.senderId==="admin"||m.fromType==="admin")&&m.recipientId===myId) return true;
+          if((m.senderId==="admin"||m.fromType==="admin"||m.fromType==="head")&&m.recipientId===myId) return true;
           if((m.senderId==="admin"||m.fromType==="admin")&&(m.recipientGroup==="allTeachers"||m.recipientGroup==="all"||m.recipientGroup==="area_"+teacher.area)) return true;
           return false;
         });
@@ -15549,6 +15721,13 @@ function StudentFeedbackPanel({student, a, lang, toast}) {
 
   // Load sent feedback from localStorage
   const FEEDBACK_KEY = `aat-feedback-${student.id}`;
+  // Bölümün sorumlusu (varsa): config/heads → {areas:{<alan>:{name,no}}}
+  const [head,setHead]=useState(null);
+  const [toHead,setToHead]=useState(false);
+  useEffect(()=>{
+    const F=window.__FB; if(!F||!F.isConfigured()) return;
+    F.getDoc(F.doc(F.db,"config","heads")).then(d=>{ const h=d.exists()&&((d.data().areas||{})[student.area]); setHead(h&&h.no?h:null); }).catch(()=>{});
+  },[student.area]);
   const [history, setHistory] = useState(()=>{
     try { const r=localStorage.getItem(FEEDBACK_KEY); return r?JSON.parse(r):[]; } catch { return []; }
   });
@@ -15572,12 +15751,14 @@ function StudentFeedbackPanel({student, a, lang, toast}) {
       read: false,
     };
     // Save as admin message via Firebase
+    const viaHead = toHead && head;
     const msg = {
       ...feedback,
-      to: lang==="en"?"Admin":K("Rêveber"),
+      to: viaHead ? head.name : (lang==="en"?"Admin":K("Rêveber")),
       fromType: "student",
-      direction: "inbox_admin",
-      toRole: "admin",
+      direction: viaHead ? "inbox_head" : "inbox_admin",
+      toRole: viaHead ? "head" : "admin",
+      ...(viaHead ? {toArea: student.area} : {}),
       isStudentFeedback: true,
     };
     try { await fbSave("message", msg); } catch(e) { console.warn("feedback send:", e); }
@@ -15600,6 +15781,20 @@ function StudentFeedbackPanel({student, a, lang, toast}) {
         fontSize:11,color:"var(--text)",lineHeight:1.6}}>
         ℹ️ {lbl("adminNote")}
       </div>
+
+      {/* Alıcı: yönetim ya da bölüm sorumlusu */}
+      {head&&(
+        <Card style={{marginBottom:10}}>
+          <div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:10}}>{lang==="en"?"Send to":K("Ji kê re")}</div>
+          <div style={{display:"flex",gap:8}}>
+            {[[false,"🛡 "+(lang==="en"?"Admin":K("Rêveber"))],[true,"🎓 "+(lang==="en"?"Department head":K("Berpirsê beşê"))+" · "+head.name]].map(([v,lb])=>(
+              <button key={String(v)} data-to-head={v?"1":"0"} onClick={()=>setToHead(v)}
+                style={{flex:1,padding:"10px 6px",borderRadius:10,fontSize:12,fontWeight:toHead===v?700:500,cursor:"pointer",
+                  background:toHead===v?"#0f2f38":"var(--bg2)",color:toHead===v?"#fff":"var(--text2)",border:"1.5px solid "+(toHead===v?"#0f2f38":"var(--border)")}}>{lb}</button>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Type selector */}
       <Card style={{marginBottom:10}}>
@@ -15624,7 +15819,7 @@ function StudentFeedbackPanel({student, a, lang, toast}) {
       {/* Compose */}
       <Card style={{marginBottom:10}}>
         <div style={{marginBottom:10,padding:"8px 10px",background:typeBg,borderRadius:8,fontSize:11,fontWeight:600,color:typeColor}}>
-          {(L.types[feedbackType]?.[lang]||L.types[feedbackType]?.ku)} — {lang==="en"?"Sent directly to admin":K("Rasterast li admin tê şandin")}
+          {(L.types[feedbackType]?.[lang]||L.types[feedbackType]?.ku)} — {toHead&&head?(lang==="en"?"Sent to the department head":K("Ji berpirsê beşê re tê şandin")):(lang==="en"?"Sent directly to admin":K("Rasterast li admin tê şandin"))}
         </div>
         <div style={{marginBottom:12}}>
           <label style={{fontSize:11,color:"var(--text2)",fontWeight:600,display:"block",marginBottom:5}}>{lbl("subject")}</label>
@@ -15662,17 +15857,17 @@ function StudentFeedbackPanel({student, a, lang, toast}) {
         <Card>
           <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:10}}>📋 {lbl("history")}</div>
           {history.slice(0,10).map((fb,i)=>{
-            const tColor = window.__FB.type==="complaint"?"#dc2626":window.__FB.type==="question"?"#0f2f38":"#16a34a";
-            const tLabel = (L.types[window.__FB.type]?.[lang]||L.types[window.__FB.type]?.ku)||window.__FB.type;
+            const tColor = fb.type==="complaint"?"#dc2626":fb.type==="question"?"#0f2f38":"#16a34a";
+            const tLabel = (L.types[fb.type]?.[lang]||L.types[fb.type]?.ku)||fb.type;
             return(
-              <div key={window.__FB.id} style={{padding:"10px 0",borderBottom:i<Math.min(history.length,10)-1?"0.5px solid var(--border)":"none"}}>
+              <div key={fb.id} style={{padding:"10px 0",borderBottom:i<Math.min(history.length,10)-1?"0.5px solid var(--border)":"none"}}>
                 <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
                   <span style={{fontSize:10,padding:"1px 8px",borderRadius:8,background:tColor+"22",color:tColor,fontWeight:700}}>{tLabel}</span>
-                  {window.__FB.anonymous&&<span style={{fontSize:10,color:"var(--text2)"}}>🔒</span>}
-                  <span style={{marginLeft:"auto",fontSize:10,color:"var(--text2)"}}>{window.__FB.time}</span>
+                  {fb.anonymous&&<span style={{fontSize:10,color:"var(--text2)"}}>🔒</span>}
+                  <span style={{marginLeft:"auto",fontSize:10,color:"var(--text2)"}}>{fb.time}</span>
                 </div>
-                <div style={{fontSize:12,fontWeight:600,color:"var(--text)"}}>{window.__FB.subject}</div>
-                <div style={{fontSize:11,color:"var(--text2)",marginTop:2,lineHeight:1.4}}>{window.__FB.body}</div>
+                <div style={{fontSize:12,fontWeight:600,color:"var(--text)"}}>{fb.subject}</div>
+                <div style={{fontSize:11,color:"var(--text2)",marginTop:2,lineHeight:1.4}}>{fb.body}</div>
               </div>
             );
           })}
@@ -16534,7 +16729,7 @@ function LoginScreen({students,teachers,t,lang,rawLang,setLang,onLogin,onForgot,
                   } catch(__){}
                 }
               }
-              if(tc){ matched = tc; matchedType = tc.isGate ? "gate" : tc.isPress ? "press" : tc.isRegistrar ? "registrar" : tc.isAdmin ? "admin" : "teacher"; }
+              if(tc){ matched = tc; matchedType = tc.isGate ? "gate" : tc.isHead ? "head" : tc.isPress ? "press" : tc.isRegistrar ? "registrar" : tc.isAdmin ? "admin" : "teacher"; }
             }
             break;
           }
@@ -16559,7 +16754,7 @@ function LoginScreen({students,teachers,t,lang,rawLang,setLang,onLogin,onForgot,
       for(const tc of tcList){
         if(await verifyPassword(passInput, tc.pass)){
           matched = tc;
-          matchedType = tc.isGate ? "gate" : tc.isPress ? "press" : tc.isRegistrar ? "registrar" : tc.isAdmin ? "admin" : "teacher";
+          matchedType = tc.isGate ? "gate" : tc.isHead ? "head" : tc.isPress ? "press" : tc.isRegistrar ? "registrar" : tc.isAdmin ? "admin" : "teacher";
           break;
         }
       }
@@ -18045,7 +18240,7 @@ function App(){
       }).catch(()=>{});
     }
     if (rec) {
-      const type = isStudent ? "student" : (rec.isGate ? "gate" : rec.isPress ? "press" : rec.isRegistrar ? "registrar" : rec.isAdmin ? "admin" : "teacher");
+      const type = isStudent ? "student" : (rec.isGate ? "gate" : rec.isHead ? "head" : rec.isPress ? "press" : rec.isRegistrar ? "registrar" : rec.isAdmin ? "admin" : "teacher");
       setCurrentUser({ ...rec, type });
       setScreen(type);
       // Oturum geri yüklenince de (sayfa yenileme) yönetici dizin eşitlemesi çalışsın
@@ -18083,7 +18278,7 @@ function App(){
   // Anlık bildirim kaydı: giriş yapılmış + izin verilmişse bu cihazı kaydet (dil/alan değişince güncellenir)
   useEffect(()=>{
     if(!currentUser||!window.__FB||!window.__FB.enablePush) return;
-    const roleOf=t=>t==="student"?"student":["registrar","press","admin","gate"].includes(t)?t:"teacher";
+    const roleOf=t=>t==="student"?"student":["registrar","press","admin","gate","head"].includes(t)?t:"teacher";
     const go=()=>window.__FB.enablePush(roleOf(currentUser.type),lang,currentUser.area||"");
     if(notifPerm==="granted") go();
     window.addEventListener("aat-notif-granted",go);
@@ -18424,6 +18619,9 @@ function App(){
       )}
       {screen==="gate"&&currentUser&&(
         <GatePanel user={currentUser} lang={lang} toast={toast} onLogout={handleLogout}/>
+      )}
+      {screen==="head"&&currentUser&&(
+        <HeadPanel user={currentUser} students={students} teachers={teachers} schedule={schedule} t={t} lang={lang} toast={toast} onLogout={handleLogout} onSettings={()=>setShowSettings(true)}/>
       )}
       {screen==="press"&&currentUser&&(
         <PressPanel user={currentUser} lang={lang} toast={toast} onLogout={handleLogout}/>

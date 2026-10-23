@@ -134,7 +134,7 @@ async function push(docs, build, link, tag) {
   }
   await Promise.all(dead.map(t => admin.firestore().collection("pushTokens").doc(t).delete().catch(() => {})));
 }
-const STAFF = ["teacher", "registrar", "press", "admin"];
+const STAFF = ["teacher", "registrar", "press", "admin", "head"];
 
 // Ana akademi: özel / toplu mesaj
 exports.pushMessage = onDocumentCreated("messages/{id}", async (ev) => {
@@ -144,7 +144,8 @@ exports.pushMessage = onDocumentCreated("messages/{id}", async (ev) => {
   else if (typeof m.recipientId === "string" && m.recipientId.startsWith("t_")) {
     const t = await admin.firestore().collection("teachers").doc(m.recipientId.slice(2)).get();
     if (t.exists) docs = await tokens("aat", "no", t.get("no"));
-  } else if (m.recipientId === "admin" || m.toRole === "admin") docs = await tokens("aat", "role", ["admin", "registrar"]);
+  } else if (m.toRole === "head" && m.toArea) docs = (await tokens("aat", "area", m.toArea)).filter(d => d.get("role") === "head");
+  else if (m.recipientId === "admin" || m.toRole === "admin") docs = await tokens("aat", "role", ["admin", "registrar"]);
   else if (m.recipientGroup === "all") docs = await tokens("aat");
   else if (m.recipientGroup === "allStudents") docs = await tokens("aat", "role", "student");
   else if (m.recipientGroup === "allTeachers") docs = await tokens("aat", "role", STAFF);
