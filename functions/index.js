@@ -136,6 +136,15 @@ async function push(docs, build, link, tag) {
 }
 const STAFF = ["teacher", "registrar", "press", "admin", "head"];
 
+// Deneme bildirimi: giriş yapmış kullanıcının KENDİ kayıtlı cihazlarına (Ayarlar → "Test bildirimi")
+exports.pushTest = onCall(async (req) => {
+  if (!req.auth) throw new HttpsError("unauthenticated", "Giriş gerekli");
+  const s = await admin.firestore().collection("pushTokens").where("uid", "==", req.auth.uid).get();
+  if (!s.docs.length) return { ok: false, count: 0 };
+  await push(s.docs, l => ({ title: tx(l, "msg"), body: "✅ Test" }), "/app/", "aat-test");
+  return { ok: true, count: s.docs.length };
+});
+
 // Ana akademi: özel / toplu mesaj
 exports.pushMessage = onDocumentCreated("messages/{id}", async (ev) => {
   const m = ev.data && ev.data.data(); if (!m) return;

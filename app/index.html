@@ -676,18 +676,25 @@
     // Uygulama kapalıyken de mesaj, duyuru, ödev vb. telefona gelir (sunucu: functions/index.js push*).
     async enablePush(role, lang, area) {
       try {
-        if (!VAPID_KEY || /^YOUR_/.test(VAPID_KEY) || EMU || !auth.currentUser) return { ok: false, reason: "off" };
-        if (typeof Notification === "undefined" || Notification.permission !== "granted" || !("serviceWorker" in navigator)) return { ok: false, reason: "perm" };
+        if (!VAPID_KEY || /^YOUR_/.test(VAPID_KEY) || EMU || !auth.currentUser) return (window.__AAT_PUSH = { ok: false, reason: "off" });
+        if (typeof Notification === "undefined" || Notification.permission !== "granted" || !("serviceWorker" in navigator)) return (window.__AAT_PUSH = { ok: false, reason: "perm" });
         const m = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js");
-        if (!(await m.isSupported())) return { ok: false, reason: "unsupported" };
+        if (!(await m.isSupported())) return (window.__AAT_PUSH = { ok: false, reason: "unsupported" });
         const reg = (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.ready);
         const token = await m.getToken(m.getMessaging(app), { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
         if (!token) return { ok: false, reason: "notoken" };
         await setDoc(doc(db, "pushTokens", token), { uid: auth.currentUser.uid, no: auth.currentUser.email.split("@")[0], role, app: "aat",
           lang: lang || "ku", area: area || "", updatedAt: serverTimestamp() });
         try { localStorage.setItem("aat-push-token", token); } catch (_) {}
-        return { ok: true };
-      } catch (e) { console.warn("[push]", e); return { ok: false, reason: (e && e.code) || "error" }; }
+        return (window.__AAT_PUSH = { ok: true });
+      } catch (e) { console.warn("[push]", e); return (window.__AAT_PUSH = { ok: false, reason: (e && (e.code || e.message)) || "error" }); }
+    },
+    // Ayarlar → "Test bildirimi": sunucu bu kullanıcının kayıtlı cihazlarına deneme bildirimi yollar
+    async pushTest() {
+      const m = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js");
+      const fns = m.getFunctions(app, "europe-west1");
+      if (EMU) m.connectFunctionsEmulator(fns, "127.0.0.1", 5001);
+      return (await m.httpsCallable(fns, "pushTest")({})).data;
     },
     // Çıkışta bu cihazın kaydını sil (ortak cihazda bir sonraki kişiye bildirim gitmesin)
     async disablePush() {
@@ -18411,6 +18418,21 @@ function SettingsSheet({open, onClose, dark, onThemeToggle, lang, rawLang, setLa
     }
   },[open]);
   
+  // Deneme bildirimi: cihaz kaydını yeniler, sonra sunucudan bu cihaza bildirim ister
+  const [testing,setTesting]=useState(false);
+  async function handlePushTest(){
+    if(permission!=="granted"){ const r=await requestPermission(); if(r!=="granted"){ toast("⚠ "+(lang==="en"?"Notifications are blocked — allow them in the phone settings for this app":K("Agahdarî hatine astengkirin — di mîhengên têlefonê de ji bo vê sepanê destûr bide")),7000); return; } }
+    setTesting(true);
+    try{
+      const F=window.__FB;
+      const u=F&&F.auth&&F.auth.currentUser;
+      const reg=(window.__AAT_PUSH&&window.__AAT_PUSH.ok)?window.__AAT_PUSH:await F.enablePush((window.__AAT_ROLE||"teacher"),lang,"");
+      if(!reg||!reg.ok){ toast("⚠ "+(lang==="en"?"This device could not be registered":K("Ev cîhaz nehat tomarkirin"))+" ("+((reg&&reg.reason)||"?")+")",8000); return; }
+      const r=await F.pushTest();
+      toast(r&&r.count?("✅ "+(lang==="en"?"Test sent — the notification should arrive in a few seconds":K("Test hate şandin — agahdarî di çend saniyeyan de tê"))):("⚠ "+(lang==="en"?"No registered device":K("Cîhazeke tomarkirî tune"))),7000);
+    }catch(e){ toast("❌ "+((e&&(e.code||e.message))||e),8000); }
+    finally{ setTesting(false); }
+  }
   async function handleNotifToggle(){
     if(permission==="granted"){
       toast(lang==="en"?"✓ Notifications already enabled – disable in browser settings":K("✓ Agahdarî çalak e – Ji mîhengên geroka neçalak bike"));
@@ -18486,6 +18508,12 @@ function SettingsSheet({open, onClose, dark, onThemeToggle, lang, rawLang, setLa
             :(lang==="en"?"Tap to enable":K("Bikirtînin ji bo çalakkirinê")),
         <Toggle on={permission==="granted"}/>,
         handleNotifToggle
+      )}
+      {settingRow("🧪",
+        lang==="en"?"Test notification":K("Agahdariya ceribandinê"),
+        lang==="en"?"Sends a notification to this phone":K("Agahdariyekê ji vê têlefonê re dişîne"),
+        <span style={{fontSize:16}}>{testing?"⏳":"▶"}</span>,
+        handlePushTest
       )}
       
       
@@ -18720,6 +18748,7 @@ function App(){
   useEffect(()=>{
     if(!currentUser||!window.__FB||!window.__FB.enablePush) return;
     const roleOf=t=>t==="student"?"student":["registrar","press","admin","gate","head"].includes(t)?t:"teacher";
+    window.__AAT_ROLE=roleOf(currentUser.type);
     const go=()=>window.__FB.enablePush(roleOf(currentUser.type),lang,currentUser.area||"");
     if(notifPerm==="granted") go();
     window.addEventListener("aat-notif-granted",go);
