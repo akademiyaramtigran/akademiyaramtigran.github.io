@@ -3977,6 +3977,70 @@ function useToast(){
   return [msg,toast];
 }
 
+// ── Tarih seçici (uygulama dilinde) ────────────────────────────────────────
+//  Telefonların hazır tarih seçicisi Kurmancî/Zazakî bilmediği için İngilizce açılıyordu.
+//  <DateInput> aynı arayüzü korur: value "YYYY-MM-DD", onChange({target:{value}}), min, max.
+const CAL_MONTHS_KU=["Çile","Sibat","Adar","Nîsan","Gulan","Hezîran","Tîrmeh","Tebax","Îlon","Çiriya Pêşîn","Çiriya Paşîn","Berfanbar"];
+const CAL_MONTHS_TR=["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+const CAL_MONTHS_EN=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const CAL_WD_KU=["Dş","Sş","Çş","Pş","În","Şş","Yş"], CAL_WD_TR=["Pt","Sa","Ça","Pe","Cu","Ct","Pz"], CAL_WD_EN=["Mo","Tu","We","Th","Fr","Sa","Su"];
+function calMonths(){ const L=RL(); return L==="en"?CAL_MONTHS_EN:L==="tr"?CAL_MONTHS_TR:CAL_MONTHS_KU.map(m=>K(m)); }
+function calWeekdays(){ const L=RL(); return L==="en"?CAL_WD_EN:L==="tr"?CAL_WD_TR:CAL_WD_KU.map(m=>K(m)); }
+// "2026-10-26" → "26 Çiriya Pêşîn 2026" (uygulama dilinde)
+function fmtDateTx(v){
+  const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(v||"")); if(!m) return "";
+  return (+m[3])+" "+calMonths()[+m[2]-1]+" "+m[1];
+}
+function DateInput({value,onChange,style,min,max,id,disabled,"aria-label":ariaLabel,placeholder}){
+  const [open,setOpen]=useState(false);
+  const pad=n=>String(n).padStart(2,"0");
+  const today=new Date(); const todayStr=today.getFullYear()+"-"+pad(today.getMonth()+1)+"-"+pad(today.getDate());
+  const base=/^\d{4}-\d{2}-\d{2}$/.test(value||"")?value:(max&&max<todayStr?max:todayStr);
+  const [ym,setYm]=useState(()=>({y:+base.slice(0,4),m:+base.slice(5,7)-1}));
+  useEffect(()=>{ if(open) setYm({y:+base.slice(0,4),m:+base.slice(5,7)-1}); },[open]);
+  const L=RL(), months=calMonths(), wds=calWeekdays();
+  const W=(ku,en)=>L==="en"?en:K(ku);
+  const pick=d=>{ onChange&&onChange({target:{value:d}}); setOpen(false); };
+  const ok=d=>(!min||d>=min)&&(!max||d<=max);
+  const first=new Date(ym.y,ym.m,1), lead=(first.getDay()+6)%7, dim=new Date(ym.y,ym.m+1,0).getDate();
+  const cells=[]; for(let i=0;i<lead;i++) cells.push(null); for(let d=1;d<=dim;d++) cells.push(d);
+  const yNow=today.getFullYear(), yMin=min?+min.slice(0,4):yNow-90, yMax=max?+max.slice(0,4):yNow+5;
+  const years=[]; for(let y=yMax;y>=yMin;y--) years.push(y);
+  const step=k=>setYm(p=>{ let m=p.m+k,y=p.y; if(m<0){m=11;y--;} if(m>11){m=0;y++;} return {y,m}; });
+  const sel={padding:"8px 6px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:14,fontFamily:"inherit"};
+  const nav={width:38,height:38,borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:18,cursor:"pointer"};
+  return(<>
+    <button type="button" id={id} aria-label={ariaLabel} disabled={disabled} data-date-input="1" data-value={value||""} onClick={()=>setOpen(true)}
+      style={{width:"100%",boxSizing:"border-box",textAlign:"left",cursor:disabled?"default":"pointer",fontFamily:"inherit",color:value?"var(--text)":"var(--text2)",
+        padding:"10px 12px",border:"1px solid var(--border2)",borderRadius:10,background:"var(--bg2)",fontSize:14,minHeight:40,...(style||{})}}>
+      📅 {value?fmtDateTx(value):(placeholder||W("Tarîx hilbijêre","Choose a date"))}
+    </button>
+    {open&&ReactDOM.createPortal(
+      <div onClick={()=>setOpen(false)} style={{position:"fixed",inset:0,zIndex:20000,background:"rgba(0,0,0,.5)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+        <div role="dialog" data-cal="1" onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:340,background:"var(--surface)",color:"var(--text)",borderRadius:18,padding:14,boxShadow:"0 12px 40px rgba(0,0,0,.3)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10}}>
+            <button type="button" aria-label="‹" onClick={()=>step(-1)} style={nav}>‹</button>
+            <select aria-label={W("Meh","Month")} value={ym.m} onChange={e=>setYm(p=>({...p,m:+e.target.value}))} style={{...sel,flex:1,minWidth:0}}>
+              {months.map((n,i)=><option key={i} value={i}>{n}</option>)}</select>
+            <select aria-label={W("Sal","Year")} value={ym.y} onChange={e=>setYm(p=>({...p,y:+e.target.value}))} style={sel}>
+              {(years.includes(ym.y)?years:[ym.y,...years]).map(y=><option key={y} value={y}>{y}</option>)}</select>
+            <button type="button" aria-label="›" onClick={()=>step(1)} style={nav}>›</button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,textAlign:"center"}}>
+            {wds.map(w=><div key={w} style={{fontSize:11,fontWeight:700,color:"var(--text2)",padding:"4px 0"}}>{w}</div>)}
+            {cells.map((d,i)=>{ if(!d) return <div key={"e"+i}/>;
+              const ds=ym.y+"-"+pad(ym.m+1)+"-"+pad(d), on=ds===value, en=ok(ds), isT=ds===todayStr;
+              return <button type="button" key={ds} data-day={ds} disabled={!en} onClick={()=>pick(ds)} style={{height:38,borderRadius:10,fontSize:14,fontWeight:on||isT?800:500,cursor:en?"pointer":"default",
+                border:isT&&!on?"1.5px solid var(--accent)":"1px solid transparent",background:on?"#0f2f38":"transparent",color:on?"#fff":en?"var(--text)":"var(--text2)",opacity:en?1:.35}}>{d}</button>; })}
+          </div>
+          <div style={{display:"flex",gap:8,marginTop:12}}>
+            <button type="button" onClick={()=>{ onChange&&onChange({target:{value:""}}); setOpen(false); }} style={{flex:1,padding:10,borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,cursor:"pointer"}}>{W("Paqij bike","Clear")}</button>
+            {ok(todayStr)&&<button type="button" onClick={()=>pick(todayStr)} style={{flex:1,padding:10,borderRadius:10,border:"none",background:"#0f2f38",color:"#fff",fontWeight:700,cursor:"pointer"}}>{W("Îro","Today")}</button>}
+          </div>
+        </div>
+      </div>,document.body)}
+  </>);
+}
 function Sheet({open,onClose,title,children}){
   return(
     <>
@@ -4835,103 +4899,73 @@ function AddTeacherSheet({open,onClose,defaultArea,teachers,t,lang,toast,onSave,
   );
 }
 
-function AddLessonSheet({open,onClose,defaultArea,defaultClassId,t,lang,toast,onSave,teachers}){
-  const [lessonType,setLessonType]=useState("main"); // "main" | "extra"
+function AddLessonSheet({open,onClose,defaultArea,defaultClassId,t,lang,toast,onSave,teachers,lockArea=false}){
+  // Takvimden gün seçilir: ders o güne eklenir; "Her hafta tekrarlansın" işaretliyse o günden itibaren
+  // her hafta aynı gün ve saatte tekrarlar (dönem seçilirse dönem bitişine kadar).
   const [area,setArea]=useState(defaultArea||"sinema");
   const [classId,setClassId]=useState(defaultClassId||""); // "" = sınıfsız (alanın bütün öğrencileri)
   const clsDocs=useClassDocs("classes",!!open);
   const clsOpts=lessonClassOptions(clsDocs,area);
-  // Dönem: haftalık ders bu dönemin tarihleri içinde her hafta tekrarlanır (varsayılan: aktif dönem)
   const terms=useTerms();
   const [term,setTerm]=useState(terms.activeId||"");
   useEffect(()=>{ if(!term&&terms.activeId) setTerm(terms.activeId); },[terms.activeId]);
   const [teacherNo,setTeacherNo]=useState(""); // "" = atanmamış (alan öğretmenleri görür)
-  const [day,setDay]=useState("Dûşem");
   const [name,setName]=useState("");
+  const [date,setDate]=useState(()=>new Date().toISOString().slice(0,10));
+  const [weekly,setWeekly]=useState(false);
   const [start,setStart]=useState("09:00");
   const [end,setEnd]=useState("10:30");
   const [loc,setLoc]=useState("");
-  // Ek ders için belirli tarihler
-  const [extraDates,setExtraDates]=useState([]); // ["2025-09-03","2025-09-10",...]
-  const [dateInput,setDateInput]=useState("");
-  const DAYS=["Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî","Yekşem"];
+  const DAY_OF=["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"];
 
   useEffect(()=>{if(defaultArea) setArea(defaultArea);},[defaultArea]);
   useEffect(()=>{setClassId(defaultClassId||"");},[defaultClassId]);
   // Sınıf seçilince sınıf öğretmeni ön seçili gelir
   useEffect(()=>{ const d=clsDocs.find(x=>x.id===classId); if(d&&!teacherNo&&(d.teacherNos||[]).length) setTeacherNo(String(d.teacherNos[0])); },[classId,clsDocs.length]);
 
-  function addDate(){
-    if(!dateInput) return;
-    if(extraDates.includes(dateInput)){toast("⚠ "+t.dateAlreadyAdded); return;}
-    setExtraDates(p=>[...p,dateInput].sort());
-    setDateInput("");
-  }
-  function removeDate(d){ setExtraDates(p=>p.filter(x=>x!==d)); }
-
   function handleSave(){
     if(!name.trim()){toast("⚠ "+t.lessonName); return;}
-    if(lessonType==="extra"&&extraDates.length===0){
-      toast("⚠ "+t.addAtLeastOneDate);
-      return;
-    }
+    // Yoklama listesi sınıftan gelir: ders bir sınıfa bağlı olmalı
+    if(!clsOpts.some(d=>d.id===classId)){ toast("⚠ "+(clsOpts.length?(lang==="en"?"Choose a class":K("Sinifekê hilbijêre")):(lang==="en"?"This field has no class yet — ask Student Affairs to open one":K("Di vê qadê de hîn sinif tune — ji Karûbarên Xwendekaran bixwaze ku sinifekê veke"))),5000); return; }
+    if(!date){ toast("⚠ "+(lang==="en"?"Choose a day on the calendar":K("Rojekê ji salnameyê hilbijêre"))); return; }
+    if(end<=start){ toast("⚠ "+(lang==="en"?"Check the start and end time":K("Saeta destpêk û dawiyê kontrol bike"))); return; }
     const tcSel=(teachers||[]).find(x=>x.no===teacherNo);
+    const day=DAY_OF[new Date(date+"T12:00:00").getDay()];
     const ls={
       id:Date.now(),area,name:name.trim(),start,end,loc:loc||"—",
       classId:clsOpts.some(d=>d.id===classId)?classId:null,
-      term:lessonType==="main"&&term?term:null,
-      lessonType, // "main" veya "extra"
-      day: lessonType==="main" ? day : null,
-      extraDates: lessonType==="extra" ? extraDates : null,
+      lessonType: weekly?"main":"extra",
+      day: weekly?day:null,
+      from: weekly?date:null,          // haftalık tekrar bu günden başlar
+      term: weekly&&term?term:null,
+      extraDates: weekly?null:[date],
       teacherNo: teacherNo||null,
       teacherName: tcSel?tcSel.name:null,
     };
     onSave(ls);
-    const label = lessonType==="main" ? (t.days?.[day]||day) : extraDates.length+" "+t.datesLabel;
-    toast("✓ "+name.trim()+" · "+label);
-    setName(""); setLoc(""); setExtraDates([]); setDateInput("");
+    toast("✓ "+name.trim()+" · "+fmtDateTx(date)+(weekly?" · 🔁":""));
+    setName(""); setLoc("");
   }
-
-  const tabBtnStyle=(active)=>({
-    flex:1,padding:"9px 8px",fontSize:12,fontWeight:active?700:500,borderRadius:8,border:"none",cursor:"pointer",
-    background:active?"linear-gradient(135deg,#0f2f38,#0f2f38)":"var(--bg2)",
-    color:active?"#fff":"var(--text2)",transition:"all 0.18s"
-  });
 
   return(
     <Sheet open={open} onClose={onClose} title={"➕ "+t.addLesson}>
-      {/* Ders tipi seçimi */}
-      <div style={{display:"flex",gap:6,marginBottom:16,background:"var(--bg2)",padding:4,borderRadius:10}}>
-        <button style={tabBtnStyle(lessonType==="main")} onClick={()=>setLessonType("main")}>
-          📅 {t.mainLesson}
-        </button>
-        <button style={tabBtnStyle(lessonType==="extra")} onClick={()=>setLessonType("extra")}>
-          🎨 {t.extraLesson}
-        </button>
-      </div>
-
-      {/* Açıklama */}
-      <div style={{fontSize:11,color:"var(--text2)",background:"var(--bg2)",borderRadius:8,padding:"8px 12px",marginBottom:14,lineHeight:1.6}}>
-        {lessonType==="main"
-          ? t.mainLessonHint
-          : t.extraLessonHint
-        }
-      </div>
-
       <FieldWrap label={t.artField}>
-        <select style={selectStyle} value={area} onChange={e=>{setArea(e.target.value);setClassId("");}}>
+        <select style={selectStyle} value={area} disabled={lockArea} onChange={e=>{setArea(e.target.value);setClassId("");}}>
           {AREAS.map(a=>(<option key={a.key} value={a.key}>{a.icon} {areaName(a.key,lang)}</option>))}
         </select>
       </FieldWrap>
       {/* Sınıf: ders yalnızca bu sınıfın öğrencilerine görünür, yoklama listesi bu sınıftır */}
       <FieldWrap label={"🏫 "+(lang==="en"?"Class":K("Sinif"))}>
         <select style={selectStyle} value={classId} onChange={e=>setClassId(e.target.value)}>
-          <option value="">— {area==="genel"?(lang==="en"?"All students":K("Hemû xwendekar")):(lang==="en"?"Whole field (no class)":K("Hemû qad (bê sinif)"))}</option>
-          {clsOpts.map(d=>(<option key={d.id} value={d.id}>{d.name} ({(d.studentNos||[]).length})</option>))}
+          <option value="">— {lang==="en"?"Choose a class":K("Sinifekê hilbijêre")}</option>
+          {clsOpts.map(d=>(<option key={d.id} value={d.id}>{classNameTx(d.name)} ({(d.studentNos||[]).length})</option>))}
         </select>
       </FieldWrap>
-      {/* Ders öğretmeni (isteğe bağlı) — atanırsa yalnızca o öğretmen görür */}
-      <FieldWrap label={(lang==="en"?"Teacher (optional)":K("Mamosteyê Dersê (vebijarkî)"))}>
+      <FieldWrap label={t.lessonName}>
+        <input style={inputStyle} value={name} onChange={e=>setName(e.target.value)} placeholder="Armoni – Gr. A"/>
+      </FieldWrap>
+      {/* Ders öğretmeni — atanırsa yalnızca o öğretmen görür */}
+      <FieldWrap label={(lang==="en"?"Teacher":K("Mamosteyê Dersê"))}>
         <select style={selectStyle} value={teacherNo} onChange={e=>setTeacherNo(e.target.value)}>
           <option value="">— {lang==="en"?"Unassigned (all field teachers see it)":K("Ne diyar (hemû mamosteyên qadê dibînin)")}</option>
           {(teachers||[]).filter(tc=>!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&!tc.isHead&&(area==="genel"||tc.area===area||tc.area==="genel")).map(tc=>(
@@ -4939,51 +4973,22 @@ function AddLessonSheet({open,onClose,defaultArea,defaultClassId,t,lang,toast,on
           ))}
         </select>
       </FieldWrap>
-
-      {lessonType==="main"&&(terms.list||[]).length>0&&(
-        <FieldWrap label={"📆 "+(lang==="en"?"Term (repeats weekly between its dates)":K("Demsal (di navbera tarîxên wê de her hefte dubare dibe)"))}>
+      <FieldWrap label={"📅 "+(lang==="en"?"Day":K("Roj"))}>
+        <DateInput value={date} onChange={e=>setDate(e.target.value)} id="ls-date"/>
+      </FieldWrap>
+      <label data-weekly="1" style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",marginBottom:12,cursor:"pointer",fontSize:13,fontWeight:600,color:"var(--text)"}}>
+        <input type="checkbox" checked={weekly} onChange={e=>setWeekly(e.target.checked)} style={{width:20,height:20}}/>
+        🔁 {lang==="en"?"Repeat every week":K("Her hefte dubare bibe")}
+        {weekly&&date&&<span style={{marginLeft:"auto",fontSize:11,color:"var(--text2)",fontWeight:500}}>{t.days?.[DAY_OF[new Date(date+"T12:00:00").getDay()]]||K(DAY_OF[new Date(date+"T12:00:00").getDay()])}</span>}
+      </label>
+      {weekly&&(terms.list||[]).length>0&&(
+        <FieldWrap label={"📆 "+(lang==="en"?"Until the end of term":K("Heta dawiya demsalê"))}>
           <select style={selectStyle} value={term} onChange={e=>setTerm(e.target.value)}>
-            <option value="">— {lang==="en"?"No term (always)":K("Bê demsal (her dem)")}</option>
+            <option value="">— {lang==="en"?"No end date":K("Bê dawî")}</option>
             {(terms.list||[]).map(tm=>(<option key={tm.id} value={tm.id}>{tm.label} · {tm.start} → {tm.end}</option>))}
           </select>
         </FieldWrap>
       )}
-      {lessonType==="main" ? (
-        <FieldWrap label={t.day}>
-          <select style={selectStyle} value={day} onChange={e=>setDay(e.target.value)}>
-            {DAYS.map(d=>(<option key={d} value={d}>{t.days?.[d]||d}</option>))}
-          </select>
-        </FieldWrap>
-      ) : (
-        <FieldWrap label={t.lessonDates}>
-          <div style={{display:"flex",gap:6,marginBottom:8}}>
-            <input style={{...inputStyle,flex:1,marginBottom:0}} type="date" value={dateInput} onChange={e=>setDateInput(e.target.value)}
-              onKeyDown={e=>{if(e.key==="Enter")addDate();}}/>
-            <button onClick={addDate} style={{padding:"0 14px",background:"#0f2f38",color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",flexShrink:0}}>
-              +
-            </button>
-          </div>
-          {extraDates.length>0 && (
-            <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:4}}>
-              {extraDates.map(d=>(
-                <span key={d} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"4px 10px",background:"rgba(15,47,56,0.10)",borderRadius:20,fontSize:11,fontWeight:600,color:"var(--text)",border:"1px solid rgba(15,47,56,0.2)"}}>
-                  📅 {d}
-                  <button onClick={()=>removeDate(d)} style={{background:"none",border:"none",cursor:"pointer",color:"#e53935",fontWeight:900,fontSize:13,lineHeight:1,padding:0,marginLeft:2}}>×</button>
-                </span>
-              ))}
-            </div>
-          )}
-          {extraDates.length===0&&(
-            <div style={{fontSize:11,color:"var(--text2)",textAlign:"center",padding:"8px 0"}}>
-              {t.noDatesYet}
-            </div>
-          )}
-        </FieldWrap>
-      )}
-
-      <FieldWrap label={t.lessonName}>
-        <input style={inputStyle} value={name} onChange={e=>setName(e.target.value)} placeholder="Armoni – Gr. A"/>
-      </FieldWrap>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <FieldWrap label={t.startTime}><input style={inputStyle} type="time" value={start} onChange={e=>setStart(e.target.value)}/></FieldWrap>
         <FieldWrap label={t.endTime}><input style={inputStyle} type="time" value={end} onChange={e=>setEnd(e.target.value)}/></FieldWrap>
@@ -5114,7 +5119,7 @@ function EditStudentSheet({student,onClose,t,lang,toast,onSave}){
       </FieldWrap>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <FieldWrap label={t.phone}><input style={inputStyle} value={phone} onChange={e=>setPhone(e.target.value)} type="tel" inputMode="tel" autoComplete="tel"/></FieldWrap>
-        <FieldWrap label={t.dobLabel}><input style={inputStyle} type="date" value={dob} onChange={e=>setDob(e.target.value)}/></FieldWrap>
+        <FieldWrap label={t.dobLabel}><DateInput style={inputStyle} value={dob} onChange={e=>setDob(e.target.value)}/></FieldWrap>
       </div>
       <FieldWrap label={t.emailLabel}><input style={inputStyle} value={email} onChange={e=>setEmail(e.target.value)} type="email" autoComplete="email" inputMode="email"/></FieldWrap>
       <FieldWrap label={t.addressLabel}><input style={inputStyle} value={address} onChange={e=>setAddress(e.target.value)}/></FieldWrap>
@@ -5246,7 +5251,7 @@ function EditTeacherSheet({teacher,onClose,t,lang,toast,onSave}){
       </FieldWrap>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <FieldWrap label={t.phone}><input style={inputStyle} value={phone} onChange={e=>setPhone(e.target.value)} type="tel" inputMode="tel" autoComplete="tel"/></FieldWrap>
-        <FieldWrap label={t.dobLabel}><input style={inputStyle} type="date" value={dob} onChange={e=>setDob(e.target.value)}/></FieldWrap>
+        <FieldWrap label={t.dobLabel}><DateInput style={inputStyle} value={dob} onChange={e=>setDob(e.target.value)}/></FieldWrap>
       </div>
       <FieldWrap label={t.emailLabel}><input style={inputStyle} value={email} onChange={e=>setEmail(e.target.value)} type="email" autoComplete="email" inputMode="email"/></FieldWrap>
       <FieldWrap label={t.addressLabel}><input style={inputStyle} value={address} onChange={e=>setAddress(e.target.value)}/></FieldWrap>
@@ -5333,7 +5338,7 @@ function EditTeacherSheet({teacher,onClose,t,lang,toast,onSave}){
 }
 
 /* ─── AREA DETAIL MODAL ─────────────────────────────────────────────────── */
-function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toast,onDataChange}){
+function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toast,onDataChange,schedMode="full"}){
   const [tab,setTab]=useState("students");
   const [showAddStudent,setShowAddStudent]=useState(false);
   const [showAddTeacher,setShowAddTeacher]=useState(false);
@@ -5378,7 +5383,7 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
           </div>
           <div style={{display:"flex",gap:0,borderBottom:"1px solid rgba(15,23,42,0.08)"}}>
             {tabs.map(tb=>(
-              <button key={tb.key} onClick={()=>setTab(tb.key)} style={{flex:1,padding:"9px 4px",fontSize:11,fontWeight:tab===tb.key?600:400,color:tab===tb.key?"var(--accent)":"#94a3b8",background:"none",border:"none",cursor:"pointer",borderBottom:tab===tb.key?"2px solid #0f2f38":"2px solid transparent",marginBottom:-2}}>
+              <button key={tb.key} data-area-tab={tb.key} onClick={()=>setTab(tb.key)} style={{flex:1,padding:"9px 4px",fontSize:11,fontWeight:tab===tb.key?600:400,color:tab===tb.key?"var(--accent)":"#94a3b8",background:"none",border:"none",cursor:"pointer",borderBottom:tab===tb.key?"2px solid #0f2f38":"2px solid transparent",marginBottom:-2}}>
                 {tb.label}
               </button>
             ))}
@@ -5447,13 +5452,13 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
             </>
           )}
           {tab==="schedule"&&(
-            <AdminScheduleTab fixedArea={areaKey} schedule={schedule} teachers={teachers} students={students} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>
+            <AdminScheduleTab mode={schedMode} fixedArea={areaKey} schedule={schedule} teachers={teachers} students={students} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>
           )}
         </div>
       </div>
       <AddStudentSheet open={showAddStudent} onClose={()=>setShowAddStudent(false)} defaultArea={areaKey} students={students} t={t} lang={lang} toast={toast} onSave={(s)=>{onDataChange("addStudent",s);setShowAddStudent(false);}}/>
       <AddTeacherSheet open={showAddTeacher} onClose={()=>setShowAddTeacher(false)} defaultArea={areaKey} teachers={teachers} t={t} lang={lang} toast={toast}
-        schedule={schedule}
+        schedule={schedMode==="view"?[]:schedule}
         onAssignLessons={(ids,tc)=>{ids.forEach(id=>{const ls=schedule.find(l=>String(l.id)===String(id));if(ls)onDataChange("updateSchedule",{...ls,teacherNo:tc.no,teacherName:tc.name});});}}
         onSave={(tc)=>{onDataChange("addTeacher",tc);setShowAddTeacher(false);}}/>
       {/* Student detail modal */}
@@ -6827,7 +6832,7 @@ function AddSpecialCardSheet({open,onClose,kind,teachers,t,lang,toast,onSave}){
         </FieldWrap>
       </div>
       <FieldWrap label={t.dobLabel}>
-        <input style={inputStyle} type="date" value={dob} onChange={e=>setDob(e.target.value)}/>
+        <DateInput style={inputStyle} value={dob} onChange={e=>setDob(e.target.value)}/>
       </FieldWrap>
       <FieldWrap label={t.addressLabel}>
         <input style={inputStyle} value={address} onChange={e=>setAddress(e.target.value)} placeholder="Amed..."/>
@@ -6906,7 +6911,7 @@ function EditSpecialCardSheet({card,onClose,t,lang,toast,onSave}){
       </FieldWrap>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <FieldWrap label={t.phone}><input style={inputStyle} value={phone} onChange={e=>setPhone(e.target.value)} type="tel" inputMode="tel" autoComplete="tel"/></FieldWrap>
-        <FieldWrap label={t.dobLabel}><input style={inputStyle} type="date" value={dob} onChange={e=>setDob(e.target.value)}/></FieldWrap>
+        <FieldWrap label={t.dobLabel}><DateInput style={inputStyle} value={dob} onChange={e=>setDob(e.target.value)}/></FieldWrap>
       </div>
       <FieldWrap label={t.emailLabel}><input style={inputStyle} value={email} onChange={e=>setEmail(e.target.value)} type="email" autoComplete="email" inputMode="email"/></FieldWrap>
       <FieldWrap label={t.addressLabel}><input style={inputStyle} value={address} onChange={e=>setAddress(e.target.value)}/></FieldWrap>
@@ -7397,7 +7402,7 @@ function AdminArchivePanel({lang,toast,adminName}){
           </div>
           <div>
             <div style={{fontSize:11,color:"var(--text2)",marginBottom:4}}>{L("date")}</div>
-            <input type="date" value={dateStr} onChange={e=>setDateStr(e.target.value)} style={inpStyle}/>
+            <DateInput value={dateStr} onChange={e=>setDateStr(e.target.value)} style={inpStyle}/>
           </div>
         </div>
         <div style={{fontSize:11,color:"var(--text2)",marginBottom:4}}>
@@ -7535,7 +7540,7 @@ function HeadPanel(props){
   if(isKidArea(props.user&&props.user.area)) return <KidHeadPanel {...props}/>;
   return <AatHeadPanel {...props}/>;
 }
-function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onSettings}){
+function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onSettings,onDataChange}){
   const [menuOpen,setMenuOpen]=useState(isPhoneNow);
   const [tab,setTab]=useState("announce");
   const [msgs,setMsgs]=useState([]);
@@ -7557,6 +7562,8 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
   const items=[
     {key:"announce",label:lang==="en"?"Announcements":K("Ragihandin")},
     {key:"messages",label:lang==="en"?"Messages":K("Peyam"),badge:unread},
+    {key:"schedule",label:lang==="en"?"Lesson schedule":K("Bernameya Dersan")},
+    {key:"leaves",label:lang==="en"?"Student leave":K("Destûra Xwendekaran")},
     {key:"surveys",label:lang==="en"?"Surveys":K("Ankêt")},
     {key:"reports",label:lang==="en"?"Reports":K("Rapor")},
   ];
@@ -7569,6 +7576,8 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
       <div className="scroll-area" style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
         {tab==="announce"&&<AnnouncementsPanel t={t} toast={toast} lang={lang} senderName={user.name} senderRole="head" senderArea={area} senderNo={myNo}/>}
         {tab==="messages"&&<HeadMessagesPanel user={user} inbox={inbox} sent={sent} teachers={aTeachers} lang={lang} t={t} toast={toast}/>}
+        {tab==="leaves"&&<LeavesPanel user={user} students={aStudents.filter(s=>!s.isAdmin)} area={area} all={ALL} lang={lang} toast={toast}/>}
+        {tab==="schedule"&&<AdminScheduleTab mode="head" byName={user.name} fixedArea={ALL?null:area} schedule={aSchedule} teachers={teachers||[]} students={aStudents} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>}
         {tab==="surveys"&&<HeadSurveysPanel user={user} students={aStudents} teachers={aTeachers} lang={lang} toast={toast}/>}
         {tab==="reports"&&<AdminReportCenter students={aStudents} teachers={aTeachers} schedule={aSchedule} lang={lang} t={t} toast={toast} byName={user.name} headArea={area}/>}
       </div>
@@ -7657,6 +7666,8 @@ function KidHeadPanel({user,t,lang,toast,onLogout,onSettings}){
   const items=[
     {key:"announce",label:lang==="en"?"Announcements":K("Ragihandin")},
     {key:"messages",label:lang==="en"?"Messages":K("Peyam"),badge:unread},
+    {key:"schedule",label:lang==="en"?"Lesson schedule":K("Bernameya Dersan")},
+    {key:"leaves",label:lang==="en"?"Student leave":K("Destûra Xwendekaran")},
     {key:"surveys",label:lang==="en"?"Surveys":K("Ankêt")},
     {key:"reports",label:lang==="en"?"Reports":K("Rapor")},
   ];
@@ -7686,6 +7697,8 @@ function KidHeadPanel({user,t,lang,toast,onLogout,onSettings}){
         extraItems={[...(onSettings?[{icon:"⚙️",label:t.settings||"Mîheng",onClick:onSettings}]:[]),{icon:"↩",label:t.logout||"Derkeve",onClick:onLogout,danger:true}]}/>
       <SpecialPanelHeader user={user} icon="🎼" lang={lang} onLogout={onLogout} onMenu={()=>setMenuOpen(true)} roleLabel={roleLabel}/>
       <div className="scroll-area" style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
+        {tab==="schedule"&&<KidHeadSchedule area={area} lang={lang} toast={toast}/>}
+        {tab==="leaves"&&<LeavesPanel user={user} students={kids.map(k=>({id:k.fireId,no:k.no,name:k.name,area:k.area}))} area={area} kid={true} lang={lang} toast={toast}/>}
         {tab==="announce"&&(<div>
           <div style={card}>
             <div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:6}}>📢 {W2("Ji dêûbavên beşê re ragihandin","Announcement to the department's parents")}</div>
@@ -7939,11 +7952,19 @@ function useClassDocs(coll,enabled=true){
   },[coll,enabled]);
   return list;
 }
+// Sınıf adı "1. Sınıf", "Sinif 1", "1. Sînif", "Class 1" gibi yazıldıysa her dilde kendiliğinden çevrilir
+// (ku: "1. Sînif" · tr: "1. Sınıf" · en: "Class 1"). Başka adlar (ör. "Koro A") yazıldığı gibi kalır.
+function classNameTx(name){
+  const n=String(name||"").trim();
+  const m=/^(\d{1,2})\s*\.?\s*(s[ıiî]n[ıiî]f[ıi]?|class|kl[aä]sse)$/i.exec(n)||/^(?:s[ıiî]n[ıiî]f|class)\s*(\d{1,2})$/i.exec(n);
+  if(!m) return n;
+  return RL()==="en"?"Class "+m[1]:m[1]+". "+K("Sînif");
+}
 function classLabel(d,lang){
   if(!d) return "";
-  if(d.kind==="area") return areaName(d.area,lang)+" · "+(d.name||"");
+  if(d.kind==="area") return areaName(d.area,lang)+" · "+classNameTx(d.name);
   if(d.kind==="workshop") return "🛠 "+(d.name||"")+(d.date?" · "+d.date:"");
-  return "🌐 "+(d.name||"");
+  return "🌐 "+classNameTx(d.name);
 }
 function inClass(d,no){ return !!d&&(d.studentNos||[]).map(String).includes(String(no)); }
 // Öğrencinin açık sınıfları (alan + genel + açık atölye)
@@ -8113,7 +8134,7 @@ function ClassStudio({cfg,lang,t,toast}){
         <input aria-label={W2("Navê sinifê","Class name")} style={{...inp,width:"100%"}} value={form.name} maxLength={80} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
           placeholder={isWs?W2("ör. Atolyeya Tomarkirina Deng","e.g. Sound Recording Workshop"):isArea?W2("ör. 1. Sinif · Koma A","e.g. 1st Class · Group A"):W2("ör. Çanda Muzîkê ya Hevpar","e.g. Shared Music Culture")}/>
         {isWs&&(<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:8,marginTop:8}}>
-          <label style={small}>📅 {W2("Tarîx","Date")}<input type="date" style={{...inp,width:"100%"}} value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/></label>
+          <label style={small}>📅 {W2("Tarîx","Date")}<DateInput style={{...inp,width:"100%"}} value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/></label>
           <label style={small}>🕐 {W2("Destpêk","Start")}<input type="time" style={{...inp,width:"100%"}} value={form.start} onChange={e=>setForm(f=>({...f,start:e.target.value}))}/></label>
           <label style={small}>🕐 {W2("Dawî","End")}<input type="time" style={{...inp,width:"100%"}} value={form.end} onChange={e=>setForm(f=>({...f,end:e.target.value}))}/></label>
           <label style={small}>📍 {W2("Cih","Place")}<input style={{...inp,width:"100%"}} value={form.loc} maxLength={80} onChange={e=>setForm(f=>({...f,loc:e.target.value}))}/></label>
@@ -8187,7 +8208,7 @@ function ClassStudio({cfg,lang,t,toast}){
       <div key={d.id} style={{...box,opacity:closed?.8:1}}>
         <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
           <div onClick={()=>setOpen(isOpen?null:d.id)} style={{flex:1,minWidth:170,cursor:"pointer"}}>
-            <div style={{fontWeight:800,color:"var(--text)"}}>{isOpen?"▾":"▸"} {isWs?"🛠 ":d.kind==="general"?"🌐 ":""}{d.name} <span style={small}>({ms.length} {MW()})</span>
+            <div style={{fontWeight:800,color:"var(--text)"}}>{isOpen?"▾":"▸"} {isWs?"🛠 ":d.kind==="general"?"🌐 ":""}{isWs?d.name:classNameTx(d.name)} <span style={small}>({ms.length} {MW()})</span>
               {isWs&&<span style={{marginLeft:6,fontSize:10.5,fontWeight:800,padding:"2px 8px",borderRadius:20,background:closed?"rgba(100,116,139,.15)":"rgba(22,163,74,.12)",color:closed?"var(--text2)":"#15803d"}}>{closed?"🔒 "+W2("Girtî","Closed"):"🟢 "+W2("Vekirî","Open")}</span>}</div>
             <div style={{...small,marginTop:2}}>👩‍🏫 {tns.length?tns.join(", "):W2("Mamosteyê sinifê tune","No class teacher")}{isWs&&d.guest?" · 🎤 "+d.guest:""}</div>
             {isWs?<div style={{...small,marginTop:2}}>📅 {d.date} · {d.start}–{d.end}{d.loc?" · 📍 "+d.loc:""}{d.attSummary?" · ✅ "+(d.attSummary.on||0)+" ⏱ "+(d.attSummary.late||0)+" ❌ "+(d.attSummary.off||0):""}</div>
@@ -8202,8 +8223,9 @@ function ClassStudio({cfg,lang,t,toast}){
           <div style={{marginTop:10,padding:10,borderRadius:10,background:"var(--bg2)"}}>
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
               <div style={{fontWeight:800,color:"var(--text)",flex:1}}>📅 {W2("Bernameya dersan","Lesson schedule")}</div>
-              <button onClick={()=>setAddLessonFor(d)} style={btn()}>➕ {W2("Ders zêde bike","Add lesson")}</button>
+              {!cfg.lessonsReadOnly&&<button onClick={()=>setAddLessonFor(d)} style={btn()}>➕ {W2("Ders zêde bike","Add lesson")}</button>}
             </div>
+            {cfg.lessonsReadOnly&&<div style={{...small,marginBottom:6}}>ℹ️ {W2("Bernameya dersan ji aliyê berpirsên beşan ve tê amadekirin.","The lesson schedule is prepared by the department heads.")}</div>}
             {ls.length===0&&<div style={small}>{W2("Hîn ders nehatiye danîn.","No lessons yet.")}</div>}
             {ls.map(l=>{ const ln=cfg.lessonLine(l); return(
               <div key={l.fireId||l.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderTop:"1px solid var(--border2)"}}>
@@ -8211,8 +8233,8 @@ function ClassStudio({cfg,lang,t,toast}){
                   <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{ln.title}</div>
                   <div style={small}>{ln.sub}</div>
                 </div>
-                {cfg.renderEditLesson&&<button aria-label="✏️" onClick={()=>setEditLesson(l)} style={{...ghost,minHeight:30,padding:"4px 9px"}}><Ico n="edit" solo/></button>}
-                <button aria-label="🗑" onClick={()=>{ if(window.confirm(W2("Ders bişimitîne?","Delete this lesson?")+" – "+ln.title)) cfg.deleteLesson(l); }} style={{...ghost,minHeight:30,padding:"4px 9px",color:"var(--red)"}}><Ico n="trash" solo/></button>
+                {cfg.renderEditLesson&&!cfg.lessonsReadOnly&&<button aria-label="✏️" onClick={()=>setEditLesson(l)} style={{...ghost,minHeight:30,padding:"4px 9px"}}><Ico n="edit" solo/></button>}
+                {!cfg.lessonsReadOnly&&<button aria-label="🗑" onClick={()=>{ if(window.confirm(W2("Ders bişimitîne?","Delete this lesson?")+" – "+ln.title)) cfg.deleteLesson(l); }} style={{...ghost,minHeight:30,padding:"4px 9px",color:"var(--red)"}}><Ico n="trash" solo/></button>}
               </div>); })}
           </div>)}
         {isOpen&&(<div style={{marginTop:8}}>
@@ -8293,6 +8315,7 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
   const lessonsOf=id=>(schedule||[]).filter(l=>l.classId===id);
   const delLs=l=>onDataChange("deleteSchedule",{id:l.id,fireId:l.fireId||null});
   const cfg={
+    lessonsReadOnly:true,   // haftalık dersleri bölüm sorumluları hazırlar; atölye dersi burada kalır
     coll:"classes",
     members:studs,
     teachers:(teachers||[]).filter(t2=>t2.no&&!t2.isGate&&!t2.isHead&&!t2.isPress&&!t2.isRegistrar),
@@ -8341,6 +8364,7 @@ function KidClassStudio({kids,kteach,sched,areaLabel,user,lang,toast}){
   const members=(kids||[]).map(k=>({...k,id:k.fireId}));
   const wsAttId=(d,k)=>"ws_"+d.id+"_"+k.id;
   const cfg={
+    lessonsReadOnly:true,   // haftalık dersleri çocuk akademisi bölüm sorumluları hazırlar
     coll:"kidClasses",
     members,
     teachers:(kteach||[]).map(t2=>({no:String(t2.no),name:t2.name,area:t2.area})),
@@ -8383,6 +8407,165 @@ function KidClassStudio({kids,kteach,sched,areaLabel,user,lang,toast}){
     },
   };
   return <ClassStudio cfg={cfg} lang={lang} t={null} toast={toast}/>;
+}
+// ══════════════════════════════════════════════════════════════════════
+//  ÖĞRENCİ İZNİ — bölüm sorumlusu işaretler; izinli öğrenci o günlerde öğretmenin yoklama listesinde
+//  görünmez (yoklamaya "leave" olarak yazılır, devamsızlık sayılmaz); izin nedeni raporda görünür.
+//   studentLeaves/{id}: {studentNo, studentId, studentName, area, from, to, reason, by, byNo, kid, createdAt}
+//   kid:true → Akademiya Zarokan (çocuk) izni
+// ══════════════════════════════════════════════════════════════════════
+let _leavesCache=[]; const _leavesL=new Set(); let _leavesUnsub=null;
+function useLeaves(enabled=true){
+  const [v,setV]=useState(_leavesCache);
+  useEffect(()=>{
+    if(!enabled) return;
+    const F=window.__FB; if(!F||!F.isConfigured()) return;
+    _leavesL.add(setV);
+    if(!_leavesUnsub){ try{ _leavesUnsub=F.onSnapshot(F.collection(F.db,"studentLeaves"),sn=>{ _leavesCache=sn.docs.map(d=>({...d.data(),fireId:d.id})); _leavesL.forEach(f=>f(_leavesCache)); },()=>{}); }catch(_){} }
+    else setV(_leavesCache);
+    return ()=>{ _leavesL.delete(setV); };
+  },[enabled]);
+  return v;
+}
+// Öğrenci o tarihte izinli mi? (kid: çocuk akademisi izni)
+function leaveOf(leaves,no,date,kid=false){ return (leaves||[]).find(l=>!!l.kid===!!kid&&String(l.studentNo)===String(no)&&l.from<=date&&date<=l.to)||null; }
+function LeavesPanel({user,students,area,all=false,kid=false,lang,toast,readOnly=false}){
+  const F=window.__FB;
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const leaves=useLeaves(true);
+  const today=new Date().toISOString().slice(0,10);
+  const [f,setF]=useState({no:"",from:today,to:today,reason:""});
+  const mine=leaves.filter(l=>!!l.kid===!!kid&&(all||l.area===area)).sort((a,b)=>String(b.from).localeCompare(String(a.from)));
+  const studs=(students||[]).filter(s=>s&&s.no).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
+  const card={background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:14,padding:14,marginBottom:12};
+  async function save(){
+    const st=studs.find(x=>String(x.no)===String(f.no));
+    if(!st){ toast("⚠ "+W2("Xwendekarekî hilbijêre","Choose a student")); return; }
+    if(!f.from||!f.to||f.to<f.from){ toast("⚠ "+W2("Tarîxa destpêk û dawiyê hilbijêre","Choose start and end dates")); return; }
+    if(!f.reason.trim()){ toast("⚠ "+W2("Sedema destûrê binivîse","Write the reason for the leave")); return; }
+    try{
+      await F.addDoc(F.collection(F.db,"studentLeaves"),{studentNo:String(st.no),studentId:String(st.id!=null?st.id:st.fireId||""),studentName:st.name||"",area:st.area||area||"",
+        from:f.from,to:f.to,reason:f.reason.trim().slice(0,300),by:user.name||"",byNo:String(user.no||""),kid:!!kid,createdAt:F.serverTimestamp()});
+      toast("✅ "+W2("Destûr hate tomarkirin","Leave saved")); setF({no:"",from:today,to:today,reason:""});
+    }catch(e){ toast("❌ "+((e&&e.code)||e)); }
+  }
+  async function del(l){
+    if(!window.confirm(W2("Destûr were jêbirin?","Delete this leave?"))) return;
+    try{ await F.deleteDoc(F.doc(F.db,"studentLeaves",l.fireId)); }catch(e){ toast("❌ "+((e&&e.code)||e)); }
+  }
+  const range=l=>l.from===l.to?fmtDateTx(l.from):fmtDateTx(l.from)+" – "+fmtDateTx(l.to);
+  return(
+    <div>
+      {!readOnly&&<div style={card}>
+        <div style={{fontSize:14,fontWeight:800,color:"var(--text)",marginBottom:4}}>🏷 {W2("Destûra xwendekar","Student leave")}</div>
+        <div style={{fontSize:11.5,color:"var(--text2)",lineHeight:1.6,marginBottom:10}}>{W2("Xwendekarê bi destûr di wan rojan de di lîsteya amadebûnê ya mamoste de xuya nabe û wek “tunebû” nayê hesibandin. Sedem di raporê de tê nîşandan.","A student on leave does not appear in the teacher's attendance list on those days and is not counted absent. The reason is shown in the report.")}</div>
+        <select id="lv-student" aria-label={W2("Xwendekar","Student")} style={{...inputStyle,marginBottom:8}} value={f.no} onChange={e=>setF(x=>({...x,no:e.target.value}))}>
+          <option value="">— {W2("Xwendekarekî hilbijêre","Choose a student")}</option>
+          {studs.map(s=><option key={s.no} value={s.no}>{s.name} · {s.no}</option>)}
+        </select>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+          <div><div style={{fontSize:11,color:"var(--text2)",marginBottom:3}}>{W2("Destpêk","From")}</div><DateInput id="lv-from" value={f.from} onChange={e=>setF(x=>({...x,from:e.target.value,to:x.to<e.target.value?e.target.value:x.to}))}/></div>
+          <div><div style={{fontSize:11,color:"var(--text2)",marginBottom:3}}>{W2("Dawî","Until")}</div><DateInput id="lv-to" value={f.to} min={f.from||undefined} onChange={e=>setF(x=>({...x,to:e.target.value}))}/></div>
+        </div>
+        <textarea id="lv-reason" aria-label={W2("Sedem","Reason")} style={{...inputStyle,minHeight:64,resize:"vertical",marginBottom:8}} maxLength={300} value={f.reason} onChange={e=>setF(x=>({...x,reason:e.target.value}))} placeholder={W2("Sedema destûrê (mînak: nexweşî, rêwîtiya malbatê…)","Reason (e.g. illness, family trip…)")}/>
+        <PrimaryBtn onClick={save} icon="💾">{W2("Destûrê tomar bike","Save leave")}</PrimaryBtn>
+      </div>}
+      {mine.length===0&&<div style={{...card,textAlign:"center",color:"var(--text2)",fontSize:13}}>{W2("Destûr tune.","No leaves.")}</div>}
+      {mine.map(l=>(
+        <div key={l.fireId} data-leave-row="1" style={{...card,display:"flex",gap:10,alignItems:"flex-start",opacity:l.to<today?.75:1}}>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontWeight:800,color:"var(--text)"}}>🏷 {l.studentName} <span style={{fontSize:11,color:"var(--text2)",fontWeight:500}}>#{l.studentNo}{all?" · "+(kid?headAreaLabel(l.area,lang):areaName(l.area,lang)):""}</span></div>
+            <div style={{fontSize:12,color:"var(--text)",marginTop:3}}>📅 {range(l)}</div>
+            <div style={{fontSize:12.5,color:"var(--text)",marginTop:3,whiteSpace:"pre-wrap"}}>📝 {l.reason}</div>
+            <div style={{fontSize:11,color:"var(--text2)",marginTop:3}}>✍ {l.by}</div>
+          </div>
+          {!readOnly&&String(l.byNo)===String(user&&user.no)&&<button aria-label="🗑" onClick={()=>del(l)} style={{padding:"6px 9px",borderRadius:8,border:"1px solid var(--red)",background:"var(--red-bg)",cursor:"pointer",color:"var(--red)"}}><Ico n="trash" solo/></button>}
+        </div>))}
+    </div>);
+}
+// Çocuk akademisi bölüm sorumlusu: kendi dersinin (alanının) haftalık programı + öğretmen ataması.
+//  kidSchedule/{id}: {day,start,end,title,area(=sorumlunun alanı),teacherNo,teacher,room,classId}
+//  Sınıf seçilirse ders o sınıfın çocuklarına, seçilmezse alanın bütün çocuklarına görünür.
+function KidHeadSchedule({area,lang,toast}){
+  const F=window.__FB; const live=!!(F&&F.isConfigured());
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const [sched,setSched]=useState([]); const [cls,setCls]=useState([]); const [kteach,setKteach]=useState([]);
+  const [form,setForm]=useState(null);
+  useEffect(()=>{
+    if(!live) return; const subs=[];
+    const L=(q,set)=>{ try{ subs.push(F.onSnapshot(q,s=>set(s.docs.map(d=>({...d.data(),fireId:d.id}))),e=>console.warn("[kidHeadSched]",e&&e.code))); }catch(_){} };
+    L(F.query(F.collection(F.db,"kidSchedule"),F.where("area","==",area)),setSched);
+    L(F.collection(F.db,"kidClasses"),setCls);
+    L(F.collection(F.db,"kidTeachers"),setKteach);
+    return ()=>subs.forEach(u=>{ try{u();}catch(_){} });
+  },[live,area]);
+  const clsOpts=cls.filter(c=>c.status!=="closed"&&c.kind!=="workshop"&&(c.kind!=="area"||c.area===area)).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
+  const tOpts=kteach.filter(t2=>!t2.area||t2.area===area||t2.area==="genel").sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
+  const dayName=i=>lang==="en"?ZAROK_DAYS_EN[i]:K(ZAROK_DAYS_KU[i]);
+  const weekly=sched.filter(l=>!l.date);
+  const inp={width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:14,boxSizing:"border-box",fontFamily:"inherit",minHeight:42,marginBottom:8};
+  const card={background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:14,padding:14,marginBottom:12};
+  async function save(){
+    const f=form;
+    if(!f.title.trim()){ toast("⚠ "+W2("Navê dersê pêwîst e","Lesson name required")); return; }
+    if(!f.start||!f.end||f.end<=f.start){ toast("⚠ "+W2("Saeta destpêk û dawiyê kontrol bike","Check the start and end time")); return; }
+    const t2=kteach.find(x=>String(x.no)===String(f.teacherNo));
+    const rec={day:+f.day,start:f.start,end:f.end,title:f.title.trim().slice(0,80),area,teacherNo:f.teacherNo||"",teacher:t2?t2.name:"",room:f.room.trim().slice(0,40),classId:f.classId||"",updatedAt:F.serverTimestamp()};
+    try{
+      if(f.fireId) await F.updateDoc(F.doc(F.db,"kidSchedule",f.fireId),rec);
+      else await F.addDoc(F.collection(F.db,"kidSchedule"),{...rec,createdAt:F.serverTimestamp()});
+      toast("✅ "+W2("Hate tomarkirin","Saved")); setForm(null);
+    }catch(e){ toast("❌ "+((e&&e.code)||e)); }
+  }
+  async function del(l){
+    if(!window.confirm(W2("Ders bişimitîne?","Delete this lesson?")+" – "+(l.title||""))) return;
+    try{ await F.deleteDoc(F.doc(F.db,"kidSchedule",l.fireId)); }catch(e){ toast("❌ "+((e&&e.code)||e)); }
+  }
+  const blank={day:1,start:"15:00",end:"16:00",title:headAreaLabel(area,lang),teacherNo:"",room:"",classId:""};
+  if(form) return(
+    <div style={card}>
+      <div style={{fontSize:14,fontWeight:800,color:"var(--text)",marginBottom:10}}>📅 {form.fireId?W2("Dersê biguherîne","Edit lesson"):W2("Dersa nû","New lesson")} · 🔒 {headAreaLabel(area,lang)}</div>
+      <input id="khs-title" aria-label={W2("Navê dersê","Lesson name")} style={inp} value={form.title} maxLength={80} onChange={e=>setForm(x=>({...x,title:e.target.value}))} placeholder={W2("Navê dersê","Lesson name")}/>
+      <select id="khs-day" aria-label={W2("Roj","Day")} style={inp} value={form.day} onChange={e=>setForm(x=>({...x,day:e.target.value}))}>{[1,2,3,4,5,6,0].map(i=><option key={i} value={i}>{dayName(i)}</option>)}</select>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        <input id="khs-start" aria-label={W2("Destpêk","Start")} style={inp} type="time" value={form.start} onChange={e=>setForm(x=>({...x,start:e.target.value}))}/>
+        <input id="khs-end" aria-label={W2("Dawî","End")} style={inp} type="time" value={form.end} onChange={e=>setForm(x=>({...x,end:e.target.value}))}/>
+      </div>
+      <select id="khs-class" aria-label={W2("Sinif","Class")} style={inp} value={form.classId} onChange={e=>setForm(x=>({...x,classId:e.target.value}))}>
+        <option value="">— {W2("Hemû zarokên beşê (bê sinif)","All children of the department (no class)")}</option>
+        {clsOpts.map(c=><option key={c.fireId} value={c.fireId}>{c.kind==="general"?"🌐 ":"🏫 "}{classNameTx(c.name)}</option>)}
+      </select>
+      <select id="khs-teacher" aria-label={W2("Mamoste","Teacher")} style={inp} value={form.teacherNo} onChange={e=>setForm(x=>({...x,teacherNo:e.target.value}))}>
+        <option value="">— {W2("Mamoste","Teacher")}</option>{tOpts.map(t2=><option key={t2.no} value={t2.no}>{t2.name}</option>)}
+      </select>
+      <input id="khs-room" aria-label={W2("Ode","Room")} style={inp} value={form.room} maxLength={40} onChange={e=>setForm(x=>({...x,room:e.target.value}))} placeholder={W2("Ode","Room")}/>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        <button onClick={()=>setForm(null)} style={{padding:11,borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,cursor:"pointer"}}>{W2("Betal","Cancel")}</button>
+        <PrimaryBtn onClick={save} icon="💾">{W2("Tomar bike","Save")}</PrimaryBtn>
+      </div>
+    </div>);
+  return(
+    <div>
+      <div style={card}>
+        <div style={{fontSize:14,fontWeight:800,color:"var(--text)",marginBottom:4}}>📅 {W2("Bernameya dersan","Lesson schedule")} · {headAreaLabel(area,lang)}</div>
+        <div style={{fontSize:11.5,color:"var(--text2)",lineHeight:1.6,marginBottom:10}}>{W2("Dersan, saetan û mamosteyan tu destnîşan dikî. Mamoste “Dersê dest pê bike” dike û amadebûnê digire.","You set the lessons, times and teachers. The teacher taps “Start lesson” and takes attendance.")}</div>
+        <PrimaryBtn onClick={()=>setForm({...blank})} icon="➕">{W2("Dersê Zêde Bike","Add Lesson")}</PrimaryBtn>
+      </div>
+      {weekly.length===0&&<div style={{...card,textAlign:"center",color:"var(--text2)",fontSize:13}}>{W2("Hîn ders nehatiye danîn.","No lessons yet.")}</div>}
+      {[1,2,3,4,5,6,0].map(d=>{ const ls=weekly.filter(l=>+l.day===d).sort((a,b)=>String(a.start||"").localeCompare(String(b.start||""))); if(!ls.length) return null;
+        return(<div key={d} style={card}>
+          <div style={{fontWeight:800,color:"var(--text)",marginBottom:6}}>{dayName(d)}</div>
+          {ls.map(l=>{ const c=cls.find(x=>x.fireId===l.classId); return(
+            <div key={l.fireId} data-khs-row="1" style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderTop:"1px solid var(--border2)"}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{l.start}–{l.end} · {l.title}</div>
+                <div style={{fontSize:11.5,color:"var(--text2)"}}>👩‍🏫 {l.teacher||W2("Mamoste nehatiye destnîşankirin","No teacher assigned")}{c?" · 🏫 "+classNameTx(c.name):""}{l.room?" · 📍 "+l.room:""}</div>
+              </div>
+              <button aria-label="✏️" onClick={()=>setForm({day:+l.day,start:l.start||"",end:l.end||"",title:l.title||"",teacherNo:String(l.teacherNo||""),room:l.room||"",classId:l.classId||"",fireId:l.fireId})} style={{padding:"6px 9px",borderRadius:8,border:"1px solid var(--border2)",background:"var(--bg2)",cursor:"pointer",color:"var(--text)"}}><Ico n="edit" solo/></button>
+              <button aria-label="🗑" onClick={()=>del(l)} style={{padding:"6px 9px",borderRadius:8,border:"1px solid var(--red)",background:"var(--red-bg)",cursor:"pointer",color:"var(--red)"}}><Ico n="trash" solo/></button>
+            </div>); })}
+        </div>); })}
+    </div>);
 }
 // Çocuk sınıfına haftalık ders
 function KidLessonSheet({cls,kteach,lang,toast,onClose}){
@@ -8563,7 +8746,7 @@ function ClassPostsPanel({mode,teacher,student,lang,toast}){
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>{mine.map(d=><button key={d.id} onClick={()=>setSel(x=>({...x,[d.id]:!x[d.id]}))} style={chip(!!sel[d.id])}>{sel[d.id]?"✓ ":""}{classLabel(d,lang)}</button>)}</div>
         <input style={inp} value={title} maxLength={140} onChange={e=>setTitle(e.target.value)} placeholder={W2("Sernav","Title")}/>
         <textarea style={{...inp,minHeight:90,marginTop:8,resize:"vertical"}} value={body} maxLength={3000} onChange={e=>setBody(e.target.value)} placeholder={W2("Nivîs (vebijarkî)","Text (optional)")}/>
-        {type==="odev"&&<div style={{marginTop:8}}><div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:4}}>⏰ {W2("Roja dawî","Due date")}</div><input type="date" style={inp} value={due} onChange={e=>setDue(e.target.value)}/></div>}
+        {type==="odev"&&<div style={{marginTop:8}}><div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:4}}>⏰ {W2("Roja dawî","Due date")}</div><DateInput style={inp} value={due} onChange={e=>setDue(e.target.value)}/></div>}
         <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginTop:8}}>
           <button onClick={()=>fileRef.current&&fileRef.current.click()} style={{...chip(false),borderStyle:"dashed"}}>📎 {W2("Pel zêde bike (wêne/PDF)","Attach file (image/PDF)")}</button>
           {files.map((f,i)=><span key={i} style={{fontSize:12,color:"var(--text)"}}>📄 {f.name} <button onClick={()=>setFiles(x=>x.filter((_,j)=>j!==i))} style={{border:"none",background:"none",cursor:"pointer"}}>✕</button></span>)}
@@ -9054,8 +9237,8 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
             <button onClick={()=>saveCfg({...cfg,open:!cfg.open})} style={btn(cfg.open?"#dc2626":"#16a34a")}>{cfg.open?Z("Bigire","Close"):Z("Veke","Open")}</button>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:8}}>
-            <div><label style={lbl}>{Z("Destpêk","Start")}</label><input type="date" style={inp} value={cfg.startDate||""} onChange={e=>setCfg(c=>({...c,startDate:e.target.value}))}/></div>
-            <div><label style={lbl}>{Z("Dawî","End")}</label><input type="date" style={inp} value={cfg.endDate||""} onChange={e=>setCfg(c=>({...c,endDate:e.target.value}))}/></div>
+            <div><label style={lbl}>{Z("Destpêk","Start")}</label><DateInput style={inp} value={cfg.startDate||""} onChange={e=>setCfg(c=>({...c,startDate:e.target.value}))}/></div>
+            <div><label style={lbl}>{Z("Dawî","End")}</label><DateInput style={inp} value={cfg.endDate||""} onChange={e=>setCfg(c=>({...c,endDate:e.target.value}))}/></div>
           </div>
           <input style={{...inp,marginTop:8}} value={cfg.note||""} onChange={e=>setCfg(c=>({...c,note:e.target.value}))} placeholder={Z("Nîşeya li ser malperê (vebijarkî)","Note shown on site")}/>
           <button onClick={()=>saveCfg(cfg)} style={{...btn(),marginTop:8}}>💾 {Z("Tomar bike","Save")}</button>
@@ -9600,7 +9783,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
         {section==="qad"&&(
           <>
             <SectionHeader>🎭 {(t&&t.areas)||"Qadên Hunerê"}</SectionHeader>
-            <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>{lang==="en"?"Open a field to register students and teachers and to manage its schedule. Common lessons are under “All students”.":K("Qadekê veke: xwendekar û mamoste tescîl bike, bernameya dersan birêve bibe. Dersên hevpar di bin “Hemû Xwendekar” de ne.")}</div>
+            <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>{lang==="en"?"Open a field to register students and teachers. The lesson schedule is prepared by the department heads; here you can view it.":K("Qadekê veke: xwendekar û mamoste tescîl bike. Bernameya dersan berpirsên beşan amade dikin; li vir tu dikarî bibînî.")}</div>
             <AdminScheduleTab termsOnly schedule={schedule||[]} teachers={teachers||[]} students={students||[]} lang={lang} t={t||T.ku} toast={toast} onDataChange={onDataChange}/>
             {(()=>{
               const genelArea = AREA_MAP["genel"];
@@ -9663,11 +9846,11 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
             <div>
               <div style={{fontSize:10,color:"var(--text2)",marginBottom:4}}>{L("start")}</div>
-              <input type="date" value={cfg.startDate||""} onChange={e=>setCfg(c=>({...c,startDate:e.target.value}))} style={inputStyle2}/>
+              <DateInput value={cfg.startDate||""} onChange={e=>setCfg(c=>({...c,startDate:e.target.value}))} style={inputStyle2}/>
             </div>
             <div>
               <div style={{fontSize:10,color:"var(--text2)",marginBottom:4}}>{L("end")}</div>
-              <input type="date" value={cfg.endDate||""} onChange={e=>setCfg(c=>({...c,endDate:e.target.value}))} style={inputStyle2}/>
+              <DateInput value={cfg.endDate||""} onChange={e=>setCfg(c=>({...c,endDate:e.target.value}))} style={inputStyle2}/>
             </div>
           </div>
           <div style={{fontSize:10,color:"var(--text2)",marginBottom:4}}>{L("note")}</div>
@@ -9772,7 +9955,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
       </div>
 
       {activeArea&&(
-        <AreaDetailModal areaKey={activeArea} students={students||[]} teachers={teachers||[]} schedule={schedule||[]} onClose={()=>setActiveArea(null)} t={t||T.ku} lang={lang} toast={toast} onDataChange={onDataChange}/>
+        <AreaDetailModal areaKey={activeArea} students={students||[]} teachers={teachers||[]} schedule={schedule||[]} onClose={()=>setActiveArea(null)} t={t||T.ku} lang={lang} toast={toast} onDataChange={onDataChange} schedMode="view"/>
       )}
       {regCreds&&(
         <Sheet open={true} onClose={()=>setRegCreds(null)} title={L("regDone")}>
@@ -10280,7 +10463,7 @@ function EditLessonSheet({lesson,onClose,t,lang,toast,onSave,teachers}){
       ) : (
         <FieldWrap label={t.lessonDates}>
           <div style={{display:"flex",gap:6,marginBottom:8}}>
-            <input style={{...inputStyle,flex:1,marginBottom:0}} type="date" value={dateInput} onChange={e=>setDateInput(e.target.value)}
+            <DateInput style={{...inputStyle,flex:1,marginBottom:0}} value={dateInput} onChange={e=>setDateInput(e.target.value)}
               onKeyDown={e=>{if(e.key==="Enter")addDate();}}/>
             <button onClick={addDate} style={{padding:"0 14px",background:"#0f2f38",color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",flexShrink:0}}>+</button>
           </div>
@@ -10355,7 +10538,10 @@ function AdminProfileSheet({admin,onClose,t,lang,toast,onSave}){
 
 // fixedArea: alan penceresinde yalnız o alanın programı (alan süzgeci + dönem yöneticisi gizli)
 // termsOnly: yalnız dönem (demsal) yöneticisi — Sanat Alanları sayfasının üstünde
-function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataChange, fixedArea=null, termsOnly=false}) {
+// mode: "full" (yönetici) · "view" (Öğrenci İşleri: yalnız görür)
+//       · "head" (bölüm sorumlusu: ders ekler/düzenler/siler, öğretmen atar, "ders yapılmadı" işaretler; dönem yok)
+function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataChange, fixedArea=null, termsOnly=false, mode="full", byName=""}) {
+  const canEdit = mode!=="view", canAbsence = mode!=="view", canTerms = mode!=="head";
   const [showAdd, setShowAdd] = useState(false);
   const [editingLesson, setEditingLesson] = useState(null);
   const [filterArea, setFilterArea] = useState(fixedArea||"all");
@@ -10459,19 +10645,20 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
           )}
         </div>
         <div style={{display:"flex",flexDirection:"column",gap:5,justifyContent:"center",flexShrink:0}}>
-          <button onClick={()=>setEditingLesson(ls)}
-            style={{padding:"6px 9px",fontSize:12,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:7,cursor:"pointer",color:"var(--text)"}}><Ico n="edit" solo/></button>
-          <button onClick={()=>markTeacherAbsent(ls)} title={lang==="en"?"Lesson not held (teacher absent)":K("Ders nehat kirin (mamoste nehat)")}
-            style={{padding:"6px 9px",fontSize:12,background:"rgba(220,38,38,0.06)",border:"0.5px solid rgba(220,38,38,0.3)",borderRadius:7,cursor:"pointer"}}>🚫</button>
-          <button onClick={()=>deleteLesson(ls)}
-            style={{padding:"6px 9px",fontSize:12,background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:7,cursor:"pointer",color:"var(--red)"}}><Ico n="trash" solo/></button>
+          {canEdit&&<button onClick={()=>setEditingLesson(ls)}
+            style={{padding:"6px 9px",fontSize:12,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:7,cursor:"pointer",color:"var(--text)"}}><Ico n="edit" solo/></button>}
+          {canAbsence&&<button onClick={()=>markTeacherAbsent(ls)} title={lang==="en"?"Lesson not held (teacher absent)":K("Ders nehat kirin (mamoste nehat)")}
+            style={{padding:"6px 9px",fontSize:12,background:"rgba(220,38,38,0.06)",border:"0.5px solid rgba(220,38,38,0.3)",borderRadius:7,cursor:"pointer"}}>🚫</button>}
+          {canEdit&&<button onClick={()=>deleteLesson(ls)}
+            style={{padding:"6px 9px",fontSize:12,background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:7,cursor:"pointer",color:"var(--red)"}}><Ico n="trash" solo/></button>}
         </div>
       </div>
     );
   }
 
   // Öğretmen dersi işlemedi: Öğrenci İşleri tarih + neden (devamsız / raporlu / mazeretli) + açıklama ile işler.
-  //  attendance/{dersId}-{tarih}: teacherAbsent, absenceKind, absenceNote → öğretmen devamı raporunda görünür
+  //  attendance/{dersId}-{tarih}: teacherAbsent, absenceKind, absenceNote, absenceBy → yöneticinin öğretmen devamı raporunda görünür
+  //  (bölüm sorumlusu yalnız kendi bölümünün derslerine işler; var olan yoklama kaydına dokunmaz)
   const [absFor,setAbsFor]=useState(null);   // {ls,date,kind,note,exists}
   async function markTeacherAbsent(ls){
     const todayStr=new Date().toISOString().slice(0,10);
@@ -10485,10 +10672,11 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
     try{
       if(window.__FB&&window.__FB.isConfigured()){
         const ref=window.__FB.doc(window.__FB.db,"attendance",ls.id+"-"+date);
-        if(remove) await window.__FB.setDoc(ref,{teacherAbsent:false,absenceKind:null,absenceNote:null,updatedAt:window.__FB.serverTimestamp()},{merge:true});
+        const by=String(byName||"").slice(0,80);
+        if(remove) await window.__FB.setDoc(ref,{teacherAbsent:false,absenceKind:null,absenceNote:null,absenceBy:by,updatedAt:window.__FB.serverTimestamp()},{merge:true});
         else await window.__FB.setDoc(ref,
-          {lessonId:ls.id,lessonName:ls.name,area:ls.area,classId:ls.classId||null,teacherId:ls.teacherNo||null,teacherName:ls.teacherName||null,
-           date,teacherAbsent:true,absenceKind:kind,absenceNote:String(note||"").trim().slice(0,300),records:{},updatedAt:window.__FB.serverTimestamp()},{merge:true});
+          {lessonId:ls.id,lessonName:ls.name,area:ls.area,classId:ls.classId||null,teacherName:ls.teacherName||null,date,
+           teacherAbsent:true,absenceKind:kind,absenceNote:String(note||"").trim().slice(0,300),absenceBy:by,updatedAt:window.__FB.serverTimestamp()},{merge:true});
       }
       toast(remove?"↩ "+(lang==="en"?"Mark removed":K("Nîşan hate rakirin")):"🚫 "+(lang==="en"?"Recorded: lesson not held":K("Hate tomarkirin: ders nehat kirin")));
       setAbsFor(null);
@@ -10536,9 +10724,9 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
               <input value={tLabel} onChange={e=>setTLabel(e.target.value)} placeholder={TL("label")+" — "+(lang==="en"?"blank = auto":K("vala = otomatîk"))}
                 style={{padding:"9px 11px",border:"1px solid var(--border2)",borderRadius:9,fontSize:12.5,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box"}}/>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-                <input type="date" value={tStart} onChange={e=>setTStart(e.target.value)}
+                <DateInput value={tStart} onChange={e=>setTStart(e.target.value)}
                   style={{padding:"9px 11px",border:"1px solid var(--border2)",borderRadius:9,fontSize:12,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box"}}/>
-                <input type="date" value={tEnd} onChange={e=>setTEnd(e.target.value)}
+                <DateInput value={tEnd} onChange={e=>setTEnd(e.target.value)}
                   style={{padding:"9px 11px",border:"1px solid var(--border2)",borderRadius:9,fontSize:12,background:"var(--bg2)",color:"var(--text)",boxSizing:"border-box"}}/>
               </div>
               <button onClick={addTerm} style={{padding:"10px",background:"#0f2f38",color:"#fff",border:"none",borderRadius:9,fontSize:12,fontWeight:700,cursor:"pointer"}}>{TL("add")}</button>
@@ -10557,13 +10745,19 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
           📅 {t.schedule||t.adminPanel}
           <span style={{marginLeft:8,fontSize:11,color:"var(--text2)",fontWeight:400}}>({allFiltered.length})</span>
         </div>
-        <button onClick={()=>setShowAdd(true)}
+        {canEdit&&<button data-add-lesson="1" onClick={()=>setShowAdd(true)}
           style={{padding:"9px 16px",background:"#0f2f38",color:"#ffffff",border:"none",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
           ➕ {t.addLesson}
-        </button>
+        </button>}
       </div>
+      {mode==="view"&&<div style={{fontSize:11.5,color:"var(--text2)",marginBottom:10,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,lineHeight:1.6}}>
+        ℹ️ {lang==="en"?"The lesson schedule, teacher assignments and “lesson not held” marks are handled by the department heads.":K("Bernameya dersan, erkdariya mamosteyan û nîşana “ders nehat kirin” ji aliyê berpirsên beşan ve tên kirin.")}
+      </div>}
+      {mode==="head"&&<div style={{fontSize:11.5,color:"var(--text2)",marginBottom:10,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,lineHeight:1.6}}>
+        ℹ️ {lang==="en"?"Add lessons, set times and assign teachers. If a lesson was not held, mark it with 🚫 and give the reason — the admin sees it in the report.":K("Dersan zêde bike, saetan diyar bike û mamosteyan erk bike. Heke ders nehat kirin, bi 🚫 nîşan bike û sedemê binivîse — rêveber di raporê de dibîne.")}
+      </div>}
 
-      {!fixedArea&&termsBlock}
+      {!fixedArea&&canTerms&&termsBlock}
 
       {/* Dönem filtresi */}
       {(terms.list||[]).length>0&&(
@@ -10703,7 +10897,7 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
         <Sheet open={true} onClose={()=>setAbsFor(null)} title={"🚫 "+(lang==="en"?"Lesson not held":K("Ders nehat kirin"))}>
           <div style={{fontSize:13,color:"var(--text)",fontWeight:700,marginBottom:4}}>{absFor.ls.name}</div>
           <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:12}}>👨‍🏫 {absFor.ls.teacherName||"—"} · {absFor.ls.start}–{absFor.ls.end}</div>
-          <FieldWrap label={lang==="en"?"Date":K("Tarîx")}><input type="date" style={inputStyle} value={absFor.date} max={new Date().toISOString().slice(0,10)} onChange={e=>setAbsFor(x=>({...x,date:e.target.value}))}/></FieldWrap>
+          <FieldWrap label={lang==="en"?"Date":K("Tarîx")}><DateInput style={inputStyle} value={absFor.date} max={new Date().toISOString().slice(0,10)} onChange={e=>setAbsFor(x=>({...x,date:e.target.value}))}/></FieldWrap>
           <FieldWrap label={lang==="en"?"Reason":K("Sedem")}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
               {TEACHER_ABSENCE.map(([k,ic])=>(
@@ -10717,7 +10911,7 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
         </Sheet>
       )}
       {showAdd&&(
-        <AddLessonSheet open={showAdd} onClose={()=>setShowAdd(false)} defaultArea={filterArea==="all"?null:filterArea} teachers={teachers} t={t} lang={lang} toast={toast}
+        <AddLessonSheet open={showAdd} onClose={()=>setShowAdd(false)} defaultArea={filterArea==="all"?null:filterArea} lockArea={mode==="head"&&!!fixedArea} teachers={teachers} t={t} lang={lang} toast={toast}
           onSave={(ls)=>{
             const term=(viewTerm!=="all"?viewTerm:terms.activeId)||null;
             onDataChange("addSchedule",ls.term?ls:(term?{...ls,term}:ls));
@@ -11313,7 +11507,7 @@ function AdminWeeklyReportPanel({students, teachers, schedule, lang, toast}) {
 
   function generateWeeklyPDF() {
     const aLabel = selectedArea==="all" ? L("all") : areaName(selectedArea,lang);
-    const dateNow = new Date().toLocaleDateString(lang==="en"?"en-GB":"ku",{day:"2-digit",month:"long",year:"numeric"});
+    const dateNow = lang==="en"?new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"long",year:"numeric"}):fmtDateTx(new Date().toISOString());
 
     // Survey per-lesson averages
     const lessonRows = Object.keys(byLesson).map(lid=>{
@@ -11474,12 +11668,12 @@ tr:hover td{background:#f9fbff}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
         <div>
           <label style={{fontSize:11,color:"var(--text2)",fontWeight:600,display:"block",marginBottom:5}}>📅 {lang==="en"?"Start":K("Destpêk")}</label>
-          <input type="date" style={{width:"100%",padding:"10px 12px",border:"1.5px solid var(--border2)",borderRadius:10,fontSize:13,fontFamily:"inherit",color:"var(--text)",background:"var(--surface)",outline:"none"}}
+          <DateInput style={{width:"100%",padding:"10px 12px",border:"1.5px solid var(--border2)",borderRadius:10,fontSize:13,fontFamily:"inherit",color:"var(--text)",background:"var(--surface)",outline:"none"}}
             value={rStart} onChange={e=>{setRStart(e.target.value);setPickedTermId("");}}/>
         </div>
         <div>
           <label style={{fontSize:11,color:"var(--text2)",fontWeight:600,display:"block",marginBottom:5}}>📅 {lang==="en"?"End":K("Dawî")}</label>
-          <input type="date" style={{width:"100%",padding:"10px 12px",border:"1.5px solid var(--border2)",borderRadius:10,fontSize:13,fontFamily:"inherit",color:"var(--text)",background:"var(--surface)",outline:"none"}}
+          <DateInput style={{width:"100%",padding:"10px 12px",border:"1.5px solid var(--border2)",borderRadius:10,fontSize:13,fontFamily:"inherit",color:"var(--text)",background:"var(--surface)",outline:"none"}}
             value={rEnd} onChange={e=>{setREnd(e.target.value);setPickedTermId("");}}/>
         </div>
       </div>
@@ -11782,10 +11976,11 @@ function AdminReportCenter({students,teachers,schedule,lang,t,toast,byName,headA
     {key:"nirxandin",icon:"📅",label:lang==="en"?"Evaluation":K("Nirxandin")},
     {key:"anket",icon:"📊",label:lang==="en"?"Surveys":K("Ankêt")},
     {key:"mamoste",icon:"👨‍🏫",label:lang==="en"?"Teacher attendance":K("Amadebûna mamosteyan")},
+    {key:"izin",icon:"🏷",label:lang==="en"?"Student leave":K("Destûra Xwendekaran")},
     {key:"zarok",icon:"🎼",label:lang==="en"?"Children's Academy":K("Akademiya Zarokan")},
     {key:"arsiv",icon:"🗂",label:lang==="en"?"Archive":K("Arşîv")},
   ];
-  const tabs=headArea?allTabs.filter(x=>["liste","nirxandin","mamoste"].includes(x.key)):allTabs;
+  const tabs=headArea?allTabs.filter(x=>["liste","nirxandin","mamoste","izin"].includes(x.key)):allTabs;
   return(
     <div>
       <div style={{display:"flex",gap:5,marginBottom:14,background:"var(--bg2)",padding:4,borderRadius:12,overflowX:"auto"}}>
@@ -11806,6 +12001,11 @@ function AdminReportCenter({students,teachers,schedule,lang,t,toast,byName,headA
         <KidSurveysPanel lang={lang} toast={toast} readOnly={true}/>
       </>}
       {rTab==="zarok"&&<KidAcademyReport lang={lang} toast={toast}/>}
+      {rTab==="izin"&&<>
+        <LeavesPanel readOnly students={[]} area={headArea||""} all={!headArea||headArea==="genel"} lang={lang} toast={toast}/>
+        {!headArea&&<><SectionHeader>🎼 {lang==="en"?"Children's Academy":K("Akademiya Zarokan")}</SectionHeader>
+          <LeavesPanel readOnly kid students={[]} area="" all lang={lang} toast={toast}/></>}
+      </>}
       {rTab==="mamoste"&&<TeacherAttendanceReport teachers={teachers} schedule={schedule} lang={lang} toast={toast}/>}
       {rTab==="arsiv"&&<ReportArchiveTab lang={lang}/>}
     </div>
@@ -11843,7 +12043,7 @@ function TeacherAttendanceReport({teachers,schedule,lang,toast}){
     ls.forEach(l=>lessonDates(l,terms,from,to).forEach(date=>{
       const a=byId.get(String(l.id)+"-"+date);
       const st=a&&a.teacherAbsent?"absent":a&&a.records&&Object.keys(a.records).length?"held":date<today?"missing":"today";
-      occ.push({l,date,st,kind:a&&a.teacherAbsent?(a.absenceKind||"absent"):null,note:(a&&a.absenceNote)||""});
+      occ.push({l,date,st,kind:a&&a.teacherAbsent?(a.absenceKind||"absent"):null,note:(a&&a.absenceNote)||"",by:(a&&a.teacherAbsent&&a.absenceBy)||""});
     }));
     occ.sort((a,b)=>a.date.localeCompare(b.date)||String(a.l.start).localeCompare(String(b.l.start)));
     const n=k=>occ.filter(o=>o.st===k).length;
@@ -11854,7 +12054,7 @@ function TeacherAttendanceReport({teachers,schedule,lang,toast}){
   function csv(){
     const out=[[W2("Mamoste","Teacher"),"No",W2("Ders","Lesson"),W2("Tarîx","Date"),W2("Rewş","Status")]];
     out[0].push(W2("Nîşe","Note"));
-    rows.forEach(r=>r.occ.forEach(o=>out.push([r.tc.name,r.tc.no,o.l.name,o.date,o.st==="absent"?absenceLabel(o.kind):{held:W2("Hate kirin","Held"),missing:W2("Tomar tune","No record"),today:W2("Îro","Today")}[o.st],o.note])));
+    rows.forEach(r=>r.occ.forEach(o=>out.push([r.tc.name,r.tc.no,o.l.name,o.date,o.st==="absent"?absenceLabel(o.kind):{held:W2("Hate kirin","Held"),missing:W2("Tomar tune","No record"),today:W2("Îro","Today")}[o.st],o.note+(o.by?" ("+o.by+")":"")])));
     downloadCSV("mamoste-amadebun-"+from+"_"+to+".csv",out);
   }
   const box={background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,padding:12,marginBottom:10};
@@ -11892,7 +12092,7 @@ function TeacherAttendanceReport({teachers,schedule,lang,toast}){
             {(bad.length?bad:r.occ).map((o,i)=>(
               <div key={i} style={{display:"flex",gap:8,fontSize:12.5,color:"var(--text)",padding:"5px 0",borderTop:"1px solid var(--border2)"}}>
                 <span>{o.st==="absent"?(TEACHER_ABSENCE.find(x=>x[0]===o.kind)||["","🚫"])[1]:stIc[o.st]}</span><span style={{minWidth:86,fontFamily:"monospace"}}>{o.date}</span>
-                <span style={{flex:1,minWidth:0}}>{o.l.name} <span style={small}>{o.l.start}–{o.l.end}{o.st==="absent"?" · "+absenceLabel(o.kind)+(o.note?" — "+o.note:""):o.st==="missing"?" · "+W2("amadebûn nehatiye girtin","no attendance taken"):""}</span></span>
+                <span style={{flex:1,minWidth:0}}>{o.l.name} <span style={small}>{o.l.start}–{o.l.end}{o.st==="absent"?" · "+absenceLabel(o.kind)+(o.note?" — "+o.note:"")+(o.by?" · ✍ "+o.by:""):o.st==="missing"?" · "+W2("amadebûn nehatiye girtin","no attendance taken"):""}</span></span>
               </div>))}
             {!bad.length&&<div style={{...small,marginTop:4}}>✅ {W2("Hemû ders hatin kirin.","All lessons held.")}</div>}
           </div>}
@@ -11924,7 +12124,7 @@ function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
     .filter(s=>stuF==="all"||String(s.fireId||s.id)===String(stuF));
   const filterNote=[clsObj?"🏫 "+classLabel(clsObj,lang):"",teachObj?"👩‍🏫 "+teachObj.name:"",stuF!=="all"?"🎓 "+((students.find(s=>String(s.fireId||s.id)===String(stuF))||{}).name||""):""].filter(Boolean).join(" · ");
 
-  const reportDate = new Date().toLocaleDateString(lang==="en"?"en-GB":"ku",{year:"numeric",month:"long",day:"numeric"});
+  const reportDate = lang==="en"?new Date().toLocaleDateString("en-GB",{year:"numeric",month:"long",day:"numeric"}):fmtDateTx(new Date().toISOString());
 
   function generateReportHTML(){
     const W=(ku,en)=>lang==="en"?en:K(ku);
@@ -12563,6 +12763,7 @@ function absenceLabel(k){ const L={absent:["Bêdestûr","Absent"],report:["Bi ra
 // Haftalık ders, bağlı olduğu dönemin tarihleri içinde her hafta aynı gün/saatte tekrarlanır;
 // dönem başlamadıysa ya da bittiyse o gün programa düşmez (dönemsiz ders her zaman geçerli)
 function lessonOnDate(ls,terms,dateStr){
+  if(ls&&ls.from&&dateStr<ls.from) return false;   // haftalık tekrar seçilen günden başlar
   if(!ls||!ls.term||!terms) return true;
   const tm=(terms.list||[]).find(x=>x.id===ls.term); if(!tm) return true;
   return (!tm.start||dateStr>=tm.start)&&(!tm.end||dateStr<=tm.end);
@@ -12573,6 +12774,7 @@ function lessonDates(ls,terms,from,to){
   const dow=["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"].indexOf(ls.day); if(dow<0) return [];
   const tm=ls.term&&terms&&(terms.list||[]).find(x=>x.id===ls.term);
   let a=from,b=to; if(tm){ if(tm.start&&tm.start>a)a=tm.start; if(tm.end&&tm.end<b)b=tm.end; }
+  if(ls.from&&ls.from>a) a=ls.from;
   const out=[], d=new Date(a+"T12:00:00"), e=new Date(b+"T12:00:00");
   if(isNaN(d)||isNaN(e)) return out;
   while(d.getDay()!==dow) d.setDate(d.getDate()+1);
@@ -12609,7 +12811,7 @@ function weekRangeLabel(weekKey, lang) {
     const start = new Date(jan1);
     start.setDate(jan1.getDate() + (wk-1)*7 - (dayOfWeek-1));
     const end = new Date(start); end.setDate(start.getDate()+6);
-    const fmt = (d) => d.toLocaleDateString(lang==="en"?"en-GB":"ku", {day:"2-digit",month:"short"});
+    const fmt = (d) => lang==="en"?d.toLocaleDateString("en-GB", {day:"2-digit",month:"short"}):(d.getDate()+" "+calMonths()[d.getMonth()]);
     return `${fmt(start)} – ${fmt(end)}`;
   } catch { return weekKey; }
 }
@@ -12835,7 +13037,7 @@ function SurveyStudio({mode,initial,teachers,lang,toast,onSave,onCancel,lockArea
       <div style={card}>
         <div style={h}>⑤ {W2("Mîheng","Settings")}</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:10,alignItems:"end"}}>
-          <div><div style={{fontSize:11.5,color:"var(--text2)",marginBottom:4}}>⏰ {W2("Roja dawî (vebijarkî)","Closing date (optional)")}</div><input type="date" style={inp} value={endDate} onChange={e=>setEndDate(e.target.value)}/></div>
+          <div><div style={{fontSize:11.5,color:"var(--text2)",marginBottom:4}}>⏰ {W2("Roja dawî (vebijarkî)","Closing date (optional)")}</div><DateInput style={inp} value={endDate} onChange={e=>setEndDate(e.target.value)}/></div>
           <label style={{fontSize:13,color:"var(--text)",display:"flex",gap:8,alignItems:"center",padding:"10px 0"}}><input type="checkbox" checked={anon} onChange={e=>setAnon(e.target.checked)}/> 🕶 {W2("Bênav (nav di encaman de nayê nîşandan)","Anonymous (names hidden in results)")}</label>
         </div>
       </div>
@@ -14082,7 +14284,7 @@ function TeacherSurveyPanel({teacher, schedule, lang, t, toast}) {
         <label style={{fontSize:11,color:"var(--text2)",fontWeight:600,display:"block",marginBottom:5}}>
           {L("week")} <span style={{fontFamily:"monospace",fontSize:10,color:"var(--text)"}}>({weekRangeLabel(weekKey,lang)})</span>
         </label>
-        <input type="date" style={{width:"100%",padding:"11px 12px",border:"1.5px solid var(--border2)",
+        <DateInput style={{width:"100%",padding:"11px 12px",border:"1.5px solid var(--border2)",
           borderRadius:10,fontSize:14,fontFamily:"inherit",color:"var(--text)",background:"var(--surface)",outline:"none"}}
           value={weekStart} onChange={e=>{setWeekStart(e.target.value);setSaved(false);}}/>
       </div>
@@ -14381,16 +14583,65 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
   const sessLesson = activeQRSession ? mySchedule.find(l=>String(l.id)===String(activeQRSession.lessonId)) : null;
   const sessRoster = sessLesson ? rosterOf(sessLesson) : [];
   // Elle yoklama: bugünkü derslerden seçilen (varsayılan: şu anki ders) + o dersin sınıf listesi
-  const attLesson = todayLessons.find(l=>String(l.id)===String(attLsId)) || (todayLessons.includes(currentLesson)?currentLesson:todayLessons[0]) || null;
-  const attRoster = attLesson ? rosterOf(attLesson) : [];
+  // Saat/gün sınırı yok: öğretmen programındaki her dersi başlatabilir (bugünküler önce gelir)
+  const attChoices = [...todayLessons, ...mySchedule.filter(l=>!todayLessons.includes(l))];
+  const attLesson = attChoices.find(l=>String(l.id)===String(attLsId)) || (todayLessons.includes(currentLesson)?currentLesson:todayLessons[0]) || null;
+  // İzinli öğrenciler (bölüm sorumlusu işaretler) o gün yoklama listesinde görünmez
+  const leaves = useLeaves(true);
+  const attAll = attLesson ? rosterOf(attLesson) : [];
+  const attRoster = attAll.filter(s=>!leaveOf(leaves,s.no,todayStr_t));
+  const attOnLeave = attAll.filter(s=>leaveOf(leaves,s.no,todayStr_t));
   const attCount = v => attRoster.filter(s=>attendance[s.id]===v).length;
   // Elle yoklama listesi derse özeldir: ders değişince temizlenir ve o dersin bugünkü kaydı
   // (QR ile alınan ya da daha önce elle kaydedilen) yüklenir. Henüz kaydedilmemiş işaretler korunur.
   const attLessonId = attLesson ? String(attLesson.id) : null;
   const attLessonRef = useRef(null); attLessonRef.current = attLessonId;
   const [attSaving,setAttSaving]=useState(false);
+  // "Dersi başlat": başlangıç anı (ms) → attendance/{ders}-{tarih}.startedAt. Başlangıçtan 15 dk sonra
+  // QR / kartla gelenler "geç" yazılır. Elle işaret öğretmenin seçimidir.
+  const LATE_MS = 15*60*1000;
+  const [lsStarts,setLsStarts]=useState({});
+  const [attScan,setAttScan]=useState(false);
+  const attRef=useRef(attendance); attRef.current=attendance;
+  const startKey=id=>"aat-start-"+id+"-"+todayStr_t;
+  function startOf(ls){
+    if(!ls) return 0;
+    const v=lsStarts[String(ls.id)]; if(v) return v;
+    try{ return +localStorage.getItem(startKey(ls.id))||0; }catch(_){ return 0; }
+  }
+  function startLesson(ls){
+    if(!ls) return 0;
+    const had=startOf(ls); if(had) return had;
+    const ms=Date.now();
+    setLsStarts(p=>({...p,[String(ls.id)]:ms}));
+    try{ localStorage.setItem(startKey(ls.id),String(ms)); }catch(_){}
+    const FB=window.__FB;
+    if(FB&&FB.isConfigured()){
+      FB.setDoc(FB.doc(FB.db,"attendance",ls.id+"-"+todayStr_t),{lessonId:ls.id,lessonName:ls.name||"",area:ls.area||"",classId:ls.classId||null,
+        teacherId:teacher.id==null?null:teacher.id,teacherName:teacher.name||"",date:todayStr_t,startedAt:ms,updatedAt:FB.serverTimestamp()},{merge:true})
+        .catch(e=>toast("⚠ "+(e.code||e.message||"")));
+    }
+    hapticSuccess();
+    toast("▶ "+(ls.name||"")+" · "+new Date(ms).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}));
+    return ms;
+  }
+  const lateNow=ls=>{ const st=startOf(ls); return st>0 && Date.now()-st>LATE_MS; };
+  // Kartla (QR ile) alınan yoklama: işaret hemen kaydedilir (kaydet'e basılmasa da kaybolmaz)
+  function cardCheckin(student){
+    const ls=attLesson; if(!ls) return {ok:false,reason:"session_not_found"};
+    const cur=attRef.current[student.id];
+    if(cur==="on"||cur==="late") return {ok:false,reason:"already_checked_in"};
+    const v=lateNow(ls)?"late":"on";
+    setAttendance(p=>({...p,[student.id]:v}));
+    const FB=window.__FB;
+    if(FB&&FB.isConfigured()){
+      FB.setDoc(FB.doc(FB.db,"attendance",ls.id+"-"+todayStr_t),{lessonId:ls.id,teacherId:teacher.id==null?null:teacher.id,date:todayStr_t,
+        records:{[student.id]:v},updatedAt:FB.serverTimestamp()},{merge:true}).catch(()=>{});
+    }
+    return {ok:true,late:v==="late"};
+  }
   useEffect(()=>{
-    setAttendance({});
+    setAttendance({}); setAttScan(false);
     if(!attLessonId) return;
     let alive=true;
     const FB=window.__FB;
@@ -14399,8 +14650,9 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
       return;
     }
     FB.getDoc(FB.doc(FB.db,"attendance",attLessonId+"-"+todayStr_t)).then(snap=>{
-      if(!alive||!snap.exists()) return; const r=snap.data().records;
+      if(!alive||!snap.exists()) return; const r=snap.data().records, st=snap.data().startedAt;
       if(r) setAttendance(p=>({...r,...p}));
+      if(st) setLsStarts(p=>({...p,[attLessonId]:st}));
     }).catch(()=>{});
     return ()=>{ alive=false; };
   },[attLessonId,todayStr_t]);
@@ -14476,27 +14728,9 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
 
   function openLessonQR(selectedLesson){
     const lesson = selectedLesson || currentLesson || mySchedule[0];
-    // ── Ders saati kapısı: ders yalnız kendi gününde, başlangıçtan en fazla
-    //    10 dk önce → bitiş saatine kadar açılabilir ──
-    if(lesson && lesson.id){
-      const _now=new Date();
-      const _nowM=_now.getHours()*60+_now.getMinutes();
-      const _today=_now.toISOString().slice(0,10);
-      const _dayOk = (lesson.lessonType==="extra")
-        ? (lesson.extraDates||[]).includes(_today)
-        : (lesson.day===DAY_NAMES_KU[_now.getDay()]);
-      let _timeOk=true;
-      if(lesson.start&&lesson.end){
-        const [_sh,_sm]=lesson.start.split(":").map(Number);
-        const [_eh,_em]=lesson.end.split(":").map(Number);
-        _timeOk = _nowM >= (_sh*60+_sm-10) && _nowM <= (_eh*60+_em);
-      }
-      if(!_dayOk || !_timeOk){
-        toast("⏰ "+(lang==="en"?"Lesson can only be started on its scheduled day/time":K("Ders tenê di roj û saeta xwe de dest pê dike"))
-          +" ("+(lesson.day||"")+" "+(lesson.start||"")+"–"+(lesson.end||"")+")", 6000);
-        return;
-      }
-    }
+    // Saat/gün kapısı yok: öğretmen dersi istediği an başlatır. QR açılınca ders başlamamışsa şimdi başlar;
+    // geç sayımı dersin başlangıcından (15 dk) yapılır.
+    const startMs = lesson && lesson.id ? startLesson(lesson) : Date.now();
     const lessonName = lesson ? lesson.name : (lang==="en"?"Class":K("Ders"));
     const lessonId   = lesson ? lesson.id   : ("manual_"+Date.now());
     const sessionId  = generateSessionToken(lessonId, teacher.id);
@@ -14515,7 +14749,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     let ttl = 36000000;
     if(lesson && lesson.end){ const [eh,em]=lesson.end.split(":").map(Number); const endAt=new Date(); endAt.setHours(eh,em,0,0);
       const left=endAt.getTime()-Date.now(); if(left>5*60000) ttl=left; }
-    const session = openQRSession(sessionId, lessonName, teacher.name, sessionArea, ttl, null, lessonId, teacher.id);
+    const session = openQRSession(sessionId, lessonName, teacher.name, sessionArea, ttl, null, lessonId, teacher.id, startMs);
     // Ek ders tarihini session'a ekle
     if(lessonDate && window._aat_qr_session) window._aat_qr_session._lessonDate = lessonDate;
     setQrToken(sessionId);
@@ -14549,7 +14783,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
         // Yeni oturum dokümanı — öğrenciler yeni QR'ı doğrulayabilsin
         window.__FB.setDoc(window.__FB.doc(window.__FB.db,"qrSessions",newId),{
           sessionId:newId, lessonName:s.lessonName, teacherName:s.teacherName, area:s.area,
-          openedAt: window.__FB.serverTimestamp(), openedAtMs: s.openedAt, expiresAt: s.expiresAt, active:true
+          openedAt: window.__FB.serverTimestamp(), openedAtMs: s.openedAtMs||s.openedAt, expiresAt: s.expiresAt, active:true
         });
         // Eski QR'ı geçersiz kıl
         window.__FB.setDoc(window.__FB.doc(window.__FB.db,"qrSessions",oldId),{active:false},{merge:true});
@@ -14584,7 +14818,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     const lessonId = session?.lessonId || ("manual_"+Date.now());
     // Yoklama listesi dersin sınıfıdır (sınıfsız ders → alanın öğrencileri)
     const sesLs = mySchedule.find(l=>String(l.id)===String(lessonId));
-    const roster = sesLs ? rosterOf(sesLs) : [];
+    const roster = sesLs ? rosterOf(sesLs).filter(s=>!leaveOf(leaves,s.no,dateStr)) : [];
     // QR okutamayan öğrenciyi öğretmen elle "geldi/geç" işaretlediyse o işaret korunur
     const manual = String(lessonId)===String(attLessonRef.current) ? attendance : {};
     const records  = {};
@@ -14759,7 +14993,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                     <div style={{height:"100%",width:`${curRoster.length?Object.values(attendance).filter(v=>v==="on").length/curRoster.length*100:0}%`,background:a.color,borderRadius:3,transition:"width 0.3s"}}/>
                   </div>
                 </div>
-                <PrimaryBtn onClick={()=>openLessonQR(currentLesson)} icon="📷">{t.qrScanTeacher}</PrimaryBtn>
+                <PrimaryBtn onClick={()=>{ setAttLsId(currentLesson.id); setView("attendance"); }} icon="▶">{startOf(currentLesson)?(lang==="en"?"Attendance":K("Amadebûn")):(lang==="en"?"Start lesson":K("Dersê Dest Pê Bike"))}</PrimaryBtn>
               </Card>
             ):(
               <Card><div style={{textAlign:"center",padding:12,color:"var(--text2)",fontSize:13}}>
@@ -14823,27 +15057,49 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
           </div>
         )}
 
-        {view==="attendance"&&todayLessons.length===0&&(
+        {view==="attendance"&&mySchedule.length===0&&(
           <Card>
             <div style={{textAlign:"center",padding:"30px 14px"}}>
               <div style={{fontSize:42,marginBottom:10}}>📅</div>
               <div style={{fontSize:14,fontWeight:700,color:"var(--text)",marginBottom:6}}>
-                {lang==="en"?"No lesson today":K("Îro ders tune")}
+                {lang==="en"?"No lessons assigned to you yet":K("Hîn ders ji te re nehatiye erkdarkirin")}
               </div>
               <div style={{fontSize:11.5,color:"var(--text2)",lineHeight:1.7}}>
-                {lang==="en"?"Attendance can only be taken on the day of the lesson.":K("Amadebûn tenê di roja dersê de tê girtin.")}
+                {lang==="en"?"Your department head prepares the lesson schedule.":K("Bernameya dersan berpirsê beşa te amade dike.")}
               </div>
             </div>
           </Card>
         )}
-        {view==="attendance"&&todayLessons.length>0&&(
+        {view==="attendance"&&mySchedule.length>0&&(
           <>
             <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
-              {todayLessons.map(l=>{ const on=attLesson&&String(attLesson.id)===String(l.id); const cd=l.classId&&clsDocs.find(d=>d.id===l.classId); return(
-                <button key={l.id} onClick={()=>setAttLsId(l.id)} style={{padding:"7px 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",
-                  border:"1.5px solid "+(on?"#0f2f38":"var(--border2)"),background:on?"#0f2f38":"var(--surface)",color:on?"#fff":"var(--text)"}}>
-                  📅 {l.start} {l.name}{cd?" · 🏫 "+cd.name:""}</button>); })}
+              {attChoices.map(l=>{ const on=attLesson&&String(attLesson.id)===String(l.id); const cd=l.classId&&clsDocs.find(d=>d.id===l.classId); const isT=todayLessons.includes(l); return(
+                <button key={l.id} data-att-lesson={l.id} onClick={()=>setAttLsId(l.id)} style={{padding:"7px 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",
+                  border:"1.5px solid "+(on?"#0f2f38":"var(--border2)"),background:on?"#0f2f38":"var(--surface)",color:on?"#fff":"var(--text)",opacity:isT||on?1:.8}}>
+                  {isT?"📅":"🗓"} {isT?"":(t.days?.[l.day]||l.day||"")+" "}{l.start} {l.name}{cd?" · 🏫 "+classNameTx(cd.name):""}</button>); })}
             </div>
+            {!attLesson&&<Card><div style={{textAlign:"center",padding:16,fontSize:12.5,color:"var(--text2)"}}>{lang==="en"?"No lesson on today's schedule — choose a lesson above to start it.":K("Îro di bernameyê de ders tune — ji jor dersekê hilbijêre û dest pê bike.")}</div></Card>}
+            {attLesson&&(()=>{ const st=startOf(attLesson); const hm=ms=>new Date(ms).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+              return !st?(
+              <div style={{background:"var(--surface)",borderRadius:14,padding:"14px",marginBottom:12,border:"1.5px solid #0f2f38"}}>
+                <div style={{fontSize:14,fontWeight:800,color:"var(--text)"}}>{attLesson.name}</div>
+                <div style={{fontSize:11.5,color:"var(--text2)",margin:"2px 0 12px"}}>{attLesson.start}–{attLesson.end} · {attLesson.loc||"—"} · {attRoster.length} {t.totalStudents.toLowerCase()}</div>
+                <PrimaryBtn onClick={()=>startLesson(attLesson)} icon="▶" data-start-lesson="1">{lang==="en"?"Start lesson":K("Dersê Dest Pê Bike")}</PrimaryBtn>
+                <div style={{fontSize:11,color:"var(--text2)",marginTop:8,lineHeight:1.6}}>{lang==="en"?"Students who check in by QR/card more than 15 minutes after the start are marked late.":K("Yên ku 15 deqe piştî destpêkê bi QR/kartê têkevin, “dereng” tên nivîsandin.")}</div>
+              </div>
+            ):(
+              <div style={{background:"var(--surface)",borderRadius:14,padding:"12px 14px",marginBottom:12,border:"1.5px solid var(--green)"}}>
+                <div data-lesson-started="1" style={{fontSize:13,fontWeight:800,color:"var(--green)"}}>🟢 {lang==="en"?"Lesson started":K("Ders dest pê kir")} {hm(st)} · {attLesson.name}</div>
+                <div style={{fontSize:11,color:"var(--text2)",margin:"2px 0 10px"}}>⏱ {lang==="en"?"Late after":K("Piştî vê dereng")}: {hm(st+LATE_MS)}</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                  <button data-att-scan="1" onClick={()=>setAttScan(v=>!v)} style={{padding:"11px 8px",background:"#0f2f38",color:"#e7c77b",border:"none",borderRadius:10,fontSize:12.5,fontWeight:700,cursor:"pointer"}}>
+                    📷 {lang==="en"?"Take by QR (card)":K("Bi QR bigire (kart)")}</button>
+                  <button onClick={()=>{ openLessonQR(attLesson); setView("scanner"); }} style={{padding:"11px 8px",background:"var(--bg2)",color:"var(--text)",border:"1px solid var(--border2)",borderRadius:10,fontSize:12.5,fontWeight:700,cursor:"pointer"}}>
+                    📡 {lang==="en"?"Lesson QR (students' phones)":K("QR ya dersê (têlefona xwendekar)")}</button>
+                </div>
+                {attOnLeave.length>0&&<div data-on-leave="1" style={{fontSize:11.5,color:"var(--text2)",marginTop:8}}>🏷 {lang==="en"?"On leave today (not in the list)":K("Îro bi destûr (ne di lîsteyê de)")}: {attOnLeave.map(s=>s.name).join(", ")}</div>}
+                {attScan&&<div style={{marginTop:10}}><TeacherCardScanner myStudents={attRoster} lang={lang} onCheckin={cardCheckin} onClose={()=>setAttScan(false)}/></div>}
+              </div>); })()}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
               <div style={{background:"var(--surface)",borderRadius:10,padding:11,textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
                 <div style={{fontSize:10,color:"var(--green)",marginBottom:3}}>✅ {t.attended}</div>
@@ -14867,6 +15123,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                   // da listeye zaten işlenmiştir; kayıt aynı belgeye yazılır, tekrar kaydetmek güvenlidir.
                   const total=attRoster.length||1;
                   const records={}; attRoster.forEach(s=>{ records[s.id]=attendance[s.id]||"off"; });
+                  attOnLeave.forEach(s=>{ records[s.id]="leave"; });   // izinli: devamsızlık sayılmaz
                   const presentCount=attRoster.filter(s=>records[s.id]!=="off").length;
                   setAttSaving(true);
                   const ok=await fbSaveAttendance(attLesson.id, teacher.id, todayStr_t, records);
@@ -14880,7 +15137,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                 }} style={{padding:"6px 14px",fontSize:11,background:"#0f2f38",color:"#ffffff",border:"none",borderRadius:8,cursor:attSaving?"wait":"pointer",fontWeight:600,opacity:attSaving?.6:1}}>{attSaving?"…":t.saveAttendance}</button>
               </div>
               {attRoster.length===0&&<div style={{fontSize:12,color:"var(--text2)",textAlign:"center",padding:16}}>{attLesson&&!attLesson.classId
-                ?(lang==="en"?"No class is linked to this lesson — ask Student Affairs to link one.":K("Ev ders bi sinifekê ve nehatiye girêdan — ji Karûbarên Xwendekaran bixwaze."))
+                ?(lang==="en"?"No class is linked to this lesson — ask the department head to link one.":K("Ev ders bi sinifekê ve nehatiye girêdan — ji berpirsê beşê bixwaze."))
                 :(lang==="en"?"No students in this lesson's class.":K("Di sinifa vê dersê de xwendekar tune."))}</div>}
               {attRoster.map(s=>(
                 <div key={s.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"0.5px solid var(--border)"}}>
@@ -15340,7 +15597,7 @@ function SelfProfileSheet({user,userType,lang,toast,onClose,onSave}){
         type="email" inputMode="email" placeholder="minak@mail.com"/>
 
       <div style={lbl}>{L("Roja jidayikbûnê","Date of birth")}</div>
-      <input style={{...inp,marginBottom:12}} type="date" value={dob} onChange={e=>setDob(e.target.value)}/>
+      <DateInput style={{...inp,marginBottom:12}} value={dob} onChange={e=>setDob(e.target.value)}/>
 
       <div style={lbl}>{L("Navnîşan","Address")}</div>
       <input style={{...inp,marginBottom:12}} value={address} onChange={e=>setAddress(e.target.value)}
@@ -17178,11 +17435,12 @@ function validateQRContent(content, sessionId){
   if(content.startsWith(sessionId + "|")) return true;
   return false;
 }
-function openQRSession(sessionId, lessonName, teacherName, area, expiresInMs=600000, teacherLocation=null, lessonId=null, teacherId=null){
+function openQRSession(sessionId, lessonName, teacherName, area, expiresInMs=600000, teacherLocation=null, lessonId=null, teacherId=null, startMs=null){
   const session = {
     sessionId, lessonName, teacherName, area,
     lessonId, teacherId,
     openedAt: Date.now(),
+    openedAtMs: startMs || Date.now(),   // geç sayımı ders başlangıcından
     expiresAt: Date.now() + expiresInMs,
     teacherLocation,
     checkins: {},
@@ -17196,7 +17454,7 @@ function openQRSession(sessionId, lessonName, teacherName, area, expiresInMs=600
       window.__FB.setDoc(window.__FB.doc(window.__FB.db,"qrSessions",sessionId),{
         sessionId, lessonName, teacherName, area,
         openedAt: window.__FB.serverTimestamp(),
-        openedAtMs: session.openedAt,
+        openedAtMs: session.openedAtMs,
         expiresAt: Date.now() + expiresInMs,
         teacherLocation: teacherLocation||null,
         active: true
@@ -17328,7 +17586,7 @@ function TeacherCardScanner({myStudents, lang, onCheckin, onClose}){
       if(!student) setMsg({text:"⚠ "+r.card.name+" — "+W("di vê dersê de nîne","not in this lesson"),ok:false});
       else{
         const result=onCheckin(student);
-        if(result.ok) setMsg({text:"✅ "+student.name,ok:true});
+        if(result.ok) setMsg({text:(result.late?"⏱ ":"✅ ")+student.name+(result.late?" — "+W("dereng","late"):""),ok:true});
         else if(result.reason==="already_checked_in") setMsg({text:"✓ "+W("Berê ketibû: ","Already in: ")+student.name,ok:true});
         else setMsg({text:"⚠ "+W("Dersa aktîf nîne","No active lesson"),ok:false});
       }
@@ -17455,18 +17713,19 @@ function TeacherQRDisplay({token, lessonName, teacherName, areaColor, onClose, o
               const s = window._aat_qr_session;
               if(!s||!s.active){ return {ok:false,reason:"session_not_found"}; }
               if(s.checkins[student.id]?.confirmed){ return {ok:false,reason:"already_checked_in"}; }
-              s.checkins[student.id]={confirmed:true,name:student.name,no:student.no,time:new Date().toLocaleTimeString(),method:"card_scan"};
+              const late=(Date.now()-(s.openedAtMs||s.openedAt||Date.now()))>15*60*1000;
+              s.checkins[student.id]={confirmed:true,name:student.name,no:student.no,time:new Date().toLocaleTimeString(),method:"card_scan",late};
               try{
                 if(window.__FB&&window.__FB.isConfigured()){
                   window.__FB.setDoc(
                     window.__FB.doc(window.__FB.db,"attendance",s.sessionId+"_"+student.id),
-                    {sessionId:s.sessionId,lessonName:s.lessonName,area:s.area,studentId:student.id,studentName:student.name,studentNo:student.no,time:new Date().toISOString(),teacherName:s.teacherName,method:"card_scan"},
+                    {sessionId:s.sessionId,lessonName:s.lessonName,area:s.area,studentId:student.id,studentName:student.name,studentNo:student.no,time:new Date().toISOString(),teacherName:s.teacherName,method:"card_scan",late},
                     {merge:true}
                   );
                 }
               }catch(e){}
               setCheckins(getSessionCheckins());
-              return {ok:true};
+              return {ok:true,late};
             }}
             onClose={()=>setScanCardMode(false)}
           />
@@ -18834,7 +19093,7 @@ function App(){
         <GatePanel user={currentUser} lang={lang} toast={toast} onLogout={handleLogout}/>
       )}
       {screen==="head"&&currentUser&&(
-        <HeadPanel user={currentUser} students={students} teachers={teachers} schedule={schedule} t={t} lang={lang} toast={toast} onLogout={handleLogout} onSettings={()=>setShowSettings(true)}/>
+        <HeadPanel user={currentUser} students={students} teachers={teachers} schedule={schedule} t={t} lang={lang} toast={toast} onLogout={handleLogout} onSettings={()=>setShowSettings(true)} onDataChange={onDataChange}/>
       )}
       {screen==="press"&&currentUser&&(
         <PressPanel user={currentUser} lang={lang} toast={toast} onLogout={handleLogout}/>

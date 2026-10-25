@@ -35,20 +35,23 @@
 - `classPosts`, `kidClassPosts`: `classId, type (duyuru|odev|belge), title, body, due, files[], teacherNo, teacherName` (`classPosts`'ta ayrıca `className`)
 - Öğrenci birden çok sınıfta olabilir (alan sınıfı + genel sınıf + açık atölye): hepsinin paylaşımlarını ve derslerini görür
 
-## Öğrenci İşleri — tek giriş noktası
-**Qad · Tescîl · Bername**: dönem (demsal) yöneticisi en üstte; her alan kartı açılınca o alanın
-öğrencileri (kayıt, düzenleme, kart basımı / kayıp kart), öğretmenleri (alana kayıt) ve ders programı
-(ana/ek ders, düzenleme, "öğretmen gelmedi") aynı pencerededir. Ortak dersler **Hemû Xwendekar** kartında.
-Farklı dönemlerden öğrencilerin girdiği ortak derslerde birden çok genel sınıf açılıp aynı öğretmen hepsine atanabilir.
+## Kim ne yapar
+- **Öğrenci İşleri:** öğrenci ve öğretmen kaydı, sınıf açma (bir sınıfa birden çok sınıf öğretmeni atanabilir —
+  sınıf öğretmeni programı beklemeden sınıfa duyuru/ödev/belge gönderir), atölye. Ders programını yalnızca **görür**.
+- **Bölüm sorumlusu** (genel sorumlu: tüm bölümler · çocuk akademisi sorumlusu: kendi dersi):
+  ders programı + öğretmen ataması, "ders yapılmadı" işareti, öğrenci izni. Firestore kuralı yalnız kendi bölümüne izin verir.
+- **Yönetici:** her şey; raporlarda öğretmen devamı (neden + işaretleyen) ve öğrenci izinleri.
 
-## Haftalık program, QR yoklama ve öğretmen devamı
-- **Haftalık tekrar:** Ders eklerken **Dönem** seçilir (varsayılan: aktif dönem). Haftalık ders, dönemin başlangıç–bitiş tarihleri arasında her hafta aynı gün/saatte programa düşer; dönem bitince kendiliğinden kalkar.
-- **QR ile derse giriş:** Öğretmen dersin gününde "Dersi başlat" der → tek bir QR oluşur (tablette gösterilir **ya da** çıktı alınır — ikisi aynı kod).
-  - Açılıştan sonraki ilk **15 dk** okutan **zamanında**, sonra okutan **geç**; hiç okutmayan **yok** yazılır.
-  - QR dersin **bitiş saatinde** kendiliğinden kapanır (öğretmen kapatmayı unutsa da ders sonrası okutulamaz). Her hafta yeni ders = yeni QR; geçen haftanın çıktısı geçersizdir.
-- **Başka hesaba okutma engelleri:**
-  - Öğrenci hesabı ilk girdiği telefona bağlanır; başka telefondan girilemez (Öğrenci İşleri cihazı sıfırlayabilir).
-  - Bir telefon bir derste **yalnızca bir öğrenci** adına yoklama verebilir (`attendance/{oturum}_d_{cihaz}`; Firestore kuralı denetler).
-  - Aynı öğrenci aynı derse iki kez yoklama veremez; QR yalnızca ders açıkken geçerlidir.
-- **Öğretmen dersi işlemediğinde:** Öğrenci İşleri → program → dersin 🚫 düğmesi → tarih + neden (**devamsız / raporlu / mazeretli**) + açıklama.
+## Program, "Dersi başlat", yoklama
+- **Ders ekleme (sorumlu):** sınıf → ders adı → öğretmen → takvimden gün → saat. **Her hafta tekrarlansın** işaretliyse
+  o günden itibaren her hafta aynı gün/saatte (dönem seçilirse dönem sonuna kadar); işaretsizse yalnız o gün.
+  Öğrenciler gelecekteki derslerini programda görür. Takvim uygulamanın dilinde açılır (`DateInput`).
+- **Dersi başlat (öğretmen):** saat/gün sınırı yok; başlangıç anı `attendance/{ders}-{tarih}.startedAt`.
+  - **QR ile al (kart):** öğrencinin yaka kartı okutulur; başlangıçtan **15 dk** sonra okutulan **geç** yazılır, kayıt anında yapılır.
+  - **Ders QR'ı:** öğrenciler kendi telefonuyla okutur (aynı 15 dk kuralı). Elle ✓ / ⏱ / ✗ işareti öğretmenin seçimidir.
+  - Çocuk akademisi: öğretmen derste "Dersi başlat" der; 15 dk sonra "geldi" işaretlenen çocuk **geç** yazılır.
+- **Öğrenci izni (sorumlu):** öğrenci + tarih aralığı + neden (`studentLeaves`). İzinli öğrenci o günlerde yoklama
+  listesinde görünmez, yoklamaya `leave` yazılır (devamsızlık sayılmaz); neden Rapor → **Öğrenci izinleri**'nde.
+- **Ders yapılmadı (sorumlu):** program → dersin 🚫 düğmesi → tarih + neden (**devamsız / raporlu / mazeretli**) + açıklama;
+  o dersin öğretmenine yazılır.
 - **Öğretmen devamı raporu:** Rapor → **Öğretmen devamı**: bu hafta / 30 gün / dönem; her öğretmen için ✅ işlendi · 🚫/🏥/📝 · ⚠ kayıt yok (yoklama alınmamış), CSV.

@@ -83,7 +83,7 @@ async function routes(ctx) {
   // 2) Sorumlu girer: yalnızca Duyuru / Mesaj / Rapor
   const hp = await login(await mk(), hno, hpass);
   const keys = await hp.evaluate(() => [...document.querySelectorAll('.sm-it[data-key]')].map(e => e.dataset.key).join(','));
-  ok('Sorumlu paneli: yalnızca duyuru, mesaj, anket, rapor', keys === 'announce,messages,surveys,reports', keys);
+  ok('Sorumlu paneli: duyuru, mesaj, ders programı, izin, anket, rapor', keys.split(',').sort().join(',') === 'announce,leaves,messages,reports,schedule,surveys', keys);
   // Duyuru (kendi bölümüne kilitli) + belge
   const t0 = await txt(hp);
   ok('Duyuru hedefi kendi bölümüne kilitli', t0.includes('Kilkkirî') && t0.includes('Şano'));
