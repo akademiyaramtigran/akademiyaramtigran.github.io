@@ -136,6 +136,15 @@ async function push(docs, build, link, tag) {
 }
 const STAFF = ["teacher", "registrar", "press", "admin", "head"];
 
+// Deneme bildirimi: giriş yapmış kullanıcının KENDİ kayıtlı cihazlarına (Ayarlar → "Test bildirimi")
+exports.pushTest = onCall(async (req) => {
+  if (!req.auth) throw new HttpsError("unauthenticated", "Giriş gerekli");
+  const s = await admin.firestore().collection("pushTokens").where("uid", "==", req.auth.uid).get();
+  if (!s.docs.length) return { ok: false, count: 0 };
+  await push(s.docs, l => ({ title: tx(l, "msg"), body: "✅ Test" }), "/app/", "aat-test");
+  return { ok: true, count: s.docs.length };
+});
+
 // Ana akademi: özel / toplu mesaj
 exports.pushMessage = onDocumentCreated("messages/{id}", async (ev) => {
   const m = ev.data && ev.data.data(); if (!m) return;
@@ -149,6 +158,8 @@ exports.pushMessage = onDocumentCreated("messages/{id}", async (ev) => {
   else if (m.recipientGroup === "all") docs = await tokens("aat");
   else if (m.recipientGroup === "allStudents") docs = await tokens("aat", "role", "student");
   else if (m.recipientGroup === "allTeachers") docs = await tokens("aat", "role", STAFF);
+  else if (m.recipientGroup === "allHeads") docs = await tokens("aat", "role", "head");
+  else if (m.recipientGroup === "genHead") docs = (await tokens("aat", "area", "genel")).filter(d => d.get("role") === "head");
   else if (typeof m.recipientGroup === "string" && m.recipientGroup.startsWith("area_")) {
     docs = (await tokens("aat", "area", m.recipientGroup.slice(5))).filter(d => d.get("role") === "student");
   }

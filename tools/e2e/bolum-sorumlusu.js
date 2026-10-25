@@ -140,6 +140,17 @@ async function routes(ctx) {
   await goA(tp, 'messages'); await tp.waitForTimeout(1500);
   ok('Öğretmen sorumlunun mesajını gelen kutusunda görür', (await txt(tp)).includes('Lîsteya kostûman'));
 
+  // Yönetici → tüm bölüm sorumlularına toplu mesaj; yönetici gelen kutusunda "sorumlular" süzgeci
+  await put('messages/MH1', { subject: 'Civîna berpirsan', body: 'Înî saet 10', from: 'Rêveber', fromType: 'admin', senderId: 'admin', recipientGroup: 'allHeads', type: 'bulk', read: false, createdAt: new Date() });
+  await goA(hp, 'announce'); await hp.waitForTimeout(400); await goA(hp, 'messages'); await hp.waitForTimeout(2000);
+  ok('Sorumlu "tüm sorumlular" toplu mesajını görür', (await txt(hp)).includes('Civîna berpirsan'));
+  await put('messages/MH2', { subject: 'Rapora beşê', body: 'Amade ye', from: 'Berpirsa Şanoyê', fromType: 'head', senderNo: hno, recipientId: 'admin', area: 'tiyatro', read: false, createdAt: new Date() });
+  await goA(ap, 'messages'); await ap.waitForTimeout(2000);
+  await btn(ap, 'Berpirsên beşan'); await ap.waitForTimeout(600);
+  const at = await txt(ap);
+  ok('Yönetici: "Bölüm sorumluları" süzgeci sorumlu mesajını gösterir', at.includes('Rapora beşê') && !at.includes('Ji bo provayê kostûm heye?'));
+  await btn(ap, 'Berpirsê giştî'); await ap.waitForTimeout(600);
+  ok('Yönetici: "Genel sorumlu" süzgeci (bölüm sorumlusunun mesajı burada yok)', !(await txt(ap)).includes('Rapora beşê'));
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);
 })().catch(e => { console.error('E2E HATA', e); process.exit(1); });

@@ -676,18 +676,25 @@
     // Uygulama kapalıyken de mesaj, duyuru, ödev vb. telefona gelir (sunucu: functions/index.js push*).
     async enablePush(role, lang, area) {
       try {
-        if (!VAPID_KEY || /^YOUR_/.test(VAPID_KEY) || EMU || !auth.currentUser) return { ok: false, reason: "off" };
-        if (typeof Notification === "undefined" || Notification.permission !== "granted" || !("serviceWorker" in navigator)) return { ok: false, reason: "perm" };
+        if (!VAPID_KEY || /^YOUR_/.test(VAPID_KEY) || EMU || !auth.currentUser) return (window.__AAT_PUSH = { ok: false, reason: "off" });
+        if (typeof Notification === "undefined" || Notification.permission !== "granted" || !("serviceWorker" in navigator)) return (window.__AAT_PUSH = { ok: false, reason: "perm" });
         const m = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js");
-        if (!(await m.isSupported())) return { ok: false, reason: "unsupported" };
+        if (!(await m.isSupported())) return (window.__AAT_PUSH = { ok: false, reason: "unsupported" });
         const reg = (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.ready);
         const token = await m.getToken(m.getMessaging(app), { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
         if (!token) return { ok: false, reason: "notoken" };
         await setDoc(doc(db, "pushTokens", token), { uid: auth.currentUser.uid, no: auth.currentUser.email.split("@")[0], role, app: "aat",
           lang: lang || "ku", area: area || "", updatedAt: serverTimestamp() });
         try { localStorage.setItem("aat-push-token", token); } catch (_) {}
-        return { ok: true };
-      } catch (e) { console.warn("[push]", e); return { ok: false, reason: (e && e.code) || "error" }; }
+        return (window.__AAT_PUSH = { ok: true });
+      } catch (e) { console.warn("[push]", e); return (window.__AAT_PUSH = { ok: false, reason: (e && (e.code || e.message)) || "error" }); }
+    },
+    // Ayarlar → "Test bildirimi": sunucu bu kullanıcının kayıtlı cihazlarına deneme bildirimi yollar
+    async pushTest() {
+      const m = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js");
+      const fns = m.getFunctions(app, "europe-west1");
+      if (EMU) m.connectFunctionsEmulator(fns, "127.0.0.1", 5001);
+      return (await m.httpsCallable(fns, "pushTest")({})).data;
     },
     // Çıkışta bu cihazın kaydını sil (ortak cihazda bir sonraki kişiye bildirim gitmesin)
     async disablePush() {
@@ -1903,36 +1910,6 @@ async function fbDelete(type, fireId) {
   } catch(e) { console.warn("Firebase delete error:", type, fireId, e); throw e; }
 }
 
-// ── KVKK/GDPR + Apple App Store 5.1.1(v): kullanıcının kendi hesabını
-//    uygulama içinden kalıcı silmesi. İki aşamalı onay ister. ──
-async function deleteOwnAccount(user, role, lang, toast, onLogout){
-  const L = (ku,en,de)=> lang==="en"?en:K(ku);
-  const warn = L(
-    "Hesabê te û hemû daneyên te DÊ BI TEVAHÎ bên jêbirin. Ev kar venagere. Berdewam bikî?",
-    "Your account and all your data will be PERMANENTLY deleted. This cannot be undone. Continue?");
-  if(!window.confirm(warn)) return;
-  const word = L("JÊBIRIN","DELETE");
-  const typed = (window.prompt(lang==="en"?'Type "'+word+'" to confirm:':KF('Ji bo erêkirinê "{0}" binivîse:',[word])) || "").trim().toLocaleUpperCase(lang==="tr"?"tr-TR":undefined);
-  if(typed !== word){
-    toast(L("✖ Jêbirin hate betalkirin","✖ Deletion cancelled"));
-    return;
-  }
-  try{
-    if(window.__FB && window.__FB.isConfigured()){
-      const fireId = user.fireId || user.id;
-      await fbDelete(role==="teacher"?"teacher":"student", fireId);
-      // Öğrenci istatistik dokümanı — best effort
-      try{ await window.__FB.deleteDoc(window.__FB.doc(window.__FB.db,"studentStats",String(user.id))); }catch(_){}
-      // Firebase Auth hesabını sil — best effort (son giriş gerekebilir)
-      try{ const cu = window.__FB.auth && window.__FB.auth.currentUser; if(cu) await cu.delete(); }catch(_){}
-    }
-    toast(L("✅ Hesab hate jêbirin","✅ Account deleted"));
-    setTimeout(()=>{ try{ onLogout && onLogout(); }catch(_){} }, 900);
-  }catch(e){
-    console.warn("deleteOwnAccount error:", e);
-    toast(L("⚠ Çewtî çêbû — bi rêvebir re têkilî daynin","⚠ Error — please contact admin"));
-  }
-}
 
 // window.__FB'ye deleteDoc ve doc ekle (module scope'dan erişim için)
 window.addEventListener("DOMContentLoaded", () => {}, false);
@@ -5589,6 +5566,8 @@ function AdminMessagesPanel({students,teachers,lang,t,toast,adminName}){
     {k:"allStudents",label:t.allStudents||"Hemû Xwendekar"},
     {k:"allTeachers",label:lang==="en"?"All Teachers":K("Hemû Mamoste")},
     {k:"all",label:lang==="en"?"Everyone":K("Hemû")},
+    {k:"allHeads",label:"🎓 "+(lang==="en"?"All department heads":K("Hemû berpirsên beşan"))},
+    {k:"genHead",label:"🎓 "+(lang==="en"?"General head":K("Berpirsê giştî"))},
     ...AREAS.filter(a=>a.key!=="genel").map(a=>({k:"area_"+a.key,label:a.icon+" "+areaName(a.key,lang)})),
   ];
 
@@ -5596,7 +5575,10 @@ function AdminMessagesPanel({students,teachers,lang,t,toast,adminName}){
   const sent=messages.filter(m=>m.direction==="sent"||(m.senderId==="admin"&&m.fromType==="admin"&&!m.isStudentFeedback));
   const feedbackMsgs=inbox.filter(m=>m.isStudentFeedback);
   const regularMsgs=inbox.filter(m=>!m.isStudentFeedback);
-  const displayInbox=inboxFilter==="feedback"?feedbackMsgs:inboxFilter==="messages"?regularMsgs:inbox;
+  // Bölüm sorumlularından gelenler (genel sorumlu: bölümü "genel")
+  const headMsgs=inbox.filter(m=>m.fromType==="head");
+  const genHeadMsgs=headMsgs.filter(m=>m.area==="genel");
+  const displayInbox=inboxFilter==="feedback"?feedbackMsgs:inboxFilter==="messages"?regularMsgs:inboxFilter==="heads"?headMsgs:inboxFilter==="genHead"?genHeadMsgs:inbox;
   const unreadCount=inbox.filter(m=>!m.read).length;
   const [inboxTab,setInboxTab]=useState("inbox");
 
@@ -5822,6 +5804,8 @@ function AdminMessagesPanel({students,teachers,lang,t,toast,adminName}){
             {k:"all",label:lang==="en"?"All":K("Hemû"),count:inbox.length},
             {k:"feedback",label:lang==="en"?"💡 Feedback":K("💡 Pêşniyar/Gilî"),count:feedbackMsgs.length},
             {k:"messages",label:lang==="en"?"💬 Messages":K("💬 Peyam"),count:regularMsgs.length},
+            {k:"heads",label:lang==="en"?"🎓 Department heads":K("🎓 Berpirsên beşan"),count:headMsgs.length},
+            {k:"genHead",label:lang==="en"?"🎓 General head":K("🎓 Berpirsê giştî"),count:genHeadMsgs.length},
           ].map(f=>(
             <button key={f.k} onClick={()=>setInboxFilter(f.k)}
               style={{padding:"5px 10px",borderRadius:20,fontSize:10,fontWeight:inboxFilter===f.k?700:400,flexShrink:0,
@@ -7556,7 +7540,8 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
     try{ unsub=window.__FB.onAllMessages(all=>setMsgs(all)); }catch(_){}
     return ()=>unsub();
   },[]);
-  const inbox=msgs.filter(m=>String(m.senderNo||"")!==myNo&&((m.toRole==="head"&&m.toArea===area)||m.recipientNo===myNo||m.recipientId==="h_"+myNo));
+  const inbox=msgs.filter(m=>String(m.senderNo||"")!==myNo&&((m.toRole==="head"&&m.toArea===area)||m.recipientNo===myNo||m.recipientId==="h_"+myNo
+    ||m.recipientGroup==="allHeads"||(ALL&&m.recipientGroup==="genHead")));
   const sent=msgs.filter(m=>m.fromType==="head"&&String(m.senderNo||"")===myNo);
   const unread=inbox.filter(m=>!m.read).length;
   const items=[
@@ -7660,6 +7645,13 @@ function KidHeadPanel({user,t,lang,toast,onLogout,onSettings}){
     L(F.collection(F.db,"guardians"),setGuards);
     return ()=>subs.forEach(u=>{ try{u();}catch(_){} });
   },[live,area,myNo]);
+  // Yönetimden gelen mesajlar (tüm sorumlulara ya da bu sorumluya özel)
+  const [adminMsgs,setAdminMsgs]=useState([]);
+  useEffect(()=>{
+    if(!live||!F.onAllMessages) return; let un=()=>{};
+    try{ un=F.onAllMessages(all=>setAdminMsgs(all.filter(m=>m.recipientGroup==="allHeads"||String(m.recipientNo||"")===myNo))); }catch(_){}
+    return ()=>{ try{un();}catch(_){} };
+  },[live,myNo]);
   const gset=new Set(); kids.forEach(k=>(k.guardianNos||[]).forEach(g=>gset.add(String(g))));
   const myMsgs=msgs.filter(m=>gset.has(String(m.guardianNo)));
   const unread=myMsgs.filter(m=>m.from==="guardian"&&!m.read).length;
@@ -7714,6 +7706,14 @@ function KidHeadPanel({user,t,lang,toast,onLogout,onSettings}){
               <button aria-label="✕" onClick={()=>{ if(window.confirm(W2("Were jêbirin?","Delete?"))) F.deleteDoc(F.doc(F.db,"kidAnnouncements",a.fireId)).catch(e=>toast("❌ "+e.code)); }} style={{border:"none",background:"none",cursor:"pointer",color:"var(--red)"}}><Ico n="trash"/></button></div>
             <div style={{fontSize:13,color:"var(--text)",whiteSpace:"pre-wrap",marginTop:4}}>{a.body}</div>
             <div style={{fontSize:11,color:"var(--text2)",marginTop:6}}>{ts(a.createdAt)}</div>
+          </div>))}
+        </div>)}
+        {tab==="messages"&&!thread&&adminMsgs.length>0&&(<div style={card} data-admin-msgs="1">
+          <div style={{fontSize:13,fontWeight:800,color:"var(--text)",marginBottom:6}}>🏛 {W2("Ji rêveberiyê","From the administration")}</div>
+          {adminMsgs.slice(0,10).map(m=>(<div key={m.fireId||m.id} style={{borderTop:"1px solid var(--border2)",padding:"8px 0"}}>
+            <div style={{fontWeight:700,color:"var(--text)",fontSize:13}}>{m.subject}</div>
+            <div style={{fontSize:12.5,color:"var(--text)",whiteSpace:"pre-wrap",marginTop:2}}>{m.body}</div>
+            <div style={{fontSize:11,color:"var(--text2)",marginTop:3}}>{m.from||""} · {m.time||""}</div>
           </div>))}
         </div>)}
         {tab==="messages"&&(thread?(()=>{ const th=threads.find(x=>x.g===thread); if(!th) return null;
@@ -10937,8 +10937,8 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
 
   const tabs=[
     {key:"announcements",icon:"📢",label:t.announcements},
-    {key:"press",icon:"📰",label:lang==="en"?"Press":K("Çapemenî")},
-    {key:"arsiv",icon:"🏛",label:lang==="en"?"Archive":K("Arşîv")},
+    // Özel personel kartları (basın · öğrenci işleri · bölüm sorumlusu · kapı). Site arşivi Basın panelinde.
+    {key:"press",icon:"📇",label:lang==="en"?"Staff Cards":K("Kartên Taybet")},
     {key:"messages",icon:"💬",label:lang==="en"?"Messages":K("Peyam")},
     {key:"reports",icon:"📊",label:lang==="en"?"Reports":K("Rapor")},
     {key:"alerts",icon:"🔔",label:lang==="en"?"Alerts":K("Hişyarî")},
@@ -11011,7 +11011,6 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
 
         {tab==="announcements"&&<AnnouncementsPanel t={t} toast={toast} lang={lang} senderName={adminData.name} senderRole="admin" senderArea={null}/>}
         {tab==="press"&&<AdminPressPanel teachers={teachers} onDataChange={onDataChange} lang={lang} toast={toast} t={t}/>}
-        {tab==="arsiv"&&<AdminArchivePanel lang={lang} toast={toast} adminName={adminData.name}/>}
         {tab==="messages"&&<AdminMessagesPanel students={students} teachers={teachers} lang={lang} t={t} toast={toast} adminName={adminData.name}/>}
         {tab==="reports"&&<AdminReportCenter students={students} teachers={teachers} schedule={schedule} lang={lang} t={t} toast={toast} byName={adminData.name}/>}
         {tab==="alerts"&&<AdminAlertsPanel students={students} schedule={schedule} lang={lang} toast={toast}/>}
@@ -14444,11 +14443,6 @@ function TeacherProfileView({teacher,a,lang,t,toast,avgAtt,riskCount,myStudents,
           <span style={{fontSize:18}}>↩</span> {lang==="en"?"Sign Out":K("Derkeve")}
           <span style={{marginLeft:"auto"}}>›</span>
         </button>
-        <button onClick={()=>deleteOwnAccount(teacher,"teacher",lang,toast,onLogout)}
-          style={{width:"100%",marginTop:8,padding:"12px",background:"transparent",border:"0.5px solid var(--border2)",borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer",color:"var(--text2)",textAlign:"left",display:"flex",alignItems:"center",gap:10}}>
-          <Ico n="trash" size={18}/> {lang==="en"?"Delete Account":K("Hesabê Min Jê Bibe")}
-          <span style={{marginLeft:"auto"}}>›</span>
-        </button>
       </Card>
 
       {showSelfProfile&&(
@@ -16507,8 +16501,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
             <div style={{color:"#fff",fontSize:16,fontWeight:800,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{student.name}</div>
             <div className="pill-row">
               <span className="glass-pill">{a.icon} {areaName(student.area,lang)}</span>
-              <span className="glass-pill" style={{fontFamily:"monospace"}}>{student.no}</span>
-              {myClasses.map(d=><span key={d.id} className="glass-pill">🏫 {d.kind==="area"?d.name:classLabel(d,lang)}{(d.teacherNames||[]).filter(Boolean).length?" · 👩‍🏫 "+d.teacherNames.filter(Boolean).join(", "):""}</span>)}
+              {myClasses.map(d=><span key={d.id} className="glass-pill">🏫 {d.kind==="area"?classNameTx(d.name):classLabel(d,lang)}{(d.teacherNames||[]).filter(Boolean).length?" · 👩‍🏫 "+d.teacherNames.filter(Boolean).join(", "):""}</span>)}
             </div>
           </div>
           <button onClick={onLogout} style={{color:"rgba(255,255,255,.6)",background:"rgba(255,255,255,.1)",
@@ -17029,11 +17022,6 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
               <button onClick={onLogout}
                 style={{width:"100%",padding:"12px",background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer",color:"var(--red)",textAlign:"left",display:"flex",alignItems:"center",gap:10}}>
                 <span style={{fontSize:18}}>↩</span> {lang==="en"?"Sign Out":K("Derkeve")}
-                <span style={{marginLeft:"auto"}}>›</span>
-              </button>
-              <button onClick={()=>deleteOwnAccount(student,"student",lang,toast,onLogout)}
-                style={{width:"100%",marginTop:8,padding:"12px",background:"transparent",border:"0.5px solid var(--border2)",borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer",color:"var(--text2)",textAlign:"left",display:"flex",alignItems:"center",gap:10}}>
-                <Ico n="trash" size={18}/> {lang==="en"?"Delete Account":K("Hesabê Min Jê Bibe")}
                 <span style={{marginLeft:"auto"}}>›</span>
               </button>
             </Card>
@@ -18430,6 +18418,21 @@ function SettingsSheet({open, onClose, dark, onThemeToggle, lang, rawLang, setLa
     }
   },[open]);
   
+  // Deneme bildirimi: cihaz kaydını yeniler, sonra sunucudan bu cihaza bildirim ister
+  const [testing,setTesting]=useState(false);
+  async function handlePushTest(){
+    if(permission!=="granted"){ const r=await requestPermission(); if(r!=="granted"){ toast("⚠ "+(lang==="en"?"Notifications are blocked — allow them in the phone settings for this app":K("Agahdarî hatine astengkirin — di mîhengên têlefonê de ji bo vê sepanê destûr bide")),7000); return; } }
+    setTesting(true);
+    try{
+      const F=window.__FB;
+      const u=F&&F.auth&&F.auth.currentUser;
+      const reg=(window.__AAT_PUSH&&window.__AAT_PUSH.ok)?window.__AAT_PUSH:await F.enablePush((window.__AAT_ROLE||"teacher"),lang,"");
+      if(!reg||!reg.ok){ toast("⚠ "+(lang==="en"?"This device could not be registered":K("Ev cîhaz nehat tomarkirin"))+" ("+((reg&&reg.reason)||"?")+")",8000); return; }
+      const r=await F.pushTest();
+      toast(r&&r.count?("✅ "+(lang==="en"?"Test sent — the notification should arrive in a few seconds":K("Test hate şandin — agahdarî di çend saniyeyan de tê"))):("⚠ "+(lang==="en"?"No registered device":K("Cîhazeke tomarkirî tune"))),7000);
+    }catch(e){ toast("❌ "+((e&&(e.code||e.message))||e),8000); }
+    finally{ setTesting(false); }
+  }
   async function handleNotifToggle(){
     if(permission==="granted"){
       toast(lang==="en"?"✓ Notifications already enabled – disable in browser settings":K("✓ Agahdarî çalak e – Ji mîhengên geroka neçalak bike"));
@@ -18506,13 +18509,13 @@ function SettingsSheet({open, onClose, dark, onThemeToggle, lang, rawLang, setLa
         <Toggle on={permission==="granted"}/>,
         handleNotifToggle
       )}
-      
-      {settingRow("📲",
-        lang==="en"?"Install App":K("Sazkirina Sepetê"),
-        lang==="en"?"Add to home screen (offline support)":K("Li ekrana serê zêde bike (offline destekli)"),
-        <span style={{fontSize:18}}>{installing?"⏳":"➕"}</span>,
-        handleInstall
+      {settingRow("🧪",
+        lang==="en"?"Test notification":K("Agahdariya ceribandinê"),
+        lang==="en"?"Sends a notification to this phone":K("Agahdariyekê ji vê têlefonê re dişîne"),
+        <span style={{fontSize:16}}>{testing?"⏳":"▶"}</span>,
+        handlePushTest
       )}
+      
       
       {/* Legal rows */}
       {onLegal&&settingRow("🔒",
@@ -18526,12 +18529,6 @@ function SettingsSheet({open, onClose, dark, onThemeToggle, lang, rawLang, setLa
         lang==="en"?"Usage rules & conditions":K("Bikaranîna sepetê"),
         <span style={{fontSize:13,color:"var(--text2)"}}>›</span>,
         ()=>onLegal("terms")
-      )}
-      {onLegal&&settingRow("📝",
-        lang==="en"?"Changelog":K("Guhertinên Nû"),
-        lang==="en"?"What's new in v4.0":K("v4.0 de çi nû ye"),
-        <span style={{fontSize:13,color:"var(--text2)"}}>›</span>,
-        ()=>onLegal("changelog")
       )}
     </Sheet>
   );
@@ -18751,6 +18748,7 @@ function App(){
   useEffect(()=>{
     if(!currentUser||!window.__FB||!window.__FB.enablePush) return;
     const roleOf=t=>t==="student"?"student":["registrar","press","admin","gate","head"].includes(t)?t:"teacher";
+    window.__AAT_ROLE=roleOf(currentUser.type);
     const go=()=>window.__FB.enablePush(roleOf(currentUser.type),lang,currentUser.area||"");
     if(notifPerm==="granted") go();
     window.addEventListener("aat-notif-granted",go);
