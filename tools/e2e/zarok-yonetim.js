@@ -102,7 +102,7 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await ap.locator('input.inp').first().fill('1000'); await ap.locator('input[type=password]').first().fill('Admin123');
   await ap.getByText('Giriş Yap', { exact: true }).last().click(); await ap.waitForTimeout(8000);
   ok('Yönetici panelinde Çocuk Akademisi sekmesi YOK', !(await ap.evaluate(() => [...document.querySelectorAll('.tab-bar button')].some(b => (b.textContent.includes('Çocuk Akademisi') || b.textContent.includes('Akademiya Zarokan'))))));
-  await clickText(ap, 'Basın', true); await ap.waitForTimeout(800);
+  await ap.evaluate(() => document.querySelector('.pano-tile[data-key="press"],.sm-it[data-key="press"]').click()); await ap.waitForTimeout(800);
   await clickText(ap, '➕ Kartı Kaydet'); await ap.waitForTimeout(600);
   const crashed = () => ap.evaluate(() => document.body.innerText.includes('An Error Occurred'));
   ok('TR: Basın kartı formu açılır (çökme yok)', !(await crashed()) && (await ap.evaluate(() => document.body.innerText)).includes('Basın Kartı Kaydet'));

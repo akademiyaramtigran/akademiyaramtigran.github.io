@@ -1903,36 +1903,6 @@ async function fbDelete(type, fireId) {
   } catch(e) { console.warn("Firebase delete error:", type, fireId, e); throw e; }
 }
 
-// ── KVKK/GDPR + Apple App Store 5.1.1(v): kullanıcının kendi hesabını
-//    uygulama içinden kalıcı silmesi. İki aşamalı onay ister. ──
-async function deleteOwnAccount(user, role, lang, toast, onLogout){
-  const L = (ku,en,de)=> lang==="en"?en:K(ku);
-  const warn = L(
-    "Hesabê te û hemû daneyên te DÊ BI TEVAHÎ bên jêbirin. Ev kar venagere. Berdewam bikî?",
-    "Your account and all your data will be PERMANENTLY deleted. This cannot be undone. Continue?");
-  if(!window.confirm(warn)) return;
-  const word = L("JÊBIRIN","DELETE");
-  const typed = (window.prompt(lang==="en"?'Type "'+word+'" to confirm:':KF('Ji bo erêkirinê "{0}" binivîse:',[word])) || "").trim().toLocaleUpperCase(lang==="tr"?"tr-TR":undefined);
-  if(typed !== word){
-    toast(L("✖ Jêbirin hate betalkirin","✖ Deletion cancelled"));
-    return;
-  }
-  try{
-    if(window.__FB && window.__FB.isConfigured()){
-      const fireId = user.fireId || user.id;
-      await fbDelete(role==="teacher"?"teacher":"student", fireId);
-      // Öğrenci istatistik dokümanı — best effort
-      try{ await window.__FB.deleteDoc(window.__FB.doc(window.__FB.db,"studentStats",String(user.id))); }catch(_){}
-      // Firebase Auth hesabını sil — best effort (son giriş gerekebilir)
-      try{ const cu = window.__FB.auth && window.__FB.auth.currentUser; if(cu) await cu.delete(); }catch(_){}
-    }
-    toast(L("✅ Hesab hate jêbirin","✅ Account deleted"));
-    setTimeout(()=>{ try{ onLogout && onLogout(); }catch(_){} }, 900);
-  }catch(e){
-    console.warn("deleteOwnAccount error:", e);
-    toast(L("⚠ Çewtî çêbû — bi rêvebir re têkilî daynin","⚠ Error — please contact admin"));
-  }
-}
 
 // window.__FB'ye deleteDoc ve doc ekle (module scope'dan erişim için)
 window.addEventListener("DOMContentLoaded", () => {}, false);
@@ -14466,11 +14436,6 @@ function TeacherProfileView({teacher,a,lang,t,toast,avgAtt,riskCount,myStudents,
           <span style={{fontSize:18}}>↩</span> {lang==="en"?"Sign Out":K("Derkeve")}
           <span style={{marginLeft:"auto"}}>›</span>
         </button>
-        <button onClick={()=>deleteOwnAccount(teacher,"teacher",lang,toast,onLogout)}
-          style={{width:"100%",marginTop:8,padding:"12px",background:"transparent",border:"0.5px solid var(--border2)",borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer",color:"var(--text2)",textAlign:"left",display:"flex",alignItems:"center",gap:10}}>
-          <Ico n="trash" size={18}/> {lang==="en"?"Delete Account":K("Hesabê Min Jê Bibe")}
-          <span style={{marginLeft:"auto"}}>›</span>
-        </button>
       </Card>
 
       {showSelfProfile&&(
@@ -16529,8 +16494,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
             <div style={{color:"#fff",fontSize:16,fontWeight:800,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{student.name}</div>
             <div className="pill-row">
               <span className="glass-pill">{a.icon} {areaName(student.area,lang)}</span>
-              <span className="glass-pill" style={{fontFamily:"monospace"}}>{student.no}</span>
-              {myClasses.map(d=><span key={d.id} className="glass-pill">🏫 {d.kind==="area"?d.name:classLabel(d,lang)}{(d.teacherNames||[]).filter(Boolean).length?" · 👩‍🏫 "+d.teacherNames.filter(Boolean).join(", "):""}</span>)}
+              {myClasses.map(d=><span key={d.id} className="glass-pill">🏫 {d.kind==="area"?classNameTx(d.name):classLabel(d,lang)}{(d.teacherNames||[]).filter(Boolean).length?" · 👩‍🏫 "+d.teacherNames.filter(Boolean).join(", "):""}</span>)}
             </div>
           </div>
           <button onClick={onLogout} style={{color:"rgba(255,255,255,.6)",background:"rgba(255,255,255,.1)",
@@ -17051,11 +17015,6 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
               <button onClick={onLogout}
                 style={{width:"100%",padding:"12px",background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer",color:"var(--red)",textAlign:"left",display:"flex",alignItems:"center",gap:10}}>
                 <span style={{fontSize:18}}>↩</span> {lang==="en"?"Sign Out":K("Derkeve")}
-                <span style={{marginLeft:"auto"}}>›</span>
-              </button>
-              <button onClick={()=>deleteOwnAccount(student,"student",lang,toast,onLogout)}
-                style={{width:"100%",marginTop:8,padding:"12px",background:"transparent",border:"0.5px solid var(--border2)",borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer",color:"var(--text2)",textAlign:"left",display:"flex",alignItems:"center",gap:10}}>
-                <Ico n="trash" size={18}/> {lang==="en"?"Delete Account":K("Hesabê Min Jê Bibe")}
                 <span style={{marginLeft:"auto"}}>›</span>
               </button>
             </Card>
@@ -18529,12 +18488,6 @@ function SettingsSheet({open, onClose, dark, onThemeToggle, lang, rawLang, setLa
         handleNotifToggle
       )}
       
-      {settingRow("📲",
-        lang==="en"?"Install App":K("Sazkirina Sepetê"),
-        lang==="en"?"Add to home screen (offline support)":K("Li ekrana serê zêde bike (offline destekli)"),
-        <span style={{fontSize:18}}>{installing?"⏳":"➕"}</span>,
-        handleInstall
-      )}
       
       {/* Legal rows */}
       {onLegal&&settingRow("🔒",
@@ -18548,12 +18501,6 @@ function SettingsSheet({open, onClose, dark, onThemeToggle, lang, rawLang, setLa
         lang==="en"?"Usage rules & conditions":K("Bikaranîna sepetê"),
         <span style={{fontSize:13,color:"var(--text2)"}}>›</span>,
         ()=>onLegal("terms")
-      )}
-      {onLegal&&settingRow("📝",
-        lang==="en"?"Changelog":K("Guhertinên Nû"),
-        lang==="en"?"What's new in v4.0":K("v4.0 de çi nû ye"),
-        <span style={{fontSize:13,color:"var(--text2)"}}>›</span>,
-        ()=>onLegal("changelog")
       )}
     </Sheet>
   );
