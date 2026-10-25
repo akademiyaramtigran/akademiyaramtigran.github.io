@@ -134,7 +134,7 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   // 4) Çocuk Akademisi veli anketi — Drama bölüm sorumlusu açar
   let kid = '';
   const kp = await login(await mk(), '96202602', 'Head1234');
-  ok('Çocuk akademisi sorumlusu paneli: duyuru, mesaj, anket, rapor', (await kp.evaluate(() => [...document.querySelectorAll('.sm-it[data-key]')].map(e => e.dataset.key).join(','))) === 'announce,messages,surveys,reports');
+  ok('Çocuk akademisi sorumlusu paneli: duyuru, mesaj, program, izin, anket, rapor', (await kp.evaluate(() => [...document.querySelectorAll('.sm-it[data-key]')].map(e => e.dataset.key).sort().join(','))) === 'announce,leaves,messages,reports,schedule,surveys');
   await kp.evaluate(() => document.querySelector('.sm-it[data-key="surveys"]').click()); await kp.waitForTimeout(1200);
   { const p = kp;
   await btn(p, 'Ankêta nû (dêûbav'); await p.waitForTimeout(500);

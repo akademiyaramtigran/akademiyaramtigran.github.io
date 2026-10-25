@@ -88,11 +88,13 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   ok('Alan sınıfı kaydedildi', A && A.fields.kind.stringValue === 'area' && JSON.stringify(A.fields.studentNos).includes('20202601') && JSON.stringify(A.fields.teacherNos).includes('50202601'));
 
   // ── 2) Sınıfa ders programı ──
-  await clickText(p, '➕ Ders zêde bike'); await p.waitForTimeout(800);
-  await p.locator('input[placeholder="Armoni – Gr. A"]').fill('Solfej');
-  await clickText(p, 'Bernameyê Zêde Bike'); await p.waitForTimeout(2000);
+  // Haftalık dersi artık bölüm sorumlusu hazırlar: Öğrenci İşleri'nde ders ekleme düğmesi yok (ders, sorumlu yazmış gibi eklenir)
+  ok('Öğrenci İşleri sınıf kartında ders EKLEYEMEZ (sorumlu hazırlar)', !(await txt(p)).includes('➕ Ders zêde bike') && (await txt(p)).includes('berpirsên beşan'));
+  await put('schedule/LS1', { id: 'LS1', fireId: 'LS1', area: A.fields.area.stringValue, name: 'Solfej', classId: Aid, teacherNo: '50202601', teacherName: 'Mamoste Dilovan',
+    lessonType: 'main', day: 'Dûşem', start: '09:00', end: '10:30', loc: '—' });
+  await p.waitForTimeout(1500);
   const L = (await list('schedule')).find(d => d.fields.name.stringValue === 'Solfej');
-  ok('Ders sınıfa bağlı kaydedildi (sınıf öğretmeni ön seçili)', L && L.fields.classId && L.fields.classId.stringValue === Aid && L.fields.teacherNo && L.fields.teacherNo.stringValue === '50202601');
+  ok('Ders sınıfa bağlı (sorumlunun programı)', L && L.fields.classId && L.fields.classId.stringValue === Aid);
   ok('Sınıf kartında ders programı görünür', /Solfej/.test(await txt(p)) && /1 ders di bernameyê de/.test(await txt(p)));
 
   // ── 3) Genel sınıf: tüm alanlardan öğrenci ──
@@ -197,9 +199,10 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   await tm.reload(); await tm.waitForTimeout(7000); await goAtt(); await pickLs(); await tm.waitForTimeout(1500);
   ok('Yeniden açınca kaydedilen elle yoklama yüklü', await rowBtn(false));
   // QR'ı bu ders için aç ve kimse okutmadan kapat: elle "geç" işaretli öğrenci korunur
-  await goA(tm, 'home');
-  await tm.waitForTimeout(1000);
-  await tm.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.includes('📷') && x.textContent.includes('QR') && x.offsetParent && !x.closest('nav') && x.getBoundingClientRect().left >= 0); b.click(); });
+  // Dersi başlat → "Ders QR'ı" (saatten bağımsız)
+  await tm.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.includes('Dersê Dest Pê Bike') && x.offsetParent); b && b.click(); });
+  await tm.waitForTimeout(1200);
+  await tm.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.includes('📡') && x.textContent.includes('QR ya dersê') && x.offsetParent); b.click(); });
   await tm.waitForTimeout(2000);
   const qrOpen = (await txt(tm)).includes('QR ya Nû');
   await tm.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.trim() === '✕ Bigire'); b.click(); });
