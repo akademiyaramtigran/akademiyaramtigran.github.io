@@ -149,6 +149,8 @@ exports.pushMessage = onDocumentCreated("messages/{id}", async (ev) => {
   else if (m.recipientGroup === "all") docs = await tokens("aat");
   else if (m.recipientGroup === "allStudents") docs = await tokens("aat", "role", "student");
   else if (m.recipientGroup === "allTeachers") docs = await tokens("aat", "role", STAFF);
+  else if (m.recipientGroup === "allHeads") docs = await tokens("aat", "role", "head");
+  else if (m.recipientGroup === "genHead") docs = (await tokens("aat", "area", "genel")).filter(d => d.get("role") === "head");
   else if (typeof m.recipientGroup === "string" && m.recipientGroup.startsWith("area_")) {
     docs = (await tokens("aat", "area", m.recipientGroup.slice(5))).filter(d => d.get("role") === "student");
   }

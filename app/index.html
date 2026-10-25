@@ -5589,6 +5589,8 @@ function AdminMessagesPanel({students,teachers,lang,t,toast,adminName}){
     {k:"allStudents",label:t.allStudents||"Hemû Xwendekar"},
     {k:"allTeachers",label:lang==="en"?"All Teachers":K("Hemû Mamoste")},
     {k:"all",label:lang==="en"?"Everyone":K("Hemû")},
+    {k:"allHeads",label:"🎓 "+(lang==="en"?"All department heads":K("Hemû berpirsên beşan"))},
+    {k:"genHead",label:"🎓 "+(lang==="en"?"General head":K("Berpirsê giştî"))},
     ...AREAS.filter(a=>a.key!=="genel").map(a=>({k:"area_"+a.key,label:a.icon+" "+areaName(a.key,lang)})),
   ];
 
@@ -5596,7 +5598,10 @@ function AdminMessagesPanel({students,teachers,lang,t,toast,adminName}){
   const sent=messages.filter(m=>m.direction==="sent"||(m.senderId==="admin"&&m.fromType==="admin"&&!m.isStudentFeedback));
   const feedbackMsgs=inbox.filter(m=>m.isStudentFeedback);
   const regularMsgs=inbox.filter(m=>!m.isStudentFeedback);
-  const displayInbox=inboxFilter==="feedback"?feedbackMsgs:inboxFilter==="messages"?regularMsgs:inbox;
+  // Bölüm sorumlularından gelenler (genel sorumlu: bölümü "genel")
+  const headMsgs=inbox.filter(m=>m.fromType==="head");
+  const genHeadMsgs=headMsgs.filter(m=>m.area==="genel");
+  const displayInbox=inboxFilter==="feedback"?feedbackMsgs:inboxFilter==="messages"?regularMsgs:inboxFilter==="heads"?headMsgs:inboxFilter==="genHead"?genHeadMsgs:inbox;
   const unreadCount=inbox.filter(m=>!m.read).length;
   const [inboxTab,setInboxTab]=useState("inbox");
 
@@ -5822,6 +5827,8 @@ function AdminMessagesPanel({students,teachers,lang,t,toast,adminName}){
             {k:"all",label:lang==="en"?"All":K("Hemû"),count:inbox.length},
             {k:"feedback",label:lang==="en"?"💡 Feedback":K("💡 Pêşniyar/Gilî"),count:feedbackMsgs.length},
             {k:"messages",label:lang==="en"?"💬 Messages":K("💬 Peyam"),count:regularMsgs.length},
+            {k:"heads",label:lang==="en"?"🎓 Department heads":K("🎓 Berpirsên beşan"),count:headMsgs.length},
+            {k:"genHead",label:lang==="en"?"🎓 General head":K("🎓 Berpirsê giştî"),count:genHeadMsgs.length},
           ].map(f=>(
             <button key={f.k} onClick={()=>setInboxFilter(f.k)}
               style={{padding:"5px 10px",borderRadius:20,fontSize:10,fontWeight:inboxFilter===f.k?700:400,flexShrink:0,
@@ -7556,7 +7563,8 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
     try{ unsub=window.__FB.onAllMessages(all=>setMsgs(all)); }catch(_){}
     return ()=>unsub();
   },[]);
-  const inbox=msgs.filter(m=>String(m.senderNo||"")!==myNo&&((m.toRole==="head"&&m.toArea===area)||m.recipientNo===myNo||m.recipientId==="h_"+myNo));
+  const inbox=msgs.filter(m=>String(m.senderNo||"")!==myNo&&((m.toRole==="head"&&m.toArea===area)||m.recipientNo===myNo||m.recipientId==="h_"+myNo
+    ||m.recipientGroup==="allHeads"||(ALL&&m.recipientGroup==="genHead")));
   const sent=msgs.filter(m=>m.fromType==="head"&&String(m.senderNo||"")===myNo);
   const unread=inbox.filter(m=>!m.read).length;
   const items=[
@@ -7660,6 +7668,13 @@ function KidHeadPanel({user,t,lang,toast,onLogout,onSettings}){
     L(F.collection(F.db,"guardians"),setGuards);
     return ()=>subs.forEach(u=>{ try{u();}catch(_){} });
   },[live,area,myNo]);
+  // Yönetimden gelen mesajlar (tüm sorumlulara ya da bu sorumluya özel)
+  const [adminMsgs,setAdminMsgs]=useState([]);
+  useEffect(()=>{
+    if(!live||!F.onAllMessages) return; let un=()=>{};
+    try{ un=F.onAllMessages(all=>setAdminMsgs(all.filter(m=>m.recipientGroup==="allHeads"||String(m.recipientNo||"")===myNo))); }catch(_){}
+    return ()=>{ try{un();}catch(_){} };
+  },[live,myNo]);
   const gset=new Set(); kids.forEach(k=>(k.guardianNos||[]).forEach(g=>gset.add(String(g))));
   const myMsgs=msgs.filter(m=>gset.has(String(m.guardianNo)));
   const unread=myMsgs.filter(m=>m.from==="guardian"&&!m.read).length;
@@ -7714,6 +7729,14 @@ function KidHeadPanel({user,t,lang,toast,onLogout,onSettings}){
               <button aria-label="✕" onClick={()=>{ if(window.confirm(W2("Were jêbirin?","Delete?"))) F.deleteDoc(F.doc(F.db,"kidAnnouncements",a.fireId)).catch(e=>toast("❌ "+e.code)); }} style={{border:"none",background:"none",cursor:"pointer",color:"var(--red)"}}><Ico n="trash"/></button></div>
             <div style={{fontSize:13,color:"var(--text)",whiteSpace:"pre-wrap",marginTop:4}}>{a.body}</div>
             <div style={{fontSize:11,color:"var(--text2)",marginTop:6}}>{ts(a.createdAt)}</div>
+          </div>))}
+        </div>)}
+        {tab==="messages"&&!thread&&adminMsgs.length>0&&(<div style={card} data-admin-msgs="1">
+          <div style={{fontSize:13,fontWeight:800,color:"var(--text)",marginBottom:6}}>🏛 {W2("Ji rêveberiyê","From the administration")}</div>
+          {adminMsgs.slice(0,10).map(m=>(<div key={m.fireId||m.id} style={{borderTop:"1px solid var(--border2)",padding:"8px 0"}}>
+            <div style={{fontWeight:700,color:"var(--text)",fontSize:13}}>{m.subject}</div>
+            <div style={{fontSize:12.5,color:"var(--text)",whiteSpace:"pre-wrap",marginTop:2}}>{m.body}</div>
+            <div style={{fontSize:11,color:"var(--text2)",marginTop:3}}>{m.from||""} · {m.time||""}</div>
           </div>))}
         </div>)}
         {tab==="messages"&&(thread?(()=>{ const th=threads.find(x=>x.g===thread); if(!th) return null;
@@ -10937,8 +10960,8 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
 
   const tabs=[
     {key:"announcements",icon:"📢",label:t.announcements},
-    {key:"press",icon:"📰",label:lang==="en"?"Press":K("Çapemenî")},
-    {key:"arsiv",icon:"🏛",label:lang==="en"?"Archive":K("Arşîv")},
+    // Özel personel kartları (basın · öğrenci işleri · bölüm sorumlusu · kapı). Site arşivi Basın panelinde.
+    {key:"press",icon:"📇",label:lang==="en"?"Staff Cards":K("Kartên Taybet")},
     {key:"messages",icon:"💬",label:lang==="en"?"Messages":K("Peyam")},
     {key:"reports",icon:"📊",label:lang==="en"?"Reports":K("Rapor")},
     {key:"alerts",icon:"🔔",label:lang==="en"?"Alerts":K("Hişyarî")},
@@ -11011,7 +11034,6 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
 
         {tab==="announcements"&&<AnnouncementsPanel t={t} toast={toast} lang={lang} senderName={adminData.name} senderRole="admin" senderArea={null}/>}
         {tab==="press"&&<AdminPressPanel teachers={teachers} onDataChange={onDataChange} lang={lang} toast={toast} t={t}/>}
-        {tab==="arsiv"&&<AdminArchivePanel lang={lang} toast={toast} adminName={adminData.name}/>}
         {tab==="messages"&&<AdminMessagesPanel students={students} teachers={teachers} lang={lang} t={t} toast={toast} adminName={adminData.name}/>}
         {tab==="reports"&&<AdminReportCenter students={students} teachers={teachers} schedule={schedule} lang={lang} t={t} toast={toast} byName={adminData.name}/>}
         {tab==="alerts"&&<AdminAlertsPanel students={students} schedule={schedule} lang={lang} toast={toast}/>}
