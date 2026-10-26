@@ -14595,6 +14595,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
   // QR / kartla gelenler "geç" yazılır. Elle işaret öğretmenin seçimidir.
   const LATE_MS = 15*60*1000;
   const [lsStarts,setLsStarts]=useState({});
+  const [lsEnds,setLsEnds]=useState({});   // "Dersi bitir": bitiş anı (ms) → attendance/{ders}-{tarih}.endedAt
   const [attScan,setAttScan]=useState(false);
   const attRef=useRef(attendance); attRef.current=attendance;
   const startKey=id=>"aat-start-"+id+"-"+todayStr_t;
@@ -14634,6 +14635,33 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     }
     return {ok:true,late:v==="late"};
   }
+  // "Dersi bitir": QR açıksa kapatır; okutmayan/işaretlenmeyen öğrenci "yok" yazılır; yoklama kaydedilir,
+  // devam istatistiği güncellenir ve bitiş anı kaydedilir (rapor buradan okur). Sonradan elle düzeltilebilir.
+  async function endLesson(){
+    const ls=attLesson; if(!ls) return;
+    if(!window.confirm((lang==="en"?"End the lesson? Students not checked in will be marked absent.":K("Ders bi dawî bibe? Xwendekarên ku neketine dê wek “tunebû” bên nivîsandin."))+"\n"+(ls.name||""))) return;
+    const ms=Date.now(), FB=window.__FB;
+    let records={};
+    if(activeQRSession&&String(activeQRSession.lessonId)===String(ls.id)){
+      closeLessonQR();
+      await new Promise(r=>setTimeout(r,300));
+      records={...attRef.current};
+    }else{
+      attRoster.forEach(s=>{ records[s.id]=attRef.current[s.id]||"off"; });
+      attOnLeave.forEach(s=>{ records[s.id]="leave"; });
+      setAttSaving(true);
+      const ok=await fbSaveAttendance(ls.id, teacher.id, todayStr_t, records);
+      setAttSaving(false);
+      if(ok===null&&FB&&FB.isConfigured()){ toast("⚠ "+(lang==="en"?"Attendance could not be saved — check the connection and try again":K("Amadebûn nehat tomarkirin — girêdanê kontrol bike û dîsa biceribîne")),6000); return; }
+      applyAttStats(ls.id, todayStr_t, attRoster, records);
+      setAttendance(p=>({...p,...records}));
+    }
+    setLsEnds(p=>({...p,[String(ls.id)]:ms})); setAttScan(false);
+    if(FB&&FB.isConfigured()) FB.setDoc(FB.doc(FB.db,"attendance",ls.id+"-"+todayStr_t),{endedAt:ms,updatedAt:FB.serverTimestamp()},{merge:true}).catch(()=>{});
+    const c=v=>attRoster.filter(s=>records[s.id]===v).length;
+    hapticSuccess();
+    toast("⏹ "+(ls.name||"")+" — ✅ "+c("on")+" · ⏱ "+c("late")+" · ❌ "+c("off"),7000);
+  }
   useEffect(()=>{
     setAttendance({}); setAttScan(false);
     if(!attLessonId) return;
@@ -14647,6 +14675,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
       if(!alive||!snap.exists()) return; const r=snap.data().records, st=snap.data().startedAt;
       if(r) setAttendance(p=>({...r,...p}));
       if(st) setLsStarts(p=>({...p,[attLessonId]:st}));
+      const en=snap.data().endedAt; if(en) setLsEnds(p=>({...p,[attLessonId]:en}));
     }).catch(()=>{});
     return ()=>{ alive=false; };
   },[attLessonId,todayStr_t]);
@@ -14813,6 +14842,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     // Yoklama listesi dersin sınıfıdır (sınıfsız ders → alanın öğrencileri)
     const sesLs = mySchedule.find(l=>String(l.id)===String(lessonId));
     const roster = sesLs ? rosterOf(sesLs).filter(s=>!leaveOf(leaves,s.no,dateStr)) : [];
+    const onLeaveNow = sesLs ? rosterOf(sesLs).filter(s=>leaveOf(leaves,s.no,dateStr)) : [];
     // QR okutamayan öğrenciyi öğretmen elle "geldi/geç" işaretlediyse o işaret korunur
     const manual = String(lessonId)===String(attLessonRef.current) ? attendance : {};
     const records  = {};
@@ -14820,6 +14850,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
       const m = manual[s.id];
       records[s.id] = checkins[s.id] ? (checkins[s.id].late ? "late" : "on") : (m==="on"||m==="late") ? m : "off";
     });
+    onLeaveNow.forEach(s=>{ records[s.id]="leave"; });   // izinli: devamsızlık sayılmaz
     fbSaveAttendance(lessonId, teacher.id, dateStr, records);
     if(String(lessonId)===String(attLessonRef.current)) setAttendance(p=>({...p,...records}));
 
@@ -15082,6 +15113,13 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                 <div style={{fontSize:11,color:"var(--text2)",marginTop:8,lineHeight:1.6}}>{lang==="en"?"Students who check in by QR/card more than 15 minutes after the start are marked late.":K("Yên ku 15 deqe piştî destpêkê bi QR/kartê têkevin, “dereng” tên nivîsandin.")}</div>
               </div>
             ):(
+              lsEnds[String(attLesson.id)]?(
+              <div data-lesson-ended="1" style={{background:"var(--surface)",borderRadius:14,padding:"12px 14px",marginBottom:12,border:"1.5px solid var(--border2)"}}>
+                <div style={{fontSize:13,fontWeight:800,color:"var(--text)"}}>⏹ {lang==="en"?"Lesson ended":K("Ders bi dawî bû")} {hm(lsEnds[String(attLesson.id)])} · {attLesson.name}</div>
+                <div style={{fontSize:11.5,color:"var(--text2)",marginTop:4}}>🟢 {hm(st)} → ⏹ {hm(lsEnds[String(attLesson.id)])} · ✅ {attCount("on")} · ⏱ {attCount("late")} · ❌ {attCount("off")}</div>
+                <div style={{fontSize:11,color:"var(--text2)",marginTop:4}}>{lang==="en"?"You can still correct the list below and save.":K("Hîn jî dikarî lîsteya jêr rast bikî û tomar bikî.")}</div>
+              </div>
+            ):(
               <div style={{background:"var(--surface)",borderRadius:14,padding:"12px 14px",marginBottom:12,border:"1.5px solid var(--green)"}}>
                 <div data-lesson-started="1" style={{fontSize:13,fontWeight:800,color:"var(--green)"}}>🟢 {lang==="en"?"Lesson started":K("Ders dest pê kir")} {hm(st)} · {attLesson.name}</div>
                 <div style={{fontSize:11,color:"var(--text2)",margin:"2px 0 10px"}}>⏱ {lang==="en"?"Late after":K("Piştî vê dereng")}: {hm(st+LATE_MS)}</div>
@@ -15093,7 +15131,9 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                 </div>
                 {attOnLeave.length>0&&<div data-on-leave="1" style={{fontSize:11.5,color:"var(--text2)",marginTop:8}}>🏷 {lang==="en"?"On leave today (not in the list)":K("Îro bi destûr (ne di lîsteyê de)")}: {attOnLeave.map(s=>s.name).join(", ")}</div>}
                 {attScan&&<div style={{marginTop:10}}><TeacherCardScanner myStudents={attRoster} lang={lang} onCheckin={cardCheckin} onClose={()=>setAttScan(false)}/></div>}
-              </div>); })()}
+                <button data-end-lesson="1" disabled={attSaving} onClick={endLesson} style={{width:"100%",marginTop:10,padding:"11px 8px",background:"var(--red-bg)",color:"var(--red)",border:"1px solid var(--red)",borderRadius:10,fontSize:13,fontWeight:800,cursor:"pointer"}}>
+                  ⏹ {lang==="en"?"End lesson":K("Dersê bi dawî bike")}</button>
+              </div>)); })()}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
               <div style={{background:"var(--surface)",borderRadius:10,padding:11,textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
                 <div style={{fontSize:10,color:"var(--green)",marginBottom:3}}>✅ {t.attended}</div>
@@ -16354,6 +16394,9 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
   const [view,setView]=usePanelNav("home");
   const [menuOpen,setMenuOpen]=useState(isPhoneNow);
   const [showScanner,setShowScanner]=useState(false);
+  // Telefon kamerasıyla okutulan ders QR'ı (…/app/?qr=…): giriş yapınca yoklama ekranı kendiliğinden açılır
+  const [pendingQR,setPendingQR]=useState(null);
+  useEffect(()=>{ try{ const q=sessionStorage.getItem("aat-pending-qr"); if(q){ sessionStorage.removeItem("aat-pending-qr"); setPendingQR(q); setShowScanner(true); } }catch(_){} },[]);
   const [showBiometric,setShowBiometric]=useState(false);
   const [biometricTarget,setBiometricTarget]=useState(null); // "scanner" | "qr"
   const [showChangePass,setShowChangePass]=useState(false);
@@ -17048,7 +17091,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
     </div>
 
     {showScanner&&(
-      <StudentQRScanner student={student} onClose={()=>setShowScanner(false)} toast={toast} lang={lang}/>
+      <StudentQRScanner student={student} onClose={()=>{ setShowScanner(false); setPendingQR(null); }} toast={toast} lang={lang} initialCode={pendingQR}/>
     )}
     {showSelfProfile&&(
       <SelfProfileSheet user={student} userType="student" lang={lang} toast={toast}
@@ -17408,13 +17451,25 @@ function generateSessionToken(lessonId, teacherId){
   return "AAT-" + teacherId + "-" + lessonId + "-" + Date.now() + "-" + rand;
 }
 
-// Hem ekran hem çıktı aynı QR — "AAT|<sessionId>"
+// Hem ekran hem çıktı aynı QR. İçerik uygulamanın ADRESİDİR (…/app/?qr=AAT|<oturum>): öğrenci QR'ı
+// telefonun kendi kamerasıyla okutsa da uygulama açılır ve yoklama kendiliğinden verilir.
+// Uygulama içindeki "QR Bixwîne" ekranı da aynı kodu okur.
 function buildQRContent(sessionId){
-  return "AAT|" + sessionId;
+  return (location.origin||"https://konservatuaraaramtigran.org") + "/app/?qr=" + encodeURIComponent("AAT|" + sessionId);
 }
+// Okutulan içerik adres ise ?qr= değerini çıkar ("AAT|<oturum>")
+function normalizeQR(content){
+  const c=String(content||"").trim();
+  const m=/[?&]qr=([^&#]+)/.exec(c);
+  if(m){ try{ return decodeURIComponent(m[1]); }catch(_){ return m[1]; } }
+  return c;
+}
+// Kamera uygulamasından açıldıysa (…/app/?qr=…) kodu sakla; öğrenci girişinden sonra yoklama verilir
+(function(){ try{ const q=new URLSearchParams(location.search).get("qr"); if(q){ sessionStorage.setItem("aat-pending-qr",q); history.replaceState(null,"",location.pathname); } }catch(_){} })();
 
 // QR doğrula — sadece sessionId eşleşmesi
 function validateQRContent(content, sessionId){
+  content = normalizeQR(content);
   // Yeni format: "AAT|<sessionId>"
   if(content === "AAT|" + sessionId) return true;
   // Eski format uyumluluğu: "AATSTAT|<sessionId>"
@@ -17737,7 +17792,7 @@ function TeacherQRDisplay({token, lessonName, teacherName, areaColor, onClose, o
 }
 
 /* ─── STUDENT QR SCANNER (reads teacher's QR) ───────────────────────────── */
-function StudentQRScanner({student, onClose, toast, lang="ku"}){
+function StudentQRScanner({student, onClose, toast, lang="ku", initialCode=null}){
   useEffect(()=>{
     try{ history.pushState({_aat_modal:"scanner"},"","#scanner"); }catch(_){}
     function onPop(){ onClose(); }
@@ -17875,6 +17930,7 @@ function StudentQRScanner({student, onClose, toast, lang="ku"}){
 
   /* ── token handling — Cihaz + GPS + dinamik token doğrulama ── */
   async function handleToken(qrContent){
+    qrContent = normalizeQR(qrContent);
     setStatus("loading");
 
     // Okutulan QR'ın oturumu yerelde yoksa (ya da BAŞKA bir dersin oturumu
@@ -17933,6 +17989,8 @@ function StudentQRScanner({student, onClose, toast, lang="ku"}){
       hapticError(); setStatus("error");
     }
   }
+  // Telefon kamerasıyla okutulan QR (…/app/?qr=…) — açılışta doğrudan yoklama ver
+  useEffect(()=>{ if(initialCode){ try{ stopLive(); }catch(_){} handleToken(initialCode); } },[]);
   /* ── manual code submit ── */
   function submitManual(){
     const code = manualCode.trim(); if(!code) return;
