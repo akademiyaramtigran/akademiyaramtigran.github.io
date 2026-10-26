@@ -75,3 +75,9 @@
 
 ## Raporlar (yalnız yönetici + bölüm sorumlusu)
 Amadebûn (devam; öğrenciye dokununca gerçek 8 haftalık grafik + son dersler + değerlendirmeler) · Tarih aralığı · Öğrenci değerlendirmesi · Öğretmen değerlendirmesi · Anket (filtre: öğrenci/öğretmen anketi, açık/kapalı, alan; ekranda sonuç özeti) · Öğretmen derse katılım · İzinler. Öğrenci İşleri panelinde rapor yoktur.
+
+## Ders türü ve öğrenci mesajı
+- Ders eklerken **Ders türü** seçilir: *Ana ders* (varsayılan), *Ek ders* ya da *Atölye*. Tür, "her hafta tekrarlansın" seçiminden bağımsızdır: tek günlük ders de ana ders olabilir (`schedule.category`). Eski kayıtlarda yalnız atölye dersi (`ws_…`) ek sayılır.
+- Programda her ders kendi bölümünün amblemini kullanır.
+- Öğrenci, Mesaj kartından öğretmenine doğrudan yazar (`messages.toRole:"teacher"`, `toTeacherNo`); öğretmen gelen kutusunda görür ve "Cevapla" ile yanıtlar.
+- **Misafir öğretmen:** öğretmen listesinde "Misafir öğretmen" seçilip adı yazılır (`guestTeacher`, `teacherNo` boş). Bu dersin yoklamasını **bölüm sorumlusu** alır: Sorumlu paneli → *Misafir ders yoklaması* → elle (✅ / ⏱ / ❌) ya da *Kartla / QR ile al*. Kural yalnız misafir dersine ve sorumlunun kendi bölümüne izin verir.

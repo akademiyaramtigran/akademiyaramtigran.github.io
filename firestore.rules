@@ -292,6 +292,18 @@ service cloud.firestore {
     // Yoklama: personel her kaydı yazar; öğrenci yalnızca KENDİ adına QR girişi yazar (silemez)
     // Bölüm sorumlusu: kendi bölümünün dersine "ders yapılmadı" işareti (neden + açıklama). Yoklama
     // kayıtlarına (records) dokunamaz; yeni belgede records boş olmalı.
+    // Misafir öğretmenli ders (programda guestTeacher dolu, teacherNo boş): yoklamayı bölüm sorumlusu yazar
+    function headGuestAttOk(aid) {
+      let d = request.resource.data;
+      let sp = /databases/$(database)/documents/schedule/$(d.get('lessonFire', '-'));
+      return aatHead() && exists(sp)
+        && get(sp).data.get('guestTeacher', '') is string && get(sp).data.get('guestTeacher', '') != ''
+        && get(sp).data.get('teacherNo', null) == null
+        && string(get(sp).data.get('id', '')) == d.get('lessonId', '')
+        && (headGeneral() || get(sp).data.get('area', '') == headArea())
+        && aid == d.get('lessonId', '') + '-' + d.get('date', '')
+        && d.records is map && d.get('takenByNo', '') == prefix();
+    }
     function headAbsenceOk() {
       let d = request.resource.data;
       let absKeys = ['teacherAbsent', 'absenceKind', 'absenceNote', 'absenceBy', 'updatedAt'];
@@ -319,7 +331,7 @@ service cloud.firestore {
     }
     match /attendance/{id} {
       allow read: if member();
-      allow create, update: if staffW() || headAbsenceOk()
+      allow create, update: if staffW() || headAbsenceOk() || headGuestAttOk(id)
         || (isStudent()
             && string(request.resource.data.get('studentNo', '')) == prefix()
             && (resource == null || string(resource.data.get('studentNo', '')) == prefix()));
@@ -353,7 +365,8 @@ service cloud.firestore {
     }
     match /messages/{id} {
       allow read: if isStaff()
-        || (isStudent() && (resource.data.get('recipientNo', '') == prefix() || studentGroup(resource.data)));
+        || (isStudent() && (resource.data.get('recipientNo', '') == prefix() || studentGroup(resource.data)
+            || resource.data.get('fromNo', '') == prefix()));
       allow create: if staffW()
         || (headLvl() && headMsgOk(request.resource.data))
         || (isStudent()
@@ -610,8 +623,9 @@ service cloud.firestore {
             && exists(/databases/$(database)/documents/guardians/$(request.resource.data.guardianNo))
             && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000)
         || (isGuardian()
-            && request.resource.data.keys().hasOnly(['guardianNo','guardianName','kidId','kidName','text','from','read','createdAt'])
+            && request.resource.data.keys().hasOnly(['guardianNo','guardianName','kidId','kidName','text','from','read','createdAt','toTeacherNo','toName'])
             && request.resource.data.guardianNo == prefix()
+            && request.resource.data.get('toTeacherNo', '') is string && request.resource.data.get('toName', '') is string
             && request.resource.data.from == 'guardian'
             && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000);
       allow update: if kidStaff()
@@ -626,7 +640,7 @@ service cloud.firestore {
     //    • Yalnızca öğrenci işleri + yönetici kart çıkarır / iptal eder
     // ════════════════════════════════════════════════════════════════════
     match /cards/{token} {
-      allow get:  if staffW() || isGate() || (isKidTeacher() && resource.data.kind == 'kid');
+      allow get:  if staffW() || isGate() || (aatHead() && resource.data.kind == 'student') || (isKidTeacher() && resource.data.kind == 'kid');
       allow list: if isRegistrar();
       allow create, update, delete: if isRegistrar();
     }

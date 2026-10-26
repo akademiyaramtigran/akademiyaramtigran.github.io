@@ -288,7 +288,10 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   // ── 9) Öğrenci: sınıf öğretmeni adı profilde ──
   const sc = await mk(430); const sp = await login(sc, '20202601', 'Stu12345', 'Xwendekar');
   await sp.waitForTimeout(1500);
-  ok('Öğrenci kendi sınıf öğretmenini görür', (await txt(sp)).includes('Mamoste Dilovan'));
+  const heroK = await sp.evaluate(() => (document.querySelector('.student-hero') || {}).innerText || '');
+  ok('Öğrenci üst panelinde öğretmen adları yok', !heroK.includes('Mamoste Dilovan'), heroK.replace(/\n/g, ' / '));
+  await sp.evaluate(() => [...document.querySelectorAll('.pano-tile[data-key="myclass"],.sm-it[data-key="myclass"]')].filter(x => x.getClientRects().length).pop().click()); await sp.waitForTimeout(1200);
+  ok('Öğrenci kendi sınıf öğretmenini Sınıfım kartında görür', (await txt(sp)).includes('Mamoste Dilovan'));
   await sp.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('Sinifa Min') && x.offsetParent).pop(); b.click(); });
   await sp.waitForTimeout(1500);
   const s9 = await txt(sp);

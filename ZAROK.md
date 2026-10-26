@@ -116,3 +116,8 @@ node tools/zarok-paketle.js zarok.aramtigran.org
 - `kidTeacherEvals/{pazartesi}_{veliNo}_{öğretmenNo}` — okur: yönetici, çocuk akademisi sorumlusu, gönderen veli (öğretmen okuyamaz).
 - Raporlar: yönetici (Raporlar → Zarok: nirxandina zarokan / mamosteyan) ve çocuk akademisi sorumlusu (Rapor → çocuklar ve devam · iki değerlendirme · anket). Öğrenci İşleri değerlendirme sonuçlarını göremez.
 - Hatırlatma: ana ekranda uyarı + her Cuma 15:00 telefona bildirim (`evalReminder`).
+
+## Veli = öğrencinin karşılığı (ana akademideki öğrenci işlemlerinin tamamı veli üzerinden)
+- **Mesaj:** veli çocuğunun öğretmenine doğrudan ya da Öğrenci İşleri'ne yazar (`kidMessages.toTeacherNo`). Öğretmene yazılan mesajı ve bildirimini yalnız o öğretmen alır.
+- **Yoklama:** çocuk öğretmeni elle alır (Geldi / Çıktı). "Dersi başlat" → "Dersi bitir": derste olan çocuğun velisine "ders bitti — teslim alabilirsiniz" (`type:"end"`), gelmeyenin velisine "bugün derse gelmedi" (`type:"absent"`) bildirimi gider.
+- **QR / kart okutma** Kart sekmesinde duruyor (ileride kullanılabilir).
