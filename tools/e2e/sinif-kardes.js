@@ -225,13 +225,13 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await tp.click('.roles button:nth-child(2)'); await tp.fill('#l-no', KT); await tp.fill('#l-pw', 'Kid12345'); await tp.click('.login .btn');
   await tp.waitForSelector('.top', { timeout: 20000 }); await tp.waitForTimeout(1500);
   const navT = await tp.evaluate(() => [...document.querySelectorAll('.pano-tile')].map(b => b.dataset.tab).join('|'));
-  ok('Çocuk öğretmeni Pano menüsü akademi öğretmeniyle aynı düzende', navT === 'home|att|ann|msg|kids|myclass|card|eval|profile', navT);
+  ok('Çocuk öğretmeni Pano menüsü akademi öğretmeniyle aynı düzende', navT === 'home|att|ann|myclass|kids|card|seval|eval|profile', navT);
   await goZ(tp, 'att'); await tp.waitForTimeout(600);
   const t7 = await txt(tp);
   ok('Öğretmen yalnızca kendi sınıfının çocuklarını görür (aynı alan/başka çocuk yok)', t7.includes('Dilan Aram') && t7.includes('Zîlan Aram') && !t7.includes('Serhat Aram'));
   // Sınıfa ödev gönder → velide görünür
   await goZ(tp, 'myclass'); await tp.waitForTimeout(600);
-  ok('Çocuk öğretmeni: "Ji sinifa xwe re bişîne" kartı', (await txt(tp)).includes('Ji sinifa xwe re bişîne'));
+  ok('Çocuk öğretmeni: "Erk an belge ji sinifa xwe re bişîne" kartı', (await txt(tp)).includes('Erk an belge ji sinifa xwe re bişîne'));
   await tp.evaluate(() => [...document.querySelectorAll('.chipb')].find(x => x.textContent.includes('Erka malê')).click()); await tp.waitForTimeout(200);
   await tp.evaluate(() => [...document.querySelectorAll('.chipb')].find(x => x.textContent.trim() === '1. Sînif').click()); await tp.waitForTimeout(200);
   await tp.fill('#cp-t', 'Stranê dubare bikin'); await tp.fill('#cp-b', 'Rûpel 3'); const DUE = (new Date().getFullYear() + 1) + '-01-10';
@@ -241,7 +241,7 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   ok('Çocuk sınıf ödevi kaydedildi (1. sınıf)', kcp.some(d => d.fields.title.stringValue === 'Stranê dubare bikin' && d.fields.classId.stringValue === KCid));
   ok('Sınıfım: sınıftaki çocukların adları görünür', (await txt(tp)).includes('Dilan Aram · Zîlan Aram') || /Dilan Aram.*Zîlan Aram|Zîlan Aram.*Dilan Aram/.test(await txt(tp)));
   // Öğretmen yeni mesaj: tüm sınıfın ailelerine
-  await goZ(tp, 'msg'); await tp.waitForTimeout(500);
+  await goZ(tp, 'myclass'); await tp.waitForTimeout(400); await tp.click('[data-hub="msg"]'); await tp.waitForTimeout(500);
   await tp.selectOption('#t-nm-to', { label: '🏫 1. Sînif · hemû malbat' }); await tp.fill('#t-nm', 'Sibê konser heye');
   await tp.evaluate(() => [...document.querySelectorAll('main button.btn')].find(b => b.textContent.includes('Bişîne')).click()); await tp.waitForTimeout(2000);
   const kmsg = (await list('kidMessages')).filter(d => d.fields.text && d.fields.text.stringValue === 'Sibê konser heye');
@@ -250,9 +250,9 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   ok('Veliye anında bildirim: sınıftan yeni ödev', /Stranê dubare bikin/.test(vToast), vToast);
   await vp.bringToFront(); await goZ(vp, 'today'); await vp.waitForTimeout(1500);
   const vToday = await txt(vp);
-  await goZ(vp, 'ann'); await vp.waitForTimeout(800);
+  await goZ(vp, 'cls'); await vp.waitForTimeout(800);
   const vAnn = await txt(vp);
-  ok('Veli: çocuğun sınıf ödevi Bugün + Duyurular ekranında', vToday.includes('Stranê dubare bikin') && vAnn.includes('Stranê dubare bikin') && vAnn.includes(DUE));
+  ok('Veli: çocuğun sınıf ödevi Bugün + Ödev & Belge ekranında', vToday.includes('Stranê dubare bikin') && vAnn.includes('Stranê dubare bikin') && vAnn.includes(DUE));
   // Çocuk modu: yıldızlar + "Erkên min" (ödev görünür, "Min kir" ile işaretlenir)
   await vp.click('.top .iconbtn:not(.pano-btn)'); await vp.waitForTimeout(400);
   await vp.evaluate(() => [...document.querySelectorAll('.sheet button')].find(b => b.textContent.includes('Moda Xwendekar Veke')).click()); await vp.waitForTimeout(800);

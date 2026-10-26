@@ -101,3 +101,18 @@ node tools/zarok-paketle.js zarok.aramtigran.org
 - Çocuk kartındaki QR'ı öğretmenin okutması (mevcut kart okuyucu bileşeniyle)
 - Uygulama kapalıyken **push bildirimi**: Firebase Cloud Messaging + Cloud Functions
   (şu an bildirim uygulama açıkken anında gelir)
+
+## Kartlar ve haftalık değerlendirme (ana akademiyle aynı mantık)
+| Kart | Çocuk öğretmeni | Veli |
+|---|---|---|
+| 📢 Duyurular | Yönetimden gelenler · **yalnız kendi sınıflarına** duyuru (dosyasız; `kidClassPosts` type `duyuru`) | Akademi duyuruları + çocuğunun sınıf duyuruları |
+| 🏫 Sınıfım / Ödev & Belge | **Ödev & Belge** (dosyalı) · **Mesaj** (sınıfın ailelerine ya da tek aileye, dosyasız; yalnız kendi çocuklarının velileri) | Ödev ve belgeler |
+| 📝 / ⭐ Değerlendirme | Her hafta çocuklarını 4 ölçütte (1–5) + not | Her hafta çocuğunun öğretmenlerini 4 ölçütte (1–5), isimsiz |
+| 📊 Anket | Öğretmen anketleri | Veli anketleri |
+
+- Çocuk öğretmeni genel duyuru (`kidAnnouncements`) yazamaz; bunu Öğrenci İşleri ve çocuk akademisi sorumlusu yazar.
+- Velinin mesaj bildirimi yalnızca çocuğun öğretmenlerine gider (tüm çocuk öğretmenlerine değil).
+- `kidEvals/{pazartesi}_{öğretmenNo}_{çocukNo}` — okur: yönetici, çocuk akademisi sorumlusu, yazan öğretmen (veli okuyamaz).
+- `kidTeacherEvals/{pazartesi}_{veliNo}_{öğretmenNo}` — okur: yönetici, çocuk akademisi sorumlusu, gönderen veli (öğretmen okuyamaz).
+- Raporlar: yönetici (Raporlar → Zarok: nirxandina zarokan / mamosteyan) ve çocuk akademisi sorumlusu (Rapor → çocuklar ve devam · iki değerlendirme · anket). Öğrenci İşleri değerlendirme sonuçlarını göremez.
+- Hatırlatma: ana ekranda uyarı + her Cuma 15:00 telefona bildirim (`evalReminder`).

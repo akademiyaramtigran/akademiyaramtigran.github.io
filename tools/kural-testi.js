@@ -149,7 +149,7 @@ const { ref, uploadString, getBytes } = require('firebase/storage');
   await t('Çocuk öğretmeni çocukları okur', getDocs(collection(kt, 'kids')), true);
   await t('Çocuk öğretmeni veli iletişimini okur', getDoc(doc(kt, 'guardians/92026001')), true);
   await t('Çocuk öğretmeni yoklama yazar', addDoc(collection(kt, 'kidAttendance'), { kidId: 'K1', guardianNos: ['92026001'], type: 'in' }), true);
-  await t('Çocuk öğretmeni duyuru gönderir', addDoc(collection(kt, 'kidAnnouncements'), { title: 'x' }), true);
+  await t('Çocuk öğretmeni genel duyuru gönderemez (yalnız sınıfına)', addDoc(collection(kt, 'kidAnnouncements'), { title: 'x' }), false);
   await t('Çocuk öğretmeni veliye yanıt yazar', addDoc(collection(kt, 'kidMessages'), { guardianNo: '92026001', text: 'y', from: 'staff' }), true);
   await t('Çocuk öğretmeni yetişkin öğrencileri OKUYAMAZ', getDocs(collection(kt, 'students')), false);
   await t('Çocuk öğretmeni yetişkin mesajlarını OKUYAMAZ', getDocs(collection(kt, 'messages')), false);
@@ -500,6 +500,30 @@ const { ref, uploadString, getBytes } = require('firebase/storage');
     await t('Değ: başka öğrenci okuyamaz', getDoc(doc(stu2, 'teacherEvals/' + W + '_10202601_11202601')), false);
     await t('Değ: sorumlu öğretmen değerlendirmelerini okur', getDocs(collection(hd, 'teacherEvals')), true);
     await t('Değ: öğretmen öğrenci adına yazamaz', setDoc(doc(tch, 'teacherEvals/' + W + '_10202601_11202601'), te()), false);
+  }
+  // ── Çocuk akademisi haftalık değerlendirmeleri ──
+  {
+    const kt = as('72026001@zmamoste.aat'), g1 = as('92026001@veli.aat'), g2 = as('92026002@veli.aat'), kh = as('96202603@ogretmen.aat'), adm = as('1000@ogretmen.aat'), reg = as('98202601@ogretmen.aat');
+    const W = '2026-10-26';
+    const ke = x => ({ wk: W, teacherNo: '72026001', teacherName: 'H', kidId: 'K1', kidNo: '82026001', kidName: 'Z', area: 'drama', c: { p: 4, g: 3, h: 5, b: 4 }, note: '', ...(x || {}) });
+    const ge = x => ({ wk: W, guardianNo: '92026001', teacherNo: '72026001', teacherName: 'H', area: 'drama', c: { e: 5, h: 4, r: 5, f: 4 }, note: 'x', ...(x || {}) });
+    await t('Ç.değ: çocuk öğretmeni çocuğu değerlendirir', setDoc(doc(kt, 'kidEvals/' + W + '_72026001_82026001'), ke()), true);
+    await t('Ç.değ: başka öğretmen adına yazamaz', setDoc(doc(kt, 'kidEvals/' + W + '_72026009_82026001'), ke({ teacherNo: '72026009' })), false);
+    await t('Ç.değ: puan aralığı dışı reddedilir', setDoc(doc(kt, 'kidEvals/' + W + '_72026001_82026002'), ke({ kidNo: '82026002', c: { p: 0, g: 3, h: 5, b: 4 } })), false);
+    await t('Ç.değ: veli çocuk değerlendirmesini OKUYAMAZ', getDoc(doc(g1, 'kidEvals/' + W + '_72026001_82026001')), false);
+    await t('Ç.değ: öğretmen kendi yazdığını okur', getDocs(query(collection(kt, 'kidEvals'), where('teacherNo', '==', '72026001'))), true);
+    await t('Ç.değ: öğretmen tümünü okuyamaz', getDocs(collection(kt, 'kidEvals')), false);
+    await t('Ç.değ: çocuk akademisi sorumlusu okur', getDocs(collection(kh, 'kidEvals')), true);
+    await t('Ç.değ: öğrenci işleri raporu OKUYAMAZ', getDocs(collection(reg, 'kidEvals')), false);
+    await t('Ç.değ: yönetici okur', getDocs(collection(adm, 'kidEvals')), true);
+    await t('Ç.değ: veli öğretmeni değerlendirir', setDoc(doc(g1, 'kidTeacherEvals/' + W + '_92026001_72026001'), ge()), true);
+    await t('Ç.değ: veli başka veli adına yazamaz', setDoc(doc(g1, 'kidTeacherEvals/' + W + '_92026002_72026001'), ge({ guardianNo: '92026002' })), false);
+    await t('Ç.değ: öğretmen kendi hakkındakini OKUYAMAZ', getDocs(query(collection(kt, 'kidTeacherEvals'), where('teacherNo', '==', '72026001'))), false);
+    await t('Ç.değ: veli kendi gönderdiğini okur', getDocs(query(collection(g1, 'kidTeacherEvals'), where('guardianNo', '==', '92026001'))), true);
+    await t('Ç.değ: başka veli okuyamaz', getDoc(doc(g2, 'kidTeacherEvals/' + W + '_92026001_72026001')), false);
+    await t('Ç.değ: sorumlu öğretmen değerlendirmelerini okur', getDocs(collection(kh, 'kidTeacherEvals')), true);
+    await t('Ç.duyuru: çocuk öğretmeni genel duyuru YAZAMAZ', addDoc(collection(kt, 'kidAnnouncements'), { title: 'x', body: 'y' }), false);
+    await t('Ç.duyuru: öğrenci işleri genel duyuru yazar', addDoc(collection(reg, 'kidAnnouncements'), { title: 'x', body: 'y' }), true);
   }
   console.log(results.join('\n'));
   console.log(results.filter(r => r.startsWith('❌')).length + ' başarısız / ' + results.length);

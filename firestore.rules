@@ -550,11 +550,34 @@ service cloud.firestore {
     }
     // Duyuru: çocuk akademisi bölüm sorumlusu YALNIZCA kendi bölümüne, kendi adıyla
     function kidHeadAnnOk(d) { return kidHeadLvl() && d.get('byNo', '') == prefix() && d.get('area', '') == headArea(); }
+    // Çocuk öğretmeni genel duyuru YAZAMAZ: yalnızca kendi sınıflarına (kidClassPosts type "duyuru")
     match /kidAnnouncements/{id} {
       allow read: if kidRead() || isGuardian();
-      allow create: if kidStaff() || kidHeadAnnOk(request.resource.data);
-      allow update: if kidStaff() || (kidHeadAnnOk(resource.data) && kidHeadAnnOk(request.resource.data));
-      allow delete: if kidStaff() || kidHeadAnnOk(resource.data);
+      allow create: if isRegistrar() || kidHeadAnnOk(request.resource.data);
+      allow update: if isRegistrar() || (kidHeadAnnOk(resource.data) && kidHeadAnnOk(request.resource.data));
+      allow delete: if isRegistrar() || kidHeadAnnOk(resource.data);
+    }
+    // ── Çocuk akademisi haftalık değerlendirmeleri (sonuçları yalnız yönetici + çocuk akademisi sorumlusu okur) ──
+    //  kidEvals: öğretmen → çocuk. Öğretmen yalnız kendi yazdığını okur/düzeltir; veli okuyamaz.
+    //  kidTeacherEvals: veli → öğretmen (isimsiz raporlanır). Veli yalnız kendi gönderdiğini okur; öğretmen okuyamaz.
+    function kidTeach() { return isKidTeacher() || (isStaff() && !headLvl() && exists(dbPath('idx_kidstaff'))); }
+    match /kidEvals/{id} {
+      allow read: if isAdmin() || kidHeadLvl() || headGeneral() || (kidTeach() && resource.data.teacherNo == prefix());
+      allow create, update: if kidTeach()
+        && request.resource.data.teacherNo == prefix()
+        && id == request.resource.data.wk + '_' + prefix() + '_' + request.resource.data.kidNo
+        && evalOk(request.resource.data, ['p', 'g', 'h', 'b'])
+        && (resource == null || resource.data.teacherNo == prefix());
+      allow delete: if isAdmin();
+    }
+    match /kidTeacherEvals/{id} {
+      allow read: if isAdmin() || kidHeadLvl() || headGeneral() || (isGuardian() && resource.data.guardianNo == prefix());
+      allow create, update: if isGuardian()
+        && request.resource.data.guardianNo == prefix()
+        && id == request.resource.data.wk + '_' + prefix() + '_' + request.resource.data.teacherNo
+        && evalOk(request.resource.data, ['e', 'h', 'r', 'f'])
+        && (resource == null || resource.data.guardianNo == prefix());
+      allow delete: if isAdmin();
     }
 
     // Anlık bildirim cihaz kayıtları: herkes yalnızca KENDİ cihazını, KENDİ numarası ve rolüyle kaydeder.
