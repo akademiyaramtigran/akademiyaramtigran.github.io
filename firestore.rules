@@ -254,11 +254,12 @@ service cloud.firestore {
       return d.get('senderRole', '') == 'head' && d.get('senderNo', '') == prefix() && !kidHeadLvl()
         && headTargetsOk(d.get('targets', [])) && d.get('senderArea', '') == headArea();
     }
+    // Sıradan öğretmen alan geneline duyuru YAZAMAZ: yalnızca kendi sınıflarına (classPosts type "duyuru")
     match /announcements/{id} {
       allow read: if member();
-      allow create: if staffW() || (headLvl() && headAnnOk(request.resource.data));
-      allow update: if staffW() || (headLvl() && headAnnOk(resource.data) && headAnnOk(request.resource.data));
-      allow delete: if staffW() || (headLvl() && headAnnOk(resource.data));
+      allow create: if (staffW() && !isTeacherLvl()) || (headLvl() && headAnnOk(request.resource.data));
+      allow update: if (staffW() && !isTeacherLvl()) || (headLvl() && headAnnOk(resource.data) && headAnnOk(request.resource.data));
+      allow delete: if (staffW() && !isTeacherLvl()) || (headLvl() && headAnnOk(resource.data));
     }
     // Anket: bölüm sorumlusu KENDİ anketini, KENDİ bölümüne (genel sorumlu: her bölüme) açar
     function headSurveyOk(d) {
@@ -368,6 +369,36 @@ service cloud.firestore {
         || ((headLvl() || (isStudent() && resource.data.get('recipientNo', '') == prefix()))
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']));
       allow delete: if staffW();
+    }
+    // ── Haftalık değerlendirmeler ──
+    //  Puanlar 1–5 (4 ölçüt), not ≤ 1000. Sonuçları yalnızca yönetici ve bölüm sorumluları okur.
+    //  studentEvals: öğretmen → öğrenci. Öğretmen yalnızca KENDİ yazdığını okur/düzeltir; öğrenci hiç okuyamaz.
+    //  teacherEvals: öğrenci → öğretmen (isimsiz raporlanır). Öğrenci yalnızca kendi gönderdiğini okur; öğretmen hiç okuyamaz.
+    function sc5(v) { return v is int && v >= 1 && v <= 5; }
+    function evalOk(d, keys) {
+      return d.c is map && d.c.keys().hasOnly(keys) && d.c.keys().hasAll(keys)
+        && sc5(d.c[keys[0]]) && sc5(d.c[keys[1]]) && sc5(d.c[keys[2]]) && sc5(d.c[keys[3]])
+        && d.wk is string && d.wk.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && d.get('note', '') is string && d.get('note', '').size() <= 1000;
+    }
+    match /studentEvals/{id} {
+      allow read: if isAdmin() || headLvl() || (staffW() && resource.data.teacherNo == prefix());
+      allow create, update: if staffW() && !isRegistrar()
+        && request.resource.data.teacherNo == prefix()
+        && id == request.resource.data.wk + '_' + prefix() + '_' + request.resource.data.studentNo
+        && evalOk(request.resource.data, ['p', 'g', 'h', 'b'])
+        && (resource == null || resource.data.teacherNo == prefix());
+      allow delete: if isAdmin();
+    }
+    match /teacherEvals/{id} {
+      allow read: if isAdmin() || headLvl() || (isStudent() && resource.data.studentNo == prefix());
+      allow create, update: if isStudent()
+        && request.resource.data.studentNo == prefix()
+        && id == request.resource.data.wk + '_' + prefix() + '_' + request.resource.data.teacherNo
+        && evalOk(request.resource.data, ['e', 'h', 'r', 'f'])
+        && !('studentName' in request.resource.data)
+        && (resource == null || resource.data.studentNo == prefix());
+      allow delete: if isAdmin();
     }
     // Öğretmen haftalık anketleri: yalnızca personel
     match /surveyResponses/{id} { allow read: if isStaff(); allow write: if staffW(); }

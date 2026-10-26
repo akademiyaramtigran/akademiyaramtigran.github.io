@@ -97,7 +97,7 @@ async function routes(ctx) {
   // Rapor: yalnızca bölüm sekmeleri
   await goA(hp, 'reports'); await hp.waitForTimeout(1200);
   const t1 = await txt(hp);
-  ok('Rapor: genel anket / çocuk akademisi / arşiv sekmeleri yok', t1.includes('Lîste') && !t1.includes('Akademiya Zarokan') && !/\bArşîv\b/.test(t1.split('Lîste')[1] || ''));
+  ok('Rapor: bölüm sekmeleri (devam, değerlendirmeler, anket) var; çocuk akademisi / arşiv yok', t1.includes('Nirxandina xwendekaran') && t1.includes('Nirxandina mamosteyan') && !t1.includes('Akademiya Zarokan') && !/\bArşîv\b/.test(t1.split('Nirxandina xwendekaran')[1] || ''));
 
   // 3) Öğrenciler: tiyatro öğrencisi duyuruyu görür, müzik öğrencisi görmez; tiyatro öğrencisi sorumluya yazar
   const s1 = await login(await mk(430), '20202601', 'Stu12345', 'Xwendekar');
@@ -137,7 +137,7 @@ async function routes(ctx) {
   const hm = (await list('messages')).filter(d => d.fields.subject && d.fields.subject.stringValue === 'Lîsteya kostûman');
   ok('Sorumlunun belgeli mesajı öğretmene kaydedildi', hm.length === 1 && hm[0].fields.recipientNo.stringValue === '50202601' && JSON.stringify(hm[0].fields.attachments).includes('kostum.pdf'));
   const tp = await login(await mk(), '50202601', 'Tea12345');
-  await goA(tp, 'messages'); await tp.waitForTimeout(1500);
+  await goA(tp, 'myclass'); await tp.waitForTimeout(800); await tp.click('[data-hub-tab="messages"]'); await tp.waitForTimeout(1500);
   ok('Öğretmen sorumlunun mesajını gelen kutusunda görür', (await txt(tp)).includes('Lîsteya kostûman'));
 
   // Yönetici → tüm bölüm sorumlularına toplu mesaj; yönetici gelen kutusunda "sorumlular" süzgeci

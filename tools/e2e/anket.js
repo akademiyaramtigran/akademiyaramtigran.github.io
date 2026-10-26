@@ -41,6 +41,7 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await put('idx_staff/98202601', { no: '98202601', lvl: 'registrar' });
   await put('teachers/TR', { no: '98202601', name: 'Karûbar', isRegistrar: true, area: 'genel' });
   await signUp('98202601@ogretmen.aat', 'Reg12345');
+  await put('idx_staff/1000', { no: '1000', lvl: 'admin' }); await put('teachers/TA', { no: '1000', name: 'Rêveber', isAdmin: true, area: 'genel' }); await signUp('1000@ogretmen.aat', 'Admin123');
   // Anketleri bölüm sorumluları açar: Müzik (ana akademi) ve Drama (çocuk akademisi)
   await put('idx_staff/96202601', { no: '96202601', lvl: 'head', area: 'muzik' });
   await put('teachers/TH1', { id: 'TH1', no: '96202601', name: 'Berpirsê Muzîkê', isHead: true, area: 'muzik' });
@@ -126,9 +127,14 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await hp.bringToFront(); await hp.waitForTimeout(1500);
   await btn(hp, 'Encam'); await hp.waitForTimeout(1200);
   const r3 = await txt(hp);
-  await p.bringToFront(); await topTab(p, 'Rapor'); await p.waitForTimeout(800); await btn(p, 'Ankêt', true); await p.waitForTimeout(1500);
-  ok('Öğrenci İşleri raporunda sorumlunun anketi görünür', (await txt(p)).includes('Razîbûna dersê'));
-  await shot(p, 'sonuc.png');
+  await p.bringToFront();
+  ok('Öğrenci İşleri panelinde rapor yok (raporlar yalnız yönetici + sorumlu)', !(await p.evaluate(() => [...document.querySelectorAll('.sm-it[data-key],.pano-tile[data-key]')].some(e => e.dataset.key === 'rapor'))));
+  await hp.bringToFront(); await hp.evaluate(() => document.querySelector('.sm-it[data-key="reports"],.pano-tile[data-key="reports"]').click()); await hp.waitForTimeout(1200);
+  await btn(hp, 'Ankêt', true); await hp.waitForTimeout(1500);
+  ok('Sorumlunun rapor merkezinde kendi anketi görünür', (await txt(hp)).includes('Razîbûna dersê'));
+  await hp.evaluate(() => { const b = document.querySelector('[data-sv-open]'); b && b.click(); }); await hp.waitForTimeout(600);
+  ok('Anket raporu: ekranda sonuç özeti', (await hp.locator('[data-sv-results]').count()) === 1 && (await hp.locator('[data-sv-results]').innerText()).length > 20);
+  await shot(hp, 'sonuc.png');
   ok('Sonuçlar: ortalama, dağılım ve katılım', r3.includes('Beşdarî') && r3.includes('100%') && r3.includes('Tembûr'));
 
   // 4) Çocuk Akademisi veli anketi — Drama bölüm sorumlusu açar
@@ -189,14 +195,15 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   // 6) Sorumlu: veli anketi sonuçları · Öğrenci işleri: Çocuk Akademisi raporu + anketler (salt okunur)
   await kp.bringToFront(); await kp.waitForTimeout(1500);
   ok('Veli anketi listesinde 1/1 aile', (await txt(kp)).includes('1 / 1 malbat'));
-  await p.bringToFront(); await p.waitForTimeout(500);
-  await topTab(p, 'Rapor'); await p.waitForTimeout(1200);
+  { const p = await login(await mk(), '1000', 'Admin123');
+  await p.evaluate(() => document.querySelector('.sm-it[data-key="reports"],.pano-tile[data-key="reports"]').click()); await p.waitForTimeout(1200);
   await btn(p, 'Akademiya Zarokan', true); await p.waitForTimeout(1500);
   const r6 = await txt(p);
   await shot(p, 'zarok-rapor.png');
   ok('Rapor merkezi: Çocuk Akademisi raporu (çocuk, aile, sınıf)', r6.includes('Malbat') && r6.includes('Dilan Aram') && r6.includes('1. Sînif'));
   await btn(p, 'Ankêt', true); await p.waitForTimeout(1200);
   ok('Rapor merkezi anket listesinde veli anketi', (await txt(p)).includes('Razîbûna dêûbavan'));
+  }
 
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   await b.close();
