@@ -46,6 +46,7 @@ async function routes(ctx) {
   await signUp('50202601@ogretmen.aat', 'Tea12345');
   await put('idx_students/20202601', { no: '20202601' });
   await put('students/S1', { no: '20202601', name: 'Rojîn Aram', area: 'tiyatro', fireId: 'S1', id: 101 });
+  await signUp('20202601@ogrenci.aat', 'Stu12345');
   await put('idx_students/20202602', { no: '20202602' });
   await put('students/S2', { no: '20202602', name: 'Azad Can', area: 'tiyatro', fireId: 'S2', id: 102 });
   const TOK1 = 'a'.repeat(32), TOK2 = 'b'.repeat(32);
@@ -149,13 +150,29 @@ async function routes(ctx) {
   const qs = (await list('qrSessions')).filter(d => d.fields.active && d.fields.active.booleanValue);
   const SID = qs.length ? qs[qs.length - 1].name.split('/').pop() : '';
   ok('Ders QR oturumu açıldı', !!SID);
+  const codesOf = async () => { const d = await get('qrSessions/' + SID); return ((d.fields && d.fields.codes && d.fields.codes.arrayValue.values) || []).map(v => v.stringValue); };
+  const c0 = await codesOf();
+  ok('Dönen QR: oturumda geçerli kod listesi var', c0.length >= 1);
+  ok('QR çıktı düğmesi yok', !(await txt(tp)).includes('Kaxeza QR Çap Bike') && !(await txt(tp)).includes('📄 PDF'));
+  await tp.waitForTimeout(16000);
+  const c1 = await codesOf();
+  ok('QR 15 saniyede yenilendi (yeni kod eklendi)', c1.length === c0.length + 1 && c1[c1.length - 1] !== c0[c0.length - 1], c0.join(',') + ' → ' + c1.join(','));
+  const CODE = c1[c1.length - 1];
   const sp = await (await mk(430)).newPage(); sp.on('pageerror', e => errs.push('S3: ' + e.message)); sp.on('dialog', d => d.accept());
-  await sp.goto('http://localhost:8765/app/?emu=1&qr=' + encodeURIComponent('AAT|' + SID)); await sp.waitForSelector('text=Têkeve', { timeout: 60000 });
+  await sp.goto('http://localhost:8765/app/?emu=1&qr=' + encodeURIComponent('AAT|' + SID + '|' + CODE)); await sp.waitForSelector('text=Têkeve', { timeout: 60000 });
   await sp.getByText('Xwendekar', { exact: true }).first().click();
   await sp.locator('input.inp').first().fill('20202603'); await sp.locator('input[type=password]').first().fill('Stu12345');
   await sp.getByText('Têkeve', { exact: true }).last().click(); await sp.waitForTimeout(9000);
   const qa = (await list('attendance')).filter(d => d.fields.sessionId && d.fields.sessionId.stringValue === SID && d.fields.studentNo && d.fields.studentNo.stringValue === '20202603' && !d.fields.deviceClaim);
   ok('Kamerayla okutulan QR (adres) → giriş sonrası yoklama kendiliğinden verildi', qa.length === 1, (await sp.evaluate(() => document.body.innerText)).slice(0, 200).replace(/\n/g, ' / '));
+  // Süresi geçmiş / sahte kodla okutma reddedilir
+  const sp2 = await (await mk(430)).newPage(); sp2.on('dialog', d => d.accept());
+  await sp2.goto('http://localhost:8765/app/?emu=1&qr=' + encodeURIComponent('AAT|' + SID + '|ZZZZZZ')); await sp2.waitForSelector('text=Têkeve', { timeout: 60000 });
+  await sp2.getByText('Xwendekar', { exact: true }).first().click();
+  await sp2.locator('input.inp').first().fill('20202601'); await sp2.locator('input[type=password]').first().fill('Stu12345');
+  await sp2.getByText('Têkeve', { exact: true }).last().click(); await sp2.waitForTimeout(9000);
+  const bad = (await list('attendance')).filter(d => d.fields.sessionId && d.fields.sessionId.stringValue === SID && d.fields.studentNo && d.fields.studentNo.stringValue === '20202601' && !d.fields.deviceClaim);
+  ok('Geçersiz (eski) QR koduyla yoklama verilemez', bad.length === 0 && (await sp2.evaluate(() => document.body.innerText)).includes('QR guherî'));
   // Dersi bitir: QR kapanır, yoklama kaydedilir (QR ile giren öğrenci dahil), bitiş anı yazılır
   // Öğretmen QR penceresini kapatır (okutanlar yoklamaya işlenir), sonra "Dersi bitir"
   await tp.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.offsetParent && /Bigire|✕/.test(x.textContent)).pop(); b && b.click(); }); await tp.waitForTimeout(2000);
