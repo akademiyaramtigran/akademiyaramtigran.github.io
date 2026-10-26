@@ -151,7 +151,8 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   // ── 7) Öğrenci görünürlüğü ──
   const s1 = await login(await mk(430), '20202601', 'Stu12345', 'Xwendekar');
   const h1 = await txt(s1);
-  ok('Öğrenci: sınıfları ve sınıf öğretmeni üst bilgide', h1.includes('1. Sînif') && h1.includes('Koro') && h1.includes('Mamoste Dilovan'));
+  const hero = await s1.evaluate(() => (document.querySelector('.student-hero') || {}).innerText || '');
+  ok('Öğrenci üst panelinde sınıflar var, öğretmen adları yok', hero.includes('1. Sînif') && hero.includes('Koro') && !hero.includes('Mamoste Dilovan'), hero.replace(/\n/g, ' / '));
   await clickText(s1, 'Bername'); await s1.waitForTimeout(1000);
   ok('Sınıftaki öğrenci sınıf dersini görür', (await txt(s1)).includes('Solfej'));
   const s2 = await login(await mk(430), '20202602', 'Stu12345', 'Xwendekar');

@@ -3812,9 +3812,9 @@ const ICO={trash:"M4 7h16M9 7V4.5h6V7m-8.5 0 1 12.5h9l1-12.5M10 11v5.5M14 11v5.5
 // Menü bölümü → simge ve (geniş ekranda) grup
 const NAV_ICO={home:"today",attendance:"att",scanner:"qr",checkin:"qr",myclass:"cls",sinif:"cls",students:"users",schedule:"cal",
   qad:"music",serledan:"inbox",announce:"ann",announcements:"ann",messages:"msg",feedback:"idea",alerts:"bell",
-  press:"news",nuce:"news",arsiv:"archive",reports:"report",rapor:"report",surveys:"poll",anket:"poll",evaluation:"star",seval:"star",teval:"star",
+  press:"news",nuce:"news",arsiv:"archive",reports:"report",rapor:"report",surveys:"poll",anket:"poll",evaluation:"star",seval:"star",teval:"star",gatt:"att",
   profile:"user",zarok:"kid"};
-const NAV_GRP={zarok:"zarok",home:"ders",attendance:"ders",scanner:"ders",checkin:"ders",myclass:"ders",sinif:"ders",students:"ders",schedule:"ders",
+const NAV_GRP={zarok:"zarok",home:"ders",attendance:"ders",scanner:"ders",checkin:"ders",myclass:"ders",sinif:"ders",students:"ders",schedule:"ders",gatt:"ders",
   qad:"kayit",serledan:"kayit",announce:"iletisim",announcements:"iletisim",messages:"iletisim",feedback:"iletisim",alerts:"iletisim",
   press:"yayin",nuce:"yayin",arsiv:"yayin",reports:"rapor",rapor:"rapor",surveys:"nirx",anket:"nirx",evaluation:"nirx",seval:"nirx",teval:"nirx",profile:"hesap"};
 const NAV_GRP_ORDER=["kayit","ders","iletisim","yayin","nirx","rapor","zarok","","hesap"];
@@ -4924,6 +4924,8 @@ function AddLessonSheet({open,onClose,defaultArea,defaultClassId,t,lang,toast,on
   const [name,setName]=useState("");
   const [date,setDate]=useState(()=>new Date().toISOString().slice(0,10));
   const [weekly,setWeekly]=useState(false);
+  const [category,setCategory]=useState("main"); // main | extra | workshop — tekrardan bağımsız
+  const [guest,setGuest]=useState("");
   const [start,setStart]=useState("09:00");
   const [end,setEnd]=useState("10:30");
   const [loc,setLoc]=useState("");
@@ -4946,13 +4948,16 @@ function AddLessonSheet({open,onClose,defaultArea,defaultClassId,t,lang,toast,on
       id:Date.now(),area,name:name.trim(),start,end,loc:loc||"—",
       classId:clsOpts.some(d=>d.id===classId)?classId:null,
       lessonType: weekly?"main":"extra",
+      category,
+      guestTeacher: teacherNo==="__guest"?guest.trim().slice(0,80):null,
       day: weekly?day:null,
       from: weekly?date:null,          // haftalık tekrar bu günden başlar
       term: weekly&&term?term:null,
       extraDates: weekly?null:[date],
-      teacherNo: teacherNo||null,
+      teacherNo: teacherNo&&teacherNo!=="__guest"?teacherNo:null,
       teacherName: tcSel?tcSel.name:null,
     };
+    if(teacherNo==="__guest"&&!guest.trim()){ toast("⚠ "+(lang==="en"?"Write the guest teacher's name":K("Navê mamosteyê mêvan binivîse"))); return; }
     onSave(ls);
     toast("✓ "+name.trim()+" · "+fmtDateTx(date)+(weekly?" · 🔁":""));
     setName(""); setLoc("");
@@ -4979,10 +4984,22 @@ function AddLessonSheet({open,onClose,defaultArea,defaultClassId,t,lang,toast,on
       <FieldWrap label={(lang==="en"?"Teacher":K("Mamosteyê Dersê"))}>
         <select style={selectStyle} value={teacherNo} onChange={e=>setTeacherNo(e.target.value)}>
           <option value="">— {lang==="en"?"Unassigned (all field teachers see it)":K("Ne diyar (hemû mamosteyên qadê dibînin)")}</option>
+          <option value="__guest">🎟 {lang==="en"?"Guest teacher (attendance by the department head)":K("Mamosteyê mêvan (amadebûnê berpirsê beşê digire)")}</option>
           {(teachers||[]).filter(tc=>!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&!tc.isHead&&(area==="genel"||tc.area===area||tc.area==="genel")).map(tc=>(
             <option key={tc.no} value={tc.no}>👨‍🏫 {tc.name} ({tc.no})</option>
           ))}
         </select>
+      </FieldWrap>
+      {teacherNo==="__guest"&&<FieldWrap label={lang==="en"?"Guest teacher's name":K("Navê mamosteyê mêvan")}>
+        <input style={inputStyle} value={guest} maxLength={80} onChange={e=>setGuest(e.target.value)} data-guest-name="1" placeholder="…"/>
+        <div style={{fontSize:11,color:"var(--text2)",marginTop:4}}>📋 {lang==="en"?"The department head takes this lesson's attendance (by hand or by card).":K("Amadebûna vê dersê berpirsê beşê digire (bi destan an bi kartê).")}</div>
+      </FieldWrap>}
+      <FieldWrap label={lang==="en"?"Lesson type":K("Cureyê dersê")}>
+        <div style={{display:"flex",gap:8}}>
+          {LESSON_CATS.map(([k])=>[k,(k==="main"?lessonIcon({area}):k==="extra"?"➕":"🛠")+" "+lessonCatLabel(k)]).map(([k,l])=>(
+            <button key={k} type="button" data-cat={k} onClick={()=>setCategory(k)} style={{flex:1,padding:"10px 6px",borderRadius:10,fontSize:12.5,fontWeight:700,cursor:"pointer",
+              border:"1.5px solid "+(category===k?"#0f2f38":"var(--border2)"),background:category===k?"#0f2f38":"var(--bg2)",color:category===k?"#fff":"var(--text)"}}>{l}</button>))}
+        </div>
       </FieldWrap>
       <FieldWrap label={"📅 "+(lang==="en"?"Day":K("Roj"))}>
         <DateInput value={date} onChange={e=>setDate(e.target.value)} id="ls-date"/>
@@ -5928,6 +5945,9 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
         const myMsgs = allMsgs.map(m=>{
           if((m.senderId==="admin"||m.fromType==="admin"||m.fromType==="head")&&m.recipientId===myId)
             return {...m, direction:"inbox"};
+          // Öğrencinin doğrudan bu öğretmene yazdığı mesaj
+          if(m.fromType==="student"&&m.toRole==="teacher"&&String(m.toTeacherNo)===String(teacher.no))
+            return {...m, direction:"inbox"};
           if((m.senderId==="admin"||m.fromType==="admin")&&(m.recipientGroup==="allTeachers"||m.recipientGroup==="all"||m.recipientGroup==="area_"+teacher.area))
             return {...m, direction:"inbox"};
           if(String(m.senderId)===String(teacher.id)||String(m.fromId)===String(teacher.id))
@@ -6058,6 +6078,9 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
           </div>
         </div>
         <div style={{fontSize:14,color:"var(--text)",lineHeight:1.8,padding:"12px 0",borderTop:"1px solid var(--border)"}}>{selectedMsg.body}</div>
+        {selectedMsg.direction==="inbox"&&selectedMsg.fromType==="student"&&selectedMsg.fromNo&&(()=>{ const st=myStudents.find(x=>String(x.no)===String(selectedMsg.fromNo)); return st?(
+          <button data-reply-student onClick={()=>{ setMsgType("private"); setRecipient(String(st.id)); setSubject("Re: "+(selectedMsg.subject||"")); setBody(""); setSelectedMsg(null); setMode("compose"); }}
+            style={{width:"100%",padding:11,borderRadius:10,border:"none",background:"#0f2f38",color:"#fff",fontWeight:800,fontSize:13,cursor:"pointer",marginTop:6}}>↩ {lang==="en"?"Reply":K("Bersiv bide")}</button>):null; })()}
         {/* Ekler */}
         {selectedMsg.attachments&&selectedMsg.attachments.length>0&&(
           <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid var(--border)"}}>
@@ -7523,6 +7546,73 @@ function HeadPanel(props){
   if(isKidArea(props.user&&props.user.area)) return <KidHeadPanel {...props}/>;
   return <AatHeadPanel {...props}/>;
 }
+// Bölüm sorumlusu: misafir öğretmenli derslerin yoklaması (elle ya da kartla/QR)
+//  attendance/{dersId}-{tarih}: {lessonId, lessonFire, lessonName, classId, area, date, records, teacherName(misafir), takenBy, takenByNo}
+function HeadGuestAttendance({user,students,schedule,lang,toast}){
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const F=window.__FB;
+  const clsDocs=useClassDocs("classes");
+  const terms=useTerms();
+  const leaves=useLeaves(true);
+  const today=new Date().toISOString().slice(0,10);
+  const DOW=["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"][new Date().getDay()];
+  const todays=(schedule||[]).filter(ls=>isGuestLesson(ls)&&(ls.lessonType==="extra"?(ls.extraDates||[]).includes(today):(ls.day===DOW&&lessonOnDate(ls,terms,today))))
+    .sort((a,b)=>String(a.start||"").localeCompare(String(b.start||"")));
+  const [sel,setSel]=useState(null);
+  const [recs,setRecs]=useState({});
+  const [scan,setScan]=useState(false);
+  const [busy,setBusy]=useState(false);
+  const [saved,setSaved]=useState(false);
+  const ls=todays.find(x=>String(x.id)===String(sel))||null;
+  const roster=ls?lessonRoster(ls,students,clsDocs):[];
+  const onLeaveL=roster.filter(st=>leaveOf(leaves,st.no,today));
+  const list=roster.filter(st=>!leaveOf(leaves,st.no,today));
+  const docId=ls?String(ls.id)+"-"+today:"";
+  useEffect(()=>{ setRecs({}); setSaved(false); if(!ls||!F||!F.isConfigured()) return;
+    F.getDoc(F.doc(F.db,"attendance",docId)).then(d=>{ if(d.exists()){ setRecs(d.data().records||{}); setSaved(true); } }).catch(()=>{}); },[docId]);
+  const lateNow=()=>{ if(!ls||!ls.start) return false; const [h,m]=String(ls.start).split(":").map(Number); const st=new Date(); st.setHours(h,m||0,0,0); return Date.now()-st.getTime()>15*60000; };
+  const cycle=v=>v==="on"?"late":v==="late"?"off":"on";
+  async function save(){
+    if(!ls||busy) return; setBusy(true);
+    const records={...recs}; list.forEach(st=>{ if(!records[st.id]) records[st.id]="off"; }); onLeaveL.forEach(st=>{ records[st.id]="leave"; });
+    try{
+      await F.setDoc(F.doc(F.db,"attendance",docId),{lessonId:String(ls.id),lessonFire:String(ls.fireId||ls.id),lessonName:ls.name||"",classId:ls.classId||"",area:ls.area||"",date:today,
+        records,teacherName:ls.guestTeacher||"",takenBy:user.name||"",takenByNo:String(user.no||""),savedAt:F.serverTimestamp()},{merge:true});
+      setRecs(records); setSaved(true); toast("✅ "+W2("Amadebûn hate tomarkirin","Attendance saved"));
+    }catch(e){ toast("❌ "+((e&&e.code)||e)); }
+    setBusy(false);
+  }
+  const btn=(on,bg)=>({padding:"7px 10px",borderRadius:9,border:"none",fontWeight:800,fontSize:12,cursor:"pointer",background:on?bg:"var(--bg2)",color:on?"#fff":"var(--text2)"});
+  return(<div data-guest-att>
+    <SectionHeader>📋 {W2("Amadebûna dersên mamosteyên mêvan","Attendance for guest-teacher lessons")}</SectionHeader>
+    <div style={{fontSize:12,color:"var(--text2)",lineHeight:1.6,marginBottom:10}}>{W2("Dersên ku mamosteyê mêvan didin (atolye / dersa zêde) amadebûna wan ji aliyê berpirsê beşê ve tê girtin — bi destan an bi kartê (QR).","Lessons taught by a guest teacher (workshop / extra lesson) — the department head takes attendance by hand or by card (QR).")}</div>
+    {todays.length===0&&<Card><div style={{fontSize:13,color:"var(--text2)",textAlign:"center",padding:14}}>{W2("Îro dersa mamosteyê mêvan tune.","No guest-teacher lesson today.")}</div></Card>}
+    {todays.map(x=>(
+      <button key={x.id} data-guest-lesson={x.id} onClick={()=>setSel(x.id)} style={{width:"100%",textAlign:"left",display:"flex",gap:10,alignItems:"center",padding:"10px 12px",marginBottom:8,borderRadius:12,cursor:"pointer",
+        border:"1.5px solid "+(String(sel)===String(x.id)?"#0f2f38":"var(--border2)"),background:"var(--surface)",color:"var(--text)"}}>
+        <span style={{fontSize:20}}>{lessonIcon(x)}</span>
+        <span style={{flex:1}}><b>{x.name}</b><div style={{fontSize:11,color:"var(--text2)"}}>{x.start}–{x.end} · 🎟 {x.guestTeacher} · {lessonCatLabel(lessonCat(x))}</div></span>
+      </button>))}
+    {ls&&<Card>
+      <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+        <button data-guest-scan onClick={()=>setScan(v=>!v)} style={{...btn(scan,"#0f2f38"),padding:"9px 12px"}}>📇 {W2("Bi kartê / QR bigire","Take by card / QR")}</button>
+        <span style={{fontSize:12,color:"var(--text2)",alignSelf:"center"}}>{Object.values(recs).filter(v=>v==="on"||v==="late").length} / {list.length}</span>
+      </div>
+      {scan&&<TeacherCardScanner myStudents={list} lang={lang} onClose={()=>setScan(false)} onCheckin={st=>{ if(recs[st.id]==="on"||recs[st.id]==="late") return {ok:false,reason:"already_checked_in"}; const late=lateNow(); setRecs(r=>({...r,[st.id]:late?"late":"on"})); setSaved(false); return {ok:true,late}; }}/>}
+      {onLeaveL.length>0&&<div style={{fontSize:12,color:"var(--text2)",marginBottom:8}}>🏷 {W2("Bi destûr","On leave")}: {onLeaveL.map(x=>x.name).join(", ")}</div>}
+      {list.map(st=>{ const v=recs[st.id];
+        return(<div key={st.id} data-guest-row={st.no} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:"0.5px solid var(--border)"}}>
+          <span style={{flex:1,fontSize:13,fontWeight:600,color:"var(--text)"}}>{st.name}</span>
+          <button data-gv="on" onClick={()=>{setRecs(r=>({...r,[st.id]:"on"}));setSaved(false);}} style={btn(v==="on","#16a34a")}>✅</button>
+          <button data-gv="late" onClick={()=>{setRecs(r=>({...r,[st.id]:"late"}));setSaved(false);}} style={btn(v==="late","#d97706")}>⏱</button>
+          <button data-gv="off" onClick={()=>{setRecs(r=>({...r,[st.id]:"off"}));setSaved(false);}} style={btn(v==="off","#dc2626")}>❌</button>
+        </div>); })}
+      <button data-guest-save disabled={busy} onClick={save} style={{marginTop:10,width:"100%",padding:12,borderRadius:10,border:"none",background:saved?"var(--bg2)":"#16a34a",color:saved?"var(--text)":"#fff",fontWeight:800,fontSize:14,cursor:"pointer"}}>
+        {busy?"⏳":saved?"✓ "+W2("Hate tomarkirin — dîsa tomar bike","Saved — save again"):"💾 "+W2("Amadebûnê tomar bike","Save attendance")}</button>
+      <div style={{fontSize:11,color:"var(--text2)",marginTop:6}}>{W2("Yên nehatin nîşankirin wek “tunebû” tên nivîsandin.","Unmarked students are recorded as absent.")}</div>
+    </Card>}
+  </div>);
+}
 function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onSettings,onDataChange}){
   const [menuOpen,setMenuOpen]=useState(isPhoneNow);
   const [tab,setTab]=useState("announce");
@@ -7547,6 +7637,7 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
     {key:"announce",label:lang==="en"?"Announcements":K("Ragihandin")},
     {key:"messages",label:lang==="en"?"Messages":K("Peyam"),badge:unread},
     {key:"schedule",label:lang==="en"?"Lesson schedule":K("Bernameya Dersan")},
+    {key:"gatt",label:lang==="en"?"Guest-lesson attendance":K("Amadebûna dersên mêvan")},
     {key:"leaves",label:lang==="en"?"Student leave":K("Destûra Xwendekaran")},
     {key:"surveys",label:lang==="en"?"Surveys":K("Ankêt")},
     {key:"reports",label:lang==="en"?"Reports":K("Rapor")},
@@ -7560,6 +7651,7 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
       <div className="scroll-area" style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
         {tab==="announce"&&<AnnouncementsPanel t={t} toast={toast} lang={lang} senderName={user.name} senderRole="head" senderArea={area} senderNo={myNo}/>}
         {tab==="messages"&&<HeadMessagesPanel user={user} inbox={inbox} sent={sent} teachers={aTeachers} lang={lang} t={t} toast={toast}/>}
+        {tab==="gatt"&&<HeadGuestAttendance user={user} students={aStudents} schedule={aSchedule} lang={lang} toast={toast}/>}
         {tab==="leaves"&&<LeavesPanel user={user} students={aStudents.filter(s=>!s.isAdmin)} area={area} all={ALL} lang={lang} toast={toast}/>}
         {tab==="schedule"&&<AdminScheduleTab mode="head" byName={user.name} fixedArea={ALL?null:area} schedule={aSchedule} teachers={teachers||[]} students={aStudents} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>}
         {tab==="surveys"&&<HeadSurveysPanel user={user} students={aStudents} teachers={aTeachers} lang={lang} toast={toast}/>}
@@ -9485,7 +9577,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
           <div key={k.fireId} style={{...box,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}>
             <div style={{minWidth:0}}>
               <div style={{fontWeight:700,color:"var(--text)"}}>{k.name}</div>
-              <div style={small}>{last?(last.type==="in"?"🟢 "+Z("Di dersê de","In class"):"🏠 "+Z("Hate teslîmkirin","Picked up"))+" · "+new Date(last.time).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}):"— "+Z("hîn nehatiye","not arrived yet")}</div>
+              <div style={small}>{last?(last.type==="in"?"🟢 "+Z("Di dersê de","In class"):last.type==="end"?"🔔 "+Z("Ders qediya","Lesson ended"):last.type==="absent"?"❌ "+Z("Nehat","Absent"):"🏠 "+Z("Hate teslîmkirin","Picked up"))+" · "+new Date(last.time).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}):"— "+Z("hîn nehatiye","not arrived yet")}</div>
             </div>
             <div style={{display:"flex",gap:6}}>
               <button onClick={()=>mark(k,"in")} style={btn(last&&last.type==="in"?"var(--bg2)":"#16a34a",last&&last.type==="in"?"var(--text2)":"#fff")}>✅ {Z("Hat","In")}</button>
@@ -10422,6 +10514,8 @@ function EditLessonSheet({lesson,onClose,t,lang,toast,onSave,teachers}){
   const [end,setEnd]=useState(lesson.end);
   const [loc,setLoc]=useState(lesson.loc);
   const lessonType = lesson.lessonType || "main";
+  const [cat,setCat]=useState(()=>lessonCat(lesson));
+  const [guest,setGuest]=useState(lesson.guestTeacher||"");
   const [extraDates,setExtraDates]=useState(lesson.extraDates||[]);
   const [dateInput,setDateInput]=useState("");
 
@@ -10438,7 +10532,7 @@ function EditLessonSheet({lesson,onClose,t,lang,toast,onSave,teachers}){
     const tcSel=(teachers||[]).find(x=>x.no===teacherNo);
     onSave({...lesson,name,day:lessonType==="main"?day:null,start,end,loc,
       classId:wsLesson?lesson.classId:(classId&&clsOpts.some(d=>d.id===classId)?classId:null),
-      extraDates:lessonType==="extra"?extraDates:null,lessonType,
+      extraDates:lessonType==="extra"?extraDates:null,lessonType,category:cat,guestTeacher:teacherNo?null:(guest.trim().slice(0,80)||null),
       teacherNo:teacherNo||null,teacherName:tcSel?tcSel.name:(teacherNo?lesson.teacherName:null)});
   }
 
@@ -10446,10 +10540,15 @@ function EditLessonSheet({lesson,onClose,t,lang,toast,onSave,teachers}){
     <Sheet open={true} onClose={onClose} title={"✏️ "+(t.editLesson||t.lessonName)}>
       {/* Ders tipi badge */}
       <div style={{display:"inline-flex",alignItems:"center",gap:6,padding:"5px 12px",borderRadius:20,fontSize:11,fontWeight:700,marginBottom:14,
-        background:lessonType==="extra"?"rgba(234,88,12,0.10)":"rgba(15,47,56,0.10)",
-        color:lessonType==="extra"?"#ea580c":"var(--accent)",border:`1px solid ${lessonType==="extra"?"rgba(234,88,12,0.25)":"rgba(15,47,56,0.25)"}`}}>
-        {lessonType==="extra"?"🎨":"📅"} {lessonType==="extra"?t.extraLesson:t.mainLesson}
+        background:cat==="extra"?"rgba(234,88,12,0.10)":"rgba(15,47,56,0.10)",
+        color:cat==="extra"?"#ea580c":"var(--accent)",border:`1px solid ${cat==="extra"?"rgba(234,88,12,0.25)":"rgba(15,47,56,0.25)"}`}}>
+        {cat==="workshop"?"🛠":cat==="extra"?"➕":lessonIcon(lesson)} {lessonCatLabel(cat)}
       </div>
+      {!wsLesson&&<div style={{display:"flex",gap:8,marginBottom:12}}>
+        {LESSON_CATS.map(([k])=>[k,lessonCatLabel(k)]).map(([k,l])=>(
+          <button key={k} type="button" data-cat={k} onClick={()=>setCat(k)} style={{flex:1,padding:"8px 6px",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer",
+            border:"1.5px solid "+(cat===k?"#0f2f38":"var(--border2)"),background:cat===k?"#0f2f38":"var(--bg2)",color:cat===k?"#fff":"var(--text)"}}>{l}</button>))}
+      </div>}
 
       <FieldWrap label={t.lessonName}><input style={inputStyle} value={name} onChange={e=>setName(e.target.value)}/></FieldWrap>
 
@@ -10469,6 +10568,9 @@ function EditLessonSheet({lesson,onClose,t,lang,toast,onSave,teachers}){
           ))}
         </select>
       </FieldWrap>
+      {!teacherNo&&<FieldWrap label={lang==="en"?"Guest teacher (optional)":K("Mamosteyê mêvan (vebijarkî)")}>
+        <input style={inputStyle} value={guest} maxLength={80} onChange={e=>setGuest(e.target.value)} placeholder="…"/>
+      </FieldWrap>}
 
       {lessonType==="main" ? (
         <FieldWrap label={t.day}>
@@ -10611,13 +10713,15 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
   const areaFiltered = filterArea==="all" ? schedule : schedule.filter(l=>l.area===filterArea);
   const allFiltered = viewTerm==="all" ? areaFiltered
     : areaFiltered.filter(l=>l.term===viewTerm || !l.term);
-  const mainLessons = allFiltered.filter(l=>!l.lessonType||l.lessonType==="main");
-  const extraLessons = allFiltered.filter(l=>l.lessonType==="extra");
+  const mainLessons = allFiltered.filter(l=>!isExtraLesson(l));
+  const extraLessons = allFiltered.filter(l=>isExtraLesson(l));
+  const DOW_KU=["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"];
+  const onDayKu=(l,day)=>l.lessonType==="extra"?(l.extraDates||[]).some(d=>DOW_KU[new Date(d+"T12:00:00").getDay()]===day):l.day===day;
   const todayStr = new Date().toISOString().slice(0,10);
 
   function renderLessonCard(ls){
     const a=AREA_MAP[ls.area]||{color:"#0f2f38",bg:"rgba(15,47,56,0.08)",text:"#0f2f38",icon:"📚"};
-    const isExtra = ls.lessonType==="extra";
+    const isExtra = isExtraLesson(ls), dated = ls.lessonType==="extra";
     return(
       <div key={ls.id} style={{display:"flex",gap:10,marginBottom:8,alignItems:"stretch"}}>
         <div style={{display:"flex",flexDirection:"column",alignItems:"center",minWidth:44}}>
@@ -10628,21 +10732,21 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
         <div style={{flex:1,background:"var(--surface)",borderRadius:10,padding:"10px 12px",
           borderLeft:"3px solid "+(isExtra?"#ea580c":a.color),border:"1px solid rgba(15,23,42,.08)"}}>
           <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
-            <span style={{fontSize:16}}>{isExtra?"🎨":a.icon}</span>
+            <span style={{fontSize:16}}>{a.icon}</span>
             <div style={{fontSize:13,fontWeight:700,color:"var(--text)",flex:1}}>{ls.name}</div>
-            {isExtra&&<span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:"rgba(234,88,12,0.10)",color:"#ea580c",fontWeight:700,border:"1px solid rgba(234,88,12,0.2)"}}>
-              {t.extraBadge}
+            {isExtra&&<span data-cat-badge={lessonCat(ls)} style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:"rgba(234,88,12,0.10)",color:"#ea580c",fontWeight:700,border:"1px solid rgba(234,88,12,0.2)"}}>
+              {lessonCat(ls)==="workshop"?"🛠 ":"➕ "}{lessonCatLabel(lessonCat(ls))}
             </span>}
+            {isGuestLesson(ls)&&<span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:"rgba(124,58,237,0.10)",color:"#7c3aed",fontWeight:700}}>🎟 {ls.guestTeacher}</span>}
             {ls.classId&&(()=>{const cd=clsDocs.find(x=>x.id===ls.classId);
               return cd?<span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:"rgba(15,47,56,0.08)",color:"var(--text)",fontWeight:700}}>🏫 {cd.name}</span>:null;})()}
             {ls.term&&(()=>{const tm=(terms.list||[]).find(x=>x.id===ls.term);
               return tm?<span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:"var(--accent-dim)",color:"var(--accent)",fontWeight:700}}>📆 {tm.label}</span>:null;})()}
-            {ls.teacherName
-              ? <span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:"rgba(22,163,74,0.08)",color:"#16a34a",fontWeight:700}}>👨‍🏫 {ls.teacherName}</span>
+            {ls.teacherName||isGuestLesson(ls)?(ls.teacherName&&<span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:"rgba(22,163,74,0.08)",color:"#16a34a",fontWeight:700}}>👨‍🏫 {ls.teacherName}</span>)
               : <span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:"rgba(220,38,38,0.08)",color:"#dc2626",fontWeight:700,border:"1px solid rgba(220,38,38,0.2)"}}>{lang==="en"?"⚠ unassigned":K("⚠ mamoste nehatiye tayînkirin")}</span>}
           </div>
           <div style={{fontSize:11,color:isExtra?"#ea580c":a.color,marginBottom:2}}>📍 {ls.loc||"—"}</div>
-          {isExtra ? (
+          {dated ? (
             <div style={{fontSize:10,color:"var(--text2)",marginTop:4}}>
               {ls.extraDates&&ls.extraDates.length>0 ? (
                 <span>
@@ -10823,7 +10927,7 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
         <button onClick={()=>setTabView("extra")} style={{flex:1,padding:"8px",fontSize:12,fontWeight:tabView==="extra"?700:500,borderRadius:8,border:"none",cursor:"pointer",
           background:tabView==="extra"?"#fff":"transparent",color:tabView==="extra"?"#ea580c":"var(--text2)",
           boxShadow:tabView==="extra"?"0 1px 4px rgba(234,88,12,0.15)":"none",transition:"all 0.18s"}}>
-          🎨 {t.extraLessons} <span style={{marginLeft:4,fontSize:10,opacity:0.7}}>({extraLessons.length})</span>
+          ➕ {t.extraLessons} <span style={{marginLeft:4,fontSize:10,opacity:0.7}}>({extraLessons.length})</span>
         </button>
       </div>
 
@@ -10841,7 +10945,7 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
             </div>
           )}
           {DAYS.map(day=>{
-            const dayLessons = mainLessons.filter(s=>s.day===day);
+            const dayLessons = mainLessons.filter(s=>onDayKu(s,day));
             if(!dayLessons.length) return null;
             return(
               <div key={day} style={{marginBottom:4}}>
@@ -10861,7 +10965,7 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
         <>
           {extraLessons.length===0&&(
             <div style={{textAlign:"center",padding:40,color:"var(--text2)"}}>
-              <div style={{fontSize:40,marginBottom:12}}>🎨</div>
+              <div style={{fontSize:40,marginBottom:12}}>➕</div>
               <div style={{fontSize:14,fontWeight:600,marginBottom:4}}>{t.noExtraLessons}</div>
               <div style={{fontSize:11,color:"var(--text2)",marginBottom:16,lineHeight:1.6}}>
                 {t.noExtraLessonsDesc}
@@ -12675,6 +12779,15 @@ const TEACHER_ABSENCE=[["absent","🚫"],["report","🏥"],["excused","📝"]];
 function absenceLabel(k){ const L={absent:["Bêdestûr","Absent"],report:["Bi rapor","Medical report"],excused:["Bi hincet","Excused"]}[k]||["Bêdestûr","Absent"]; return RL()==="en"?L[1]:K(L[0]); }
 // Haftalık ders, bağlı olduğu dönemin tarihleri içinde her hafta aynı gün/saatte tekrarlanır;
 // dönem başlamadıysa ya da bittiyse o gün programa düşmez (dönemsiz ders her zaman geçerli)
+// Ders türü: "Ana ders" ya da "Ek ders / atölye" — haftalık tekrardan BAĞIMSIZ (tek günlük ana ders olabilir).
+// Eski kayıtlarda category yoksa yalnızca atölye dersi (ws_<sınıf>) ek sayılır.
+function isExtraLesson(ls){ if(!ls) return false; if(ls.category) return ls.category==="extra"||ls.category==="workshop"; return String(ls.fireId||ls.id||"").startsWith("ws_"); }
+function lessonCat(ls){ if(!ls) return "main"; if(ls.category) return ls.category; return String(ls.fireId||ls.id||"").startsWith("ws_")?"workshop":"main"; }
+const LESSON_CATS=[["main","Dersa sereke","Main lesson"],["extra","Dersa zêde","Extra lesson"],["workshop","Atolye","Workshop"]];
+const lessonCatLabel=k=>{ const c=LESSON_CATS.find(x=>x[0]===k)||LESSON_CATS[0]; return RL()==="en"?c[2]:K(c[1]); };
+// Misafir öğretmenli ders (sistemde öğretmen hesabı yok): yoklamayı bölüm sorumlusu alır
+const isGuestLesson=ls=>!!(ls&&!ls.teacherNo&&String(ls.guestTeacher||"").trim());
+const lessonIcon=ls=>(AREA_MAP[ls&&ls.area]||{}).icon||"📚";
 function lessonOnDate(ls,terms,dateStr){
   if(ls&&ls.from&&dateStr<ls.from) return false;   // haftalık tekrar seçilen günden başlar
   if(!ls||!ls.term||!terms) return true;
@@ -15100,6 +15213,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
           if(m.read) return false;
           if((m.senderId==="admin"||m.fromType==="admin"||m.fromType==="head")&&m.recipientId===myId) return true;
           if((m.senderId==="admin"||m.fromType==="admin")&&(m.recipientGroup==="allTeachers"||m.recipientGroup==="all"||m.recipientGroup==="area_"+teacher.area)) return true;
+          if(m.fromType==="student"&&m.toRole==="teacher"&&String(m.toTeacherNo)===String(teacher.no)) return true;
           return false;
         });
         setMsgUnreadCount(unread.length);
@@ -15435,7 +15549,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                           border:`1.5px solid ${isActive?"#0f2f38":sel?a.color:"var(--border)"}`,
                           color:sel?a.color:"var(--text)",cursor:"pointer",
                           display:"flex",alignItems:"center",gap:8}}>
-                        <span style={{fontSize:16}}>{isExtra?"🎨":a.icon}</span>
+                        <span style={{fontSize:16}}>{lessonIcon(ls)}</span>
                         <span style={{flex:1}}>{ls.name}</span>
                         <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:1,flexShrink:0}}>
                           {isExtra
@@ -15468,7 +15582,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                       {upcomingExtra.length>0&&(
                         <>
                           <div style={{fontSize:10,fontWeight:700,color:"#ea580c",textTransform:"uppercase",letterSpacing:"0.06em",marginTop:8,marginBottom:2}}>
-                            🎨 {t.upcomingExtras}
+                            📅 {lang==="en"?"Upcoming dated lessons":K("Dersên bi tarîx ên pêş")}
                           </div>
                           {upcomingExtra.map(renderLesson)}
                         </>
@@ -16131,6 +16245,65 @@ function BiometricModal({ open, onSuccess, onCancel, lang, aColor, user }) {
   );
 }
 
+// Öğrenci kendi öğretmenine doğrudan mesaj yazar (öğretmenin önce yazmasını beklemez).
+//  messages: {fromType:"student", fromNo, toRole:"teacher", toTeacherNo, …} — öğretmen gelen kutusunda görür ve yanıtlar.
+function StudentTeacherMessenger({student,teachers,lang,toast}){
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const [to,setTo]=useState(""); const [subject,setSubject]=useState(""); const [body,setBody]=useState(""); const [busy,setBusy]=useState(false);
+  const [sent,setSent]=useState([]); const [open,setOpen]=useState(false);
+  useEffect(()=>{
+    const F=window.__FB; if(!F||!F.isConfigured()||!student.no) return; let u=()=>{};
+    try{ u=F.onSnapshot(F.query(F.collection(F.db,"messages"),F.where("fromNo","==",String(student.no))),
+      sn=>setSent(sn.docs.map(d=>({...d.data(),fireId:d.id})).filter(m=>m.toRole==="teacher").sort((a,b)=>((b.createdAt&&b.createdAt.seconds)||9e9)-((a.createdAt&&a.createdAt.seconds)||9e9))),()=>{}); }catch(_){}
+    return ()=>{ try{u();}catch(_){} };
+  },[student.no]);
+  async function send(){
+    const t=teachers.find(x=>String(x.no)===String(to));
+    if(!t){ toast("⚠ "+W2("Mamosteyekî hilbijêre","Choose a teacher")); return; }
+    if(!subject.trim()||!body.trim()){ toast("⚠ "+W2("Sernav û peyam pêwîst in","Subject and message are required")); return; }
+    if(busy) return; setBusy(true);
+    const now=new Date();
+    try{
+      await fbSave("message",{from:student.name||"",fromType:"student",fromNo:String(student.no||""),fromId:student.id,fromArea:student.area||"",
+        toRole:"teacher",toTeacherNo:String(t.no),to:t.name||"",type:"private",subject:subject.trim().slice(0,300),body:body.trim().slice(0,5000),
+        time:now.toISOString().slice(0,10)+" "+String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0"),read:false,isStudentFeedback:false});
+      toast("✅ "+W2("Peyam ji mamoste re hate şandin","Message sent to the teacher")); setSubject(""); setBody(""); setOpen(false);
+    }catch(e){ toast("❌ "+((e&&e.message)||e)); }
+    setBusy(false);
+  }
+  return(
+    <div style={{marginBottom:12}}>
+      {!open?(
+        <button data-new-tmsg onClick={()=>setOpen(true)} style={{width:"100%",padding:"12px",borderRadius:12,border:"none",background:"#0f2f38",color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer"}}>
+          ✍️ {W2("Ji mamosteyê xwe re peyam binivîse","Write to your teacher")}</button>
+      ):(
+        <Card style={{border:"2px solid #0f2f38"}}>
+          <div style={{fontSize:13,fontWeight:800,color:"var(--text)",marginBottom:8}}>✍️ {W2("Peyama nû ji mamoste re","New message to a teacher")}</div>
+          {teachers.length===0?<div style={{fontSize:12.5,color:"var(--text2)"}}>{W2("Hîn mamosteyê te tune.","You have no teachers yet.")}</div>:<>
+          <select data-tmsg-to value={to} onChange={e=>setTo(e.target.value)} style={{...selectStyle,marginBottom:8}}>
+            <option value="">— {W2("Mamoste hilbijêre","Choose a teacher")} —</option>
+            {teachers.map(t=><option key={t.no} value={t.no}>👩‍🏫 {t.name||t.no}{t.lessons&&t.lessons.length?" · "+t.lessons.join(", "):""}</option>)}
+          </select>
+          <input value={subject} maxLength={300} onChange={e=>setSubject(e.target.value)} placeholder={W2("Sernav","Subject")} style={{...inputStyle,marginBottom:8}}/>
+          <textarea value={body} maxLength={5000} onChange={e=>setBody(e.target.value)} placeholder={W2("Peyama te…","Your message…")} style={{...inputStyle,minHeight:90,resize:"vertical"}}/>
+          <div style={{display:"flex",gap:8,marginTop:8}}>
+            <button onClick={()=>setOpen(false)} style={{flex:1,padding:11,borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,cursor:"pointer"}}>{W2("Betal","Cancel")}</button>
+            <button data-tmsg-send disabled={busy} onClick={send} style={{flex:2,padding:11,borderRadius:10,border:"none",background:"#16a34a",color:"#fff",fontWeight:800,cursor:"pointer"}}>{busy?"⏳":"📤 "+W2("Bişîne","Send")}</button>
+          </div></>}
+        </Card>)}
+      {sent.length>0&&(
+        <Card style={{marginTop:10}}>
+          <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:6}}>📤 {W2("Ji mamosteyan re şandî","Sent to teachers")}</div>
+          {sent.slice(0,10).map((m,i)=>(
+            <div key={m.fireId} style={{padding:"7px 0",borderTop:i?"0.5px solid var(--border)":"none"}}>
+              <div style={{fontSize:12,fontWeight:700,color:"var(--text)"}}>👩‍🏫 {m.to} · {m.subject}</div>
+              <div style={{fontSize:11.5,color:"var(--text2)",whiteSpace:"pre-wrap"}}>{m.body}</div>
+              <div style={{fontSize:10,color:"var(--text2)"}}>{m.time||""}{m.read?" · ✓✓":""}</div>
+            </div>))}
+        </Card>)}
+    </div>);
+}
+
 /* ─── STUDENT PANEL ─────────────────────────────────────────────────────── */
 /* ─── STUDENT SURVEY VIEW ────────────────────────────────────────────────── */
 function StudentSurveyView({student, a, lang, toast, mode}) {
@@ -16679,7 +16852,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
             <div style={{color:"#fff",fontSize:16,fontWeight:800,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{student.name}</div>
             <div className="pill-row">
               <span className="glass-pill">{a.icon} {areaName(student.area,lang)}</span>
-              {myClasses.map(d=><span key={d.id} className="glass-pill">🏫 {d.kind==="area"?classNameTx(d.name):classLabel(d,lang)}{(d.teacherNames||[]).filter(Boolean).length?" · 👩‍🏫 "+d.teacherNames.filter(Boolean).join(", "):""}</span>)}
+              {myClasses.map(d=><span key={d.id} className="glass-pill">🏫 {d.kind==="area"?classNameTx(d.name):classLabel(d,lang)}</span>)}
             </div>
           </div>
           <button onClick={onLogout} style={{color:"rgba(255,255,255,.6)",background:"rgba(255,255,255,.1)",
@@ -16972,6 +17145,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
         {view==="messages"&&(
           <>
             <SectionHeader>💬 {lang==="en"?"My Messages":K("Peyamên Min")}</SectionHeader>
+            <StudentTeacherMessenger student={student} teachers={myTeachers} lang={lang} toast={toast}/>
             {studentMessages.length===0?(
               <Card><div style={{textAlign:"center",padding:24,color:"var(--text2)",fontSize:13}}>
                 <div style={{fontSize:36,marginBottom:8}}>💬</div>
@@ -17079,7 +17253,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
                   return(
                     <>
                       <div style={{fontSize:11,fontWeight:700,color:"#ea580c",textTransform:"uppercase",letterSpacing:"0.07em",margin:"16px 0 6px",display:"flex",alignItems:"center",gap:6}}>
-                        🎨 {t.extraWorkshops}
+                        📅 {lang==="en"?"Dated lessons":K("Dersên bi tarîx")}
                       </div>
                       {allDates.map(date=>{
                         const dayLs=extraLs.filter(l=>(l.extraDates||[]).includes(date));
@@ -17098,11 +17272,11 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
                                   <div style={{flex:1,width:1.5,background:"rgba(234,88,12,0.25)",margin:"3px 0"}}/>
                                   <span style={{fontSize:10,color:"var(--text2)"}}>{ls.end}</span>
                                 </div>
-                                <div style={{flex:1,background:"#fff7ed",borderRadius:10,padding:"10px 13px",borderLeft:"3px solid #ea580c",border:"1px solid rgba(234,88,12,.12)"}}>
-                                  <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{ls.name}</div>
+                                <div style={{flex:1,background:"var(--surface2)",borderRadius:10,padding:"10px 13px",borderLeft:"3px solid "+(isExtraLesson(ls)?"#ea580c":a.color),border:"1px solid rgba(15,23,42,.08)"}}>
+                                  <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{lessonIcon(ls)} {ls.name}</div>
                                   <div style={{display:"flex",alignItems:"center",gap:8,marginTop:3}}>
-                                    <span style={{fontSize:10,padding:"2px 7px",borderRadius:20,background:"rgba(234,88,12,0.10)",color:"#ea580c",fontWeight:700}}>🎨 {t.extraBadge}</span>
-                                    <span style={{fontSize:11,color:"#ea580c"}}>📍 {ls.loc}</span>
+                                    {isExtraLesson(ls)&&<span data-extra-badge style={{fontSize:10,padding:"2px 7px",borderRadius:20,background:"rgba(234,88,12,0.10)",color:"#ea580c",fontWeight:700}}>{lessonCat(ls)==="workshop"?"🛠 ":"➕ "}{lessonCatLabel(lessonCat(ls))}</span>}
+                                    <span style={{fontSize:11,color:isExtraLesson(ls)?"#ea580c":a.color}}>📍 {ls.loc}</span>
                                   </div>
                                 </div>
                               </div>

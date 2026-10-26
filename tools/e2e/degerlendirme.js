@@ -52,6 +52,10 @@ function evalWeek(d) { const x = d ? new Date(d) : new Date(); const y = new Dat
   await put('classes/C1', { kind: 'area', area: 'tiyatro', name: '1. Sınıf', studentNos: ['20202601', '20202602'], teacherNos: ['50202601'], teacherNames: ['Mamoste Şano'] });
   await put('classes/C2', { kind: 'area', area: 'tiyatro', name: '2. Sınıf', studentNos: ['20202603'], teacherNos: ['50202602'], teacherNames: ['Mamoste Din'] });
   await put('schedule/L1', { id: 'L1', fireId: 'L1', area: 'tiyatro', classId: 'C1', name: 'Şano Bingeh', day: 'Dûşem', start: '10:00', end: '11:00', teacherNo: '50202601', teacherName: 'Mamoste Şano', lessonType: 'main' });
+  const TODAY = new Date().toISOString().slice(0, 10);
+  await put('schedule/L2', { id: 'L2', fireId: 'L2', area: 'tiyatro', classId: 'C1', name: 'Şano Yekroj', lessonType: 'extra', extraDates: [TODAY], start: '12:00', end: '13:00', teacherNo: '50202601', teacherName: 'Mamoste Şano' });
+  await put('schedule/L3', { id: 'L3', fireId: 'L3', area: 'tiyatro', classId: 'C1', name: 'Atolyeya Dengan', lessonType: 'extra', category: 'extra', extraDates: [TODAY], start: '14:00', end: '15:00', teacherNo: '50202601', teacherName: 'Mamoste Şano' });
+  await put('schedule/L4', { id: 'L4', fireId: 'L4', area: 'tiyatro', classId: 'C1', name: 'Atolyeya Mêvan', lessonType: 'extra', category: 'workshop', extraDates: [TODAY], start: '09:00', end: '23:00', guestTeacher: 'Hunermend Rêzan' });
   // Yoklama kaydı (gerçek haftalık grafik için) — map alanı elle
   await fetch(`${FS}/attendance/L1-2026-10-19`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { lessonId: { stringValue: 'L1' }, lessonName: { stringValue: 'Şano Bingeh' }, date: { stringValue: '2026-10-19' },
     records: { mapValue: { fields: { '101': { stringValue: 'on' }, '102': { stringValue: 'off' } } } } } }) });
@@ -129,6 +133,23 @@ function evalWeek(d) { const x = d ? new Date(d) : new Date(); const y = new Dat
   const sp3 = await login(await mk(430), '20202603', 'Stu12345', 'Xwendekar');
   await goA(sp3, 'announce'); await sp3.waitForTimeout(1500);
   ok('Başka sınıfın öğrencisi duyuruyu görmez', !(await txt(sp3)).includes('Prova Înê'));
+  // 5b) Ders programı: tek günlük ANA ders "ek ders" değildir; ek ders rozeti yalnız gerçek ek derste
+  await goA(sp, 'schedule'); await sp.waitForTimeout(1000);
+  const sch = await txt(sp);
+  ok('Tek günlük ana ders programda, "ek ders" / "atölye" rozeti yalnız gerçekten öyle olan derste', sch.includes('Şano Yekroj') && sch.includes('Atolyeya Dengan') && (await sp.locator('[data-extra-badge]').count()) === 2 && sch.includes('Atolye') && !sch.includes('🎨'));
+  // 5c) Öğrenci öğretmenine doğrudan mesaj yazar → öğretmen gelen kutusunda, yanıtlayabilir
+  await goA(sp, 'messages'); await sp.waitForTimeout(800);
+  await sp.click('[data-new-tmsg]'); await sp.selectOption('[data-tmsg-to]', '50202601');
+  await sp.locator('input[maxlength="300"]').fill('Pirsa li ser rola min'); await sp.locator('textarea[maxlength="5000"]').fill('Ez dikarim rola Zîn bilîzim?');
+  await sp.click('[data-tmsg-send]'); await sp.waitForTimeout(2000);
+  const sm = (await list('messages')).filter(d => d.fields.toTeacherNo && d.fields.toTeacherNo.stringValue === '50202601');
+  ok('Öğrenci → öğretmen mesajı kaydedildi', sm.length === 1 && sm[0].fields.fromNo.stringValue === '20202601' && sm[0].fields.toRole.stringValue === 'teacher');
+  ok('Öğrenci gönderdiğini görür', (await txt(sp)).includes('Pirsa li ser rola min'));
+  await goA(tp, 'myclass'); await tp.waitForTimeout(800); await tp.click('[data-hub-tab="messages"]'); await tp.waitForTimeout(800);
+  await tp.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.offsetParent && x.textContent.includes('← Vegere')); b && b.click(); }); await tp.waitForTimeout(1000);
+  ok('Öğretmen gelen kutusunda öğrencinin mesajı', (await txt(tp)).includes('Pirsa li ser rola min'));
+  await tp.evaluate(() => { const e = [...document.querySelectorAll('div')].filter(d => d.children.length < 6 && d.textContent.includes('Pirsa li ser rola min')).pop(); (e.closest('[style*="cursor"]') || e).click(); }); await tp.waitForTimeout(800);
+  ok('Öğretmen öğrenciye yanıt verebilir', (await tp.locator('[data-reply-student]').count()) === 1);
 
   // 6) Sorumlu: raporlar — öğrenci + öğretmen değerlendirmesi, anket
   const hp = await login(await mk(), '96202611', 'Head1234');
@@ -142,6 +163,15 @@ function evalWeek(d) { const x = d ? new Date(d) : new Date(); const y = new Dat
   ok('Sorumlu: öğretmen değerlendirmesi (isimsiz: öğrenci adı yok)', tr === 1 && trT.includes('Ders xweş e') && !trT.includes('Rojîn'), trT.slice(0, 200).replace(/\n/g, ' / '));
   await btn(hp, 'Ankêt'); await hp.waitForTimeout(800);
   ok('Sorumlu: anket raporu sekmesi', (await txt(hp)).includes('Ankêtên mamosteyan'));
+
+  // 6b) Sorumlu: misafir öğretmenli dersin yoklamasını alır
+  await goA(hp, 'gatt'); await hp.waitForTimeout(1200);
+  await hp.click('[data-guest-lesson="L4"]'); await hp.waitForTimeout(800);
+  ok('Sorumlu: misafir dersi + kartla (QR) alma düğmesi', (await hp.locator('[data-guest-row]').count()) === 2 && (await hp.locator('[data-guest-scan]').count()) === 1);
+  await hp.click('[data-guest-row="20202601"] [data-gv="on"]'); await hp.click('[data-guest-save]'); await hp.waitForTimeout(2000);
+  const ga = (await get('attendance/L4-' + TODAY)).fields || {};
+  const gr = ga.records ? ga.records.mapValue.fields : {};
+  ok('Misafir ders yoklaması kaydedildi (gelen on, işaretlenmeyen off)', gr['101'] && gr['101'].stringValue === 'on' && gr['102'] && gr['102'].stringValue === 'off' && ga.takenByNo.stringValue === '96202611', JSON.stringify(gr));
 
   // 7) Yönetici: öğrenci ayrıntısında GERÇEK haftalık grafik
   const ap = await login(await mk(), '1000', 'Admin123');

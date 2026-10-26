@@ -97,9 +97,9 @@ exports.aatUser = onCall(async (req) => {
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 
 const TX = {
-  ku: { msg: "💬 Peyama nû", ann: "📢 Ragihandin", post: "📝 Ji sinifê", in: "🟢 {0} ket dersê", out: "🏠 {0} hate teslîmkirin", kidmsg: "💬 Peyam ji akademiyê", gmsg: "💬 Peyama dêûbavan" },
-  tr: { msg: "💬 Yeni mesaj", ann: "📢 Duyuru", post: "📝 Sınıftan yeni", in: "🟢 {0} derse girdi", out: "🏠 {0} teslim edildi", kidmsg: "💬 Akademiden mesaj", gmsg: "💬 Veli mesajı" },
-  en: { msg: "💬 New message", ann: "📢 Announcement", post: "📝 New from class", in: "🟢 {0} arrived at class", out: "🏠 {0} was picked up", kidmsg: "💬 Message from the academy", gmsg: "💬 Parent message" }
+  ku: { msg: "💬 Peyama nû", ann: "📢 Ragihandin", post: "📝 Ji sinifê", in: "🟢 {0} ket dersê", out: "🏠 {0} hate teslîmkirin", end: "🔔 Dersa {0} qediya — dikarin wî/wê bistînin", absent: "⚠ {0} îro nehat dersê", kidmsg: "💬 Peyam ji akademiyê", gmsg: "💬 Peyama dêûbavan" },
+  tr: { msg: "💬 Yeni mesaj", ann: "📢 Duyuru", post: "📝 Sınıftan yeni", in: "🟢 {0} derse girdi", out: "🏠 {0} teslim edildi", end: "🔔 {0} dersi bitti — teslim alabilirsiniz", absent: "⚠ {0} bugün derse gelmedi", kidmsg: "💬 Akademiden mesaj", gmsg: "💬 Veli mesajı" },
+  en: { msg: "💬 New message", ann: "📢 Announcement", post: "📝 New from class", in: "🟢 {0} arrived at class", out: "🏠 {0} was picked up", end: "🔔 {0}'s lesson has ended — ready for pickup", absent: "⚠ {0} did not come to class today", kidmsg: "💬 Message from the academy", gmsg: "💬 Parent message" }
 };
 const tx = (lang, k, a) => { const d = TX[lang] || TX.ku; return String(d[k] || TX.ku[k]).replace("{0}", a == null ? "" : a); };
 const cut = (s, n) => { s = String(s || "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n - 1) + "…" : s; };
@@ -153,7 +153,8 @@ exports.pushMessage = onDocumentCreated("messages/{id}", async (ev) => {
   else if (typeof m.recipientId === "string" && m.recipientId.startsWith("t_")) {
     const t = await admin.firestore().collection("teachers").doc(m.recipientId.slice(2)).get();
     if (t.exists) docs = await tokens("aat", "no", t.get("no"));
-  } else if (m.toRole === "head" && m.toArea) docs = (await tokens("aat", "area", m.toArea)).filter(d => d.get("role") === "head");
+  } else if (m.toRole === "teacher" && m.toTeacherNo) docs = (await tokens("aat", "no", m.toTeacherNo)).filter(d => d.get("role") !== "student");
+  else if (m.toRole === "head" && m.toArea) docs = (await tokens("aat", "area", m.toArea)).filter(d => d.get("role") === "head");
   else if (m.recipientId === "admin" || m.toRole === "admin") docs = await tokens("aat", "role", ["admin", "registrar"]);
   else if (m.recipientGroup === "all") docs = await tokens("aat");
   else if (m.recipientGroup === "allStudents") docs = await tokens("aat", "role", "student");
@@ -197,7 +198,8 @@ exports.pushKidAttendance = onDocumentCreated("kidAttendance/{id}", async (ev) =
   const r = ev.data && ev.data.data(); if (!r || !(r.guardianNos || []).length) return;
   const docs = await tokens("zarok", "no", r.guardianNos);
   const time = r.time ? new Date(r.time).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Istanbul" }) : "";
-  await push(docs, l => ({ title: tx(l, r.type === "out" ? "out" : "in", r.kidName || ""), body: time }), "/zarok/app/", "zarok-att-" + (r.kidId || ""));
+  const k = { out: "out", end: "end", absent: "absent" }[r.type] || "in";
+  await push(docs, l => ({ title: tx(l, k, r.kidName || ""), body: r.lessonName ? r.lessonName + (time ? " · " + time : "") : time }), "/zarok/app/", "zarok-att-" + (r.kidId || ""));
 });
 
 // Çocuk akademisi: sınıfa ödev / belge / duyuru → sınıftaki çocukların velileri
@@ -224,7 +226,8 @@ exports.pushKidMessage = onDocumentCreated("kidMessages/{id}", async (ev) => {
   } else if (m.from === "guardian") {
     // Yalnızca çocuğun öğretmenlerine (sınıf öğretmeni + sınıfa ders veren); çocuk belli değilse tüm çocuk öğretmenleri
     let docs = [];
-    if (m.kidId) {
+    if (m.toTeacherNo) docs = (await tokens("zarok", "no", m.toTeacherNo)).filter(d => d.get("role") === "kidteacher");
+    else if (m.kidId) {
       const db = admin.firestore(), k = await db.collection("kids").doc(m.kidId).get();
       const kno = k.exists ? String(k.get("no") || "") : "";
       if (kno) {

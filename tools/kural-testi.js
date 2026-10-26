@@ -525,6 +525,26 @@ const { ref, uploadString, getBytes } = require('firebase/storage');
     await t('Ç.duyuru: çocuk öğretmeni genel duyuru YAZAMAZ', addDoc(collection(kt, 'kidAnnouncements'), { title: 'x', body: 'y' }), false);
     await t('Ç.duyuru: öğrenci işleri genel duyuru yazar', addDoc(collection(reg, 'kidAnnouncements'), { title: 'x', body: 'y' }), true);
   }
+  {
+    const st = as('10202601@ogrenci.aat'), st2 = as('10202602@ogrenci.aat'), g1 = as('92026001@veli.aat');
+    const sm = { from: 'X', fromType: 'student', fromNo: '10202601', toRole: 'teacher', toTeacherNo: '11202601', subject: 's', body: 'b', read: false };
+    await t('Msj: öğrenci öğretmenine doğrudan yazar', setDoc(doc(st, 'messages/SM1'), sm), true);
+    await t('Msj: öğrenci kendi gönderdiğini okur', getDocs(query(collection(st, 'messages'), where('fromNo', '==', '10202601'))), true);
+    await t('Msj: başka öğrenci okuyamaz', getDoc(doc(st2, 'messages/SM1')), false);
+    await t('Ç.msj: veli öğretmene doğrudan yazar', addDoc(collection(g1, 'kidMessages'), { guardianNo: '92026001', guardianName: 'A', kidId: 'K1', kidName: 'Z', text: 'x', from: 'guardian', toTeacherNo: '72026001', toName: 'H', read: false, createdAt: new Date() }), true);
+    await t('Ç.msj: veli fazladan alan ekleyemez', addDoc(collection(g1, 'kidMessages'), { guardianNo: '92026001', text: 'x', from: 'guardian', isAdmin: true, read: false }), false);
+  }
+  {
+    await env.withSecurityRulesDisabled(async c => { const db = c.firestore();
+      await setDoc(doc(db, 'schedule/GS1'), { id: 'G1', area: 'tiyatro', name: 'Atolye', guestTeacher: 'Mêvan', category: 'workshop' });
+      await setDoc(doc(db, 'schedule/GS2'), { id: 'G2', area: 'tiyatro', name: 'Ders', teacherNo: '11202601' }); });
+    const hd = as('96202601@ogretmen.aat');
+    const ga = x => ({ lessonId: 'G1', lessonFire: 'GS1', lessonName: 'A', classId: '', area: 'tiyatro', date: '2026-10-26', records: { '1': 'on' }, teacherName: 'Mêvan', takenBy: 'B', takenByNo: '96202601', ...(x || {}) });
+    await t('Yoklama: sorumlu misafir dersinin yoklamasını alır', setDoc(doc(hd, 'attendance/G1-2026-10-26'), ga()), true);
+    await t('Yoklama: sorumlu öğretmenli dersin yoklamasını YAZAMAZ', setDoc(doc(hd, 'attendance/G2-2026-10-26'), ga({ lessonId: 'G2', lessonFire: 'GS2' })), false);
+    await t('Yoklama: belge kimliği uydurulamaz', setDoc(doc(hd, 'attendance/X-2026-10-26'), ga()), false);
+    await t('Kart: sorumlu öğrenci kartını okutabilir', getDoc(doc(hd, 'cards/' + 'a'.repeat(32))), true);
+  }
   console.log(results.join('\n'));
   console.log(results.filter(r => r.startsWith('❌')).length + ' başarısız / ' + results.length);
   await env.cleanup();

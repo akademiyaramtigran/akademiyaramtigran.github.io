@@ -186,7 +186,9 @@ async function routes(ctx) {
   ok('Dersi bitir: bitiş anı + yoklama kaydı (QR ile giren öğrenci var)', !!(ae.fields && ae.fields.endedAt) && recs.includes('"103"') && (await tp.locator('[data-lesson-ended]').count()) === 1, recs);
   // 4) Sorumlu: "ders yapılmadı" işaretler (neden + açıklama) → yönetici raporu
   await goA(hp, 'announce'); await hp.waitForTimeout(500); await goA(hp, 'schedule'); await hp.waitForTimeout(1500);
-  await hp.evaluate(() => { const c = [...document.querySelectorAll('button')].filter(x => x.offsetParent && x.textContent.trim() === '🚫'); c[0] && c[0].click(); }); await hp.waitForTimeout(1200);
+  // "Ders yapılmadı": yoklaması alınmış dersi değil, ayrı haftalık dersi (Şano Dereng) işaretle
+  await hp.evaluate(() => { const c = [...document.querySelectorAll('button')].filter(x => x.offsetParent && x.textContent.trim() === '🚫')
+    .find(b => { let e = b; for (let i = 0; i < 8 && e; i++) { e = e.parentElement; if (e && e.textContent.includes('Şano Dereng') && !e.textContent.includes('Şano Pratîk')) return true; } return false; }); c && c.click(); }); await hp.waitForTimeout(1200);
   await hp.locator('textarea').last().fill('Mamoste nexweş bû');
   await btn(hp, 'Tomar bike'); await hp.waitForTimeout(800);
   await hp.waitForTimeout(1500);

@@ -51,6 +51,8 @@ function evalWeek() { const x = new Date(); const y = new Date(x.getFullYear(), 
   await put('kidClasses/KC1', { kind: 'area', area: 'drama', name: '1. Sınıf', studentNos: ['82026001'], teacherNos: ['72026001'], teacherNames: ['Mamoste Hêvî'] });
   await put('kidClasses/KC2', { kind: 'area', area: 'drama', name: '2. Sınıf', studentNos: ['82026002'], teacherNos: ['72026002'], teacherNames: ['Mamoste Din'] });
   await put('kidMessages/M1', { guardianNo: '92026001', guardianName: 'Veli Aram', kidId: 'K1', kidName: 'Rojîn Zarok', text: 'Peyama malbata min', from: 'guardian', read: false, createdAt: new Date() });
+  await put('kidMessages/M3', { guardianNo: '92026001', guardianName: 'Veli Aram', kidId: 'K1', kidName: 'Rojîn Zarok', text: 'Ji mamosteyê din re', toTeacherNo: '72026002', toName: 'Mamoste Din', from: 'guardian', read: false, createdAt: new Date() });
+  await put('kidSchedule/KL1', { id: 'KL1', title: 'Drama Lîstik', area: 'drama', classId: 'KC1', day: new Date().getDay(), start: '10:00', end: '11:00', teacherNo: '72026001' });
   await put('kidMessages/M2', { guardianNo: '92026002', guardianName: 'Veli Din', kidId: 'K2', kidName: 'Baran Zarok', text: 'Peyama malbata din', from: 'guardian', read: false, createdAt: new Date() });
 
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
@@ -118,6 +120,25 @@ function evalWeek() { const x = new Date(); const y = new Date(x.getFullYear(), 
   const vp2 = await zlogin('g', '92026002', 'Vel12345');
   await goZ(vp2, 'ann'); await vp2.waitForTimeout(800);
   ok('Başka sınıfın velisi duyuruyu görmez', !(await txt(vp2)).includes('Prova Şemiyê'));
+
+  // 4b) Veli öğretmene doğrudan mesaj yazar; başka öğretmene yazılan mesaj bu öğretmende görünmez
+  await goZ(vp, 'msg'); await vp.waitForTimeout(500);
+  await vp.selectOption('#m-to', '72026001'); await vp.fill('#m-text', 'Silav mamoste, pirsek heye'); await vp.click('main .btn'); await vp.waitForTimeout(1500);
+  const gm = (await list('kidMessages')).filter(d => d.fields.text && d.fields.text.stringValue === 'Silav mamoste, pirsek heye');
+  ok('Veli → öğretmen mesajı (toTeacherNo)', gm.length === 1 && gm[0].fields.toTeacherNo.stringValue === '72026001');
+  await goZ(tp, 'myclass'); await tp.waitForTimeout(400); await tp.click('[data-hub="msg"]'); await tp.waitForTimeout(800);
+  const tm2 = await txt(tp);
+  ok('Öğretmen kendisine yazılanı görür, başka öğretmene yazılanı görmez', tm2.includes('Silav mamoste, pirsek heye') && !tm2.includes('Ji mamosteyê din re'));
+  // 4c) Elle yoklama + "Dersi bitir": gelmeyen çocuğun velisine "gelmedi"
+  await goZ(tp, 'att'); await tp.waitForTimeout(600);
+  await tp.click('[data-start-lesson="KL1"]'); await tp.waitForTimeout(400);
+  ok('Yoklama ekranında kart okutma düğmesi yok (elle yoklama)', !(await txt(tp)).includes('📇'));
+  await tp.click('[data-end-lesson="KL1"]'); await tp.waitForTimeout(2500);
+  const ab = (await list('kidAttendance')).filter(d => d.fields.kidId && d.fields.kidId.stringValue === 'K1' && d.fields.type.stringValue === 'absent');
+  ok('Dersi bitir: gelmeyen çocuk "absent" kaydı (veliye bildirim)', ab.length === 1 && (await tp.locator('[data-lesson-ended]').count()) === 1);
+  await goZ(vp, 'today'); await vp.waitForTimeout(1500);
+  ok('Veli: bugün "derse gelmedi" durumu', (await txt(vp)).includes('Îro nehat dersê'));
+  ok('QR/kart sistemi duruyor (Kart sekmesi)', (await tp.locator('.pano-tile[data-tab="card"], [data-tab="card"]').count()) >= 1);
 
   // 5) Çocuk akademisi sorumlusu: raporlarda iki değerlendirme
   const hc = await mk(1280); const hp = await hc.newPage(); hp.on('pageerror', e => errs.push('head: ' + e.message)); hp.on('dialog', d => d.accept());
