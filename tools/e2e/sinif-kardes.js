@@ -43,6 +43,7 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await put('idx_staff/98202601', { no: '98202601', lvl: 'registrar' });
   await put('teachers/TR', { no: '98202601', name: 'Karûbar', isRegistrar: true, area: 'genel' });
   await signUp('98202601@ogretmen.aat', 'Reg12345');
+  await put('idx_staff/1000', { no: '1000', lvl: 'admin' }); await put('teachers/TA', { no: '1000', name: 'Rêveber', isAdmin: true, area: 'genel' }); await signUp('1000@ogretmen.aat', 'Admin123');
   await put('idx_staff/50202601', { no: '50202601', lvl: 'teacher' });
   await put('teachers/T50', { no: '50202601', name: 'Mamoste Dilovan', area: 'muzik' });
   await signUp('50202601@ogretmen.aat', 'Tea12345');
@@ -200,12 +201,12 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   ok('Kardeş eşleştir: ayrı aile birleşir (4 çocuk, iki veli)', JSON.stringify(az.fields.guardianNos).includes(gno) && fam.length === 4, fam.length + ' çocuk');
 
   // ── 5c) Rapor: öğretmen filtresi (sınıf öğretmeninin sınıfları) ──
-  await p.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.trim().endsWith('Rapor') && x.textContent.trim().length < 12).find(x => { if (x.matches('.sm-it,.pano-tile')) return true; const r = x.getBoundingClientRect(); return r.top > 60 && r.top < 240; }); b.scrollIntoView(); b.click(); });
-  await p.waitForTimeout(1500);
-  await clickText(p, 'Lîste').catch(() => {}); await p.waitForTimeout(600);
-  const before = await p.evaluate(() => { const c = [...document.querySelectorAll('div')].find(d => /Kurte/.test(d.textContent) && d.children.length > 1); return c ? c.innerText : ''; });
-  await p.selectOption('select[aria-label="Mamoste"]', '50202601'); await p.waitForTimeout(600);
-  const r5 = await txt(p);
+  ok('Öğrenci İşleri panelinde rapor yok', !(await p.evaluate(() => [...document.querySelectorAll('.sm-it[data-key],.pano-tile[data-key]')].some(e => e.dataset.key === 'rapor'))));
+  const rpA = await login(await mk(), '1000', 'Admin123');
+  await rpA.evaluate(() => document.querySelector('.sm-it[data-key="reports"],.pano-tile[data-key="reports"]').click()); await rpA.waitForTimeout(1500);
+  const before = await rpA.evaluate(() => { const c = [...document.querySelectorAll('div')].find(d => /Kurte/.test(d.textContent) && d.children.length > 1); return c ? c.innerText : ''; });
+  await rpA.selectOption('select[aria-label="Mamoste"]', '50202601'); await p.waitForTimeout(600);
+  const r5 = await txt(rpA);
   ok('Rapor: öğretmen filtresi yalnızca sınıfının öğrencilerini sayar', r5.includes('Rojîn Aram') && !/Baran Şêx/.test(r5.split('Kurte')[1] || ''), (before.match(/\d+/) || [''])[0] + ' → filtreli');
 
   // ── 6) Veli uygulaması: 4 çocuk, sınıf + sınıf öğretmeni ──
@@ -264,7 +265,7 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
 
   // ── 8) Ana akademi öğretmeni: "Sinifên Min" ──
   const ac = await mk(430); const ap = await login(ac, '50202601', 'Tea12345');
-  await ap.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('Xwendekar') && x.offsetParent).pop(); b.click(); });
+  await ap.evaluate(() => [...document.querySelectorAll('.pano-tile[data-key="students"],.sm-it[data-key="students"]')].filter(x => x.getClientRects().length).pop().click());
   await ap.waitForTimeout(1500);
   await ap.getByText('Sinifên Min').first().waitFor({ timeout: 10000 }).catch(() => {});
   await ap.evaluate(() => { const s = [...document.querySelectorAll('span')].find(x => /1\. Sînif/.test(x.textContent) && x.textContent.includes('▸')); s && s.click(); });

@@ -55,3 +55,23 @@
 - **Ders yapılmadı (sorumlu):** program → dersin 🚫 düğmesi → tarih + neden (**devamsız / raporlu / mazeretli**) + açıklama;
   o dersin öğretmenine yazılır.
 - **Öğretmen devamı raporu:** Rapor → **Öğretmen devamı**: bu hafta / 30 gün / dönem; her öğretmen için ✅ işlendi · 🚫/🏥/📝 · ⚠ kayıt yok (yoklama alınmamış), CSV.
+
+## Kartlar: kim nereden ne gönderir (tek iş, tek yer)
+| Kart | Öğretmen | Öğrenci |
+|---|---|---|
+| 📢 Duyurular | Gelen (yönetim + bölüm sorumlusu) · **yalnız kendi sınıflarına** duyuru (dosyasız; `classPosts` type `duyuru`) | Okul duyuruları + kendi sınıfının duyuruları |
+| 🏫 Sınıfım | **Ödev & Belge** (dosyalı) · **Mesaj** (toplu ya da birebir, dosyasız) | Ödev ve belgeler |
+| 📝 Öğrenci Değerlendirmesi | Her hafta öğrencilerini 4 ölçütte (1–5) + not | — |
+| ⭐ Öğretmen Değerlendirmesi | — | Her hafta öğretmenlerini 4 ölçütte (1–5), isimsiz |
+| 📊 Anket | Yönetim/sorumlu anketleri | Yönetim/sorumlu anketleri |
+
+- Öğretmen alan geneline duyuru **yazamaz** (kural); dosya/belge yalnızca Sınıfım → Ödev & Belge'den gider.
+- Öğretmen ve öğrenci hiçbir rapor sonucu görmez (devam yüzdesi, risk, değerlendirme puanı). Elle devam yüzdesi değiştirme kaldırıldı.
+- Hatırlatma: ana ekranda "bu haftanın değerlendirmesi bekliyor" + her Cuma 15:00 telefona bildirim (`evalReminder`).
+
+## Değerlendirme verileri
+- `studentEvals/{pazartesi}_{öğretmenNo}_{öğrenciNo}`: `{wk, teacherNo, teacherName, studentNo, studentName, area, classId, c:{p,g,h,b}, note}` — okur: yönetici, bölüm sorumlusu, yazan öğretmen.
+- `teacherEvals/{pazartesi}_{öğrenciNo}_{öğretmenNo}`: `{wk, studentNo, teacherNo, teacherName, area, c:{e,h,r,f}, note}` — okur: yönetici, bölüm sorumlusu, gönderen öğrenci. Öğretmen okuyamaz; raporda öğrenci adı gösterilmez.
+
+## Raporlar (yalnız yönetici + bölüm sorumlusu)
+Amadebûn (devam; öğrenciye dokununca gerçek 8 haftalık grafik + son dersler + değerlendirmeler) · Tarih aralığı · Öğrenci değerlendirmesi · Öğretmen değerlendirmesi · Anket (filtre: öğrenci/öğretmen anketi, açık/kapalı, alan; ekranda sonuç özeti) · Öğretmen derse katılım · İzinler. Öğrenci İşleri panelinde rapor yoktur.

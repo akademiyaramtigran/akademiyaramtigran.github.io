@@ -189,7 +189,7 @@ exports.pushClassPost = onDocumentCreated("classPosts/{id}", async (ev) => {
   const nos = c.exists ? (c.get("studentNos") || []) : [];
   if (!nos.length) return;
   const docs = (await tokens("aat", "no", nos)).filter(d => d.get("role") === "student");
-  await push(docs, l => ({ title: tx(l, "post") + (p.className ? " · " + p.className : ""), body: p.title || "" }), "/app/", "aat-post");
+  await push(docs, l => ({ title: tx(l, p.type === "duyuru" ? "ann" : "post") + (p.className ? " · " + p.className : ""), body: p.title || "" }), "/app/", "aat-post");
 });
 
 // Çocuk akademisi: derse giriş / teslim → velilere
@@ -238,4 +238,44 @@ exports.pushKidAnnouncement = onDocumentCreated("kidAnnouncements/{id}", async (
   } else docs = await tokens("zarok");
   if (!docs.length) return;
   await push(docs, l => ({ title: tx(l, "ann"), body: a.title || "" }), "/zarok/app/", "zarok-ann");
+});
+
+// ── Haftalık değerlendirme hatırlatması (her Cuma 15:00, İstanbul) ──
+//  Öğretmen: sınıflarındaki (sınıf öğretmeni ya da sınıfa ders veren) öğrencilerden bu hafta
+//  değerlendirmediği varsa. Öğrenci: sınıfının öğretmenlerinden bu hafta değerlendirmediği varsa.
+//  Hafta anahtarı uygulamayla aynı: haftanın Pazartesi tarihi (YYYY-AA-GG, İstanbul saati).
+const { onSchedule } = require("firebase-functions/v2/scheduler");
+const EVTX = {
+  ku: { t: "📝 Nirxandina heftane", tb: "{0} xwendekar vê heftê nehatine nirxandin", s: "⭐ Mamosteyên xwe binirxîne", sb: "Nirxandina vê heftê li bendê ye" },
+  tr: { t: "📝 Haftalık değerlendirme", tb: "Bu hafta {0} öğrenciniz değerlendirilmedi", s: "⭐ Öğretmenlerini değerlendir", sb: "Bu haftanın değerlendirmesi bekliyor" },
+  en: { t: "📝 Weekly evaluation", tb: "{0} students not evaluated this week", s: "⭐ Rate your teachers", sb: "This week's evaluation is pending" }
+};
+const evtx = (l, k, a) => String((EVTX[l] || EVTX.ku)[k]).replace("{0}", a == null ? "" : a);
+function istanbulMonday() {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit", weekday: "short" })
+    .formatToParts(new Date()).map(x => [x.type, x.value]));
+  const d = new Date(Date.UTC(+p.year, +p.month - 1, +p.day));
+  const dow = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(p.weekday);
+  d.setUTCDate(d.getUTCDate() - (dow < 0 ? 0 : dow));
+  return d.toISOString().slice(0, 10);
+}
+exports.evalReminder = onSchedule({ schedule: "0 15 * * 5", timeZone: "Europe/Istanbul" }, async () => {
+  const db = admin.firestore(); const wk = istanbulMonday();
+  const [cls, sch, se, te] = await Promise.all([
+    db.collection("classes").get(), db.collection("schedule").get(),
+    db.collection("studentEvals").where("wk", "==", wk).get(), db.collection("teacherEvals").where("wk", "==", wk).get()]);
+  const classes = cls.docs.filter(d => d.get("kind") && d.get("status") !== "closed");
+  const stuOf = {}; classes.forEach(d => { stuOf[d.id] = (d.get("studentNos") || []).map(String); });
+  const tStu = {}, sTch = {};   // öğretmen → öğrenciler, öğrenci → öğretmenler
+  const link = (t, s) => { (tStu[t] = tStu[t] || new Set()).add(s); (sTch[s] = sTch[s] || new Set()).add(t); };
+  classes.forEach(d => (d.get("teacherNos") || []).forEach(t => (stuOf[d.id] || []).forEach(s => link(String(t), s))));
+  sch.docs.forEach(d => { const t = d.get("teacherNo"), c = d.get("classId"); if (t && c && stuOf[c]) stuOf[c].forEach(s => link(String(t), s)); });
+  const sDone = new Set(se.docs.map(d => d.get("teacherNo") + "|" + d.get("studentNo")));
+  const tDone = new Set(te.docs.map(d => d.get("studentNo") + "|" + d.get("teacherNo")));
+  const tPend = {}; Object.entries(tStu).forEach(([t, ss]) => { const n = [...ss].filter(s => !sDone.has(t + "|" + s)).length; if (n) tPend[t] = n; });
+  const sPend = Object.keys(sTch).filter(s => [...sTch[s]].some(t => !tDone.has(s + "|" + t)));
+  const tDocs = (await tokens("aat", "no", Object.keys(tPend))).filter(d => d.get("role") === "teacher");
+  for (const d of tDocs) await push([d], l => ({ title: evtx(l, "t"), body: evtx(l, "tb", tPend[String(d.get("no"))]) }), "/app/", "aat-eval");
+  const sDocs = (await tokens("aat", "no", sPend)).filter(d => d.get("role") === "student");
+  if (sDocs.length) await push(sDocs, l => ({ title: evtx(l, "s"), body: evtx(l, "sb") }), "/app/", "aat-eval");
 });

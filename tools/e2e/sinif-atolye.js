@@ -41,6 +41,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   await put('idx_staff/98202601', { no: '98202601', lvl: 'registrar' });
   await put('teachers/TR', { no: '98202601', name: 'Karûbar', isRegistrar: true, area: 'genel' });
   await signUp('98202601@ogretmen.aat', 'Reg12345');
+  await put('idx_staff/1000', { no: '1000', lvl: 'admin' }); await put('teachers/TA', { no: '1000', name: 'Rêveber', isAdmin: true, area: 'genel' }); await signUp('1000@ogretmen.aat', 'Admin123');
   await put('idx_staff/50202601', { no: '50202601', lvl: 'teacher' });
   await put('teachers/T50', { no: '50202601', name: 'Mamoste Dilovan', area: 'muzik' });
   await signUp('50202601@ogretmen.aat', 'Tea12345');
@@ -140,11 +141,11 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   ok('Kapanan atölye arşivde', /Atolyeyên girtî \(1\)/.test(await txt(p)));
 
   // ── 6) Rapor: sınıf filtresi ──
-  await p.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.trim().endsWith('Rapor') && x.textContent.trim().length < 12).find(x => { if (x.matches('.sm-it,.pano-tile')) return true; const r = x.getBoundingClientRect(); return r.top > 60 && r.top < 240; }); b.scrollIntoView(); b.click(); });
-  await p.waitForTimeout(1500);
-  await clickText(p, 'Lîste').catch(() => {}); await p.waitForTimeout(600);
-  await p.selectOption('select[aria-label="Sînif"]', Aid); await p.waitForTimeout(600);
-  const r6 = (await txt(p)).split('Kurte')[1] || '';
+  ok('Öğrenci İşleri panelinde rapor yok', !(await p.evaluate(() => [...document.querySelectorAll('.sm-it[data-key],.pano-tile[data-key]')].some(e => e.dataset.key === 'rapor'))));
+  const rpA = await login(await mk(), '1000', 'Admin123');
+  await rpA.evaluate(() => document.querySelector('.sm-it[data-key="reports"],.pano-tile[data-key="reports"]').click()); await rpA.waitForTimeout(1500);
+  await rpA.selectOption('select[aria-label="Sînif"]', Aid); await p.waitForTimeout(600);
+  const r6 = (await txt(rpA)).split('Kurte')[1] || '';
   ok('Rapor: sınıf filtresi yalnızca sınıfın öğrencileri', r6.includes('Rojîn Aram') && !r6.includes('Baran Şêx') && !r6.includes('Jîyan Roj'));
 
   // ── 7) Öğrenci görünürlüğü ──
@@ -160,7 +161,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
 
   // ── 8) Öğretmen: öğrencilerim = sınıflarının öğrencileri ──
   const tp = await login(await mk(430), '50202601', 'Tea12345');
-  await tp.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => /^\W*Xwendekar\W*$/.test(x.textContent.trim()) && x.offsetParent); b[b.length - 1].click(); });
+  await tp.evaluate(() => [...document.querySelectorAll('.pano-tile[data-key="students"],.sm-it[data-key="students"]')].filter(x => x.getClientRects().length).pop().click());
   await tp.waitForTimeout(1500);
   await tp.getByText('Sinifên Min').first().waitFor({ timeout: 10000 }).catch(() => {});
   const t8 = await txt(tp);
@@ -168,7 +169,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   ok('Öğretmenin öğrenci listesi sınıflarından (başka alandan Jîyan var, sınıfsız Baran yok)', t8.includes('Jîyan Roj') && t8.includes('Rojîn Aram') && !t8.includes('Baran Şêx'));
 
   // ── 8b) Toplu mesaj yalnızca seçilen sınıfın öğrencilerine (alanın tamamına değil) ──
-  await goA(tp, 'messages');
+  await goA(tp, 'myclass'); await tp.waitForTimeout(800); await tp.click('[data-hub-tab="messages"]');
   await tp.waitForTimeout(800);
   await tp.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.includes('Peyamek Nû')).click()); await tp.waitForTimeout(400);
   await tp.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.trim().endsWith('Hemûyan')).click()); await tp.waitForTimeout(300);
