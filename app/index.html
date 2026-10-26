@@ -2105,7 +2105,7 @@ function freshStats(id){
 // bıraktığı yanlış değerleri düzeltir; farklı cihazlardan çift sayımı da temizler). Günde bir kez.
 async function rebuildAttStats(students){
   const F=window.__FB; if(!F||!F.isConfigured()||!(students||[]).length) return;
-  const day="aat-attrebuild-v1-"+new Date().toISOString().slice(0,10);
+  const day="aat-attrebuild-v2-"+new Date().toISOString().slice(0,10);
   try{ if(localStorage.getItem(day)) return; }catch(_){}
   try{
     const snap=await F.getDocs(F.collection(F.db,"attendance"));
