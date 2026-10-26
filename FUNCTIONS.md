@@ -44,5 +44,5 @@ firebase deploy --only firestore:rules,storage
 
 ## Haftalık değerlendirme hatırlatması
 `evalReminder` her Cuma 15:00 (İstanbul) çalışır: bu hafta öğrencilerini değerlendirmemiş öğretmenlere ve
-öğretmenlerini değerlendirmemiş öğrencilere telefona bildirim gönderir. Zamanlanmış görev için Google Cloud'da
+öğretmenlerini değerlendirmemiş öğrencilere; Çocuk Akademisi'nde çocuklarını değerlendirmemiş öğretmenlere ve çocuğunun öğretmenlerini değerlendirmemiş velilere telefona bildirim gönderir. Zamanlanmış görev için Google Cloud'da
 **Cloud Scheduler API** açık olmalıdır (ilk yayında Firebase açmayı dener).

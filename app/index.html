@@ -7739,7 +7739,7 @@ function KidHeadPanel({user,t,lang,toast,onLogout,onSettings}){
             </button>))}
           </div>))}
         {tab==="surveys"&&<KidSurveysPanel lang={lang} toast={toast} lockArea={area} ownerNo={myNo}/>}
-        {tab==="reports"&&<KidAcademyReport lang={lang} toast={toast} lockArea={area}/>}
+        {tab==="reports"&&<KidHeadReports lang={lang} toast={toast} area={area} byName={user.name}/>}
       </div>
     </div>
   );
@@ -11872,6 +11872,8 @@ function AdminReportCenter({students,teachers,schedule,lang,t,toast,byName,headA
     {key:"mamoste",icon:"👨‍🏫",label:lang==="en"?"Teacher attendance":K("Amadebûna mamosteyan")},
     {key:"izin",icon:"🏷",label:lang==="en"?"Student leave":K("Destûra Xwendekaran")},
     {key:"zarok",icon:"🎼",label:lang==="en"?"Children's Academy":K("Akademiya Zarokan")},
+    {key:"kseval",icon:"🎼",label:lang==="en"?"Children: student evaluation":K("Zarok: nirxandina zarokan")},
+    {key:"kteval",icon:"🎼",label:lang==="en"?"Children: teacher evaluation":K("Zarok: nirxandina mamosteyan")},
     {key:"arsiv",icon:"🗂",label:lang==="en"?"Archive":K("Arşîv")},
   ];
   const tabs=headArea?allTabs.filter(x=>["liste","nirxandin","seval","teval","anket","mamoste","izin"].includes(x.key)):allTabs;
@@ -11897,6 +11899,8 @@ function AdminReportCenter({students,teachers,schedule,lang,t,toast,byName,headA
         <KidSurveysPanel lang={lang} toast={toast} readOnly={true}/></>}
       </>}
       {rTab==="zarok"&&<KidAcademyReport lang={lang} toast={toast}/>}
+      {rTab==="kseval"&&<EvalReport kind="kid" lang={lang} toast={toast} byName={byName}/>}
+      {rTab==="kteval"&&<EvalReport kind="kteacher" lang={lang} toast={toast} byName={byName}/>}
       {rTab==="izin"&&<>
         <LeavesPanel readOnly students={[]} area={headArea||""} all={!headArea||headArea==="genel"} lang={lang} toast={toast}/>
         {!headArea&&<><SectionHeader>🎼 {lang==="en"?"Children's Academy":K("Akademiya Zarokan")}</SectionHeader>
@@ -13007,7 +13011,7 @@ function SurveyStats({survey,resps,lang,expected,whoLabel}){
     </div>);
 }
 // Çocuk Akademisi veli anketleri (kidSurveys) — oluştur, yayınla, sonuçlar
-function KidSurveysPanel({lang,toast,lockArea,ownerNo,readOnly}){
+function KidSurveysPanel({lang,toast,lockArea,ownerNo,readOnly,areaOnly}){
   const F=window.__FB; const live=!!(F&&F.isConfigured());
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   const [list,setList]=useState([]); const [resps,setResps]=useState([]); const [kids,setKids]=useState([]); const [kteach,setKteach]=useState([]);
@@ -13015,7 +13019,7 @@ function KidSurveysPanel({lang,toast,lockArea,ownerNo,readOnly}){
   useEffect(()=>{
     if(!live) return; const subs=[];
     const L=(c,set)=>{ try{ subs.push(F.onSnapshot(F.collection(F.db,c),s=>set(s.docs.map(d=>({...d.data(),fireId:d.id}))),e=>console.warn("[kidSurveys]",e&&e.code))); }catch(_){} };
-    L("kidSurveys",v=>setList(v.filter(sv=>!ownerNo||sv.ownerNo===ownerNo).sort((a,b)=>String(b.createdAtIso||"").localeCompare(String(a.createdAtIso||""))))); L("kidSurveyResponses",setResps); L("kids",setKids); L("kidTeachers",setKteach);
+    L("kidSurveys",v=>setList(v.filter(sv=>(!ownerNo||sv.ownerNo===ownerNo)&&(!areaOnly||!(sv.targetAreas||[]).length||(sv.targetAreas||[]).includes(areaOnly))).sort((a,b)=>String(b.createdAtIso||"").localeCompare(String(a.createdAtIso||""))))); L("kidSurveyResponses",setResps); L("kids",setKids); L("kidTeachers",setKteach);
     return ()=>subs.forEach(u=>{ try{u();}catch(_){} });
   },[live]);
   const today=new Date().toISOString().slice(0,10);
@@ -13077,7 +13081,24 @@ function KidSurveysPanel({lang,toast,lockArea,ownerNo,readOnly}){
         </div>);})}
     </div>);
 }
-// Yönetici / Öğrenci İşleri: Çocuk Akademisi raporu
+// Çocuk akademisi bölüm sorumlusu: rapor (çocuklar/devam) + iki haftalık değerlendirme + anket sonuçları — kendi dersine kilitli
+function KidHeadReports({lang,toast,area,byName}){
+  const [t,setT]=useState("rep");
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const tb=on=>({flex:"1 0 auto",padding:"9px 10px",fontSize:11.5,fontWeight:on?800:600,borderRadius:9,border:"none",cursor:"pointer",whiteSpace:"nowrap",
+    background:on?"var(--surface)":"transparent",color:on?"var(--accent)":"var(--text2)",boxShadow:on?"0 1px 4px rgba(15,47,56,0.15)":"none"});
+  return(<div>
+    <div style={{display:"flex",gap:5,marginBottom:14,background:"var(--bg2)",padding:4,borderRadius:12,overflowX:"auto"}}>
+      {[["rep",W2("Zarok û amadebûn","Children & attendance")],["kseval",W2("Nirxandina zarokan","Student evaluation")],["kteval",W2("Nirxandina mamosteyan","Teacher evaluation")],["anket",W2("Ankêt","Surveys")]].map(([k,l])=>
+        <button key={k} data-khr={k} onClick={()=>setT(k)} style={tb(t===k)}>{l}</button>)}
+    </div>
+    {t==="rep"&&<KidAcademyReport lang={lang} toast={toast} lockArea={area}/>}
+    {t==="kseval"&&<EvalReport kind="kid" lang={lang} toast={toast} headArea={area} byName={byName}/>}
+    {t==="kteval"&&<EvalReport kind="kteacher" lang={lang} toast={toast} headArea={area} byName={byName}/>}
+    {t==="anket"&&<KidSurveysPanel lang={lang} toast={toast} lockArea={area} readOnly={true} areaOnly={area}/>}
+  </div>);
+}
+// Yönetici: Çocuk Akademisi raporu
 function KidAcademyReport({lang,toast,lockArea}){
   const F=window.__FB; const live=!!(F&&F.isConfigured());
   const W2=(ku,en)=>lang==="en"?en:K(ku);
@@ -14186,6 +14207,8 @@ function TeacherSurveyPanel({teacher, schedule, lang, t, toast}) {
 // ══════════════════════════════════════════════════════════════════════
 const SEVAL_C=[["p","Beşdarî û eleqe","Participation & interest"],["g","Pêşketin","Progress"],["h","Amadekarî û erk","Preparation & homework"],["b","Tevger û hevkarî","Behaviour & cooperation"]];
 const TEVAL_C=[["e","Ravekirina dersê","Clarity of teaching"],["h","Amadekariya mamoste","Teacher's preparation"],["r","Rêz û têkilî","Respect & communication"],["f","Bikêrhatina dersê","Usefulness of the lesson"]];
+// Çocuk akademisi: velinin öğretmene verdiği değerlendirme ölçütleri
+const KTEVAL_C=[["e","Têkiliya bi zarokê re","Rapport with the child"],["h","Pêşketina zarokê","Child's progress"],["r","Ragihandina bi malbatê re","Communication with the family"],["f","Rêz û hawîrdora ewle","Respect & a safe environment"]];
 const EVAL_SCALE=[[1,"Pir qels","Very poor"],[2,"Qels","Poor"],[3,"Navîn","Fair"],[4,"Baş","Good"],[5,"Pir baş","Very good"]];
 function ymdLocal(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function evalWeek(d){ const x=d?new Date(d):new Date(); const y=new Date(x.getFullYear(),x.getMonth(),x.getDate()); y.setDate(y.getDate()-((y.getDay()+6)%7)); return ymdLocal(y); }
@@ -14372,9 +14395,13 @@ function EvalReminder({pending,total,onGo,lang,kind}){
 function wkOfDate(ds){ const p=String(ds||"").split("-").map(Number); if(p.length<3||!p[0]) return ""; return evalWeek(new Date(p[0],p[1]-1,p[2])); }
 function EvalReport({kind,students,teachers,lang,toast,headArea,byName}){
   const W2=(ku,en)=>lang==="en"?en:K(ku);
-  const isS=kind==="student";
-  const C=isS?SEVAL_C:TEVAL_C;
-  const docs=useEvalDocs(isS?"studentEvals":"teacherEvals");
+  // student/teacher: ana akademi · kid/kteacher: çocuk akademisi (öğretmen → çocuk, veli → öğretmen)
+  const isKid=kind==="kid"||kind==="kteacher";
+  const isS=kind==="student"||kind==="kid";
+  const C=isS?SEVAL_C:(isKid?KTEVAL_C:TEVAL_C);
+  const docs=useEvalDocs({student:"studentEvals",teacher:"teacherEvals",kid:"kidEvals",kteacher:"kidTeacherEvals"}[kind]);
+  const SF=isS?(isKid?"kidNo":"studentNo"):"teacherNo", SN=isS?(isKid?"kidName":"studentName"):"teacherName", RF=isS?"teacherNo":(isKid?"guardianNo":"studentNo");
+  const aLbl=a=>{ if(!isKid) return areaName(a,lang)||""; const z=ZAROK_AREA_NAMES[a]; return z?(lang==="en"?z[1]:K(z[0])):(a||""); };
   const clsDocs=useClassDocs("classes");
   const lockArea=headArea&&headArea!=="genel"?headArea:"";
   const [from,setFrom]=useState(()=>evalWeekShift(evalWeek(),-7));
@@ -14385,17 +14412,17 @@ function EvalReport({kind,students,teachers,lang,toast,headArea,byName}){
   const [stuF,setStuF]=useState("all");
   const [openK,setOpenK]=useState(null);
   const wFrom=evalWeek(new Date(from+"T12:00:00")), wTo=evalWeek(new Date(to+"T12:00:00"));
-  const plainTeachers=(teachers||[]).filter(t2=>t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate&&!t2.isHead&&(!lockArea||t2.area===lockArea||t2.area==="genel"));
+  const plainTeachers=isKid?[...new Map(docs.map(d=>[String(d.teacherNo),{no:String(d.teacherNo),name:d.teacherName||String(d.teacherNo)}])).values()]:(teachers||[]).filter(t2=>t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate&&!t2.isHead&&(!lockArea||t2.area===lockArea||t2.area==="genel"));
   const clsObj=clsF==="all"?null:clsDocs.find(d=>d.id===clsF);
   const shown=docs.filter(d=>d.wk>=wFrom&&d.wk<=wTo
     &&(area==="all"||d.area===area)
     &&(teachF==="all"||String(d.teacherNo)===String(teachF))
-    &&(!isS||!clsObj||inClass(clsObj,d.studentNo))
-    &&(!isS||stuF==="all"||String(d.studentNo)===String(stuF)));
+    &&(!isS||isKid||!clsObj||inClass(clsObj,d.studentNo))
+    &&(!isS||isKid||stuF==="all"||String(d.studentNo)===String(stuF)));
   const groups={};
-  shown.forEach(d=>{ const k=isS?String(d.studentNo):String(d.teacherNo);
-    const g=groups[k]||(groups[k]={k,name:isS?(d.studentName||k):(d.teacherName||k),area:d.area,n:0,sum:{},cnt:{},rows:[],raters:new Set()});
-    g.n++; g.rows.push(d); g.raters.add(isS?String(d.teacherNo):String(d.studentNo));
+  shown.forEach(d=>{ const k=String(d[SF]);
+    const g=groups[k]||(groups[k]={k,name:d[SN]||k,area:d.area,n:0,sum:{},cnt:{},rows:[],raters:new Set()});
+    g.n++; g.rows.push(d); g.raters.add(String(d[RF]));
     C.forEach(c=>{ const v=Number(d.c&&d.c[c[0]]); if(v>=1&&v<=5){ g.sum[c[0]]=(g.sum[c[0]]||0)+v; g.cnt[c[0]]=(g.cnt[c[0]]||0)+1; } }); });
   const rows=Object.values(groups).map(g=>{ const av={}; C.forEach(c=>{ av[c[0]]=g.cnt[c[0]]?g.sum[c[0]]/g.cnt[c[0]]:null; });
     const vs=Object.values(av).filter(v=>v!=null); return {...g,av,all:vs.length?vs.reduce((a,b)=>a+b,0)/vs.length:null,rows:g.rows.sort((a,b)=>String(b.wk).localeCompare(String(a.wk)))}; })
@@ -14404,47 +14431,48 @@ function EvalReport({kind,students,teachers,lang,toast,headArea,byName}){
   const low=rows.filter(r=>r.all!=null&&r.all<2.5).length;
   const f1=v=>v==null?"—":v.toFixed(1);
   const col=v=>v==null?"var(--text2)":v>=4?"#1a7a4a":v>=3?"#c07800":"#c0392b";
-  const title=isS?W2("Nirxandina Xwendekaran (mamoste → xwendekar)","Student Evaluation (teacher → student)"):W2("Nirxandina Mamosteyan (xwendekar → mamoste)","Teacher Evaluation (student → teacher)");
+  const title=isKid?(isS?W2("Akademiya Zarokan · Nirxandina zarokan (mamoste → zarok)","Children's Academy · Student evaluation (teacher → child)"):W2("Akademiya Zarokan · Nirxandina mamosteyan (dêûbav → mamoste)","Children's Academy · Teacher evaluation (parent → teacher)"))
+    :isS?W2("Nirxandina Xwendekaran (mamoste → xwendekar)","Student Evaluation (teacher → student)"):W2("Nirxandina Mamosteyan (xwendekar → mamoste)","Teacher Evaluation (student → teacher)");
   function csv(){
-    const head=[W2("Hefte","Week"),isS?W2("Xwendekar","Student"):W2("Mamoste","Teacher"),W2("Qad","Field"),isS?W2("Mamoste","Teacher"):"",...C.map(c=>evalTx(c,lang)),W2("Navgîn","Average"),W2("Nîşe","Note")].filter((x,i)=>isS||i!==3);
+    const head=[W2("Hefte","Week"),isS?(isKid?W2("Zarok","Child"):W2("Xwendekar","Student")):W2("Mamoste","Teacher"),W2("Qad","Field"),isS?W2("Mamoste","Teacher"):"",...C.map(c=>evalTx(c,lang)),W2("Navgîn","Average"),W2("Nîşe","Note")].filter((x,i)=>isS||i!==3);
     const out=[head];
-    rows.forEach(r=>r.rows.forEach(d=>{ const line=[d.wk,r.name,areaName(d.area,lang)||"",isS?(d.teacherName||""):null,...C.map(c=>(d.c&&d.c[c[0]])||""),f1(evalAvg(d.c)),d.note||""]; out.push(isS?line:line.filter((x,i)=>i!==3)); }));
-    downloadCSV((isS?"nirxandina-xwendekaran-":"nirxandina-mamosteyan-")+wFrom+"_"+wTo+".csv",out);
+    rows.forEach(r=>r.rows.forEach(d=>{ const line=[d.wk,r.name,aLbl(d.area),isS?(d.teacherName||""):null,...C.map(c=>(d.c&&d.c[c[0]])||""),f1(evalAvg(d.c)),d.note||""]; out.push(isS?line:line.filter((x,i)=>i!==3)); }));
+    downloadCSV(((isKid?"zarok-":"")+(isS?"nirxandina-xwendekaran-":"nirxandina-mamosteyan-"))+wFrom+"_"+wTo+".csv",out);
     logReportArchive({type:"csv",label:"CSV · "+title,by:byName||""}); toast("⬇ CSV");
   }
   function html(){
     const H=x=>String(x==null?"":x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-    const body=rows.map(r=>`<tr><td><b>${H(r.name)}</b></td><td>${H(areaName(r.area,lang)||"")}</td><td style="text-align:center">${r.n}</td>${C.map(c=>`<td style="text-align:center">${f1(r.av[c[0]])}</td>`).join("")}<td style="text-align:center;font-weight:800">${f1(r.all)}</td></tr>`
+    const body=rows.map(r=>`<tr><td><b>${H(r.name)}</b></td><td>${H(aLbl(r.area))}</td><td style="text-align:center">${r.n}</td>${C.map(c=>`<td style="text-align:center">${f1(r.av[c[0]])}</td>`).join("")}<td style="text-align:center;font-weight:800">${f1(r.all)}</td></tr>`
       +(r.rows.filter(d=>d.note).length?`<tr><td colspan="${4+C.length}" style="font-size:11px;color:#555;font-style:italic">${r.rows.filter(d=>d.note).map(d=>H(d.wk+(isS&&d.teacherName?" · "+d.teacherName:"")+": "+d.note)).join("<br>")}</td></tr>`:"")).join("");
     const doc=`<!DOCTYPE html><html lang="${lang}"><head><meta charset="UTF-8"/><title>${H(title)}</title><style>body{font-family:-apple-system,Segoe UI,sans-serif;margin:0;color:#1a1a1a}.h{background:#0f2f38;color:#fff;padding:24px 28px}.c{padding:18px 28px}table{width:100%;border-collapse:collapse;font-size:12px}th{background:#0f2f38;color:#fff;padding:8px;text-align:left;font-size:11px}td{padding:7px 8px;border-bottom:1px solid #eee}</style></head><body>
-<div class="h"><div style="font-size:11px;opacity:.7">🏛 ${H(BRAND())}</div><div style="font-size:22px;font-weight:800;margin-top:4px">${H(title)}</div><div style="font-size:12px;opacity:.75;margin-top:4px">${H(evalWeekLabel(wFrom))} → ${H(evalWeekLabel(wTo))} · ${H(area==="all"?W2("Hemû qad","All fields"):areaName(area,lang))}</div></div>
+<div class="h"><div style="font-size:11px;opacity:.7">🏛 ${H(BRAND())}</div><div style="font-size:22px;font-weight:800;margin-top:4px">${H(title)}</div><div style="font-size:12px;opacity:.75;margin-top:4px">${H(evalWeekLabel(wFrom))} → ${H(evalWeekLabel(wTo))} · ${H(area==="all"?W2("Hemû qad","All fields"):aLbl(area))}</div></div>
 <div class="c"><p style="font-size:12px;color:#555">${W2("Pîvan: 1 (pir qels) – 5 (pir baş).","Scale: 1 (very poor) – 5 (very good).")}${isS?"":" "+W2("Nirxandinên xwendekaran bê nav in.","Student evaluations are anonymous.")}</p>
-<table><thead><tr><th>${isS?W2("Xwendekar","Student"):W2("Mamoste","Teacher")}</th><th>${W2("Qad","Field")}</th><th>${W2("Hejmar","Count")}</th>${C.map(c=>`<th>${H(evalTx(c,lang))}</th>`).join("")}<th>${W2("Navgîn","Average")}</th></tr></thead><tbody>${body}</tbody></table></div></body></html>`;
-    const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([doc],{type:"text/html;charset=utf-8"})); a.download=(isS?"nirxandina-xwendekaran-":"nirxandina-mamosteyan-")+wFrom+".html"; a.click();
+<table><thead><tr><th>${isS?(isKid?W2("Zarok","Child"):W2("Xwendekar","Student")):W2("Mamoste","Teacher")}</th><th>${W2("Qad","Field")}</th><th>${W2("Hejmar","Count")}</th>${C.map(c=>`<th>${H(evalTx(c,lang))}</th>`).join("")}<th>${W2("Navgîn","Average")}</th></tr></thead><tbody>${body}</tbody></table></div></body></html>`;
+    const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([doc],{type:"text/html;charset=utf-8"})); a.download=((isKid?"zarok-":"")+(isS?"nirxandina-xwendekaran-":"nirxandina-mamosteyan-"))+wFrom+".html"; a.click();
     setTimeout(()=>URL.revokeObjectURL(a.href),5000); logReportArchive({type:isS?"seval":"teval",label:title,by:byName||""}); toast("✓ "+W2("Rapor hat dakêşîn!","Report downloaded!"));
   }
   const sel={padding:"9px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--surface)",color:"var(--text)",fontSize:13,minHeight:40};
   return(
     <div data-eval-report={kind}>
-      <div style={{fontSize:12,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>{title}. {W2("Pîvan 1–5.","Scale 1–5.")} {!isS&&"🔒 "+W2("Navê xwendekaran nayê nîşandan.","Student names are not shown.")}</div>
+      <div style={{fontSize:12,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>{title}. {W2("Pîvan 1–5.","Scale 1–5.")} {!isS&&"🔒 "+(isKid?W2("Navê dêûbavan nayê nîşandan.","Parent names are not shown."):W2("Navê xwendekaran nayê nîşandan.","Student names are not shown."))}</div>
       <Card style={{marginBottom:10}}>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8}}>
           <label style={{fontSize:11,color:"var(--text2)"}}>{W2("Ji","From")}<DateInput style={{...sel,width:"100%"}} value={from} onChange={e=>setFrom(e.target.value)}/></label>
           <label style={{fontSize:11,color:"var(--text2)"}}>{W2("Heta","To")}<DateInput style={{...sel,width:"100%"}} value={to} onChange={e=>setTo(e.target.value)}/></label>
-          {lockArea?<div style={{...sel,display:"flex",alignItems:"center"}}>🔒 {areaName(lockArea,lang)}</div>:
+          {lockArea?<div style={{...sel,display:"flex",alignItems:"center"}}>🔒 {aLbl(lockArea)}</div>:
           <select aria-label="area" value={area} onChange={e=>setArea(e.target.value)} style={sel}>
             <option value="all">🏫 {W2("Hemû qad","All fields")}</option>
-            {AREAS.map(a=><option key={a.key} value={a.key}>{a.icon} {areaName(a.key,lang)}</option>)}
+            {isKid?ZAROK_AREAS.map(a=><option key={a} value={a}>{aLbl(a)}</option>):AREAS.map(a=><option key={a.key} value={a.key}>{a.icon} {areaName(a.key,lang)}</option>)}
           </select>}
           <select aria-label="teacher" value={teachF} onChange={e=>setTeachF(e.target.value)} style={sel}>
             <option value="all">👩‍🏫 {W2("Hemû mamoste","All teachers")}</option>
             {plainTeachers.slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"")).map(t2=><option key={t2.no} value={t2.no}>{t2.name}</option>)}
           </select>
-          {isS&&<select aria-label="class" value={clsF} onChange={e=>setClsF(e.target.value)} style={sel}>
+          {isS&&!isKid&&<select aria-label="class" value={clsF} onChange={e=>setClsF(e.target.value)} style={sel}>
             <option value="all">🏫 {W2("Hemû sinif","All classes")}</option>
             {clsDocs.filter(d=>d.kind&&(area==="all"||d.area===area||d.area==="genel")).map(d=><option key={d.id} value={d.id}>{classLabel(d,lang)}</option>)}
           </select>}
-          {isS&&<select aria-label="student" value={stuF} onChange={e=>setStuF(e.target.value)} style={sel}>
+          {isS&&!isKid&&<select aria-label="student" value={stuF} onChange={e=>setStuF(e.target.value)} style={sel}>
             <option value="all">🎓 {W2("Hemû xwendekar","All students")}</option>
             {(students||[]).filter(s=>!s.isAdmin&&(area==="all"||s.area===area)).slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"")).map(s=><option key={s.no} value={s.no}>{s.name} · {s.no}</option>)}
           </select>}
@@ -14460,7 +14488,7 @@ function EvalReport({kind,students,teachers,lang,toast,headArea,byName}){
         <div key={r.k} data-eval-row={r.k} style={{background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,marginBottom:8}}>
           <button onClick={()=>setOpenK(openK===r.k?null:r.k)} style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"none",border:"none",cursor:"pointer",textAlign:"left",color:"var(--text)"}}>
             <span style={{flex:1,minWidth:0}}><span style={{display:"block",fontSize:13,fontWeight:700}}>{r.name}</span>
-              <span style={{fontSize:11,color:"var(--text2)"}}>{areaName(r.area,lang)} · {r.n} {W2("nirxandin","evaluations")}{!isS?" · "+r.raters.size+" "+W2("xwendekar","students"):""}</span></span>
+              <span style={{fontSize:11,color:"var(--text2)"}}>{aLbl(r.area)} · {r.n} {W2("nirxandin","evaluations")}{!isS?" · "+r.raters.size+" "+(isKid?W2("malbat","families"):W2("xwendekar","students")):""}</span></span>
             <span style={{fontSize:18,fontWeight:800,color:col(r.all)}}>{f1(r.all)}</span>
           </button>
           {openK===r.k&&<div style={{padding:"0 12px 12px"}}>

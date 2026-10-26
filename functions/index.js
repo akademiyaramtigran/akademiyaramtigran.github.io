@@ -212,7 +212,7 @@ exports.pushKidClassPost = onDocumentCreated("kidClassPosts/{id}", async (ev) =>
   }
   if (!gnos.length) return;
   const docs = await tokens("zarok", "no", gnos);
-  await push(docs, l => ({ title: tx(l, "post") + (p.className ? " · " + p.className : ""), body: p.title || "" }), "/zarok/app/", "zarok-post");
+  await push(docs, l => ({ title: tx(l, p.type === "duyuru" ? "ann" : "post") + (p.className ? " · " + p.className : ""), body: p.title || "" }), "/zarok/app/", "zarok-post");
 });
 
 // Çocuk akademisi: mesaj (akademi → veli, veli → çocuk öğretmenleri)
@@ -222,7 +222,19 @@ exports.pushKidMessage = onDocumentCreated("kidMessages/{id}", async (ev) => {
     const docs = await tokens("zarok", "no", m.guardianNo);
     await push(docs, l => ({ title: tx(l, "kidmsg"), body: (m.by ? m.by + ": " : "") + (m.text || "") }), "/zarok/app/", "zarok-msg");
   } else if (m.from === "guardian") {
-    const docs = await tokens("zarok", "role", "kidteacher");
+    // Yalnızca çocuğun öğretmenlerine (sınıf öğretmeni + sınıfa ders veren); çocuk belli değilse tüm çocuk öğretmenleri
+    let docs = [];
+    if (m.kidId) {
+      const db = admin.firestore(), k = await db.collection("kids").doc(m.kidId).get();
+      const kno = k.exists ? String(k.get("no") || "") : "";
+      if (kno) {
+        const cls = (await db.collection("kidClasses").where("studentNos", "array-contains", kno).get()).docs.filter(c => c.get("status") !== "closed");
+        const tn = new Set(cls.flatMap(c => (c.get("teacherNos") || []).map(String)));
+        for (const c of cls) (await db.collection("kidSchedule").where("classId", "==", c.id).get()).docs.forEach(l => { if (l.get("teacherNo")) tn.add(String(l.get("teacherNo"))); });
+        if (tn.size) docs = (await tokens("zarok", "no", [...tn])).filter(d => d.get("role") === "kidteacher");
+      }
+    }
+    if (!docs.length && !m.kidId) docs = await tokens("zarok", "role", "kidteacher");
     await push(docs, l => ({ title: tx(l, "gmsg"), body: (m.guardianName ? m.guardianName + ": " : "") + (m.text || "") }), "/zarok/app/", "zarok-gmsg");
   }
 });
@@ -278,4 +290,23 @@ exports.evalReminder = onSchedule({ schedule: "0 15 * * 5", timeZone: "Europe/Is
   for (const d of tDocs) await push([d], l => ({ title: evtx(l, "t"), body: evtx(l, "tb", tPend[String(d.get("no"))]) }), "/app/", "aat-eval");
   const sDocs = (await tokens("aat", "no", sPend)).filter(d => d.get("role") === "student");
   if (sDocs.length) await push(sDocs, l => ({ title: evtx(l, "s"), body: evtx(l, "sb") }), "/app/", "aat-eval");
+
+  // Çocuk akademisi: öğretmen → çocuklarını, veli → çocuklarının öğretmenlerini
+  const [kc, ks, kids, ke, kte] = await Promise.all([db.collection("kidClasses").get(), db.collection("kidSchedule").get(), db.collection("kids").get(),
+    db.collection("kidEvals").where("wk", "==", wk).get(), db.collection("kidTeacherEvals").where("wk", "==", wk).get()]);
+  const kcls = kc.docs.filter(d => d.get("kind") && d.get("status") !== "closed");
+  const kStu = {}; kcls.forEach(d => { kStu[d.id] = (d.get("studentNos") || []).map(String); });
+  const kgOf = {}; kids.docs.forEach(d => { kgOf[String(d.get("no") || "")] = (d.get("guardianNos") || []).map(String); });
+  const ktK = {}, gT = {};   // öğretmen → çocuklar, veli → öğretmenler
+  const klink = (t, k) => { (ktK[t] = ktK[t] || new Set()).add(k); (kgOf[k] || []).forEach(g => (gT[g] = gT[g] || new Set()).add(t)); };
+  kcls.forEach(d => (d.get("teacherNos") || []).forEach(t => (kStu[d.id] || []).forEach(k => klink(String(t), k))));
+  ks.docs.forEach(d => { const t = d.get("teacherNo"), c = d.get("classId"); if (t && c && kStu[c]) kStu[c].forEach(k => klink(String(t), k)); });
+  const kDone = new Set(ke.docs.map(d => d.get("teacherNo") + "|" + d.get("kidNo")));
+  const gDone = new Set(kte.docs.map(d => d.get("guardianNo") + "|" + d.get("teacherNo")));
+  const ktPend = {}; Object.entries(ktK).forEach(([t, kk]) => { const n = [...kk].filter(k => !kDone.has(t + "|" + k)).length; if (n) ktPend[t] = n; });
+  const gPend = Object.keys(gT).filter(g => [...gT[g]].some(t => !gDone.has(g + "|" + t)));
+  const ktDocs = (await tokens("zarok", "no", Object.keys(ktPend))).filter(d => d.get("role") === "kidteacher");
+  for (const d of ktDocs) await push([d], l => ({ title: evtx(l, "t"), body: evtx(l, "tb", ktPend[String(d.get("no"))]) }), "/zarok/app/", "zarok-eval");
+  const gDocs = (await tokens("zarok", "no", gPend)).filter(d => d.get("role") === "guardian");
+  if (gDocs.length) await push(gDocs, l => ({ title: evtx(l, "s"), body: evtx(l, "sb") }), "/zarok/app/", "zarok-eval");
 });
