@@ -51,7 +51,10 @@ async function routes(ctx) {
   const TOK1 = 'a'.repeat(32), TOK2 = 'b'.repeat(32);
   await put('cards/' + TOK1, { kind: 'student', no: '20202601', name: 'Rojîn Aram', active: true });
   await put('cards/' + TOK2, { kind: 'student', no: '20202602', name: 'Azad Can', active: true });
-  await put('classes/C1', { kind: 'area', area: 'tiyatro', name: '1. Sınıf', studentNos: ['20202601', '20202602'], teacherNos: [] });
+  await put('idx_students/20202603', { no: '20202603' });
+  await put('students/S3', { no: '20202603', name: 'Dilan Roj', area: 'tiyatro', fireId: 'S3', id: 103 });
+  await signUp('20202603@ogrenci.aat', 'Stu12345');
+  await put('classes/C1', { kind: 'area', area: 'tiyatro', name: '1. Sınıf', studentNos: ['20202601', '20202602', '20202603'], teacherNos: [] });
   await put('kidTeachers/72026001', { no: '72026001', name: 'Mamoste Drama', area: 'drama' });
 
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
@@ -133,13 +136,35 @@ async function routes(ctx) {
   // Geç: 20 dk önce başlamış ders
   await tp.click('[data-att-lesson="LB"]'); await tp.waitForTimeout(2000);
   ok('Önceden başlamış ders "başladı" görünür', (await tp.locator('[data-lesson-started]').count()) === 1);
-  ok('İzinli öğrenci listede yok, izinli notu var', (await tp.locator('[data-on-leave]').count()) === 1 && (await tp.locator('.att-btn').count()) === 3);
+  ok('İzinli öğrenci listede yok, izinli notu var', (await tp.locator('[data-on-leave]').count()) === 1 && (await tp.locator('.att-btn').count()) === 6 && !(await tp.evaluate(() => [...document.querySelectorAll('.att-btn')].some(b => (b.closest('div[style]') || {}).textContent && b.closest('div').parentElement.textContent.includes('Azad Can')))));
   await tp.click('[data-att-scan]'); await tp.waitForTimeout(800);
   await tp.fill('input[aria-label=card-code]', 'AAT1:' + TOK1); await btn(tp, 'Kontrol'); await tp.waitForTimeout(2500);
   const a3 = await get('attendance/LB-' + today);
   ok('15 dk sonra okutulan öğrenci "geç" (late)', JSON.stringify(a3.fields && a3.fields.records || {}).includes('"late"'));
   ok('Ekranda "dereng" bildirimi', (await txt(tp)).includes('dereng'));
 
+  // Ders QR'ı: QR içeriği uygulamanın adresi — öğrenci telefonun kamerasıyla okutunca (…/app/?qr=…) giriş yapar, yoklama kendiliğinden verilir
+  await tp.click('[data-att-lesson="' + LID + '"]'); await tp.waitForTimeout(1200);
+  await btn(tp, 'QR ya dersê'); await tp.waitForTimeout(2500);
+  const qs = (await list('qrSessions')).filter(d => d.fields.active && d.fields.active.booleanValue);
+  const SID = qs.length ? qs[qs.length - 1].name.split('/').pop() : '';
+  ok('Ders QR oturumu açıldı', !!SID);
+  const sp = await (await mk(430)).newPage(); sp.on('pageerror', e => errs.push('S3: ' + e.message)); sp.on('dialog', d => d.accept());
+  await sp.goto('http://localhost:8765/app/?emu=1&qr=' + encodeURIComponent('AAT|' + SID)); await sp.waitForSelector('text=Têkeve', { timeout: 60000 });
+  await sp.getByText('Xwendekar', { exact: true }).first().click();
+  await sp.locator('input.inp').first().fill('20202603'); await sp.locator('input[type=password]').first().fill('Stu12345');
+  await sp.getByText('Têkeve', { exact: true }).last().click(); await sp.waitForTimeout(9000);
+  const qa = (await list('attendance')).filter(d => d.fields.sessionId && d.fields.sessionId.stringValue === SID && d.fields.studentNo && d.fields.studentNo.stringValue === '20202603' && !d.fields.deviceClaim);
+  ok('Kamerayla okutulan QR (adres) → giriş sonrası yoklama kendiliğinden verildi', qa.length === 1, (await sp.evaluate(() => document.body.innerText)).slice(0, 200).replace(/\n/g, ' / '));
+  // Dersi bitir: QR kapanır, yoklama kaydedilir (QR ile giren öğrenci dahil), bitiş anı yazılır
+  // Öğretmen QR penceresini kapatır (okutanlar yoklamaya işlenir), sonra "Dersi bitir"
+  await tp.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.offsetParent && /Bigire|✕/.test(x.textContent)).pop(); b && b.click(); }); await tp.waitForTimeout(2000);
+  await goA(tp, 'attendance'); await tp.waitForTimeout(1200);
+  await tp.click('[data-att-lesson="' + LID + '"]'); await tp.waitForTimeout(1500);
+  await tp.click('[data-end-lesson]'); await tp.waitForTimeout(3500);
+  const ae = await get('attendance/' + LID + '-' + today);
+  const recs = JSON.stringify(ae.fields && ae.fields.records || {});
+  ok('Dersi bitir: bitiş anı + yoklama kaydı (QR ile giren öğrenci var)', !!(ae.fields && ae.fields.endedAt) && recs.includes('"103"') && (await tp.locator('[data-lesson-ended]').count()) === 1, recs);
   // 4) Sorumlu: "ders yapılmadı" işaretler (neden + açıklama) → yönetici raporu
   await goA(hp, 'announce'); await hp.waitForTimeout(500); await goA(hp, 'schedule'); await hp.waitForTimeout(1500);
   await hp.evaluate(() => { const c = [...document.querySelectorAll('button')].filter(x => x.offsetParent && x.textContent.trim() === '🚫'); c[0] && c[0].click(); }); await hp.waitForTimeout(1200);
