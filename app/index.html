@@ -14467,7 +14467,6 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
   const [attendance,setAttendance]=useState({});
   const [attLsId,setAttLsId]=useState(null);   // elle yoklama: seçili bugünkü ders
   const [activeQRSession,setActiveQRSession]=useState(null);
-  const _qrPrinted=useRef(false); // bu oturumda QR çıktısı alındı mı?
   const [lessonLogs,setLessonLogs]=useState([]);
 
   // Öğretmenin ders loglarını Firebase'den yükle
@@ -14757,8 +14756,6 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     const lessonName = lesson ? lesson.name : (lang==="en"?"Class":K("Ders"));
     const lessonId   = lesson ? lesson.id   : ("manual_"+Date.now());
     const sessionId  = generateSessionToken(lessonId, teacher.id);
-    const qrContent  = buildQRContent(sessionId);
-
     // Ek ders için tarih — seçili tarihe göre ya da bugün
     const lessonDate = (lesson?.lessonType==="extra" && lesson?.extraDates)
       ? (lesson.extraDates.find(d=>d===new Date().toISOString().slice(0,10)) || lesson.extraDates.filter(d=>d>=new Date().toISOString().slice(0,10)).sort()[0] || lesson.extraDates.sort().slice(-1)[0])
@@ -14779,25 +14776,34 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     setActiveQRSession(session);
     if(lesson && lesson.id && todayLessons.some(l=>String(l.id)===String(lesson.id))) setAttLsId(lesson.id);
     toast("✅ QR " + lessonName + (lessonDate?" · "+lessonDate:""));
-
-    // Çap butonu için
-    _qrPrinted.current = false;
-    window._aat_printQR = function(){
-      _qrPrinted.current = true;   // çıktı alındı — yenilemede uyarılacak
-      openQRPrintPage(qrContent, lessonName, teacher.name, null, lang);
-    };
+    startQRCodes(sessionId);
   }
+
+  // Dönen QR: ekrandaki kod 15 saniyede bir değişir (çıktı yok). Oturum aynı kalır; geçerli kodlar
+  // qrSessions/{oturum}.codes listesinde tutulur — son 6 kod (~90 sn) kabul edilir, böylece kamerayla
+  // okutup giriş yapan öğrenci yetişir; eve gönderilen fotoğraf kısa sürede geçersiz olur.
+  const QR_ROTATE_MS = 15000, QR_KEEP = 6;
+  const [qrCode,setQrCode]=useState("");
+  const qrCodesRef=useRef([]);
+  const genQRCode=()=>Math.random().toString(36).slice(2,8).toUpperCase();
+  function pushQRCode(sessionId){
+    const c=genQRCode();
+    qrCodesRef.current=[...qrCodesRef.current,c].slice(-QR_KEEP);
+    setQrCode(c);
+    if(window._aat_qr_session) window._aat_qr_session.codes=qrCodesRef.current;
+    try{ if(window.__FB&&window.__FB.isConfigured()) window.__FB.setDoc(window.__FB.doc(window.__FB.db,"qrSessions",sessionId),{codes:qrCodesRef.current},{merge:true}).catch(()=>{}); }catch(_){}
+  }
+  function startQRCodes(sessionId){ qrCodesRef.current=[]; pushQRCode(sessionId); }
+  useEffect(()=>{
+    if(!qrToken) return;
+    const id=setInterval(()=>{ const s=window._aat_qr_session; if(s&&s.active) pushQRCode(qrToken); },QR_ROTATE_MS);
+    return ()=>clearInterval(id);
+  },[qrToken]);
 
   // QR'ı yenile — yeni bir kod üret, eski QR geçersiz olur, yoklamalar korunur
   function regenerateQR(){
     const s = window._aat_qr_session;
     if(!s || !s.active){ return; }
-    // Çıktı alınmışsa: basılı QR geçersiz kalacağı için önce onay al
-    if(_qrPrinted.current){
-      const ok = window.confirm(
-        (lang==="en"?"You printed this QR. Refreshing makes the PRINTED sheet unusable — students will not be able to scan it.\n\nContinue and print the new QR?":K("Te ev QR çap kiribû. Eger nû bikî, kaxeza ÇAPKIRÎ betal dibe — xwendekar nikarin wê bixwînin.\n\nBerdewam bike û ya nû çap bike?")));
-      if(!ok) return;
-    }
     const oldId = s.sessionId;
     const newId = generateSessionToken(s.lessonId || ("manual_"+Date.now()), teacher.id);
     s.sessionId = newId; // yerel oturum aynı kalır (checkins korunur), sadece kimlik yenilenir
@@ -14812,16 +14818,10 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
         window.__FB.setDoc(window.__FB.doc(window.__FB.db,"qrSessions",oldId),{active:false},{merge:true});
       }
     }catch(e){}
-    // Çıktı/print de yeni QR'ı kullansın
-    window._aat_printQR = function(){ openQRPrintPage(buildQRContent(newId), s.lessonName, teacher.name, null, lang); };
     setQrToken(newId);
+    startQRCodes(newId);
     setActiveQRSession({...s});
     toast(lang==="en"?"🔄 New QR generated — old one is now invalid":K("🔄 QR ya nû hat çêkirin — ya kevn betal bû"));
-    // Basılı kopya vardıysa yenisini hemen yazdırmayı öner
-    if(_qrPrinted.current){
-      _qrPrinted.current = false;
-      setTimeout(()=>{ try{ if(window._aat_printQR) window._aat_printQR(); }catch(_){} }, 350);
-    }
   }
 
   // QR otomatik açılmaz — öğretmen panelde manuel olarak başlatır
@@ -14834,8 +14834,6 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
 
     // 1. QR oturumunu kapat + Firebase'e log yaz
     closeQRSession();
-    window._aat_printQR = null;
-    _qrPrinted.current = false;
 
     // 2. Yoklamayı Firebase attendance koleksiyonuna kaydet
     const lessonId = session?.lessonId || ("manual_"+Date.now());
@@ -15329,20 +15327,9 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                   <div style={{height:6,background:"var(--bg2)",borderRadius:3,overflow:"hidden",marginBottom:10}}>
                     <div style={{height:"100%",width:`${sessRoster.length?Object.keys(getSessionCheckins()).length/sessRoster.length*100:0}%`,background:"var(--green)",borderRadius:3,transition:"width 0.5s"}}/>
                   </div>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6}}>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
                     <button onClick={()=>regenerateQR()} style={{padding:"9px",background:"#0f2f38",color:"#ffffff",border:"none",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer"}}>
                       🔄 QR
-                    </button>
-                    <button onClick={()=>window._aat_printQR&&window._aat_printQR()} style={{padding:"9px",background:"rgba(77,179,160,0.12)",color:"var(--text)",border:"0.5px solid rgba(77,179,160,0.3)",borderRadius:8,fontSize:11,fontWeight:700,cursor:"pointer"}}>
-                      🖨 {lang==="en"?"Print":K("Çap")}
-                    </button>
-                    <button onClick={()=>{
-                      // QR içeriğini PDF olarak indir
-                      const lesson = (selectedScanLesson?mySchedule.find(l=>String(l.id)===selectedScanLesson):currentLesson);
-                      const lessonName = lesson?.name||(lang==="en"?"Class":K("Ders"));
-                      if(window._aat_printQR) window._aat_printQR();
-                    }} style={{padding:"9px",background:"rgba(22,163,74,0.10)",color:"#15803d",border:"0.5px solid rgba(22,163,74,0.3)",borderRadius:8,fontSize:11,fontWeight:700,cursor:"pointer"}}>
-                      📄 PDF
                     </button>
                     <button onClick={closeLessonQR} style={{padding:"9px",background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:8,fontSize:11,color:"var(--red)",fontWeight:600,cursor:"pointer"}}>
                       ✕ {t.close||"Bigire"}
@@ -15522,6 +15509,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     {activeQRSession&&qrToken&&(
       <TeacherQRDisplayModal
         token={qrToken}
+        code={qrCode}
         lessonName={activeQRSession.lessonName}
         teacherName={teacher.name}
         areaColor="#0f2f38"
@@ -17454,8 +17442,8 @@ function generateSessionToken(lessonId, teacherId){
 // Hem ekran hem çıktı aynı QR. İçerik uygulamanın ADRESİDİR (…/app/?qr=AAT|<oturum>): öğrenci QR'ı
 // telefonun kendi kamerasıyla okutsa da uygulama açılır ve yoklama kendiliğinden verilir.
 // Uygulama içindeki "QR Bixwîne" ekranı da aynı kodu okur.
-function buildQRContent(sessionId){
-  return (location.origin||"https://konservatuaraaramtigran.org") + "/app/?qr=" + encodeURIComponent("AAT|" + sessionId);
+function buildQRContent(sessionId, code){
+  return (location.origin||"https://konservatuaraaramtigran.org") + "/app/?qr=" + encodeURIComponent("AAT|" + sessionId + (code ? "|" + code : ""));
 }
 // Okutulan içerik adres ise ?qr= değerini çıkar ("AAT|<oturum>")
 function normalizeQR(content){
@@ -17470,8 +17458,8 @@ function normalizeQR(content){
 // QR doğrula — sadece sessionId eşleşmesi
 function validateQRContent(content, sessionId){
   content = normalizeQR(content);
-  // Yeni format: "AAT|<sessionId>"
-  if(content === "AAT|" + sessionId) return true;
+  // Yeni format: "AAT|<sessionId>|<dönen kod>" (eski: "AAT|<sessionId>")
+  if(content === "AAT|" + sessionId || content.startsWith("AAT|" + sessionId + "|")) return true;
   // Eski format uyumluluğu: "AATSTAT|<sessionId>"
   if(content === "AATSTAT|" + sessionId) return true;
   // Eski dinamik format uyumluluğu: "<sessionId>|<slot>|<code>"
@@ -17520,6 +17508,11 @@ function checkinToSession(qrContent, student){
 
   // 1. QR doğrula — sessionId eşleşmesi
   if(!validateQRContent(qrContent, s.sessionId)) return {ok:false, reason:"token_mismatch"};
+  // 1b. Dönen kod: oturumda kod listesi varsa okutulan kod son ~90 sn'nin kodlarından biri olmalı
+  if(Array.isArray(s.codes) && s.codes.length){
+    const code = normalizeQR(qrContent).split("|")[2] || "";
+    if(!s.codes.includes(code)) return {ok:false, reason:"qr_expired"};
+  }
 
   // 2. Tekrar giriş engeli
   if(s.checkins[student.id]?.confirmed) return {ok:false, reason:"already_checked_in"};
@@ -17657,12 +17650,12 @@ function TeacherQRDisplayModal(props){
   return React.createElement(TeacherQRDisplay,props);
 }
 
-function TeacherQRDisplay({token, lessonName, teacherName, areaColor, onClose, onRegenerate, students, myStudents, lang}){
+function TeacherQRDisplay({token, code, lessonName, teacherName, areaColor, onClose, onRegenerate, students, myStudents, lang}){
   const qrRef    = useRef(null);
   const pollRef  = useRef(null);
   const [checkins, setCheckins] = useState(()=>getSessionCheckins());
   const [scanCardMode, setScanCardMode] = useState(false);
-  const qrContent = buildQRContent(token); // token yenilenince değişir
+  const qrContent = buildQRContent(token, code); // kod 15 sn'de bir değişir
 
   // QR'ı token (qrContent) her değiştiğinde yeniden çiz — "QR yenile" çalışsın
   useEffect(()=>{
@@ -17775,9 +17768,7 @@ function TeacherQRDisplay({token, lessonName, teacherName, areaColor, onClose, o
         )}
 
         {/* Buttons */}
-        <button onClick={()=>window._aat_printQR&&window._aat_printQR()} style={{width:"100%",padding:"11px",background:"#0f2f38",color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",marginBottom:8,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-          {lang==="en"?"Print QR Sheet":K("Kaxeza QR Çap Bike")}
-        </button>
+        <div style={{fontSize:11,color:"var(--text2)",textAlign:"center",marginBottom:8}}>🔄 {lang==="en"?"The QR changes every 15 seconds — show it on screen, do not print it.":K("QR her 15 saniyeyan diguhere — li ser ekranê nîşan bide, çap neke.")}</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           <button onClick={()=>onClose()} style={{padding:"10px",background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:8,color:"var(--red)",fontSize:13,fontWeight:600,cursor:"pointer"}}>
             ✕ {lang==="en"?"Close":K("Bigire")}
@@ -17935,11 +17926,11 @@ function StudentQRScanner({student, onClose, toast, lang="ku", initialCode=null}
 
     // Okutulan QR'ın oturumu yerelde yoksa (ya da BAŞKA bir dersin oturumu
     // bellekte kaldıysa) Firebase'den o oturumu çek.
-    const sid = qrContent.startsWith("AAT|") ? qrContent.slice(4)
+    const sid = qrContent.startsWith("AAT|") ? qrContent.slice(4).split("|")[0]
               : qrContent.startsWith("AATSTAT|") ? qrContent.slice(8)
               : qrContent.split("|")[0];
-    let sess = getActiveQRSession();
-    if(!sess || String(sess.sessionId) !== String(sid)){
+    // Oturum her okutmada yeniden okunur (dönen kodların güncel listesi için)
+    {
       try {
         if(window.__FB && window.__FB.isConfigured() && sid){
           const snap = await window.__FB.getDoc(window.__FB.doc(window.__FB.db,"qrSessions",sid));
@@ -17953,6 +17944,14 @@ function StudentQRScanner({student, onClose, toast, lang="ku", initialCode=null}
       } catch(e){}
     }
 
+    // Dönen kod süresi geçmişse cihazı sahiplenmeden önce reddet
+    {
+      const _s0 = getActiveQRSession();
+      if(_s0 && Array.isArray(_s0.codes) && _s0.codes.length && validateQRContent(qrContent,_s0.sessionId) && !_s0.codes.includes(qrContent.split("|")[2]||"")){
+        setErrorMsg(lang==="en"?"This QR has changed — scan the QR on the screen again":K("Ev QR guherî — QR-ya li ser ekranê dîsa bixwîne"));
+        hapticError(); setStatus("error"); return;
+      }
+    }
     // Bir telefon, bir derste YALNIZCA bir öğrenci adına yoklama verebilir.
     // attendance/{oturum}_d_{cihaz} belgesini ilk yazan öğrenci sahiplenir; kurallar başka
     // öğrencinin aynı belgeyi güncellemesine izin vermez (studentNo kendi numarası olmalı).
@@ -17984,6 +17983,7 @@ function StudentQRScanner({student, onClose, toast, lang="ku", initialCode=null}
         token_mismatch:    lang==="en"?"Wrong QR code":K("Koda QR xelet e"),
         already_checked_in:lang==="en"?"Already checked in ✓":K("Berê ketibûye ✓"),
         wrong_area:        lang==="en"?"Not enrolled in this class":K("Tu ne xwendekarê vê dersê yî"),
+        qr_expired:        lang==="en"?"This QR has changed — scan the QR on the screen again":K("Ev QR guherî — QR-ya li ser ekranê dîsa bixwîne"),
       };
       setErrorMsg(msgs[result.reason]||(lang==="en"?"Error":K("Xelet")));
       hapticError(); setStatus("error");
