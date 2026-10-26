@@ -2077,14 +2077,47 @@ function LiveRegion({ msg }) {
 /* ─── ATTENDANCE FIREBASE PERSISTENCE ──────────────────────────────────────── */
 // Devam istatistiği her ders+tarih için bir kez işlenir: yoklama düzeltilip yeniden
 // kaydedildiğinde (ya da QR kapatılıp elle kaydedildiğinde) oran iki kez düşmez.
+// Devam istatistiği GERÇEK sayımdır: ders sayısı, gelinen (zamanında + geç), gelmediği, geç.
+// Devam % = gelinen / ders sayısı. İzinli ("leave") ve kaydı olmayan öğrenci sayılmaz.
+function countAtt(st, v){
+  const tl=(st.totalLessons||0)+1, at=(st.attended||0)+((v==="on"||v==="late")?1:0);
+  return {totalLessons:tl, attended:at, absent:tl-at, late:(st.late||0)+(v==="late"?1:0), att:Math.round(at/tl*100)};
+}
 function applyAttStats(lessonId, date, roster, records){
   const key="aat-attst-"+lessonId+"-"+date;
   try{ if(localStorage.getItem(key)) return; localStorage.setItem(key,"1"); }catch(_){}
   roster.forEach(s=>{
-    const v=records[s.id], st=getStudentStats(s.id);
-    const todayAtt=v==="on"?100:v==="late"?50:0;
-    updateStudentStats(s.id,{att:Math.round((st.att*17+todayAtt)/18),late:st.late+(v==="late"?1:0)});
+    const v=records[s.id]; if(v!=="on"&&v!=="late"&&v!=="off") return;
+    freshStats(s.id).then(st=>updateStudentStats(s.id,countAtt(st,v)));
   });
+}
+// Saymadan önce sunucudaki güncel değeri al (bellekteki boş varsayılanla saymayalım)
+function freshStats(id){
+  const F=window.__FB;
+  if(!F||!F.isConfigured()) return Promise.resolve(getStudentStats(id));
+  return F.getDoc(F.doc(F.db,"studentStats",String(id))).then(snap=>{
+    if(snap.exists()) _statsStore[id]={...getStudentStats(id),...snap.data()};
+    return getStudentStats(id);
+  }).catch(()=>getStudentStats(id));
+}
+// Yönetici girişinde: istatistikleri yoklama kayıtlarından baştan hesapla (eski "18 ders" formülünün
+// bıraktığı yanlış değerleri düzeltir; farklı cihazlardan çift sayımı da temizler). Günde bir kez.
+async function rebuildAttStats(students){
+  const F=window.__FB; if(!F||!F.isConfigured()||!(students||[]).length) return;
+  const day="aat-attrebuild-v1-"+new Date().toISOString().slice(0,10);
+  try{ if(localStorage.getItem(day)) return; }catch(_){}
+  try{
+    const snap=await F.getDocs(F.collection(F.db,"attendance"));
+    const c={};
+    snap.docs.forEach(d=>{ const v=d.data(); if(v.teacherAbsent||!v.records) return;
+      Object.entries(v.records).forEach(([id,r])=>{ if(r!=="on"&&r!=="late"&&r!=="off") return;
+        const x=c[id]||(c[id]={totalLessons:0,attended:0,late:0}); x.totalLessons++; if(r!=="off") x.attended++; if(r==="late") x.late++; }); });
+    for(const s of students){ if(s.isAdmin) continue; _rebuilt.add(String(s.id));
+      const x=c[String(s.id)]||{totalLessons:0,attended:0,late:0};
+      updateStudentStats(s.id,{totalLessons:x.totalLessons,attended:x.attended,absent:x.totalLessons-x.attended,late:x.late,att:x.totalLessons?Math.round(x.attended/x.totalLessons*100):0});
+    }
+    try{ localStorage.setItem(day,"1"); }catch(_){}
+  }catch(e){ console.warn("[attStats]",e); }
 }
 async function fbSaveAttendance(lessonId, teacherId, date, records){
 
@@ -8342,7 +8375,7 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
       await F.setDoc(F.doc(F.db,"attendance",String(d.lessonId)+"-"+d.date),{lessonId:d.lessonId,lessonName:d.name||"",area:"genel",classId:d.id,date:d.date,
         teacherId:(d.teacherNos||[])[0]||null,teacherName:(d.teacherNames||[])[0]||d.guest||null,records,updatedAt:F.serverTimestamp()},{merge:true});
       // Kapanışta devam istatistiği (öğretmen yoklamasıyla aynı ağırlık)
-      if(close) roster.forEach(s=>{ const st=getStudentStats(s.id); const v=records[s.id]; updateStudentStats(s.id,{att:Math.round((st.att*17+(v==="on"?100:v==="late"?50:0))/18),late:st.late+(v==="late"?1:0)}); });
+      if(close) roster.forEach(s=>{ const v=records[s.id]; if(v==="on"||v==="late"||v==="off") freshStats(s.id).then(st=>updateStudentStats(s.id,countAtt(st,v))); });
     },
     // Eski düzen: classes/{alan}_{seviye} + öğrencinin classLevel'ı
     convertLegacy:async legacy=>{
@@ -10945,6 +10978,8 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
   ];
 
   // Öğrenci istatistiklerini Firebase'den yükle
+  // Yoklama kayıtlarından devam istatistiğini düzelt (günde bir kez)
+  useEffect(()=>{ if(students&&students.length) rebuildAttStats(students); },[students&&students.length]);
   useEffect(()=>{
     if(students&&students.length>0) loadAllStudentStats(students.map(s=>s.id));
   },[students]);
@@ -11033,6 +11068,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
 /* ─── TEACHER STATS ──────────────────────────────────────────────────────── */
 // Central grade/attendance store — Firebase backed
 const _statsStore = {};
+const _rebuilt = new Set(); // yeniden hesaplananlar: geç gelen eski okuma bunları ezmesin
 
 function getStudentStats(studentId){
   if(_statsStore[studentId]) return _statsStore[studentId];
@@ -11043,7 +11079,7 @@ function getStudentStats(studentId){
   if(window.__FB && window.__FB.isConfigured()){
     try{
       window.__FB.getDoc(window.__FB.doc(window.__FB.db,"studentStats",String(studentId))).then(snap=>{
-        if(snap.exists()){
+        if(snap.exists()&&!_rebuilt.has(String(studentId))){
           _statsStore[studentId]={...empty,...snap.data()};
         }
       }).catch(()=>{});
@@ -11055,8 +11091,9 @@ function getStudentStats(studentId){
 function updateStudentStats(studentId, patch){
   const current = getStudentStats(studentId);
   _statsStore[studentId] = {...current,...patch};
-  if(patch.att!==undefined){
-    const totalLessons=current.totalLessons||18;
+  // Eski çağrılar (yalnız att yüzdesi): sayım bilgisi gelmediyse önceki davranış
+  if(patch.att!==undefined && patch.totalLessons===undefined && (current.totalLessons||0)>0){
+    const totalLessons=current.totalLessons;
     _statsStore[studentId].absent=Math.max(0,Math.round((100-patch.att)/100*totalLessons));
     _statsStore[studentId].attended=totalLessons-_statsStore[studentId].absent;
   }
@@ -11079,7 +11116,7 @@ function loadAllStudentStats(studentIds){
   studentIds.forEach(id=>{
     try{
       window.__FB.getDoc(window.__FB.doc(window.__FB.db,"studentStats",String(id))).then(snap=>{
-        if(snap.exists()) _statsStore[id]={...(_statsStore[id]||{}),...snap.data()};
+        if(snap.exists()&&!_rebuilt.has(String(id))) _statsStore[id]={...(_statsStore[id]||{}),...snap.data()};
       }).catch(()=>{});
     }catch(_){}
   });
