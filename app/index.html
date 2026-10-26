@@ -2080,6 +2080,7 @@ function LiveRegion({ msg }) {
 // Devam istatistiği GERÇEK sayımdır: ders sayısı, gelinen (zamanında + geç), gelmediği, geç.
 // Devam % = gelinen / ders sayısı. İzinli ("leave") ve kaydı olmayan öğrenci sayılmaz.
 function countAtt(st, v){
+  if(v==="leave") return {leaves:(st.leaves||0)+1};   // izinli: ders sayısına girmez, ayrıca sayılır
   const tl=(st.totalLessons||0)+1, at=(st.attended||0)+((v==="on"||v==="late")?1:0);
   return {totalLessons:tl, attended:at, absent:tl-at, late:(st.late||0)+(v==="late"?1:0), att:Math.round(at/tl*100)};
 }
@@ -2087,7 +2088,7 @@ function applyAttStats(lessonId, date, roster, records){
   const key="aat-attst-"+lessonId+"-"+date;
   try{ if(localStorage.getItem(key)) return; localStorage.setItem(key,"1"); }catch(_){}
   roster.forEach(s=>{
-    const v=records[s.id]; if(v!=="on"&&v!=="late"&&v!=="off") return;
+    const v=records[s.id]; if(v!=="on"&&v!=="late"&&v!=="off"&&v!=="leave") return;
     freshStats(s.id).then(st=>updateStudentStats(s.id,countAtt(st,v)));
   });
 }
@@ -2110,11 +2111,11 @@ async function rebuildAttStats(students){
     const snap=await F.getDocs(F.collection(F.db,"attendance"));
     const c={};
     snap.docs.forEach(d=>{ const v=d.data(); if(v.teacherAbsent||!v.records) return;
-      Object.entries(v.records).forEach(([id,r])=>{ if(r!=="on"&&r!=="late"&&r!=="off") return;
-        const x=c[id]||(c[id]={totalLessons:0,attended:0,late:0}); x.totalLessons++; if(r!=="off") x.attended++; if(r==="late") x.late++; }); });
+      Object.entries(v.records).forEach(([id,r])=>{ if(r!=="on"&&r!=="late"&&r!=="off"&&r!=="leave") return;
+        const x=c[id]||(c[id]={totalLessons:0,attended:0,late:0,leaves:0}); if(r==="leave"){ x.leaves++; return; } x.totalLessons++; if(r!=="off") x.attended++; if(r==="late") x.late++; }); });
     for(const s of students){ if(s.isAdmin) continue; _rebuilt.add(String(s.id));
-      const x=c[String(s.id)]||{totalLessons:0,attended:0,late:0};
-      updateStudentStats(s.id,{totalLessons:x.totalLessons,attended:x.attended,absent:x.totalLessons-x.attended,late:x.late,att:x.totalLessons?Math.round(x.attended/x.totalLessons*100):0});
+      const x=c[String(s.id)]||{totalLessons:0,attended:0,late:0,leaves:0};
+      updateStudentStats(s.id,{leaves:x.leaves,totalLessons:x.totalLessons,attended:x.attended,absent:x.totalLessons-x.attended,late:x.late,att:x.totalLessons?Math.round(x.attended/x.totalLessons*100):0});
     }
     try{ localStorage.setItem(day,"1"); }catch(_){}
   }catch(e){ console.warn("[attStats]",e); }
@@ -8375,7 +8376,7 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
       await F.setDoc(F.doc(F.db,"attendance",String(d.lessonId)+"-"+d.date),{lessonId:d.lessonId,lessonName:d.name||"",area:"genel",classId:d.id,date:d.date,
         teacherId:(d.teacherNos||[])[0]||null,teacherName:(d.teacherNames||[])[0]||d.guest||null,records,updatedAt:F.serverTimestamp()},{merge:true});
       // Kapanışta devam istatistiği (öğretmen yoklamasıyla aynı ağırlık)
-      if(close) roster.forEach(s=>{ const v=records[s.id]; if(v==="on"||v==="late"||v==="off") freshStats(s.id).then(st=>updateStudentStats(s.id,countAtt(st,v))); });
+      if(close) roster.forEach(s=>{ const v=records[s.id]; if(v==="on"||v==="late"||v==="off"||v==="leave") freshStats(s.id).then(st=>updateStudentStats(s.id,countAtt(st,v))); });
     },
     // Eski düzen: classes/{alan}_{seviye} + öğrencinin classLevel'ı
     convertLegacy:async legacy=>{
@@ -12158,6 +12159,10 @@ function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
     // Öğretmen: sınıf öğretmeni olduğu sınıfların öğrencileri (sınıfı yoksa kendi alanının öğrencileri)
     .filter(s=>!teachObj||(teachCls.length?teachCls.some(d=>inClass(d,s.no)):(teachObj.area==="genel"||s.area===teachObj.area)))
     .filter(s=>stuF==="all"||String(s.fireId||s.id)===String(stuF));
+  // İzinler (bölüm sorumlusunun girdiği): rapora izinli ders sayısı + izin nedeni
+  const leaves=useLeaves(true);
+  const leavesOf=s=>(leaves||[]).filter(l=>!l.kid&&String(l.studentNo)===String(s.no)).sort((a,b)=>String(a.from).localeCompare(String(b.from)));
+  const leaveTxt=s=>leavesOf(s).map(l=>(l.reason||"")+" ("+fmtDateTx(l.from)+(l.to&&l.to!==l.from?" – "+fmtDateTx(l.to):"")+")").join("; ");
   const filterNote=[clsObj?"🏫 "+classLabel(clsObj,lang):"",teachObj?"👩‍🏫 "+teachObj.name:"",stuF!=="all"?"🎓 "+((students.find(s=>String(s.fireId||s.id)===String(stuF))||{}).name||""):""].filter(Boolean).join(" · ");
 
   const reportDate = lang==="en"?new Date().toLocaleDateString("en-GB",{year:"numeric",month:"long",day:"numeric"}):fmtDateTx(new Date().toISOString());
@@ -12177,7 +12182,8 @@ function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
       if(reportType==="attendance"||reportType==="full"){
         cols += `<td style="text-align:center;font-weight:700;color:${attColor};background:${attBg};border-radius:6px;">${attTxt}</td>
                  <td style="text-align:center;color:#A32D2D;">${st.absent} ${W("roj","days")}</td>
-                 <td style="text-align:center;color:#854F0B;">${st.late} ${W("carî","times")}</td>`;
+                 <td style="text-align:center;color:#854F0B;">${st.late} ${W("carî","times")}</td>
+                 <td style="font-size:11px;color:#185FA5;">${st.leaves?st.leaves+" "+W("ders","lessons"):"—"}${leaveTxt(s)?`<div style="color:#666;font-style:italic;">${H(leaveTxt(s))}</div>`:""}</td>`;
       }
       if(reportType==="full"){
         cols += `<td style="font-size:11px;color:#666;font-style:italic;">${H(st.note)}</td>`;
@@ -12193,7 +12199,7 @@ function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
 
     let headerCols = "";
     if(reportType==="attendance"||reportType==="full"){
-      headerCols += `<th>${W("Amadebûn","Attendance")} %</th><th>${W("Tunebûn","Absent")}</th><th>${W("Dereng","Late")}</th>`;
+      headerCols += `<th>${W("Amadebûn","Attendance")} %</th><th>${W("Tunebûn","Absent")}</th><th>${W("Dereng","Late")}</th><th>${W("Destûrî","On leave")}</th>`;
     }
     if(reportType==="full"){
       headerCols += `<th>${W("Nîşeya Mamoste","Teacher Note")}</th>`;
@@ -12308,10 +12314,10 @@ ${`</html>`}`;
   // ⬇ CSV: mevcut liste raporunun tablo hâli
   function downloadListCSV(){
     const W2=(ku,en)=>lang==="en"?en:K(ku);
-    const rows=[[W2("Xwendekar","Student"),"No",W2("Qad","Field"),W2("Sînif","Class"),W2("Amadebûn","Attendance")+" %",W2("Tunebûn (roj)","Absent (days)"),W2("Dereng","Late")]];
+    const rows=[[W2("Xwendekar","Student"),"No",W2("Qad","Field"),W2("Sînif","Class"),W2("Amadebûn","Attendance")+" %",W2("Tunebûn (roj)","Absent (days)"),W2("Dereng","Late"),W2("Destûrî (ders)","On leave (lessons)"),W2("Sedema destûrê","Leave reason")]];
     filteredStudents.forEach(st2=>{
       const d=getStudentStats(st2.id);
-      rows.push([st2.name,st2.no,areaName(st2.area,lang),classesOfStudent(clsDocs,st2.no).map(d=>d.name).join(" | "),statHasData(d)?d.att:"",d.absent||0,d.late||0]);
+      rows.push([st2.name,st2.no,areaName(st2.area,lang),classesOfStudent(clsDocs,st2.no).map(d=>d.name).join(" | "),statHasData(d)?d.att:"",d.absent||0,d.late||0,d.leaves||0,leaveTxt(st2)]);
     });
     downloadCSV("rapor-"+(selectedArea==="all"?"hemu":selectedArea)+"-"+new Date().toISOString().slice(0,10)+".csv",rows);
     logReportArchive({type:"csv",label:"CSV · "+(selectedArea==="all"?W2("Hemû qad","All fields"):areaName(selectedArea,lang))});
@@ -12556,6 +12562,7 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:12,fontWeight:500,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</div>
                 <div style={{fontSize:10,color:"var(--text2)",fontFamily:"monospace"}}>{s.no}</div>
+                {(st.leaves>0||leavesOf(s).length>0)&&<div data-rep-leave style={{fontSize:10,color:"#185FA5"}} title={leaveTxt(s)}>🏷 {lang==="en"?"On leave":K("Destûrî")}{st.leaves?": "+st.leaves+" "+(lang==="en"?"lessons":K("ders")):""}{leaveTxt(s)?" · "+leaveTxt(s):""}</div>}
               </div>
               {(reportType==="attendance"||reportType==="full"||reportType==="attendance_lesson")&&(
                 <div style={{fontSize:12,fontWeight:700,color:attColor,minWidth:38,textAlign:"right"}}>{attTextOf(st)}</div>

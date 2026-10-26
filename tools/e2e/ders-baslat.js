@@ -199,7 +199,10 @@ async function routes(ctx) {
   const st1 = (await get('studentStats/101')).fields || {};
   ok('Yönetici girişi bozuk istatistiği yoklamalardan yeniden hesaplar', st1.totalLessons.integerValue === '1' && st1.absent.integerValue === '0' && st1.att.integerValue === '100', JSON.stringify(st1).slice(0, 160));
   const st2 = (await get('studentStats/102')).fields || {};
-  ok('İzinli öğrenci devamsız sayılmaz', !st2.absent || st2.absent.integerValue === '0', JSON.stringify(st2).slice(0, 120));
+  ok('İzinli öğrenci devamsız sayılmaz, izinli ders sayılır', (!st2.absent || st2.absent.integerValue === '0') && st2.leaves && st2.leaves.integerValue === '1', JSON.stringify(st2).slice(0, 160));
+  await goA(ap, 'reports'); await ap.waitForTimeout(2500);
+  const rl = await ap.evaluate(() => [...document.querySelectorAll('[data-rep-leave]')].map(e => e.textContent).join(' | '));
+  ok('Devam raporunda izinli öğrenci + izin nedeni görünür', rl.includes('Nexweşî') && /1/.test(rl), rl);
 
   // 6) Çocuk akademisi sorumlusu: kendi dersinin programını yazar
   const kp = await login(await mk(), '96202612', 'Head1234');
