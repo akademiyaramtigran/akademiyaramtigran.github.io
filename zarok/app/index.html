@@ -279,7 +279,7 @@ function h(tag, props, ...kids) {
   return el;
 }
 const timeOf = iso => { try { return new Date(iso).toLocaleTimeString(lang === "en" ? "en-GB" : "tr-TR", { hour: "2-digit", minute: "2-digit" }); } catch (_) { return ""; } };
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };  // yerel gün (Türkiye saati)
 const tsMs = t => t ? (t.toMillis ? t.toMillis() : t.seconds ? t.seconds * 1000 : +new Date(t)) : 0;
 function toast(msg, ms) { S.toast = msg; render(); clearTimeout(toast._t); toast._t = setTimeout(() => { S.toast = ""; render(); }, ms || 2600); }
 function vib(p) { try { navigator.vibrate && navigator.vibrate(p || 20); } catch (_) {} }

@@ -136,6 +136,7 @@ function evalWeek(d) { const x = d ? new Date(d) : new Date(); const y = new Dat
   // 5b) Ders programı: tek günlük ANA ders "ek ders" değildir; ek ders rozeti yalnız gerçek ek derste
   await goA(sp, 'schedule'); await sp.waitForTimeout(1000);
   const sch = await txt(sp);
+  ok('Program: bu haftanın günleri tarihli, bugünkü dersler listede (boş ekran yok)', (await sp.locator('[data-sched-day]').count()) >= 1 && (await sp.locator('[data-sched-lesson]').count()) >= 3);
   ok('Tek günlük ana ders programda, "ek ders" / "atölye" rozeti yalnız gerçekten öyle olan derste', sch.includes('Şano Yekroj') && sch.includes('Atolyeya Dengan') && (await sp.locator('[data-extra-badge]').count()) === 2 && sch.includes('Atolye') && !sch.includes('🎨'));
   // 5c) Öğrenci öğretmenine doğrudan mesaj yazar → öğretmen gelen kutusunda, yanıtlayabilir
   await goA(sp, 'messages'); await sp.waitForTimeout(800);

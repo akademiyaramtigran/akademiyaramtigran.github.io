@@ -2105,7 +2105,7 @@ function freshStats(id){
 // bıraktığı yanlış değerleri düzeltir; farklı cihazlardan çift sayımı da temizler). Günde bir kez.
 async function rebuildAttStats(students){
   const F=window.__FB; if(!F||!F.isConfigured()||!(students||[]).length) return;
-  const day="aat-attrebuild-v2-"+new Date().toISOString().slice(0,10);
+  const day="aat-attrebuild-v2-"+ymdLocal(new Date());
   try{ if(localStorage.getItem(day)) return; }catch(_){}
   try{
     const snap=await F.getDocs(F.collection(F.db,"attendance"));
@@ -3504,7 +3504,7 @@ async function logCardEntry(res,place,user){
   const F=window.__FB; if(!F||!F.isConfigured()||!user) return;
   const c=res.card||{};
   try{ await F.addDoc(F.collection(F.db,"gateLog"),{token:res.token||"",no:String(c.no||""),kind:c.kind||"",name:c.name||"",ok:!!res.ok,
-    by:String(user.no||"").toLowerCase(),byName:user.name||"",at:F.serverTimestamp(),date:new Date().toISOString().slice(0,10),place}); }catch(_){}
+    by:String(user.no||"").toLowerCase(),byName:user.name||"",at:F.serverTimestamp(),date:ymdLocal(new Date()),place}); }catch(_){}
 }
 function cardReasonText(r,lang){
   const W=(ku,en)=>lang==="en"?en:K(ku);
@@ -3752,7 +3752,7 @@ function GatePanel({user,lang,toast,onLogout}){
   useEffect(()=>{
     const F=window.__FB; if(!F||!F.isConfigured()) return;
     let u=()=>{};
-    try{ u=F.onSnapshot(F.query(F.collection(F.db,"gateLog"),F.where("by","==",String(user.no||"").toLowerCase()),F.where("date","==",new Date().toISOString().slice(0,10))),
+    try{ u=F.onSnapshot(F.query(F.collection(F.db,"gateLog"),F.where("by","==",String(user.no||"").toLowerCase()),F.where("date","==",ymdLocal(new Date()))),
       s=>setLog(s.docs.map(d=>d.data()).sort((a,b)=>((b.at&&b.at.seconds)||0)-((a.at&&a.at.seconds)||0)))); }catch(_){}
     return ()=>{ try{u();}catch(_){} };
   },[]);
@@ -4922,7 +4922,7 @@ function AddLessonSheet({open,onClose,defaultArea,defaultClassId,t,lang,toast,on
   useEffect(()=>{ if(!term&&terms.activeId) setTerm(terms.activeId); },[terms.activeId]);
   const [teacherNo,setTeacherNo]=useState(""); // "" = atanmamış (alan öğretmenleri görür)
   const [name,setName]=useState("");
-  const [date,setDate]=useState(()=>new Date().toISOString().slice(0,10));
+  const [date,setDate]=useState(()=>ymdLocal(new Date()));
   const [weekly,setWeekly]=useState(false);
   const [category,setCategory]=useState("main"); // main | extra | workshop — tekrardan bağımsız
   const [guest,setGuest]=useState("");
@@ -5669,7 +5669,7 @@ function AdminMessagesPanel({students,teachers,lang,t,toast,adminName}){
       type:msgType,
       subject:subject.trim(),
       body:body.trim(),
-      time:now.toISOString().slice(0,10)+" "+timeStr,
+      time:ymdLocal(now)+" "+timeStr,
       read:true,
       direction:"sent",
       senderId:"admin",
@@ -6023,7 +6023,7 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
       type:msgType,
       subject:subject.trim(),
       body:body.trim(),
-      time:now.toISOString().slice(0,10)+" "+timeStr,
+      time:ymdLocal(now)+" "+timeStr,
       read:true,
       direction:"sent",
       senderId:String(teacher.id),
@@ -6429,7 +6429,7 @@ function AdminNewsPanel({lang,toast,adminName}){
         videos: vidList,
         area: area||"genel",
         author: adminName||"Admin",
-        dateStr: new Date().toISOString().slice(0,10),
+        dateStr: ymdLocal(new Date()),
         createdAt: window.__FB.serverTimestamp()
       });
       setTitle("");setBody("");setYtUrl("");setImages([]);setVideos([]);setArea("genel");
@@ -6615,7 +6615,7 @@ function AdminNewsPanel({lang,toast,adminName}){
                   <span style={{fontSize:10,fontWeight:800,letterSpacing:"0.05em",padding:"3px 9px",borderRadius:7,background:"var(--bg2)",border:"1px solid var(--border2)",color:"var(--text2)"}}>
                     {aIcon} {area==="genel"?(lang==="en"?"General":K("Giştî")):areaName(area,lang)}
                   </span>
-                  <span style={{fontSize:10,color:"var(--text2)",fontFamily:"monospace"}}>{new Date().toISOString().slice(0,10)}</span>
+                  <span style={{fontSize:10,color:"var(--text2)",fontFamily:"monospace"}}>{ymdLocal(new Date())}</span>
                   {images.length>1&&<span style={{fontSize:10,color:"var(--text2)"}}>📷 {images.length}</span>}
                   {videos.length>0&&<span style={{fontSize:10,color:"var(--text2)"}}>🎬 {videos.length}</span>}
                   {ytIdFromUrl(ytUrl.trim())&&<span style={{fontSize:10,color:"var(--text2)"}}>▶️ YouTube</span>}
@@ -7554,7 +7554,7 @@ function HeadGuestAttendance({user,students,schedule,lang,toast}){
   const clsDocs=useClassDocs("classes");
   const terms=useTerms();
   const leaves=useLeaves(true);
-  const today=new Date().toISOString().slice(0,10);
+  const today=ymdLocal(new Date());
   const DOW=["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"][new Date().getDay()];
   const todays=(schedule||[]).filter(ls=>isGuestLesson(ls)&&(ls.lessonType==="extra"?(ls.extraDates||[]).includes(today):(ls.day===DOW&&lessonOnDate(ls,terms,today))))
     .sort((a,b)=>String(a.start||"").localeCompare(String(b.start||"")));
@@ -7675,7 +7675,7 @@ function HeadSurveysPanel({user,students,teachers,lang,toast}){
     try{ subs.push(F.onSnapshot(F.collection(F.db,"studentSurveyResponses"),s=>setResps(s.docs.map(d=>d.data())))); }catch(_){}
     return ()=>subs.forEach(u=>{ try{u();}catch(_){} });
   },[live,myNo]);
-  const today=new Date().toISOString().slice(0,10);
+  const today=ymdLocal(new Date());
   const rOf=sv=>resps.filter(r=>String(r.surveyId)===String(sv.id)||String(r.surveyId)===String(sv.fireId));
   const isT=sv=>sv.targetType==="teachers"||sv.targetType==="teachers_area";
   const exp=sv=>isT(sv)?(teachers||[]).filter(t2=>!(sv.targetAreas||[]).length||(sv.targetAreas||[]).includes(t2.area)).length
@@ -7854,7 +7854,7 @@ function HeadMessagesPanel({user,inbox,sent,teachers,lang,t,toast}){
     const txt=reply.trim(); if(!txt) return;
     const now=new Date();
     const r={id:Date.now(),from:user.name,fromType:"head",fromId:user.id,senderId:"h_"+myNo,senderNo:myNo,to:m.from||"",type:"private",
-      subject:"Re: "+(m.subject||""),body:txt,time:now.toISOString().slice(0,10)+" "+String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0"),
+      subject:"Re: "+(m.subject||""),body:txt,time:ymdLocal(now)+" "+String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0"),
       read:false,recipientId:"s_"+(m.fromId||""),recipientNo:String(m.fromNo),recipientGroup:null,replyTo:m.fireId,area:user.area||"",isStudentFeedback:false,attachments:[]};
     setBusy(true);
     try{ await fbSave("message",r); toast("✅ "+W("Bersiv hat şandin","Reply sent")); setReply(""); }
@@ -7877,7 +7877,7 @@ function HeadMessagesPanel({user,inbox,sent,teachers,lang,t,toast}){
     const now=new Date();
     const msg={id:Date.now(),from:user.name,fromType:"head",fromId:user.id,senderId:"h_"+myNo,senderNo:myNo,
       to:tc?tc.name:W("Rêveber","Admin"),type:"private",subject:subject.trim(),body:body.trim(),
-      time:now.toISOString().slice(0,10)+" "+String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0"),
+      time:ymdLocal(now)+" "+String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0"),
       read:false,recipientId:tc?"t_"+tc.id:"admin",recipientNo:tc?String(tc.no):null,recipientGroup:null,area:user.area||"",isStudentFeedback:false,
       attachments:files.map(f=>({name:f.name,size:f.size,type:f.type,url:f.url,preview:f.preview}))};
     setBusy(true);
@@ -8125,7 +8125,7 @@ function ClassStudio({cfg,lang,t,toast}){
   }
 
   function newForm(k){
-    const today=new Date().toISOString().slice(0,10);
+    const today=ymdLocal(new Date());
     setForm({kind:k,name:"",area:k==="area"?areaF:"genel",sel:{},tsel:{},date:today,start:"14:00",end:"16:00",loc:"",guest:"",pa:"all",q:""});
     setAttFor(null);
   }
@@ -8524,7 +8524,7 @@ function LeavesPanel({user,students,area,all=false,kid=false,lang,toast,readOnly
   const F=window.__FB;
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   const leaves=useLeaves(true);
-  const today=new Date().toISOString().slice(0,10);
+  const today=ymdLocal(new Date());
   const [f,setF]=useState({no:"",from:today,to:today,reason:""});
   const mine=leaves.filter(l=>!!l.kid===!!kid&&(all||l.area===area)).sort((a,b)=>String(b.from).localeCompare(String(a.from)));
   const studs=(students||[]).filter(s=>s&&s.no).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
@@ -8741,7 +8741,7 @@ function PostCard({p,lang,onDelete,showClass,classLabel}){
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   const ic=(POST_TYPES.find(x=>x[0]===p.type)||["","📢"])[1];
   const when=p.createdAt&&p.createdAt.toDate?p.createdAt.toDate():(p.createdAt?new Date(p.createdAt):null);
-  const late=p.type==="odev"&&p.due&&p.due<new Date().toISOString().slice(0,10);
+  const late=p.type==="odev"&&p.due&&p.due<ymdLocal(new Date());
   return(
     <div style={{background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,padding:12,marginBottom:10}}>
       <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
@@ -8908,7 +8908,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   // Kartta yazan sınıf: çocuğun açık sınıfları (atölyeler hariç)
   const kidClassOf=k=>kidCls.filter(d=>d.kind&&d.kind!=="workshop"&&d.status!=="closed"&&inClass(d,k.no)).map(d=>d.name).join(" · ");
   const [aForm,setAForm]=useState({title:"",body:""});
-  const today=new Date().toISOString().slice(0,10);
+  const today=ymdLocal(new Date());
   const DAYS=lang==="en"?ZAROK_DAYS_EN:ZAROK_DAYS_KU.map(d=>K(d));
   const yr=String(new Date().getFullYear());
 
@@ -9852,7 +9852,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
       const st=STATUS[a.status||"new"]||STATUS.new;
       return '<tr><td>'+(i+1)+'</td><td>'+esc(a.name)+'</td><td>'+esc(areaName(a.area,lang)||a.area)+'</td><td>'+esc(a.phone||"")+'</td><td>'+esc(a.dateStr||"")+'</td><td><span class="chip" style="background:'+st.bg+';color:'+st.color+'">'+st.label+'</span></td></tr>';
     }).join("");
-    const body='<h1>'+BRAND()+'</h1><div class="sub">'+W("Lîsteya Serlêdanan","Application List")+' · '+new Date().toISOString().slice(0,10)+' · '+shown.length+' '+W("serlêdan","applications")+'</div>'
+    const body='<h1>'+BRAND()+'</h1><div class="sub">'+W("Lîsteya Serlêdanan","Application List")+' · '+ymdLocal(new Date())+' · '+shown.length+' '+W("serlêdan","applications")+'</div>'
       +'<table><tr><th>#</th><th>'+W("Nav","Name")+'</th><th>'+W("Qad","Field")+'</th><th>'+W("Têlefon","Phone")+'</th><th>'+W("Dîrok","Date")+'</th><th>'+W("Rewş","Status")+'</th></tr>'+rows+'</table>';
     openPrintHtml(_printShell(W("Lîsteya Serlêdanan","Application List"),body));
   }
@@ -10717,7 +10717,7 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
   const extraLessons = allFiltered.filter(l=>isExtraLesson(l));
   const DOW_KU=["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"];
   const onDayKu=(l,day)=>l.lessonType==="extra"?(l.extraDates||[]).some(d=>DOW_KU[new Date(d+"T12:00:00").getDay()]===day):l.day===day;
-  const todayStr = new Date().toISOString().slice(0,10);
+  const todayStr = ymdLocal(new Date());
 
   function renderLessonCard(ls){
     const a=AREA_MAP[ls.area]||{color:"#0f2f38",bg:"rgba(15,47,56,0.08)",text:"#0f2f38",icon:"📚"};
@@ -10781,7 +10781,7 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
   //  (bölüm sorumlusu yalnız kendi bölümünün derslerine işler; var olan yoklama kaydına dokunmaz)
   const [absFor,setAbsFor]=useState(null);   // {ls,date,kind,note,exists}
   async function markTeacherAbsent(ls){
-    const todayStr=new Date().toISOString().slice(0,10);
+    const todayStr=ymdLocal(new Date());
     let ex=null;
     try{ if(window.__FB&&window.__FB.isConfigured()){ const sn=await window.__FB.getDoc(window.__FB.doc(window.__FB.db,"attendance",ls.id+"-"+todayStr)); if(sn.exists()&&sn.data().teacherAbsent) ex=sn.data(); } }catch(_){}
     setAbsFor({ls,date:todayStr,kind:(ex&&ex.absenceKind)||"absent",note:(ex&&ex.absenceNote)||"",exists:!!ex});
@@ -11017,7 +11017,7 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
         <Sheet open={true} onClose={()=>setAbsFor(null)} title={"🚫 "+(lang==="en"?"Lesson not held":K("Ders nehat kirin"))}>
           <div style={{fontSize:13,color:"var(--text)",fontWeight:700,marginBottom:4}}>{absFor.ls.name}</div>
           <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:12}}>👨‍🏫 {absFor.ls.teacherName||"—"} · {absFor.ls.start}–{absFor.ls.end}</div>
-          <FieldWrap label={lang==="en"?"Date":K("Tarîx")}><DateInput style={inputStyle} value={absFor.date} max={new Date().toISOString().slice(0,10)} onChange={e=>setAbsFor(x=>({...x,date:e.target.value}))}/></FieldWrap>
+          <FieldWrap label={lang==="en"?"Date":K("Tarîx")}><DateInput style={inputStyle} value={absFor.date} max={ymdLocal(new Date())} onChange={e=>setAbsFor(x=>({...x,date:e.target.value}))}/></FieldWrap>
           <FieldWrap label={lang==="en"?"Reason":K("Sedem")}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
               {TEACHER_ABSENCE.map(([k,ic])=>(
@@ -11237,7 +11237,7 @@ function generateAlerts(students, schedule) {
   // Survey responses < 50 → uyarı
   const responses = loadSurveyResponses();
   const questions = loadSurveyQuestions();
-  const weekKey = getWeekLabel(new Date().toISOString().slice(0,10));
+  const weekKey = getWeekLabel(ymdLocal(new Date()));
   const alerts = [];
   const now = new Date().toISOString();
 
@@ -11389,9 +11389,9 @@ function AdminWeeklyReportPanel({students, teachers, schedule, lang, toast}) {
   // ── Tarih aralığı raporu: başlangıç–bitiş seç; dönem seçimi aralığı doldurur ──
   const terms=useTerms();
   const [rStart,setRStart]=useState(()=>{
-    const d=new Date(); d.setDate(d.getDate()-27); return d.toISOString().slice(0,10);
+    const d=new Date(); d.setDate(d.getDate()-27); return ymdLocal(d);
   });
-  const [rEnd,setREnd]=useState(()=>new Date().toISOString().slice(0,10));
+  const [rEnd,setREnd]=useState(()=>ymdLocal(new Date()));
   const [selectedArea, setSelectedArea] = useState("all");
   const [pickedTermId,setPickedTermId]=useState("");
   function pickTerm(id){
@@ -11816,7 +11816,7 @@ function makeSurveyResultsPdf(sv, allResps, lang, byName){
   const W=(ku,en)=>lang==="en"?en:K(ku);
   const tgt=sv.targetType==="all"?W("Hemû Xwendekar","All Students"):sv.targetType==="area"?(W("Qad","Field")+": "+(sv.targetAreas||[]).map(a2=>areaName(a2,lang)).join(", ")):sv.targetType==="teachers"?W("Hemû Mamoste","All Teachers"):W("Mamoste (Qad)","Teachers (Field)");
   let body='<h1>📊 '+esc(sv.title)+'</h1>'
-    +'<div class="sub">'+(lang==="en"?"Survey Results":K("Encamên Ankêtê"))+' · '+tgt+' · '+rs.length+' '+(lang==="en"?"responses":K("bersiv"))+' · '+new Date().toISOString().slice(0,10)+'</div>';
+    +'<div class="sub">'+(lang==="en"?"Survey Results":K("Encamên Ankêtê"))+' · '+tgt+' · '+rs.length+' '+(lang==="en"?"responses":K("bersiv"))+' · '+ymdLocal(new Date())+'</div>';
   st.forEach((row,i)=>{
     if(row.kind==="opts"){
       body+='<div class="info" style="margin-bottom:8px"><b>'+(i+1)+'. '+esc(row.q.text)+'</b> — '+row.n+' '+(lang==="en"?"answers":K("bersiv"));
@@ -11863,7 +11863,7 @@ function AdminSurveyResultsReport({lang,toast,byName,headArea,headNo}){
   // Yanıt eşleşmesi: anket kimliği (id) YA DA belge kimliği (fireId) — öğretmen yanıtları id||fireId ile kaydedilir
   function respsOf(sv){ return sv._kid?kResps.filter(r=>r.surveyId===sv.fireId):resps.filter(r=>String(r.surveyId)===String(sv.id)||(sv.fireId&&String(r.surveyId)===String(sv.fireId))); }
   const isTch=sv=>sv.targetType==="teachers"||sv.targetType==="teachers_area"||sv.targetType==="kidteachers";
-  const today=new Date().toISOString().slice(0,10);
+  const today=ymdLocal(new Date());
   const isOpen=sv=>!!sv.active&&!(sv.endDate&&sv.endDate<today);
   // Ekranda sonuç özeti (PDF ile aynı hesap): puan/likert ortalaması, seçenek dağılımı, açık uçlu cevap sayısı
   function stats(sv){
@@ -12024,8 +12024,8 @@ function AdminReportCenter({students,teachers,schedule,lang,t,toast,byName,headA
 function TeacherAttendanceReport({teachers,schedule,lang,toast}){
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   const terms=useTerms();
-  const today=new Date().toISOString().slice(0,10);
-  const iso=d=>d.toISOString().slice(0,10);
+  const today=ymdLocal(new Date());
+  const iso=d=>ymdLocal(d);
   const weekStart=(()=>{ const d=new Date(); const k=(d.getDay()+6)%7; d.setDate(d.getDate()-k); return iso(d); })();
   const at=(terms.list||[]).find(x=>x.id===terms.activeId);
   const [range,setRange]=useState("week"); // week | d30 | term
@@ -12296,7 +12296,7 @@ ${`</html>`}`;
     a.href = url;
     const areaLabel = selectedArea==="all"?"hemû-qad":selectedArea;
     const typeLabel = reportType==="attendance"?"attendance":"full";
-    a.download = `rapor-${areaLabel}-${typeLabel}-${new Date().toISOString().slice(0,10)}.html`;
+    a.download = `rapor-${areaLabel}-${typeLabel}-${ymdLocal(new Date())}.html`;
     a.click();
     URL.revokeObjectURL(url);
     logReportArchive({type:"liste",label:(reportType==="attendance"?(lang==="en"?"Attendance":K("Amadebûn")):(lang==="en"?"Full":K("Tevahî")))+" · "+(selectedArea==="all"?(lang==="en"?"All fields":K("Hemû qad")):areaName(selectedArea,lang))});
@@ -12311,7 +12311,7 @@ ${`</html>`}`;
       const d=attSt(st2.id);
       rows.push([st2.name,st2.no,areaName(st2.area,lang),classesOfStudent(clsDocs,st2.no).map(d=>d.name).join(" | "),statHasData(d)?d.att:"",d.absent||0,d.late||0,d.leaves||0,leaveTxt(st2),(e=>e.avg==null?"":e.avg.toFixed(1))(evOf(st2))]);
     });
-    downloadCSV("rapor-"+(selectedArea==="all"?"hemu":selectedArea)+"-"+new Date().toISOString().slice(0,10)+".csv",rows);
+    downloadCSV("rapor-"+(selectedArea==="all"?"hemu":selectedArea)+"-"+ymdLocal(new Date())+".csv",rows);
     logReportArchive({type:"csv",label:"CSV · "+(selectedArea==="all"?W2("Hemû qad","All fields"):areaName(selectedArea,lang))});
     toast("⬇ CSV");
   }
@@ -12695,7 +12695,7 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
           const blob=new Blob([html],{type:"text/html;charset=utf-8"});
           const url=URL.createObjectURL(blob);
           const a=document.createElement("a");
-          a.href=url; a.download=`survey-rapor-${selectedArea}-${new Date().toISOString().slice(0,10)}.html`;
+          a.href=url; a.download=`survey-rapor-${selectedArea}-${ymdLocal(new Date())}.html`;
           a.click(); URL.revokeObjectURL(url);
           toast("✓ "+(lang==="en"?"Survey report downloaded":K("Ankêt Raporu hat dakêşîn")));
         }:downloadReport}
@@ -13152,7 +13152,7 @@ function KidSurveysPanel({lang,toast,lockArea,ownerNo,readOnly,areaOnly}){
     L("kidSurveys",v=>setList(v.filter(sv=>(!ownerNo||sv.ownerNo===ownerNo)&&(!areaOnly||!(sv.targetAreas||[]).length||(sv.targetAreas||[]).includes(areaOnly))).sort((a,b)=>String(b.createdAtIso||"").localeCompare(String(a.createdAtIso||""))))); L("kidSurveyResponses",setResps); L("kids",setKids); L("kidTeachers",setKteach);
     return ()=>subs.forEach(u=>{ try{u();}catch(_){} });
   },[live]);
-  const today=new Date().toISOString().slice(0,10);
+  const today=ymdLocal(new Date());
   const status=sv=>!sv.active?["⏸",W2("Reşnivîs / rawestiyayî","Draft / paused"),"#64748b"]:(sv.endDate&&sv.endDate<today)?["⌛",W2("Dem qediya","Closed"),"#b45309"]:["🟢",W2("Çalak","Live"),"#15803d"];
   // Hedef kitle sayısı: veliler (seçili alanlardaki çocukların aileleri) · çocuk öğretmenleri (seçili alanlar; alanı boş öğretmen hepsine dahil)
   const inA=(sv,a)=>!(sv.targetAreas||[]).length||(sv.targetAreas||[]).includes(a);
@@ -13234,7 +13234,7 @@ function KidAcademyReport({lang,toast,lockArea}){
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   const [d,setD]=useState({kids:[],guards:[],kteach:[],cls:[],att:[],apps:[]});
   const [days,setDays]=useState(30); const [lvlF,setLvlF]=useState("all"); const [areaF0,setAreaF]=useState("all"); const areaF=lockArea||areaF0;
-  const since=new Date(Date.now()-days*864e5).toISOString().slice(0,10);
+  const since=ymdLocal(new Date(Date.now()-days*864e5));
   useEffect(()=>{
     if(!live) return; const subs=[];
     const L=(q,k)=>{ try{ subs.push(F.onSnapshot(q,s=>setD(x=>({...x,[k]:s.docs.map(dd=>({...dd.data(),fireId:dd.id}))})),e=>console.warn("[kidReport]",e&&e.code))); }catch(_){} };
@@ -13261,7 +13261,7 @@ function KidAcademyReport({lang,toast,lockArea}){
   const appSt=s=>d.apps.filter(a=>(a.status||"new")===s).length;
   const rows=kidsF.slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"")).map(k=>{ const p=presentDays(k); return {k,p,pct:lessonDays?Math.round(p/lessonDays*100):null}; });
   function csv(){
-    downloadCSV("cocuk-akademisi-rapor-"+new Date().toISOString().slice(0,10)+".csv",[[W2("Nav","Name"),W2("Jimare","No"),W2("Qad","Field"),W2("Sinif","Class"),W2("Dêûbav","Parents"),W2("Rojên hatinê","Days present"),"%"],
+    downloadCSV("cocuk-akademisi-rapor-"+ymdLocal(new Date())+".csv",[[W2("Nav","Name"),W2("Jimare","No"),W2("Qad","Field"),W2("Sinif","Class"),W2("Dêûbav","Parents"),W2("Rojên hatinê","Days present"),"%"],
       ...rows.map(r=>[r.k.name,r.k.no,aName(r.k.area),clsNames(r.k),(r.k.guardianNos||[]).map(g=>((d.guards.find(x=>x.no===g)||{}).name)||g).join(" | "),r.p,r.pct==null?"":r.pct])]);
     try{ logReportArchive({type:"csv",label:"CSV · "+W2("Akademiya Zarokan","Children's Academy")}); }catch(_){}
   }
@@ -14089,7 +14089,7 @@ function TeacherSurveyPanel({teacher, schedule, lang, t, toast}) {
   // ── Tüm hook'lar erken return'dan ÖNCE — React Rules of Hooks ──
   const [selectedLesson, setSelectedLesson] = useState(()=>mySchedule[0]?.id||null);
   const [weekStart, setWeekStart] = useState(()=>{
-    const d=new Date(); d.setDate(d.getDate()-d.getDay()+1); return d.toISOString().slice(0,10);
+    const d=new Date(); d.setDate(d.getDate()-d.getDay()+1); return ymdLocal(d);
   });
   const [answers, setAnswers] = useState({});
   const [saved, setSaved] = useState(false);
@@ -14139,7 +14139,7 @@ function TeacherSurveyPanel({teacher, schedule, lang, t, toast}) {
     try{
       unsub=window.__FB.onSnapshot(window.__FB.collection(window.__FB.db,"studentSurveys"),snap=>{
         const all=snap.docs.map(x=>({...x.data(),fireId:x.id}));
-        setTeacherSurveys(all.filter(sv=>sv.active&&!(sv.endDate&&sv.endDate<new Date().toISOString().slice(0,10))&&(sv.targetType==="teachers"||(sv.targetType==="teachers_area"&&(sv.targetAreas||[]).includes(teacher.area)))));
+        setTeacherSurveys(all.filter(sv=>sv.active&&!(sv.endDate&&sv.endDate<ymdLocal(new Date()))&&(sv.targetType==="teachers"||(sv.targetType==="teachers_area"&&(sv.targetAreas||[]).includes(teacher.area)))));
       });
     }catch{}
     let unsubR=()=>{};
@@ -14535,7 +14535,7 @@ function EvalReport({kind,students,teachers,lang,toast,headArea,byName}){
   const clsDocs=useClassDocs("classes");
   const lockArea=headArea&&headArea!=="genel"?headArea:"";
   const [from,setFrom]=useState(()=>evalWeekShift(evalWeek(),-7));
-  const [to,setTo]=useState(()=>new Date().toISOString().slice(0,10));
+  const [to,setTo]=useState(()=>ymdLocal(new Date()));
   const [area,setArea]=useState(lockArea||"all");
   const [teachF,setTeachF]=useState("all");
   const [clsF,setClsF]=useState("all");
@@ -14882,7 +14882,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
 
   const DAY_NAMES_KU = ["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"];
   const todayKu = DAY_NAMES_KU[currentTime.getDay()]; // 0=Yekşem(Pazar), 1=Dûşem...
-  const todayStr_t = currentTime.toISOString().slice(0,10);
+  const todayStr_t = ymdLocal(currentTime);
   const nowMin = currentTime.getHours()*60 + currentTime.getMinutes();
 
   // Bugünkü dersler — hem haftalık (day eşleşmesi) hem de tarih bazlı ek dersler
@@ -15082,7 +15082,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     const sessionId  = generateSessionToken(lessonId, teacher.id);
     // Ek ders için tarih — seçili tarihe göre ya da bugün
     const lessonDate = (lesson?.lessonType==="extra" && lesson?.extraDates)
-      ? (lesson.extraDates.find(d=>d===new Date().toISOString().slice(0,10)) || lesson.extraDates.filter(d=>d>=new Date().toISOString().slice(0,10)).sort()[0] || lesson.extraDates.sort().slice(-1)[0])
+      ? (lesson.extraDates.find(d=>d===ymdLocal(new Date())) || lesson.extraDates.filter(d=>d>=ymdLocal(new Date())).sort()[0] || lesson.extraDates.sort().slice(-1)[0])
       : null;
 
     // Oturumun alanı DERSİN alanıdır (öğretmenin değil): ortak/genel dersler ve
@@ -15154,7 +15154,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     const checkins = getSessionCheckins();
     const session  = window._aat_qr_session;
     // Ek ders için doğru tarihi kullan, yoksa bugün
-    const dateStr  = (session?._lessonDate) || new Date().toISOString().slice(0,10);
+    const dateStr  = (session?._lessonDate) || ymdLocal(new Date());
 
     // 1. QR oturumunu kapat + Firebase'e log yaz
     closeQRSession();
@@ -16283,7 +16283,7 @@ function StudentTeacherMessenger({student,teachers,lang,toast}){
     try{
       await fbSave("message",{from:student.name||"",fromType:"student",fromNo:String(student.no||""),fromId:student.id,fromArea:student.area||"",
         toRole:"teacher",toTeacherNo:String(t.no),to:t.name||"",type:"private",subject:subject.trim().slice(0,300),body:body.trim().slice(0,5000),
-        time:now.toISOString().slice(0,10)+" "+String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0"),read:false,isStudentFeedback:false});
+        time:ymdLocal(now)+" "+String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0"),read:false,isStudentFeedback:false});
       toast("✅ "+W2("Peyam ji mamoste re hate şandin","Message sent to the teacher")); setSubject(""); setBody(""); setOpen(false);
     }catch(e){ toast("❌ "+((e&&e.message)||e)); }
     setBusy(false);
@@ -16356,7 +16356,7 @@ function StudentSurveyView({student, a, lang, toast, mode}) {
 
   const visibleSurveys = surveys.filter(sv=>{
     if(!sv.active) return false;
-    if(sv.endDate&&sv.endDate<new Date().toISOString().slice(0,10)) return false;
+    if(sv.endDate&&sv.endDate<ymdLocal(new Date())) return false;
     if(mode==="teacher"){
       if(sv.targetType==="teachers") return true;
       if(sv.targetType==="teachers_area") return (sv.targetAreas||[]).includes(student.area);
@@ -16889,7 +16889,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
             {(()=>{
               const DAY_NAMES_S = ["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"];
               const todayKuS = DAY_NAMES_S[new Date().getDay()];
-              const todayStrS = new Date().toISOString().slice(0,10);
+              const todayStrS = ymdLocal(new Date());
               const nowMinS = new Date().getHours()*60+new Date().getMinutes();
               const todayLs = mySchedule.filter(s=>{
                 if(!s.lessonType||s.lessonType==="main") return s.day===todayKuS&&lessonOnDate(s,_terms,todayStrS);
@@ -17213,101 +17213,65 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
         )}
 
         {/* ── DERS PROGRAMI ── */}
-        {view==="schedule"&&(
-          <>
+        {view==="schedule"&&(()=>{
+          // Bu hafta (Pazartesi–Pazar, yerel tarih): haftalık dersler + tek günlük dersler aynı listede, günün tarihiyle.
+          // Geçen günler soluk; ardından sonraki haftaların tarihli dersleri.
+          const DN=["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"];
+          const todayL=ymdLocal(new Date()), wk=evalWeek();
+          const days=[...Array(7)].map((_,i)=>{ const p=wk.split("-").map(Number); const d=new Date(p[0],p[1]-1,p[2]+i); return {date:ymdLocal(d),ku:DN[d.getDay()],d}; });
+          const onDate=(ls,date,ku)=>ls.lessonType==="extra"?(ls.extraDates||[]).includes(date):(ls.day===ku&&lessonOnDate(ls,_terms,date));
+          const weekRows=days.map(x=>({...x,ls:mySchedule.filter(l=>onDate(l,x.date,x.ku)).sort((a,b)=>String(a.start||"").localeCompare(String(b.start||"")))}));
+          const weekN=weekRows.reduce((n,r)=>n+r.ls.length,0);
+          const lastDay=days[6].date;
+          const later=[...new Set(mySchedule.filter(l=>l.lessonType==="extra").flatMap(l=>l.extraDates||[]))].filter(d=>d>lastDay).sort().slice(0,10);
+          const M=calMonths();
+          const dLbl=x=>(t.days?.[x.ku]||x.ku)+" · "+x.d.getDate()+" "+M[x.d.getMonth()];
+          const card=(ls,past)=>(
+            <div key={ls.id} data-sched-lesson={ls.id} style={{display:"flex",gap:10,marginBottom:7,opacity:past?0.55:1}}>
+              <div style={{display:"flex",flexDirection:"column",alignItems:"center",minWidth:38}}>
+                <span style={{fontSize:10,color:"var(--text2)",fontWeight:600}}>{ls.start}</span>
+                <div style={{flex:1,width:1.5,background:"rgba(15,47,56,0.25)",margin:"3px 0"}}/>
+                <span style={{fontSize:10,color:"var(--text2)"}}>{ls.end}</span>
+              </div>
+              <div style={{flex:1,background:"var(--surface2)",borderRadius:10,padding:"10px 13px",borderLeft:"3px solid "+(isExtraLesson(ls)?"#ea580c":a.color),border:"1px solid rgba(15,23,42,.08)"}}>
+                <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{lessonIcon(ls)} {ls.name}</div>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginTop:3,flexWrap:"wrap"}}>
+                  {isExtraLesson(ls)&&<span data-extra-badge style={{fontSize:10,padding:"2px 7px",borderRadius:20,background:"rgba(234,88,12,0.10)",color:"#ea580c",fontWeight:700}}>{lessonCat(ls)==="workshop"?"🛠 ":"➕ "}{lessonCatLabel(lessonCat(ls))}</span>}
+                  {ls.lessonType!=="extra"&&<span style={{fontSize:10,color:"var(--text2)"}}>🔁 {lang==="en"?"weekly":K("her hefte")}</span>}
+                  {ls.loc&&ls.loc!=="—"&&<span style={{fontSize:11,color:a.color}}>📍 {ls.loc}</span>}
+                  {(ls.teacherName||ls.guestTeacher)&&<span style={{fontSize:11,color:"var(--text2)"}}>👩‍🏫 {ls.teacherName||ls.guestTeacher}</span>}
+                </div>
+              </div>
+            </div>);
+          return(<>
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,padding:"10px 14px",background:"var(--surface2)",borderRadius:12,border:"1px solid rgba(15,23,42,.08)",borderLeft:"3px solid "+a.color}}>
               <span style={{fontSize:24}}>{a.icon}</span>
               <div>
                 <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{areaName(student.area,lang)}</div>
-                <div style={{fontSize:11,color:a.color}}>{mySchedule.length} {lang==="en"?"lessons · Weekly schedule":K("ders · Bernameya hefteyê")}</div>
+                <div data-week-count style={{fontSize:11,color:a.color}}>{lang==="en"?("This week: "+weekN+" lessons"):KF("Ev hefte: {0} ders",[weekN])}</div>
               </div>
             </div>
             {mySchedule.length===0?(
               <Card><div style={{textAlign:"center",padding:24,color:"var(--text2)"}}>{lang==="en"?"No classes added yet":K("Hîn ders nehatiye zêdekirin")}</div></Card>
-            ):(
-              <>
-                {/* ANA DERSLER — haftalık */}
-                {(()=>{
-                  const mainLs = mySchedule.filter(s=>!s.lessonType||s.lessonType==="main");
-                  if(!mainLs.length) return null;
-                  return(
-                    <>
-                      <div style={{fontSize:11,fontWeight:700,color:"var(--text)",textTransform:"uppercase",letterSpacing:"0.07em",margin:"8px 0 6px",display:"flex",alignItems:"center",gap:6}}>
-                        📅 {t.mainLessonsWeekly}
-                      </div>
-                      {["Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî","Yekşem"].map(day=>{
-                        const dayL=mainLs.filter(s=>s.day===day);
-                        if(!dayL.length) return null;
-                        return(
-                          <div key={day} style={{marginBottom:12}}>
-                            <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",textTransform:"uppercase",letterSpacing:"0.07em",margin:"0 0 7px"}}>{t.days?.[day]||day}</div>
-                            {dayL.map(ls=>(
-                              <div key={ls.id} style={{display:"flex",gap:10,marginBottom:7}}>
-                                <div style={{display:"flex",flexDirection:"column",alignItems:"center",minWidth:38}}>
-                                  <span style={{fontSize:10,color:"var(--text2)",fontWeight:600}}>{ls.start}</span>
-                                  <div style={{flex:1,width:1.5,background:"rgba(15,47,56,0.25)",margin:"3px 0"}}/>
-                                  <span style={{fontSize:10,color:"var(--text2)"}}>{ls.end}</span>
-                                </div>
-                                <div style={{flex:1,background:"var(--surface2)",borderRadius:10,padding:"10px 13px",borderLeft:"3px solid "+a.color,border:"1px solid rgba(15,23,42,.08)"}}>
-                                  <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{ls.name}</div>
-                                  <div style={{fontSize:11,color:a.color,marginTop:3}}>📍 {ls.loc}</div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })}
-                    </>
-                  );
-                })()}
-                {/* EK DERSLER / ATÖLYE — tarih bazlı */}
-                {(()=>{
-                  const extraLs = mySchedule.filter(s=>s.lessonType==="extra");
-                  if(!extraLs.length) return null;
-                  const todayStrS2 = new Date().toISOString().slice(0,10);
-                  const allDates=[...new Set(extraLs.flatMap(l=>l.extraDates||[]))].filter(d=>d>=todayStrS2).sort().slice(0,10);
-                  if(!allDates.length) return null;
-                  return(
-                    <>
-                      <div style={{fontSize:11,fontWeight:700,color:"#ea580c",textTransform:"uppercase",letterSpacing:"0.07em",margin:"16px 0 6px",display:"flex",alignItems:"center",gap:6}}>
-                        📅 {lang==="en"?"Dated lessons":K("Dersên bi tarîx")}
-                      </div>
-                      {allDates.map(date=>{
-                        const dayLs=extraLs.filter(l=>(l.extraDates||[]).includes(date));
-                        if(!dayLs.length) return null;
-                        const isToday=date===todayStrS2;
-                        return(
-                          <div key={date} style={{marginBottom:12}}>
-                            <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.07em",margin:"0 0 7px",
-                              color:isToday?"var(--accent)":"var(--text2)"}}>
-                              {isToday?"📅 "+date+" ("+( t.todayLabel)+")":date}
-                            </div>
-                            {dayLs.map(ls=>(
-                              <div key={ls.id} style={{display:"flex",gap:10,marginBottom:7}}>
-                                <div style={{display:"flex",flexDirection:"column",alignItems:"center",minWidth:38}}>
-                                  <span style={{fontSize:10,color:"var(--text2)",fontWeight:600}}>{ls.start}</span>
-                                  <div style={{flex:1,width:1.5,background:"rgba(234,88,12,0.25)",margin:"3px 0"}}/>
-                                  <span style={{fontSize:10,color:"var(--text2)"}}>{ls.end}</span>
-                                </div>
-                                <div style={{flex:1,background:"var(--surface2)",borderRadius:10,padding:"10px 13px",borderLeft:"3px solid "+(isExtraLesson(ls)?"#ea580c":a.color),border:"1px solid rgba(15,23,42,.08)"}}>
-                                  <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{lessonIcon(ls)} {ls.name}</div>
-                                  <div style={{display:"flex",alignItems:"center",gap:8,marginTop:3}}>
-                                    {isExtraLesson(ls)&&<span data-extra-badge style={{fontSize:10,padding:"2px 7px",borderRadius:20,background:"rgba(234,88,12,0.10)",color:"#ea580c",fontWeight:700}}>{lessonCat(ls)==="workshop"?"🛠 ":"➕ "}{lessonCatLabel(lessonCat(ls))}</span>}
-                                    <span style={{fontSize:11,color:isExtraLesson(ls)?"#ea580c":a.color}}>📍 {ls.loc}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })}
-                    </>
-                  );
-                })()}
-              </>
-            )}
-          </>
-        )}
+            ):(<>
+              {weekN===0&&<Card><div style={{textAlign:"center",padding:16,color:"var(--text2)",fontSize:13}}>{lang==="en"?"No lessons this week.":K("Vê heftê ders tune.")}</div></Card>}
+              {weekRows.filter(r=>r.ls.length).map(r=>{ const isT=r.date===todayL, past=r.date<todayL;
+                return(<div key={r.date} data-sched-day={r.date} style={{marginBottom:12}}>
+                  <div style={{fontSize:11,fontWeight:800,letterSpacing:"0.06em",margin:"0 0 7px",color:isT?"var(--accent)":"var(--text2)",textTransform:"uppercase"}}>
+                    {isT?"📍 ":""}{dLbl(r)}{isT?" · "+(t.todayLabel||K("Îro")):""}</div>
+                  {r.ls.map(ls=>card(ls,past))}
+                </div>); })}
+              {later.length>0&&<>
+                <div style={{fontSize:11,fontWeight:700,color:"var(--text)",textTransform:"uppercase",letterSpacing:"0.07em",margin:"16px 0 6px"}}>📅 {lang==="en"?"Later":K("Paşê")}</div>
+                {later.map(date=>{ const p=date.split("-").map(Number), d=new Date(p[0],p[1]-1,p[2]); const x={date,ku:DN[d.getDay()],d};
+                  return(<div key={date} style={{marginBottom:12}}>
+                    <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",margin:"0 0 7px",textTransform:"uppercase"}}>{dLbl(x)}</div>
+                    {mySchedule.filter(l=>l.lessonType==="extra"&&(l.extraDates||[]).includes(date)).map(ls=>card(ls,false))}
+                  </div>); })}
+              </>}
+            </>)}
+          </>);
+        })()}
 
         {/* ── ANKÊT (Student Surveys) ── */}
         {view==="teval"&&<StudentTeacherEval student={student} teachers={myTeachers} evals={myTEvals} lang={lang} toast={toast}/>}
