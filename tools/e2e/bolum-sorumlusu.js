@@ -111,7 +111,7 @@ async function routes(ctx) {
   await goA(s1, 'feedback'); await s1.waitForTimeout(1500);
   ok('Öğrenci "bölüm sorumlusu" seçeneğini görür', (await s1.locator('[data-to-head="1"]').count()) === 1);
   await s1.click('[data-to-head="1"]');
-  await s1.locator('input').filter({ hasNot: s1.locator('[type=checkbox]') }).last().fill('Kostûm');
+  await s1.fill('#fb-subj', 'Kostûm');
   await s1.locator('textarea').last().fill('Ji bo provayê kostûm heye?');
   await btn(s1, 'Bişîne'); await s1.waitForTimeout(2000);
   const sm = (await list('messages')).filter(d => d.fields.body && d.fields.body.stringValue === 'Ji bo provayê kostûm heye?');
@@ -130,7 +130,7 @@ async function routes(ctx) {
   await btn(hp, 'Peyamek Nû'); await hp.waitForTimeout(400);
   const opts = await hp.locator('[data-head-to] option').allTextContents();
   ok('Mesaj alıcıları: yönetici + yalnızca bölüm öğretmenleri (öğrenci yok)', opts.length === 2 && opts.join('|').includes('Mamoste Şano') && !opts.join('|').includes('Mamoste Muzîk') && !opts.join('|').includes('Rojîn'), opts.join(' | '));
-  await hp.selectOption('[data-head-to]', { label: '👨‍🏫 Mamoste Şano' });
+  await hp.selectOption('[data-head-to]', { label: 'Mamoste Şano' });
   await hp.fill('#hm-subject', 'Lîsteya kostûman'); await hp.fill('#hm-body', 'Pel li pêvekê ye');
   await hp.setInputFiles('input[type=file]', { name: 'kostum.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 x') });
   await hp.waitForTimeout(400); await btn(hp, 'Bişîne'); await hp.waitForTimeout(2000);

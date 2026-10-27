@@ -97,7 +97,7 @@ function evalWeek(d) { const x = d ? new Date(d) : new Date(); const y = new Dat
   ok('İlerleme 1 / 2', (await tp.locator('[data-ev-progress]').innerText()).includes('1 / 2'));
   // 3) Duyuru: yalnız kendi sınıfına, dosyasız
   await goA(tp, 'announce'); await tp.waitForTimeout(800);
-  await btn(tp, '📤 Bişîne'); await tp.waitForTimeout(400);
+  await tp.locator('[role=tab]', { hasText: 'Bişîne' }).first().click(); await tp.waitForTimeout(400);
   ok('Duyuruda dosya ekleme yok', (await tp.locator('input[type=file]').count()) === 0);
   await tp.click('[data-ann-class="C1"]');
   await tp.locator('input[maxlength="140"]').fill('Prova Înê'); await tp.locator('textarea[maxlength="3000"]').fill('Saet 14:00 li salonê');
@@ -147,7 +147,7 @@ function evalWeek(d) { const x = d ? new Date(d) : new Date(); const y = new Dat
   ok('Öğrenci → öğretmen mesajı kaydedildi', sm.length === 1 && sm[0].fields.fromNo.stringValue === '20202601' && sm[0].fields.toRole.stringValue === 'teacher');
   ok('Öğrenci gönderdiğini görür', (await txt(sp)).includes('Pirsa li ser rola min'));
   await goA(tp, 'myclass'); await tp.waitForTimeout(800); await tp.click('[data-hub-tab="messages"]'); await tp.waitForTimeout(800);
-  await tp.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.offsetParent && x.textContent.includes('← Vegere')); b && b.click(); }); await tp.waitForTimeout(1000);
+  await tp.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.offsetParent && (x.textContent.includes('← Vegere') || x.getAttribute('aria-label') === 'Vegere')); b && b.click(); }); await tp.waitForTimeout(1000);
   ok('Öğretmen gelen kutusunda öğrencinin mesajı', (await txt(tp)).includes('Pirsa li ser rola min'));
   await tp.evaluate(() => { const e = [...document.querySelectorAll('div')].filter(d => d.children.length < 6 && d.textContent.includes('Pirsa li ser rola min')).pop(); (e.closest('[style*="cursor"]') || e).click(); }); await tp.waitForTimeout(800);
   ok('Öğretmen öğrenciye yanıt verebilir', (await tp.locator('[data-reply-student]').count()) === 1);
