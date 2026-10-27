@@ -227,6 +227,34 @@ body.z-in .pano-lb{font-weight:600}
 body.z-in .bubble.them{background:#F2F4F4;border:0}
 body.z-in .sheet{background:#fff}
 body.z-in .toast{border-radius:999px;font-weight:600}
+/* Üst panel (C): baş harf dairesi + akademi adı · rol + selamlama + ayarlar; çocuk seçimi hap çipler */
+body.z-in .top{display:flex;align-items:center;gap:12px;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;background:#fff;border-bottom:1px solid var(--line);border-radius:0;box-shadow:none;margin-bottom:12px}
+body.z-in .top .pano-btn{margin-left:0!important}
+body.z-in .zt-av,body.z-in .zs-user .zt-av{width:44px;height:44px;border-radius:22px;background:#0f2f38;color:#E7C77B;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex-shrink:0;letter-spacing:.02em}
+body.z-in .zt-tx{flex:1;min-width:0}
+body.z-in .top .t2{font-size:12px;font-weight:600;color:#56676C;letter-spacing:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.z-in .top .t1{font-size:18px;font-weight:700;color:#102A31;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.z-in .top .iconbtn{margin-left:auto;width:44px;height:44px;border-radius:22px;background:#F2F4F4;border:0;color:#102A31;display:inline-flex;align-items:center;justify-content:center}
+body.z-in .kids{padding:0 16px 12px;gap:8px}
+body.z-in .kidchip{min-height:44px;padding:4px 16px 4px 4px;border:1px solid var(--line);background:#fff;font-weight:600}
+body.z-in .kidchip.on{background:#0f2f38;border-color:#0f2f38;color:#fff}
+body.z-in .kidchip .av{width:36px;height:36px;font-size:18px}
+@media(min-width:1000px){
+  body.z-in .top{border:1px solid var(--line);border-top:0;border-radius:0 0 20px 20px;padding:16px 20px}
+  body.z-in .zside{background:#fff;color:#102A31;border-right:1px solid #E1E6E7}
+  body.z-in .zs-head{color:#0f2f38;padding:20px 16px 0;font-size:10px;letter-spacing:.08em}
+  body.z-in .zs-user{flex-direction:row;align-items:center;gap:12px;margin:14px 12px 4px;padding:12px;background:#F7F8F8;border-radius:16px;border-bottom:0}
+  body.z-in .zs-user b{font-family:"Plus Jakarta Sans",Inter,sans-serif;font-weight:700;font-size:15px;color:#102A31;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  body.z-in .zs-user span:not(.zt-av){display:block;font-size:10.5px;letter-spacing:.04em;color:#56676C;font-weight:600;text-transform:uppercase}
+  body.z-in .zs-gt{color:#8A989C;letter-spacing:.08em;font-weight:700;font-size:11px;padding:16px 12px 6px}
+  body.z-in .zs-it{color:#3E5056;border-radius:12px;padding:0 12px}
+  body.z-in .zs-it svg{color:#56676C}
+  body.z-in .zs-it:hover{background:#F2F4F4;color:#102A31}
+  body.z-in .zs-it.on{background:#0f2f38;color:#fff;font-weight:600}
+  body.z-in .zs-it.on svg{color:#E7C77B}
+  body.z-in .zs-it.bad,body.z-in .zs-it.bad svg{color:#B42318}
+  body.z-in .zs-sep{background:#EEF1F2}
+}
 </style>
 </head>
 <body>
@@ -239,6 +267,7 @@ body.z-in .toast{border-radius:999px;font-weight:600}
 </script>
 <script src="../../app/lang-pack.js"></script>
 <script src="../../app/simge.js"></script>
+<script src="../../app/secim.js" defer></script>
 <script src="vendor/jsQR.js" defer></script>
 <script type="module">
 // ════════════════════════════════════════════════════════════════════════
@@ -634,18 +663,22 @@ function kidStatus(k) {
   return r[r.length - 1] || null;
 }
 function header() {
+  const isT = S.mode === "teacher";
+  const who = isT ? (S.teacher && S.teacher.name) || "" : (S.guardian && S.guardian.name) || "";
+  const ini = who.split(" ").filter(Boolean).map(w => w[0]).join("").slice(0, 2).toLocaleUpperCase() || "AZ";
   return [
     h("div", { class: "top" },
       !isWide() && !S.pano ? h("button", { class: "iconbtn pano-btn", "aria-label": T("menu"), onclick: () => { S.pano = true; render(); window.scrollTo(0, 0); } }, ico("grid", 20)) : null,
-      h("img", { class: "logo", src: "icons/akademi-mesale.png", alt: "" }),
-      h("div", null, h("div", { class: "t1" }, T("appTitle")), h("div", { class: "t2" }, S.mode === "teacher" ? "👩‍🏫 " + T("teacherHello", (S.teacher && S.teacher.name) || "") : T("hello", (S.guardian && S.guardian.name || "").split(" ")[0]))),
-      h("button", { class: "iconbtn", "aria-label": T("settings"), onclick: () => { S.sheet = "settings"; render(); } }, "⚙\uFE0E")),
-    S.mode !== "teacher" && S.kids.length > 1 ? h("div", { class: "kids" }, S.kids.map((k, i) => {
+      h("span", { class: "zt-av", "aria-hidden": "true" }, ini),
+      h("div", { class: "zt-tx" }, h("div", { class: "t2" }, T("appTitle") + " · " + (isT ? T("roleTeacher") : T("roleParent"))),
+        h("div", { class: "t1" }, isT ? T("teacherHello", (S.teacher && S.teacher.name) || "") : T("hello", (S.guardian && S.guardian.name || "").split(" ")[0]))),
+      h("button", { class: "iconbtn", "aria-label": T("settings"), onclick: () => { S.sheet = "settings"; render(); } }, ico("settings", 20))),
+    !isT && S.kids.length > 1 ? h("div", { class: "kids", role: "tablist", "aria-label": T("roleParent") }, S.kids.map((k, i) => {
       const [em, col] = areaEm(k.area);
-      return h("button", { class: "kidchip" + (i === S.kidIdx ? " on" : ""), onclick: () => { S.kidIdx = i; render(); } },
+      return h("button", { class: "kidchip" + (i === S.kidIdx ? " on" : ""), role: "tab", "aria-selected": i === S.kidIdx ? "true" : "false", onclick: () => { S.kidIdx = i; render(); } },
         h("span", { class: "av", style: "background:" + col + "22" }, em), k.name);
     })) : null,
-    S.online ? null : h("div", { class: "banner", style: "background:#6b7a85" }, "📡 " + T("offline"))
+    S.online ? null : h("div", { class: "banner", style: "background:#56676C" }, "📡 " + T("offline"))
   ];
 }
 function viewToday() {
@@ -1252,7 +1285,8 @@ function sideNav() {
   const who = S.mode === "teacher" ? (S.teacher && S.teacher.name) || "" : (S.guardian && S.guardian.name) || "";
   return h("aside", { class: "zside", "aria-label": T("menu") },
     h("div", { class: "zs-head" }, h("img", { src: "icons/akademi-mesale.png", alt: "", width: 22, height: 22 }), h("span", null, T("appTitle"))),
-    h("div", { class: "zs-user" }, h("b", null, who), h("span", null, S.mode === "teacher" ? T("roleTeacher") : T("roleParent"))),
+    h("div", { class: "zs-user" }, h("span", { class: "zt-av", "aria-hidden": "true" }, who.split(" ").filter(Boolean).map(w => w[0]).join("").slice(0, 2).toLocaleUpperCase() || "AZ"),
+      h("div", { style: "min-width:0" }, h("b", null, who), h("span", null, S.mode === "teacher" ? T("roleTeacher") : T("roleParent")))),
     h("nav", { class: "zs-items" }, groups.map(G => [G.g && groups.length > 1 ? h("div", { class: "zs-gt" }, T(G.g)) : null,
       G.its.map(([k, ic, lb, badge]) => h("button", { class: "zs-it" + (S.tab === k ? " on" : ""), "data-tab": k, "aria-current": S.tab === k ? "page" : null, onclick: () => goTab(k) },
         ico(ic, 18), h("span", { style: "flex:1" }, lb), badge ? h("span", { class: "dot" }, String(badge)) : null))]),

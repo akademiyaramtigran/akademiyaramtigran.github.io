@@ -211,6 +211,7 @@
 <script src="vendor/react.production.min.js"></script>
 <script src="vendor/react-dom.production.min.js"></script>
 <script src="simge.js"></script>
+<script src="secim.js" defer></script>
 <script>
 /* ── EMOJİ → ÇİZGİ SİMGE ──────────────────────────────────────────────────
    Arayüz metinlerindeki emojiler (✅ ⚠ 📋 💾 …) çizimde tek tip çizgi simgelere
@@ -1656,6 +1657,30 @@ html.aat-in .c-dock-bdg{position:absolute;top:6px;right:calc(50% - 22px);min-wid
 html.aat-in.has-dock .scroll-area{padding-bottom:calc(100px + env(safe-area-inset-bottom,0px))!important}
 html.aat-in.has-dock .pano-body{padding-bottom:calc(100px + env(safe-area-inset-bottom,0px))}
 @media (min-width:1000px){html.aat-in .c-dock{display:none}}
+
+/* Sol menü (geniş ekran / web) — açık zemin, kullanıcı kartı, gruplar, petrol seçili öğe */
+@media (min-width:1000px){
+  html.aat-in #root{background:#F7F8F8}
+  html.aat-in .sm{background:#fff!important;border-right:1px solid #E1E6E7!important}
+  html.aat-in .sm-head{background:transparent!important;border-bottom:0!important;color:#102A31;padding:20px 16px 8px!important}
+  html.aat-in .sm-brand{margin-bottom:14px}
+  html.aat-in .sm-brand span{color:#0f2f38;letter-spacing:.08em;font-size:10px}
+  html.aat-in .sm-user{background:#F7F8F8;border-radius:16px;padding:12px;gap:12px}
+  html.aat-in .sm-av{width:44px;height:44px;background:#0f2f38;color:#E7C77B;border:0;font-family:var(--font-ui);font-weight:700;font-size:15px;letter-spacing:.02em}
+  html.aat-in .sm-head .sm-nm{color:#102A31;font-family:var(--font-ui);font-weight:700;font-size:15px}
+  html.aat-in .sm-head .sm-rl{color:#56676C;letter-spacing:.04em;font-size:10.5px;font-weight:600}
+  html.aat-in .sm-items{padding:4px 12px 16px}
+  html.aat-in .sm-gt{padding:16px 12px 6px;font-size:11px;font-weight:700;letter-spacing:.08em;color:#8A989C}
+  html.aat-in .sm-it{color:#3E5056!important;border-radius:12px!important;padding:10px 12px!important;min-height:44px;font-weight:500;margin-bottom:2px}
+  html.aat-in .sm-it .sm-ic{color:#56676C}
+  html.aat-in .sm-it:hover{background:#F2F4F4;color:#102A31!important}
+  html.aat-in .sm-it.active{background:#0f2f38!important;color:#fff!important;font-weight:600}
+  html.aat-in .sm-it.active .sm-ic{color:#E7C77B}
+  html.aat-in .sm-it.sm-danger{color:#B42318!important}
+  html.aat-in .sm-it.sm-danger .sm-ic{color:#B42318}
+  html.aat-in .sm-sep{background:#EEF1F2}
+  html.aat-in .sm-it .sm-bdg{background:#B42318}
+}
 </style>
 </head>
 <body style="position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;overflow:hidden;background:#ffffff;margin:0;padding:0;overscroll-behavior:none;">
@@ -3972,7 +3997,7 @@ const ICO={trash:"M4 7h16M9 7V4.5h6V7m-8.5 0 1 12.5h9l1-12.5M10 11v5.5M14 11v5.5
   send:"m22 2-7 20-4-9-9-4zM22 2 11 13",check:"M20 6 9 17l-5-5",
   shield:"M12 21s7-3.5 7-9V5.5L12 3 5 5.5V12c0 5.5 7 9 7 9z",lock:"M6 11h12v9H6zM8 11V7a4 4 0 0 1 8 0v4",
   ok:"M21 11.1V12a9 9 0 1 1-5.3-8.2M21 4 12 13l-3-3",pin:"M12 21s7-6.2 7-11.5a7 7 0 0 0-14 0C5 14.8 12 21 12 21zM12 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z",
-  back:"M15 18l-6-6 6-6",film:"M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4",
+  back:"M15 18l-6-6 6-6",leave:"M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM10 13l4 4M14 13l-4 4",film:"M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4",
   mask:"M4 4h16v7a8 8 0 0 1-16 0zM8.5 9h.01M15.5 9h.01M9 14a4 4 0 0 0 6 0",palette:"M12 3a9 9 0 0 0 0 18c1 0 1.8-.8 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.4-.7-.4-1.2 0-1 .8-1.8 1.8-1.8h2.1A5.2 5.2 0 0 0 22 9.8C21.6 5.9 17.3 3 12 3zM7.5 11.5h.01M10 7.5h.01M15 7.5h.01",
   dance:"M12 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM12 8v6l-3 7M12 14l3 7M7 10l5-2 5 2",clip:"m21.4 11.1-9.2 9.2a6 6 0 0 1-8.5-8.5l8.6-8.6a4 4 0 1 1 5.7 5.7l-8.6 8.6a2 2 0 0 1-2.8-2.8l8.5-8.5",
   file:"M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h4",download:"M20 15v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-4M7 10l5 5 5-5M12 15V3",refresh:"M20 12a8 8 0 0 1-14 5.3L4 15M4 12a8 8 0 0 1 14-5.3L20 9M20 4v5h-5M4 20v-5h5"};
@@ -3980,10 +4005,10 @@ const ICO={trash:"M4 7h16M9 7V4.5h6V7m-8.5 0 1 12.5h9l1-12.5M10 11v5.5M14 11v5.5
 const NAV_ICO={home:"today",attendance:"att",scanner:"qr",checkin:"qr",myclass:"cls",sinif:"cls",students:"users",schedule:"cal",
   qad:"music",serledan:"inbox",announce:"ann",announcements:"ann",messages:"msg",feedback:"note",alerts:"bell",
   press:"news",nuce:"news",arsiv:"archive",reports:"report",rapor:"report",surveys:"poll",anket:"poll",evaluation:"star",seval:"star",teval:"star",gatt:"att",
-  profile:"user",zarok:"kid"};
+  profile:"user",zarok:"kid",leaves:"leave"};
 const NAV_GRP={zarok:"zarok",home:"ders",attendance:"ders",scanner:"ders",checkin:"ders",myclass:"ders",sinif:"ders",students:"ders",schedule:"ders",gatt:"ders",
   qad:"kayit",serledan:"kayit",announce:"iletisim",announcements:"iletisim",messages:"iletisim",feedback:"iletisim",alerts:"iletisim",
-  press:"yayin",nuce:"yayin",arsiv:"yayin",reports:"rapor",rapor:"rapor",surveys:"nirx",anket:"nirx",evaluation:"nirx",seval:"nirx",teval:"nirx",profile:"hesap"};
+  press:"yayin",nuce:"yayin",arsiv:"yayin",reports:"rapor",rapor:"rapor",surveys:"nirx",anket:"nirx",evaluation:"nirx",seval:"nirx",teval:"nirx",profile:"hesap",leaves:"ders"};
 const NAV_GRP_ORDER=["kayit","ders","iletisim","yayin","nirx","rapor","zarok","","hesap"];
 function navGrpLabel(g){ const en=RL()==="en";
   return g==="kayit"?(en?"Registration & Applications":K("Tomar û Serlêdan")):g==="ders"?(en?"Lessons":K("Ders")):g==="iletisim"?(en?"Communication":K("Têkilî")):g==="yayin"?(en?"Publishing":K("Weşan"))
