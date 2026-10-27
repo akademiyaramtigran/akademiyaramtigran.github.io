@@ -176,6 +176,8 @@ function evalWeek(d) { const x = d ? new Date(d) : new Date(); const y = new Dat
   // 7) Yönetici: öğrenci ayrıntısında GERÇEK haftalık grafik
   const ap = await login(await mk(), '1000', 'Admin123');
   await goA(ap, 'reports'); await ap.waitForTimeout(1500);
+  const r1 = await ap.locator('[data-rep-student="20202601"]').innerText(), r2 = await ap.locator('[data-rep-student="20202602"]').innerText();
+  ok('Devam raporu doğrudan yoklamalardan (misafir dersi dahil, anında)', r1.includes('100%') && r2.includes('0%'), r1.replace(/\n/g, ' ') + ' | ' + r2.replace(/\n/g, ' '));
   await ap.click('[data-rep-student="20202601"]'); await ap.waitForTimeout(2500);
   const ch = await ap.evaluate(() => { const c = document.querySelector('[data-week-chart]'); return c ? c.innerText : ''; });
   const det = await ap.evaluate(() => (document.querySelector('[data-student-report]') || {}).innerText || '');

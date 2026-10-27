@@ -12105,6 +12105,23 @@ function TeacherAttendanceReport({teachers,schedule,lang,toast}){
 }
 
 function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
+  // Devam bilgisi DOĞRUDAN yoklama kayıtlarından (attendance) — kim alırsa alsın (öğretmen, sorumlu, QR) anında doğru.
+  //  records:{öğrenciId:"on"|"late"|"off"|"leave"}; "ders yapılmadı" (teacherAbsent) kayıtları sayılmaz.
+  const [attDocsR,setAttDocsR]=useState([]);
+  useEffect(()=>{
+    const F=window.__FB; if(!F||!F.isConfigured()) return; let u=()=>{};
+    try{ u=F.onSnapshot(F.collection(F.db,"attendance"),sn=>setAttDocsR(sn.docs.map(d=>d.data())),()=>{}); }catch(_){}
+    return ()=>{ try{u();}catch(_){} };
+  },[]);
+  const attMap=useMemo(()=>{
+    const m={};
+    attDocsR.forEach(d=>{ if(d.teacherAbsent||!d.records) return;
+      Object.entries(d.records).forEach(([id,v])=>{ const x=m[id]||(m[id]={totalLessons:0,attended:0,absent:0,late:0,leaves:0});
+        if(v==="leave") x.leaves++; else if(v==="on"||v==="late"||v==="off"){ x.totalLessons++; if(v==="off") x.absent++; else x.attended++; if(v==="late") x.late++; } }); });
+    Object.values(m).forEach(x=>{ x.att=x.totalLessons?Math.round(x.attended/x.totalLessons*100):0; });
+    return m;
+  },[attDocsR]);
+  const attSt=id=>attMap[String(id)]||{att:0,totalLessons:0,attended:0,absent:0,late:0,leaves:0,note:""};
   const [selectedArea,setSelectedArea]=useState("all");
   const [reportType,setReportType]=useState("attendance"); // attendance | full | survey | teachers
   const [surveyTarget,setSurveyTarget]=useState("all_students"); // all_students | all_teachers | area_students | area_teachers
@@ -12147,7 +12164,7 @@ function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
     const areaLabel = (selectedArea==="all" ? (lang==="en"?"All Fields":K("Hemû Qadan")) : areaName(selectedArea,lang))+(filterNote?" · "+H(filterNote):"");
 
     const rows = filteredStudents.map(s=>{
-      const st = getStudentStats(s.id);
+      const st = attSt(s.id);
       const a = AREA_MAP[s.area]||AREA_MAP["genel"]||{color:"#0f2f38",bg:"rgba(15,47,56,0.08)",icon:"🎓"};
       const attColor = attColorOf(st);
       const attBg = pctBg(st.att);
@@ -12180,10 +12197,10 @@ function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
       headerCols += `<th>${W("Nirxandin (navgîn)","Evaluation (avg)")}</th><th>${W("Nîşeya dawî ya mamoste","Latest teacher note")}</th>`;
     }
 
-    const ratedStudents = filteredStudents.filter(s=>getStudentStats(s.id).totalLessons>0);
+    const ratedStudents = filteredStudents.filter(s=>attSt(s.id).totalLessons>0);
     const avgAtt = ratedStudents.length
-      ? Math.round(ratedStudents.reduce((a,s)=>a+getStudentStats(s.id).att,0)/ratedStudents.length) : 0;
-    const riskCount = ratedStudents.filter(s=>getStudentStats(s.id).att<75).length;
+      ? Math.round(ratedStudents.reduce((a,s)=>a+attSt(s.id).att,0)/ratedStudents.length) : 0;
+    const riskCount = ratedStudents.filter(s=>attSt(s.id).att<75).length;
 
     return `<!DOCTYPE html>
 ${`<html lang="${lang}">`}
@@ -12291,7 +12308,7 @@ ${`</html>`}`;
     const W2=(ku,en)=>lang==="en"?en:K(ku);
     const rows=[[W2("Xwendekar","Student"),"No",W2("Qad","Field"),W2("Sînif","Class"),W2("Amadebûn","Attendance")+" %",W2("Tunebûn (roj)","Absent (days)"),W2("Dereng","Late"),W2("Destûrî (ders)","On leave (lessons)"),W2("Sedema destûrê","Leave reason"),W2("Nirxandin (navgîn)","Evaluation (avg)")]];
     filteredStudents.forEach(st2=>{
-      const d=getStudentStats(st2.id);
+      const d=attSt(st2.id);
       rows.push([st2.name,st2.no,areaName(st2.area,lang),classesOfStudent(clsDocs,st2.no).map(d=>d.name).join(" | "),statHasData(d)?d.att:"",d.absent||0,d.late||0,d.leaves||0,leaveTxt(st2),(e=>e.avg==null?"":e.avg.toFixed(1))(evOf(st2))]);
     });
     downloadCSV("rapor-"+(selectedArea==="all"?"hemu":selectedArea)+"-"+new Date().toISOString().slice(0,10)+".csv",rows);
@@ -12302,11 +12319,11 @@ ${`</html>`}`;
 
   // Sadece yoklama verisi olan öğrencileri (totalLessons>0) ortalama/risk hesabına kat;
   // veri yoksa %0 ve "herkes riskte" gibi yanıltıcı/kötü görünüm oluşmasın.
-  const ratedStudents = filteredStudents.filter(s=>getStudentStats(s.id).totalLessons>0);
+  const ratedStudents = filteredStudents.filter(s=>attSt(s.id).totalLessons>0);
   const hasAttData = ratedStudents.length>0;
   const avgAtt = hasAttData
-    ? Math.round(ratedStudents.reduce((a,s)=>a+getStudentStats(s.id).att,0)/ratedStudents.length) : 0;
-  const riskCount = ratedStudents.filter(s=>getStudentStats(s.id).att<75).length;
+    ? Math.round(ratedStudents.reduce((a,s)=>a+attSt(s.id).att,0)/ratedStudents.length) : 0;
+  const riskCount = ratedStudents.filter(s=>attSt(s.id).att<75).length;
 
   // Survey data for report
   const allResponses = loadSurveyResponses();
@@ -12525,7 +12542,7 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
 
         {/* Student/Teacher list preview */}
         {reportType!=="teachers"&&filteredStudents.slice(0,showAll?filteredStudents.length:5).map((s,i)=>{
-          const st=getStudentStats(s.id);
+          const st=attSt(s.id);
           const a=AREA_MAP[s.area]||AREA_MAP["genel"]||{color:"#0f2f38",bg:"rgba(15,47,56,0.08)",icon:"🎓"};
           const attColor=attColorOf(st);
           return(
