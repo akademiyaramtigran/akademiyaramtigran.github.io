@@ -242,7 +242,7 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   ok('Sınıfım: sınıftaki çocukların adları görünür', (await txt(tp)).includes('Dilan Aram · Zîlan Aram') || /Dilan Aram.*Zîlan Aram|Zîlan Aram.*Dilan Aram/.test(await txt(tp)));
   // Öğretmen yeni mesaj: tüm sınıfın ailelerine
   await goZ(tp, 'myclass'); await tp.waitForTimeout(400); await tp.click('[data-hub="msg"]'); await tp.waitForTimeout(500);
-  await tp.selectOption('#t-nm-to', { label: '🏫 1. Sînif · hemû malbat' }); await tp.fill('#t-nm', 'Sibê konser heye');
+  await tp.selectOption('#t-nm-to', { label: '1. Sînif · hemû malbat' }); await tp.fill('#t-nm', 'Sibê konser heye');
   await tp.evaluate(() => [...document.querySelectorAll('main button.btn')].find(b => b.textContent.includes('Bişîne')).click()); await tp.waitForTimeout(2000);
   const kmsg = (await list('kidMessages')).filter(d => d.fields.text && d.fields.text.stringValue === 'Sibê konser heye');
   ok('Öğretmen sınıfın ailelerine yeni mesaj gönderir (aile başına bir)', kmsg.length >= 1 && kmsg.every(d => d.fields.from.stringValue === 'staff'), kmsg.length + ' mesaj');

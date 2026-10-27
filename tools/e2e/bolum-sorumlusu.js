@@ -130,7 +130,7 @@ async function routes(ctx) {
   await btn(hp, 'Peyamek Nû'); await hp.waitForTimeout(400);
   const opts = await hp.locator('[data-head-to] option').allTextContents();
   ok('Mesaj alıcıları: yönetici + yalnızca bölüm öğretmenleri (öğrenci yok)', opts.length === 2 && opts.join('|').includes('Mamoste Şano') && !opts.join('|').includes('Mamoste Muzîk') && !opts.join('|').includes('Rojîn'), opts.join(' | '));
-  await hp.selectOption('[data-head-to]', { label: '👨‍🏫 Mamoste Şano' });
+  await hp.selectOption('[data-head-to]', { label: 'Mamoste Şano' });
   await hp.fill('#hm-subject', 'Lîsteya kostûman'); await hp.fill('#hm-body', 'Pel li pêvekê ye');
   await hp.setInputFiles('input[type=file]', { name: 'kostum.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 x') });
   await hp.waitForTimeout(400); await btn(hp, 'Bişîne'); await hp.waitForTimeout(2000);

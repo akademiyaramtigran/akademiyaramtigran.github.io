@@ -210,6 +210,56 @@
 <!-- Üçüncü taraf kütüphaneler depoda barındırılır (vendor/README.md): CDN ele geçirilse bile kod enjekte edilemez -->
 <script src="vendor/react.production.min.js"></script>
 <script src="vendor/react-dom.production.min.js"></script>
+<script src="simge.js"></script>
+<script>
+/* ── EMOJİ → ÇİZGİ SİMGE ──────────────────────────────────────────────────
+   Arayüz metinlerindeki emojiler (✅ ⚠ 📋 💾 …) çizimde tek tip çizgi simgelere
+   (SVG, currentColor) dönüşür. Tablo ortak dosyada (simge.js, Çocuk Akademisi de
+   kullanır): yeni emoji için yalnızca orada map(...) eklenir. Tabloda olmayan emoji olduğu
+   gibi kalır (ör. kullanıcının yazdığı mesajlar). Giriş ekranında kapalıdır
+   (window.__aatEmo, App tarafından açılır). */
+(function(){
+  if(!window.React) return;
+  var SM=window.AAT_SIMGE; if(!SM) return;
+  var P=SM.P,M=SM.M,T=SM.T,RE=SM.RE,Q=SM.Q,first=SM.first,strip=SM.strip;
+  var ce=React.createElement;
+  // Simge + gizli emoji metni: ekranda yalnız çizgi simge görünür; metin araması (ve testler) için emoji metinde kalır
+  function svg(n,tone,raw){ return ce("span",{className:"ei-w","aria-hidden":"true"},
+    ce("svg",{className:"ei ei-"+n+(tone?" ei-t-"+tone:""),viewBox:"0 0 24 24",focusable:"false"},ce("path",{d:P[n]})),
+    ce("span",{className:"ei-tx"},raw)); }
+  function split(s){
+    if(!Q.test(s)) return null;
+    var out=[],last=0,m,hit=false; RE.lastIndex=0;
+    while((m=RE.exec(s))){ var b=first(m[0]),n=M[b]; if(!n) continue; hit=true;
+      if(m.index>last) out.push(s.slice(last,m.index)); out.push(svg(n,T[b],m[0])); last=m.index+m[0].length; }
+    if(!hit) return null; if(last<s.length) out.push(s.slice(last)); return out;
+  }
+  window.aatEmoStrip=strip;
+  var SKIP={textarea:1,style:1,script:1,text:1,tspan:1,title:1,svg:1,path:1};
+  var SP=["placeholder","title","aria-label","alt"];
+  React.createElement=function(type,props){
+    if(!window.__aatEmo||typeof type!=="string"||SKIP[type]) return ce.apply(null,arguments);
+    var a=arguments,changed=false,out=[type,props],i,v;
+    if(props){ for(i=0;i<SP.length;i++){ v=props[SP[i]];
+      if(typeof v==="string"&&Q.test(v)){ var nv=strip(v); if(nv!==v){ if(!changed) props=Object.assign({},props); props[SP[i]]=nv; changed=true; } } }
+      out[1]=props; }
+    var opt=type==="option";
+    for(i=2;i<a.length;i++){ var c=a[i];
+      if(typeof c==="string"){
+        if(opt){ var st=strip(c); if(st!==c) changed=true; out.push(st); }
+        else { var r=split(c); if(r){ changed=true; out.push.apply(out,r); } else out.push(c); }
+      } else if(Array.isArray(c)&&!opt&&c.some(function(x){ return typeof x==="string"&&Q.test(x); })){
+        changed=true;
+        out.push(c.map(function(x,k){ if(typeof x!=="string") return x; var r2=split(x); return r2?ce.apply(null,[React.Fragment,{key:"ei"+k}].concat(r2)):x; }));
+      } else out.push(c);
+    }
+    return changed?ce.apply(null,out):ce.apply(null,a);
+  };
+  // Tarayıcı iletişim kutularında da emoji kalmasın
+  ["alert","confirm","prompt"].forEach(function(f){ var o=window[f]; if(!o) return;
+    window[f]=function(msg){ var r=[].slice.call(arguments); if(window.__aatEmo) r[0]=strip(String(msg==null?"":msg)); return o.apply(window,r); }; });
+})();
+</script>
 <script src="vendor/qrcode.min.js"></script>
 <script src="vendor/html2canvas.min.js" defer></script>
 <script src="vendor/jspdf.umd.min.js" defer></script>
@@ -735,7 +785,7 @@
   window.dispatchEvent(new Event("fb-ready"));
 </script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
   /* ── KURUMSAL LACİVERT TEMA — Navy Corporate Professional ── */
@@ -768,32 +818,6 @@
   --serif:Georgia,'Iowan Old Style','Times New Roman',serif;
   --rule:#E7C77B;
 }
-
-/* ══ KOYU TEMA — html.theme-dark (useTheme bu sınıfı açıp kapatır) ══ */
-html.theme-dark {
-  --hero-grad:linear-gradient(160deg,#08171b 0%,#0f2f38 58%,#1c4a55 100%);
-  --bg1:#122a30;
-  --bg2:#17353d;
-  --bg3:#0a1e23;
-  --surface:#132d34;
-  --surface2:#0f252b;
-  --text:#eef1f8;
-  --text2:#9aa8c6;
-  --border:rgba(255,255,255,.10);
-  --border2:rgba(255,255,255,.17);
-  --red:#f87171;       --red-bg:rgba(248,113,113,.14);   --red-soft:#ef4444;
-  --green:#79d9ae;     --green-bg:rgba(95,185,142,.18);
-  --gold:#E7C77B;      --gold-bg:rgba(231,199,123,.16);
-  --navy:#0f2f38;      --navy2:#2c6b74;
-  --accent:#bfe3dd;    --accent-dim:rgba(95,170,160,.16);
-  --accent2:#4db3a0;
-  --glass-bg:rgba(20,29,48,0.98);
-  --glass-border:rgba(255,255,255,0.12);
-  --shadow:0 8px 32px rgba(0,0,0,0.55);
-  --shadow-sm:0 2px 8px rgba(0,0,0,0.45);
-  --shadow-card:0 1px 3px rgba(0,0,0,0.5),0 4px 16px rgba(0,0,0,0.32);
-}
-html.theme-dark .area-card { background:var(--surface); }
 
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body,#root{
@@ -865,7 +889,6 @@ input,select,textarea{font-family:inherit;}
   border-right:1px solid var(--border)}
 .sm.open{transform:translateX(0)}
 .sm-head{background:linear-gradient(180deg,#F7F2E8 0%,#F3EEE3 100%);border-bottom:1px solid var(--border);padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 18px;flex-shrink:0;color:var(--text)}
-html.theme-dark .sm-head{background:var(--surface2)}
 .sm-brand{display:flex;align-items:center;gap:8px;margin-bottom:16px}
 .sm-brand img{border-radius:6px;background:#fff;padding:2px}
 .sm-brand span{flex:1;min-width:0;font-size:9.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#9c7d33;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -885,7 +908,6 @@ html.theme-dark .sm-head{background:var(--surface2)}
 .sm-it.active{background:rgba(231,199,123,.16);border-left-color:#b8923f;color:#0f2f38;font-weight:700}
 .sm-it.active .sm-ic{background:#0f2f38;border-color:#0f2f38;filter:none}
 .sm-it.sm-danger{color:var(--red)}
-[data-theme="dark"] .sm-it.active{background:rgba(77,179,160,.10);border-left-color:#7fd0c0;color:#7fd0c0}
 .sm-it .sm-ar{margin-left:2px;color:var(--text2);font-size:17px;font-weight:400;line-height:1;flex-shrink:0;opacity:.7}
 .sm-it .sm-bdg{margin-left:auto;background:#dc2626;color:#fff;font-size:10px;font-weight:800;
   min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 5px}
@@ -902,28 +924,12 @@ html.theme-dark .sm-head{background:var(--surface2)}
 .pill-row::-webkit-scrollbar{display:none}
 .pill-row>*{flex-shrink:0}
 
-/* ══ KOYU MOD DÜZELTMELERİ ══ */
-html.theme-dark .aat-logo,html.theme-dark #splash-screen img{border-radius:10px;filter:brightness(.82) saturate(.9) contrast(1.05);box-shadow:0 0 0 1px rgba(255,255,255,.10);opacity:.94}
-html.theme-dark .card,html.theme-dark .list-row{background:var(--surface)}
-html.theme-dark .att-btn{color:var(--text2)}
-html.theme-dark .att-btn{background:var(--surface2)}
-html.theme-dark .stat-chip,html.theme-dark .area-card,
-html.theme-dark .ann-card,html.theme-dark .panel-card{background:var(--surface)}
-html.theme-dark .sm{background:var(--surface2)}
-html.theme-dark .glass-pill{background:rgba(255,255,255,.10);border-color:rgba(255,255,255,.18)}
-html.theme-dark input,html.theme-dark select,html.theme-dark textarea{background:var(--surface2);color:var(--text)}
-html.theme-dark .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
-html.theme-dark .admin-header .tab-btn.active{color:#ffffff;border-bottom-color:rgba(255,255,255,.95)}
-html.theme-dark .admin-header .tab-btn{color:rgba(255,255,255,0.62)}
-
 /* ══ EDITORIAL (Kurumsal Zarafet) ══ */
 .card{padding:16px 18px}
 .app-nav{border-top:1px solid var(--border);box-shadow:none}
 .app-nav-pill{border-radius:4px;background:none!important;transform:none!important}
 .app-nav-item.active .app-nav-label{color:#0f2f38;font-weight:800;letter-spacing:.04em}
-[data-theme="dark"] .app-nav-item.active .app-nav-label{color:#7fd0c0}
 .app-nav-item.active{box-shadow:inset 0 2px 0 #0f2f38}
-[data-theme="dark"] .app-nav-item.active{box-shadow:inset 0 2px 0 #7fd0c0}
 .tab-btn{letter-spacing:.03em}
 .glass-pill{border-radius:4px!important;letter-spacing:.04em}
 .sm-sep{margin:10px 0}
@@ -933,7 +939,6 @@ button{letter-spacing:.01em}
 /* ══ ÜST PANELLER — sitenin logo bandıyla aynı krem (petrol yazı, altın vurgu) ══ */
 .ph,.student-hero,.admin-header{background:linear-gradient(180deg,#F7F2E8 0%,#F1EBDF 100%)!important;border-bottom:1px solid var(--border)!important;
   box-shadow:0 4px 14px rgba(15,47,56,.06)!important;color:var(--text)}
-html.theme-dark .ph,html.theme-dark .student-hero,html.theme-dark .admin-header{background:var(--surface2)!important}
 :is(.ph,.student-hero,.admin-header) [style*="color: rgb(255, 255, 255)"]{color:var(--text)!important}
 :is(.ph,.student-hero,.admin-header) [style*="color: rgba(255, 255, 255"],:is(.ph,.student-hero,.admin-header) [style*="color: rgb(255, 180, 180)"]{color:var(--text2)!important}
 :is(.ph,.student-hero,.admin-header) [style*="background: rgba(255, 255, 255"]{background:var(--bg1)!important}
@@ -945,16 +950,7 @@ html.theme-dark .ph,html.theme-dark .student-hero,html.theme-dark .admin-header{
 .admin-header .tab-btn{color:var(--text2)!important}
 .admin-header .tab-btn.active{color:var(--accent)!important;border-bottom-color:#b8923f!important}
 .student-hero::before,.student-hero::after{background:rgba(184,146,63,.05)!important}
-
-/* ══ KOYU MOD — petrol öğeler koyu zeminde kaybolmasın ══ */
-html.theme-dark .sm-it.active{background:rgba(231,199,123,.10);color:#e7c77b}
-html.theme-dark .sm-it.active .sm-ic{background:#1c4a55;border-color:#2c6b74}
-html.theme-dark .btn-navy{background:#1c4a55;border-color:#2c6b74}
-html.theme-dark .btn-navy:hover{background:#235965}
-html.theme-dark button[style*="background: rgb(15, 47, 56)"]{background:#1c4a55!important;border-color:#2c6b74!important}
-html.theme-dark :is(div,span)[style*="background: rgb(15, 47, 56)"]{background:#1c4a55!important}
-html.theme-dark .app-nav-item.active .app-nav-label{color:#e7c77b}
-html.theme-dark .app-nav-item.active{box-shadow:inset 0 2px 0 #e7c77b}
+html.aat-in .student-hero::before,html.aat-in .student-hero::after{display:none!important}
 
 /* ══ DÜĞMELER — site ile uyumlu sade çizgi simgeler ══ */
 button:has(> .ico-solo){background:transparent!important;border:1px solid var(--border2)!important;color:var(--text2)!important;border-radius:9px!important;
@@ -971,7 +967,6 @@ button:has(> .ico-edit.ico-solo):hover{color:var(--accent)!important;border-colo
   opacity:0;visibility:hidden;transform:translateY(10px);transition:opacity .2s,transform .22s,visibility 0s .22s}
 .pano.open{opacity:1;visibility:visible;transform:none;transition:opacity .2s,transform .22s}
 .pano .sm-head{background:#0f2f38;color:#fff;border-bottom:0;padding:calc(env(safe-area-inset-top,0px) + 16px) 18px 56px}
-html.theme-dark .pano .sm-head{background:#0b2229}
 .pano .sm-brand span{color:#e7c77b}
 .pano .sm-x{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2);color:#fff;width:40px;height:40px}
 .pano .sm-av{width:54px;height:54px;background:rgba(255,255,255,.08);border-color:#e7c77b;color:#e7c77b;font-size:19px}
@@ -988,8 +983,6 @@ html.theme-dark .pano .sm-head{background:#0b2229}
 .pano-tile.active{border-color:#b8923f}
 .pano-tile.active .pano-ic{background:#0f2f38;color:#e7c77b}
 .pano-tile .sm-bdg{position:absolute;top:8px;right:8px;margin:0}
-html.theme-dark .pano-ic{background:#1c4a55;color:#e7c77b}
-html.theme-dark .pano-tile.active .pano-ic{background:#e7c77b;color:#0f2f38}
 .pano-extra{max-width:720px;margin:16px auto 0;background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden}
 .pano-row{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:0 16px;background:none;border:0;
   border-bottom:1px solid var(--border);color:var(--text);font:inherit;font-size:15px;cursor:pointer;text-align:left}
@@ -1381,7 +1374,7 @@ input:-webkit-autofill:focus {
 <meta name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='630'%3E%3Crect width='1200' height='630' fill='%230C2340'/%3E%3Ccircle cx='600' cy='280' r='180' fill='%230a1a30'/%3E%3Ctext x='600' y='330' text-anchor='middle' font-size='200' fill='%23F7D116'%3E%F0%9F%8E%93%3C/text%3E%3Ctext x='600' y='480' text-anchor='middle' font-size='42' fill='%23F7D116' font-family='sans-serif' font-weight='bold'%3EKONSERVATUARA ARAM TI%CC%82GRAN%3C/text%3E%3Ctext x='600' y='540' text-anchor='middle' font-size='22' fill='rgba(255,255,255,0.55)' font-family='sans-serif'%3EPergala Re%CC%82veberiya Zaniste%CC%82%3C/text%3E%3C/svg%3E"/>
 
 <!-- ══ RESOURCE HINTS: preload critical font ══ -->
-<link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" as="style" crossorigin/>
+<link rel="preload" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" as="style" crossorigin/>
 
 <!-- ══ SRI: Subresource Integrity on CDN scripts ══ -->
 <!-- Note: integrity hashes below are for the exact CDN versions used -->
@@ -1478,7 +1471,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:#ffffff;margin:0;pad
   .sm-head{padding-top:22px;}
   /* Lacivert, gruplu yan menü (C) */
   .sm{background:#0f2f38!important;border-right:0!important}
-  html.theme-dark .sm{background:#0b2229!important}
   .sm-head{background:transparent!important;border-bottom:1px solid rgba(231,199,123,.22)!important;color:#fff}
   .sm-head .sm-nm{color:#fff}
   .sm-head .sm-rl{color:#c9d6d9}
@@ -1503,6 +1495,99 @@ html,body{width:100%;height:100%;overflow:hidden;background:#ffffff;margin:0;pad
   /* Alt sayfalar masaüstünde dar pencere */
   .sheet-shell{max-width:620px!important;}
 }
+</style>
+<style id="aat-c">
+/* ══ İÇ TASARIM C — "Yumuşak Modern" ═══════════════════════════════════════
+   Beyaz zemin · petrol (#0f2f38) ana renk · altın (#E7C77B) yalnız vurgu ·
+   yuvarlak köşeler (12/16 px, hap düğmeler) · 44 px dokunma alanı ·
+   Plus Jakarta Sans · emoji yerine çizgi simgeler (.ei). Tek tema (açık). */
+html.aat-in{
+  --bg1:#ffffff; --bg2:#F2F4F4; --bg3:#F7F8F8;
+  --surface:#ffffff; --surface2:#F2F4F4;
+  --text:#102A31; --text2:#56676C;
+  --border:#E1E6E7; --border2:#D2DADC;
+  --accent:#0f2f38; --accent-dim:rgba(15,47,56,.07); --accent2:#2c6b74;
+  --green:#1E7A46; --green-bg:#E3F1E8; --red:#B42318; --red-bg:#FDECEA; --gold:#8A5A0B; --gold-bg:#FBF5E6;
+  --c-gold:#E7C77B; --c-ink-on-gold:#0f2f38;
+  --radius-sm:8px; --radius:12px; --radius-lg:16px;
+  --shadow-card:0 1px 2px rgba(16,42,49,.04);
+  --font-ui:'Plus Jakarta Sans','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+html.aat-in,html.aat-in body,html.aat-in #root{font-family:var(--font-ui);letter-spacing:0}
+html.aat-in button,html.aat-in input,html.aat-in select,html.aat-in textarea{font-family:var(--font-ui)}
+html.aat-in button{letter-spacing:0}
+
+/* Çizgi simgeler (emoji yerine) */
+html.aat-in .ei{display:inline-block;width:1.15em;height:1.15em;vertical-align:-.2em;flex-shrink:0;fill:none;stroke:currentColor;
+  stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;overflow:visible}
+html.aat-in .ei-dot{width:.75em;height:.75em;vertical-align:-.04em;fill:currentColor;stroke:none}
+html.aat-in .ei-t-ok{color:#1E7A46}html.aat-in .ei-t-err{color:#B42318}html.aat-in .ei-t-warn{color:#B45309}html.aat-in .ei-t-star{color:#B7791F;fill:#F2D58A}html.aat-in .ei-t-mute{color:#9AA8AB}
+html.aat-in button .ei,html.aat-in a .ei{margin-right:.1em}
+.ei-w{display:inline;white-space:nowrap}
+.ei-tx{display:inline-block!important;width:0!important;height:0!important;overflow:hidden!important;font-size:0!important;vertical-align:top!important;margin:0!important;padding:0!important;border:0!important}
+
+/* Kartlar ve yüzeyler */
+html.aat-in .card,html.aat-in .area-card,html.aat-in .pano-tile,html.aat-in .pano-extra{border-radius:16px!important;border-color:var(--border)!important}
+html.aat-in .card{box-shadow:var(--shadow-card)}
+
+/* Form alanları — tek tip: 12 px köşe, 44 px yükseklik, petrol odak halkası */
+html.aat-in input,html.aat-in select,html.aat-in textarea{border-radius:12px!important}
+html.aat-in input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]),html.aat-in select{min-height:44px}
+html.aat-in input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]),html.aat-in select,html.aat-in textarea{
+  border:1px solid var(--border2)!important;background-color:#fff!important;color:var(--text)!important;font-size:15px}
+html.aat-in input::placeholder,html.aat-in textarea::placeholder{color:#8A989C}
+html.aat-in input:focus,html.aat-in select:focus,html.aat-in textarea:focus{outline:none!important;border-color:#0f2f38!important;box-shadow:0 0 0 3px rgba(15,47,56,.12)!important}
+html.aat-in input[type=checkbox],html.aat-in input[type=radio]{accent-color:#0f2f38;width:18px;height:18px}
+/* Açılır menüler (select) — yerel ok yerine ince çizgi ok */
+html.aat-in select{-webkit-appearance:none!important;appearance:none!important;padding-right:40px!important;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2356676C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")!important;
+  background-repeat:no-repeat!important;background-position:right 12px center!important;background-size:18px 18px!important}
+html.aat-in select option{color:#102A31;background:#fff}
+
+/* Düğmeler — petrol dolgulu ana düğme: hap yerine yumuşak köşe, gölge */
+html.aat-in button[style*="background: rgb(15, 47, 56)"],html.aat-in button[style*="background-color: rgb(15, 47, 56)"],html.aat-in .btn-navy{
+  border-radius:12px!important;box-shadow:0 6px 16px rgba(15,47,56,.18);font-weight:600!important}
+html.aat-in button:disabled{opacity:.5;box-shadow:none!important}
+html.aat-in button:focus-visible,html.aat-in a:focus-visible{outline:2px solid #0f2f38;outline-offset:2px}
+
+/* Üst panel — krem yerine beyaz, ince çizgi */
+html.aat-in .ph,html.aat-in .student-hero,html.aat-in .admin-header{background:#fff!important;box-shadow:none!important;border-bottom:1px solid var(--border)!important}
+html.aat-in .admin-header .tab-btn.active{border-bottom-color:#0f2f38!important}
+
+/* Pano kartları */
+html.aat-in .pano{background:var(--bg3)}
+html.aat-in .pano-tile{box-shadow:0 1px 2px rgba(16,42,49,.05);border:1px solid var(--border)}
+html.aat-in .pano-ic{background:#EEF3F3;color:#0f2f38}
+html.aat-in .pano-tile.active{border-color:#0f2f38}
+html.aat-in .pano-tile.active .pano-ic{background:#0f2f38;color:#E7C77B}
+html.aat-in .pano-lb{font-weight:600}
+html.aat-in .sm-it .sm-ic{border-radius:10px;filter:none}
+
+/* Durum rozetleri */
+html.aat-in .glass-pill{border-radius:999px!important;letter-spacing:0}
+
+/* Yapı taşları: Seg / Chips / PBtn / Note / FLabel */
+html.aat-in .c-seg{display:grid;gap:4px;background:#F2F4F4;border-radius:24px;padding:4px}
+html.aat-in .c-seg-b{min-height:40px;border:0;border-radius:20px;background:transparent;color:#56676C;font:500 14px var(--font-ui);
+  display:flex;align-items:center;justify-content:center;gap:6px;padding:0 8px;cursor:pointer;transition:background .15s,color .15s}
+html.aat-in .c-seg-b.on{background:#fff;color:#102A31;font-weight:700;box-shadow:0 2px 6px rgba(16,42,49,.10)}
+html.aat-in .c-chips{display:flex;gap:8px;flex-wrap:wrap}
+html.aat-in .c-chip{min-height:40px;padding:0 16px;border:1px solid #E1E6E7;border-radius:20px;background:#fff;color:#102A31;
+  font:500 14px var(--font-ui);display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+html.aat-in .c-chip.on{background:#0f2f38;border-color:#0f2f38;color:#fff;font-weight:600}
+html.aat-in .c-btn{width:100%;min-height:52px;border:0;border-radius:26px;background:#0f2f38;color:#fff;font:600 16px var(--font-ui);
+  display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;box-shadow:0 8px 20px rgba(15,47,56,.20)}
+html.aat-in .c-btn:active{transform:scale(.99)}
+html.aat-in .c-btn-ghost{background:#F2F4F4;color:#102A31;box-shadow:none}
+html.aat-in .c-btn-gold{background:#E7C77B;color:#0f2f38;box-shadow:none}
+html.aat-in .c-note{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:14px;background:#F2F4F4;color:#3E5056;font-size:13px;line-height:1.5}
+html.aat-in .c-note>svg{flex-shrink:0;margin-top:1px}
+html.aat-in .c-note-gold{background:#FBF5E6;color:#5A4513}
+html.aat-in .c-note-ok{background:#E3F1E8;color:#1E5B3A}
+html.aat-in .c-note-err{background:#FDECEA;color:#8A1C12}
+html.aat-in .c-lbl{display:block;font-size:14px;font-weight:600;color:#102A31;margin-bottom:8px}
+html.aat-in .c-h{font-size:14px;font-weight:600;color:#102A31;margin:0 0 10px}
+html.aat-in .c-check{display:flex;align-items:center;gap:12px;min-height:44px;cursor:pointer;font-size:14px;color:#102A31}
 </style>
 </head>
 <body style="position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;overflow:hidden;background:#ffffff;margin:0;padding:0;overscroll-behavior:none;">
@@ -3726,19 +3811,21 @@ function CardResultView({res,lang,areaLabel}){
   if(!res) return null;
   const c=res.card||{}, ok=res.ok;
   const ph=safeHref(c.photo);
+  const tone=ok?{band:"#1E7A46",bg:"#E3F1E8"}:{band:"#B42318",bg:"#FDECEA"};
   return(
-    <div style={{marginTop:12,borderRadius:16,overflow:"hidden",border:"3px solid "+(ok?"#16a34a":"#dc2626"),background:ok?"rgba(22,163,74,.08)":"rgba(220,38,38,.08)"}}>
-      <div style={{padding:"10px 14px",background:ok?"#16a34a":"#dc2626",color:"#fff",fontWeight:900,fontSize:18}}>
-        {ok?"✅ "+W("DERBAS BIBE","GEÇEBİLİR / ALLOWED"):"⛔ "+W("DERBAS NEBE","GEÇEMEZ / DENIED")}
+    <div className="card-res" data-ok={ok?"1":"0"} style={{marginTop:12,borderRadius:20,overflow:"hidden",background:"#fff",border:"1px solid #E1E6E7",boxShadow:"0 6px 18px rgba(16,42,49,.08)"}}>
+      <div style={{padding:"14px 16px",background:tone.band,color:"#fff",fontWeight:800,fontSize:18,display:"flex",alignItems:"center",gap:10,letterSpacing:".01em"}}>
+        <Ico n={ok?"check":"close"} size={24} style={{strokeWidth:2.6}}/>
+        <span>{ok?W("DERBAS BIBE","GEÇEBİLİR / ALLOWED"):W("DERBAS NEBE","GEÇEMEZ / DENIED")}</span>
       </div>
-      <div style={{display:"flex",gap:14,padding:14,alignItems:"center"}}>
-        {res.card&&<div style={{width:84,height:104,borderRadius:10,overflow:"hidden",background:"var(--bg2)",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:40}}>
-          {ph?<img src={ph} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:(c.kind==="kid"?"🎓":"👤")}</div>}
+      <div style={{display:"flex",gap:14,padding:16,alignItems:"center"}}>
+        {res.card&&<div style={{width:84,height:104,borderRadius:14,overflow:"hidden",background:"#F2F4F4",color:"#56676C",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          {ph?<img src={ph} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<Ico n="user" size={40}/>}</div>}
         <div style={{minWidth:0}}>
-          {res.card&&<div style={{fontSize:20,fontWeight:900,color:"var(--text)"}}>{c.name}</div>}
-          {res.card&&<div style={{fontSize:13,color:"var(--text2)",marginTop:2}}>{c.kind==="kid"?"🎓 "+W("Zarok","Child"):"🎓 "+W("Xwendekar","Student")} · #{c.no}{c.area?" · "+(areaLabel?areaLabel(c.area):c.area):""}</div>}
-          {!ok&&<div style={{fontSize:14,fontWeight:800,color:"#dc2626",marginTop:6}}>{cardReasonText(res.reason,lang)}</div>}
-          {ok&&<div style={{fontSize:12,color:"var(--text2)",marginTop:6}}>{W("Wêneyê bi rûyê kesî re berhev bike.","Compare the photo with the person.")}</div>}
+          {res.card&&<div style={{fontSize:20,fontWeight:800,color:"#102A31"}}>{c.name}</div>}
+          {res.card&&<div style={{fontSize:13,color:"#56676C",marginTop:4}}>{c.kind==="kid"?W("Zarok","Child"):W("Xwendekar","Student")} · #{c.no}{c.area?" · "+(areaLabel?areaLabel(c.area):c.area):""}</div>}
+          {!ok&&<div style={{fontSize:14,fontWeight:700,color:"#B42318",marginTop:8,padding:"6px 10px",borderRadius:10,background:tone.bg,display:"inline-block"}}>{cardReasonText(res.reason,lang)}</div>}
+          {ok&&<div style={{fontSize:13,color:"#56676C",marginTop:8}}>{W("Wêneyê bi rûyê kesî re berhev bike.","Compare the photo with the person.")}</div>}
         </div>
       </div>
     </div>
@@ -3808,10 +3895,19 @@ const ICO={trash:"M4 7h16M9 7V4.5h6V7m-8.5 0 1 12.5h9l1-12.5M10 11v5.5M14 11v5.5
   kid:"M12 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 21l2-7-2-3 3-1.5h6l3 1.5-2 3 2 7",
   inbox:"M4 13l2-8h12l2 8v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM4 13h5l1 2h4l1-2h5",
   music:"M9 18V5l11-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM20 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z",
-  settings:"M4 7h10M18 7h2M4 17h4M12 17h8M16 5v4M10 15v4"};
+  settings:"M4 7h10M18 7h2M4 17h4M12 17h8M16 5v4M10 15v4",
+  // Uygulama içi (C tasarım)
+  note:"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2zM8 8h8M8 12h5",
+  warn:"M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01",
+  help:"M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01",
+  info:"M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 16v-4M12 8h.01",
+  send:"m22 2-7 20-4-9-9-4zM22 2 11 13",check:"M20 6 9 17l-5-5",
+  shield:"M12 21s7-3.5 7-9V5.5L12 3 5 5.5V12c0 5.5 7 9 7 9z",lock:"M6 11h12v9H6zM8 11V7a4 4 0 0 1 8 0v4",
+  ok:"M21 11.1V12a9 9 0 1 1-5.3-8.2M21 4 12 13l-3-3",pin:"M12 21s7-6.2 7-11.5a7 7 0 0 0-14 0C5 14.8 12 21 12 21zM12 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z",
+  back:"M15 18l-6-6 6-6",refresh:"M20 12a8 8 0 0 1-14 5.3L4 15M4 12a8 8 0 0 1 14-5.3L20 9M20 4v5h-5M4 20v-5h5"};
 // Menü bölümü → simge ve (geniş ekranda) grup
 const NAV_ICO={home:"today",attendance:"att",scanner:"qr",checkin:"qr",myclass:"cls",sinif:"cls",students:"users",schedule:"cal",
-  qad:"music",serledan:"inbox",announce:"ann",announcements:"ann",messages:"msg",feedback:"idea",alerts:"bell",
+  qad:"music",serledan:"inbox",announce:"ann",announcements:"ann",messages:"msg",feedback:"note",alerts:"bell",
   press:"news",nuce:"news",arsiv:"archive",reports:"report",rapor:"report",surveys:"poll",anket:"poll",evaluation:"star",seval:"star",teval:"star",gatt:"att",
   profile:"user",zarok:"kid"};
 const NAV_GRP={zarok:"zarok",home:"ders",attendance:"ders",scanner:"ders",checkin:"ders",myclass:"ders",sinif:"ders",students:"ders",schedule:"ders",gatt:"ders",
@@ -3858,6 +3954,24 @@ function SectionHeader({children}){
   return <div className="sec-hd">{children}</div>;
 }
 
+// ── C tasarım yapı taşları (uygulama içi): bölümlü seçici, seçim çipleri, ana düğme, bilgi notu ──
+function Seg({value,onChange,items}){ // items: [[anahtar, etiket, simge?]]
+  return <div role="tablist" className="c-seg" style={{gridTemplateColumns:"repeat("+items.length+",minmax(0,1fr))"}}>
+    {items.map(([k,lb,ic])=><button key={k} type="button" role="tab" aria-selected={value===k} className={"c-seg-b"+(value===k?" on":"")} onClick={()=>onChange(k)}>
+      {ic&&<Ico n={ic} size={17}/>}<span>{lb}</span></button>)}
+  </div>;
+}
+function Chips({value,onChange,items}){
+  return <div className="c-chips">{items.map(([k,lb,ic,attrs])=><button key={k} type="button" aria-pressed={value===k} className={"c-chip"+(value===k?" on":"")} onClick={()=>onChange(k)} {...(attrs||{})}>
+    {value===k?<Ico n="check" size={15}/>:(ic?<Ico n={ic} size={15}/>:null)}<span>{lb}</span></button>)}</div>;
+}
+function PBtn({children,onClick,disabled,icon,style,kind,type}){
+  return <button type={type||"button"} className={"c-btn"+(kind?" c-btn-"+kind:"")} onClick={onClick} disabled={disabled} style={style}>{children}{icon&&<Ico n={icon} size={18}/>}</button>;
+}
+function Note({children,tone,icon,style}){
+  return <div className={"c-note"+(tone?" c-note-"+tone:"")} style={style}><Ico n={icon||"info"} size={18}/><div>{children}</div></div>;
+}
+function FLabel({children,htmlFor}){ return <label htmlFor={htmlFor} className="c-lbl">{children}</label>; }
 function Card({children,style,onClick}){
   return(
     <div onClick={onClick} className={`card${onClick?" card-tap":""}`} style={{marginBottom:10,...style}}>
@@ -16582,115 +16696,91 @@ function StudentFeedbackPanel({student, a, lang, toast}) {
     toast("✅ "+(lang==="en"?"Feedback sent!":K("Peyama te hat şandin")));
   }
 
-  const typeColor = feedbackType==="suggestion"?"#16a34a":feedbackType==="complaint"?"#dc2626":"#0f2f38";
-  const typeBg = feedbackType==="suggestion"?"#f0f9f4":feedbackType==="complaint"?"rgba(220,38,38,.06)":"var(--bg2)";
+  const noEmo=x=>String(x||"").replace(/^\S+\s+/,""); // etiketlerin başındaki emoji
+  const TYPE_ICO={suggestion:"note",complaint:"warn",question:"help"};
+  const typeTone={suggestion:{bg:"#EEF3F3",ink:"#0f2f38"},complaint:{bg:"#FDECEA",ink:"#8A1C12"},question:{bg:"#EEF3F3",ink:"#0f2f38"}};
 
   return(
-    <div style={{paddingBottom:20}}>
-      {/* Info banner */}
-      <div style={{background:"var(--surface)",borderRadius:12,padding:"11px 14px",marginBottom:12,border:"1px solid rgba(15,23,42,.08)",borderLeft:"4px solid "+a.color,
-        fontSize:11,color:"var(--text)",lineHeight:1.6}}>
-        ℹ️ {lbl("adminNote")}
-      </div>
+    <div style={{paddingBottom:20,display:"flex",flexDirection:"column",gap:14}}>
+      <Note>{lbl("adminNote")}</Note>
 
       {/* Alıcı: yönetim ya da bölüm sorumlusu */}
       {(heads.area||heads.genel)&&(
-        <Card style={{marginBottom:10}}>
-          <div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:10}}>{lang==="en"?"Send to":K("Ji kê re")}</div>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            {[["admin","🛡 "+(lang==="en"?"Admin":K("Rêveber"))],
-              ...(heads.area?[["area","🎓 "+(lang==="en"?"Department head":K("Berpirsê beşê"))+" · "+heads.area.name]]:[]),
-              ...(heads.genel?[["genel","⭐ "+(lang==="en"?"General head":K("Berpirsê giştî"))+" · "+heads.genel.name]]:[])].map(([v,lb])=>(
-              <button key={v} data-to-head={v==="admin"?"0":v==="area"?"1":"g"} onClick={()=>setDest(v)}
-                style={{flex:"1 1 140px",padding:"10px 6px",borderRadius:10,fontSize:12,fontWeight:dest===v?700:500,cursor:"pointer",
-                  background:dest===v?"#0f2f38":"var(--bg2)",color:dest===v?"#fff":"var(--text2)",border:"1.5px solid "+(dest===v?"#0f2f38":"var(--border)")}}>{lb}</button>
+        <Card>
+          <div className="c-h">{lang==="en"?"Send to":K("Ji kê re")}</div>
+          <div className="c-chips">
+            {[["admin","shield",(lang==="en"?"Admin":K("Rêveber"))],
+              ...(heads.area?[["area","users",(lang==="en"?"Department head":K("Berpirsê beşê"))+" · "+heads.area.name]]:[]),
+              ...(heads.genel?[["genel","star",(lang==="en"?"General head":K("Berpirsê giştî"))+" · "+heads.genel.name]]:[])].map(([v,ic,lb])=>(
+              <button key={v} type="button" data-to-head={v==="admin"?"0":v==="area"?"1":"g"} onClick={()=>setDest(v)} aria-pressed={dest===v}
+                className={"c-chip"+(dest===v?" on":"")}><Ico n={dest===v?"check":ic} size={15}/><span>{lb}</span></button>
             ))}
           </div>
-          <div style={{fontSize:10.5,color:"var(--text2)",marginTop:8}}>ℹ️ {lang==="en"?"The admin can also see messages sent to heads.":K("Rêveber jî peyamên ji berpirsan re dibîne.")}</div>
+          <div style={{fontSize:12.5,color:"var(--text2)",marginTop:10}}>{lang==="en"?"The admin can also see messages sent to heads.":K("Rêveber jî peyamên ji berpirsan re dibîne.")}</div>
         </Card>
       )}
 
-      {/* Type selector */}
-      <Card style={{marginBottom:10}}>
-        <div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:10}}>
-          {lang==="en"?"Message Type":K("Cureyê Peyamê")}
-        </div>
-        <div style={{display:"flex",gap:8}}>
-          {Object.entries(L.types).map(([k,v])=>(
-            <button key={k} onClick={()=>setFeedbackType(k)}
-              style={{flex:1,padding:"9px 4px",borderRadius:10,fontSize:11,fontWeight:feedbackType===k?700:400,
-                background:feedbackType===k?(k==="complaint"?"#dc2626":k==="question"?"#0f2f38":"#16a34a"):"var(--bg2)",
-                color:feedbackType===k?"#fff":"var(--text2)",
-                border:`1.5px solid ${feedbackType===k?(k==="complaint"?"#dc2626":k==="question"?"#0f2f38":"#16a34a"):"var(--border)"}`,
-                cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-              <span style={{fontSize:16}}>{v[lang]?.split(" ")[0]||v.ku.split(" ")[0]}</span>
-              <span style={{lineHeight:1.2,textAlign:"center"}}>{(v[lang]||v.ku).split(" ").slice(1).join(" ")}</span>
-            </button>
-          ))}
+      <Card>
+        <div className="c-h">{lang==="en"?"Message Type":K("Cureyê Peyamê")}</div>
+        <Seg value={feedbackType} onChange={setFeedbackType}
+          items={Object.entries(L.types).map(([k,v])=>[k,noEmo(v[lang]||v.ku),TYPE_ICO[k]])}/>
+
+        <div style={{marginTop:16,display:"flex",flexDirection:"column",gap:14}}>
+          <div>
+            <FLabel htmlFor="fb-subj">{lbl("subject")}</FLabel>
+            <input id="fb-subj" style={inputStyle} value={subject} onChange={e=>setSubject(e.target.value)}
+              placeholder={lang==="en"?"Subject...":K("Sernav...")}/>
+          </div>
+          <div>
+            <FLabel htmlFor="fb-body">{lbl("body")}</FLabel>
+            <textarea id="fb-body" style={{...inputStyle,minHeight:120,resize:"vertical",lineHeight:1.55}} value={body} onChange={e=>setBody(e.target.value)}
+              placeholder={lang==="en"?"Write your message...":K("Peyama xwe binivîse...")}/>
+          </div>
+          <label className="c-check">
+            <input type="checkbox" checked={anonymous} onChange={e=>setAnonymous(e.target.checked)}/>
+            <span>{lbl("anon")}</span>
+          </label>
+          <div style={{fontSize:12.5,color:"var(--text2)",display:"flex",alignItems:"center",gap:6}}>
+            <Ico n={toHead&&head?"users":"shield"} size={15}/>
+            {toHead&&head?(lang==="en"?"Sent to the department head":K("Ji berpirsê beşê re tê şandin")):(lang==="en"?"Sent directly to admin":K("Rasterast li admin tê şandin"))}
+          </div>
+          {sent
+            ?<Note tone="ok" icon="ok">{noEmo(lbl("sent"))}</Note>
+            :<PBtn onClick={handleSend} icon="send">{noEmo(lbl("send"))}</PBtn>}
         </div>
       </Card>
 
-      {/* Compose */}
-      <Card style={{marginBottom:10}}>
-        <div style={{marginBottom:10,padding:"8px 10px",background:typeBg,borderRadius:8,fontSize:11,fontWeight:600,color:typeColor}}>
-          {(L.types[feedbackType]?.[lang]||L.types[feedbackType]?.ku)} — {toHead&&head?(lang==="en"?"Sent to the department head":K("Ji berpirsê beşê re tê şandin")):(lang==="en"?"Sent directly to admin":K("Rasterast li admin tê şandin"))}
-        </div>
-        <div style={{marginBottom:12}}>
-          <label style={{fontSize:11,color:"var(--text2)",fontWeight:600,display:"block",marginBottom:5}}>{lbl("subject")}</label>
-          <input style={inputStyle} value={subject} onChange={e=>setSubject(e.target.value)}
-            placeholder={lang==="en"?"Subject...":K("Sernav...")}/>
-        </div>
-        <div style={{marginBottom:12}}>
-          <label style={{fontSize:11,color:"var(--text2)",fontWeight:600,display:"block",marginBottom:5}}>{lbl("body")}</label>
-          <textarea style={{...inputStyle,minHeight:100,resize:"vertical"}} value={body} onChange={e=>setBody(e.target.value)}
-            placeholder={lang==="en"?"Write your message...":K("Peyama xwe binivîse...")}/>
-        </div>
-        {/* Anonymous toggle */}
-        <div onClick={()=>setAnonymous(p=>!p)} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",marginBottom:14,
-          padding:"8px 10px",background:"var(--bg2)",borderRadius:8,border:"1px solid var(--border)"}}>
-          <div style={{width:20,height:20,borderRadius:5,border:`1.5px solid ${anonymous?typeColor:"var(--border2)"}`,
-            background:anonymous?typeColor:"var(--bg1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"#fff",flexShrink:0}}>
-            {anonymous?"✓":""}
-          </div>
-          <span style={{fontSize:11,color:"var(--text)"}}>{lbl("anon")}</span>
-        </div>
-        {sent?(
-          <div style={{padding:"11px",background:"var(--surface)",border:"1px solid rgba(22,163,74,0.3)",borderRadius:10,fontSize:12,fontWeight:600,color:"var(--green)",textAlign:"center"}}>
-            {lbl("sent")}
-          </div>
-        ):(
-          <button onClick={handleSend}
-            style={{width:"100%",padding:"13px",background:typeColor,color:"#fff",border:"none",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer"}}>
-            {lbl("send")}
-          </button>
-        )}
-      </Card>
-
-      {/* History */}
+      {/* Önceki mesajlar */}
       {history.length>0&&(
-        <Card>
-          <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:10}}>📋 {lbl("history")}</div>
-          {history.slice(0,10).map((fb,i)=>{
-            const tColor = fb.type==="complaint"?"#dc2626":fb.type==="question"?"#0f2f38":"#16a34a";
-            const tLabel = (L.types[fb.type]?.[lang]||L.types[fb.type]?.ku)||fb.type;
+        <div>
+          <div className="c-h" style={{color:"var(--text2)"}}>{lbl("history")}</div>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {history.slice(0,10).map(fb=>{
+            const tt=typeTone[fb.type]||typeTone.question;
+            const tLabel=noEmo(L.types[fb.type]?.[lang]||L.types[fb.type]?.ku)||fb.type;
             return(
-              <div key={fb.id} style={{padding:"10px 0",borderBottom:i<Math.min(history.length,10)-1?"0.5px solid var(--border)":"none"}}>
-                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
-                  <span style={{fontSize:10,padding:"1px 8px",borderRadius:8,background:tColor+"22",color:tColor,fontWeight:700}}>{tLabel}</span>
-                  {fb.anonymous&&<span style={{fontSize:10,color:"var(--text2)"}}>🔒</span>}
-                  <span style={{marginLeft:"auto",fontSize:10,color:"var(--text2)"}}>{fb.time}</span>
+              <div key={fb.id} style={{display:"flex",gap:12,padding:12,borderRadius:16,background:"#F7F8F8"}}>
+                <span style={{width:40,height:40,borderRadius:20,background:tt.bg,color:tt.ink,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                  <Ico n={TYPE_ICO[fb.type]||"note"} size={18}/></span>
+                <div style={{minWidth:0,flex:1}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
+                    <span style={{fontSize:12,fontWeight:700,color:tt.ink}}>{tLabel}</span>
+                    {fb.anonymous&&<Ico n="lock" size={13} style={{color:"var(--text2)"}}/>}
+                    <span style={{marginLeft:"auto",fontSize:12,color:"var(--text2)"}}>{fb.time}</span>
+                  </div>
+                  <div style={{fontSize:14,fontWeight:600,color:"var(--text)"}}>{fb.subject}</div>
+                  <div style={{fontSize:13,color:"var(--text2)",marginTop:2,lineHeight:1.45,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{fb.body}</div>
                 </div>
-                <div style={{fontSize:12,fontWeight:600,color:"var(--text)"}}>{fb.subject}</div>
-                <div style={{fontSize:11,color:"var(--text2)",marginTop:2,lineHeight:1.4}}>{fb.body}</div>
               </div>
             );
           })}
-        </Card>
+          </div>
+        </div>
       )}
       {history.length===0&&(
-        <div style={{textAlign:"center",padding:24,color:"var(--text2)"}}>
-          <div style={{fontSize:32,marginBottom:8}}>💬</div>
-          <div style={{fontSize:12}}>{lbl("empty")}</div>
+        <div style={{textAlign:"center",padding:"18px 24px",color:"var(--text2)"}}>
+          <span style={{width:56,height:56,borderRadius:28,background:"#F2F4F4",display:"inline-flex",alignItems:"center",justifyContent:"center",marginBottom:10}}><Ico n="note" size={24}/></span>
+          <div style={{fontSize:13}}>{lbl("empty")}</div>
         </div>
       )}
     </div>
@@ -17084,7 +17174,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
                     {/* Scan line */}
                     <div style={{
                       position:"absolute",left:0,right:0,top:0,height:2,
-                      background:"linear-gradient(90deg,transparent,#0f2f38,transparent)",
+                      background:"linear-gradient(90deg,transparent,#E7C77B,transparent)",
                       animation:"scanmove 2s ease-in-out infinite",
                       borderRadius:2,
                     }}/>
@@ -18303,24 +18393,17 @@ function StudentQRScanner({student, onClose, toast, lang="ku", initialCode=null}
 
   /* ────────────────── RENDER ────────────────── */
   return(
-    <div style={{position:"fixed",inset:0,background:"#000",zIndex:500,display:"flex",flexDirection:"column"}}>
+    <div className="qr-shell" style={{position:"fixed",inset:0,background:(status==="scanning"||status==="no_session")&&tab==="camera"&&mode==="live"?"#000":"#fff",zIndex:500,display:"flex",flexDirection:"column"}}>
 
-      {/* ── Header ── */}
-      <div style={{background:"rgba(15,47,56,0.97)",padding:"14px 16px",display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
-        <button onClick={()=>{stopLive();onClose();}}
-          style={{background:"none",border:"none",color:"#fff",fontSize:24,cursor:"pointer",padding:0,lineHeight:1}}>←</button>
-        <div style={{flex:1,color:"#fff",fontSize:15,fontWeight:700}}>📷 {L.entry}</div>
-        {/* camera / manual tabs */}
-        <div style={{display:"flex",gap:4,background:"rgba(255,255,255,0.1)",borderRadius:8,padding:3}}>
-          {[{k:"camera",icon:"📷"},{k:"manual",icon:"⌨️"}].map(t=>(
-            <button key={t.k} onClick={()=>setTab(t.k)}
-              style={{padding:"5px 11px",borderRadius:6,border:"none",
-                background:tab===t.k?"#0f2f38":"transparent",
-                color:tab===t.k?"#fff":"#64748b",fontSize:14,cursor:"pointer",fontWeight:700}}>
-              {t.icon}
-            </button>
-          ))}
-        </div>
+      {/* ── Başlık ── */}
+      <div style={{background:"#fff",padding:"calc(env(safe-area-inset-top,0px) + 12px) 16px 12px",display:"flex",alignItems:"center",gap:12,flexShrink:0,borderBottom:"1px solid #E1E6E7"}}>
+        <button onClick={()=>{stopLive();onClose();}} aria-label={lang==="en"?"Back":K("Vegere")}
+          style={{width:44,height:44,borderRadius:22,background:"#F2F4F4",border:"none",color:"#102A31",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0}}>
+          <Ico n="back" size={22}/></button>
+        <div style={{flex:1,color:"#102A31",fontSize:17,fontWeight:700}}>{L.entry}</div>
+        {(status==="scanning"||status==="no_session")&&<div style={{width:120}}>
+          <Seg value={tab} onChange={setTab} items={[["camera","","qr"],["manual","","edit"]]}/>
+        </div>}
       </div>
 
       {/* ── Camera tab ── */}
@@ -18348,13 +18431,13 @@ function StudentQRScanner({student, onClose, toast, lang="ku", initialCode=null}
                   <div style={{position:"relative",width:260,height:260,zIndex:1}}>
                     <div style={{position:"absolute",inset:0,border:"1.5px solid rgba(255,255,255,0.18)",borderRadius:18}}/>
                     {[{top:0,left:0},{top:0,right:0},{bottom:0,left:0},{bottom:0,right:0}].map((p,i)=>(
-                      <div key={i} style={{position:"absolute",width:32,height:32,borderStyle:"solid",borderColor:"#0f2f38",borderWidth:0,
+                      <div key={i} style={{position:"absolute",width:32,height:32,borderStyle:"solid",borderColor:"#E7C77B",borderWidth:0,
                         borderTopWidth:p.top!==undefined?3:0,borderBottomWidth:p.bottom!==undefined?3:0,
                         borderLeftWidth:p.left!==undefined?3:0,borderRightWidth:p.right!==undefined?3:0,...p,
                         borderRadius:["8px 0 0 0","0 8px 0 0","0 0 0 8px","0 0 8px 0"][i]}}/>
                     ))}
                     <div style={{position:"absolute",left:12,right:12,height:2,
-                      background:"linear-gradient(90deg,transparent,#0f2f38,transparent)",
+                      background:"linear-gradient(90deg,transparent,#E7C77B,transparent)",
                       animation:"scanmove 2s linear infinite",borderRadius:1}}/>
                   </div>
                   <div style={{position:"absolute",bottom:20,color:"rgba(255,255,255,0.7)",fontSize:12,
@@ -18368,7 +18451,7 @@ function StudentQRScanner({student, onClose, toast, lang="ku", initialCode=null}
 
           {/* ── CAPTURE mode: big camera button ── */}
           {mode==="capture"&&(
-            <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:20,padding:28,background:"#2D2580"}}>
+            <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:20,padding:28,background:"#fff"}}>
               {/* Hidden file input – capture=environment opens back camera */}
               <input ref={fileRef} type="file" accept="image/*" capture="environment"
                 style={{display:"none"}} onChange={onFileChange}/>
@@ -18376,11 +18459,10 @@ function StudentQRScanner({student, onClose, toast, lang="ku", initialCode=null}
 
               {/* Camera preview area */}
               <div onClick={()=>fileRef.current?.click()}
-                style={{width:220,height:220,borderRadius:24,border:"2.5px dashed rgba(15,47,56,0.5)",
+                style={{width:220,height:220,borderRadius:24,border:"2px dashed #D2DADC",
                   display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
-                  gap:12,cursor:"pointer",background:"rgba(231,199,123,0.05)",
-                  boxShadow:"0 0 40px rgba(231,199,123,0.1)"}}>
-                <span style={{fontSize:64}}>📸</span>
+                  gap:12,cursor:"pointer",background:"#F7F8F8"}}>
+                <span style={{width:72,height:72,borderRadius:36,background:"#0f2f38",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center"}}><Ico n="qr" size={32}/></span>
                 <div style={{color:"var(--text)",fontSize:13,fontWeight:700,textAlign:"center",lineHeight:1.5}}>
                   {L.shoot}
                 </div>
@@ -18393,7 +18475,7 @@ function StudentQRScanner({student, onClose, toast, lang="ku", initialCode=null}
                 </div>
               )}
 
-              <div style={{color:"rgba(255,255,255,0.3)",fontSize:11,textAlign:"center",lineHeight:1.8,maxWidth:240}}>
+              <div style={{color:"#56676C",fontSize:13,textAlign:"center",lineHeight:1.6,maxWidth:260}}>
                 {lang==="en"?"Tap the camera icon to take a photo of the QR code":K("Ji bo wênegirtina koda QR li ser îkona kamerayê bitikîne")}
               </div>
             </div>
@@ -18404,7 +18486,8 @@ function StudentQRScanner({student, onClose, toast, lang="ku", initialCode=null}
       {/* ── Manual tab ── */}
       {(status==="scanning"||status==="no_session")&&tab==="manual"&&(
         <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:28,gap:16}}>
-          <div style={{color:"#64748b",fontSize:13,textAlign:"center",lineHeight:1.8,maxWidth:280}}>
+          <span style={{width:64,height:64,borderRadius:32,background:"#EEF3F3",color:"#0f2f38",display:"flex",alignItems:"center",justifyContent:"center"}}><Ico n="edit" size={28}/></span>
+          <div style={{color:"#56676C",fontSize:14,textAlign:"center",lineHeight:1.6,maxWidth:280}}>
             {lang==="en"?"Enter the session code shown on the teacher's screen":K("Koda rûniştinê ya li ser ekrana mamosteyê binivîse")}
           </div>
           <input value={manualCode} onChange={e=>setManualCode(e.target.value.toUpperCase())}
@@ -18412,72 +18495,61 @@ function StudentQRScanner({student, onClose, toast, lang="ku", initialCode=null}
             maxLength={40} autoFocus placeholder="AAT-..."
             style={{padding:"16px",fontSize:16,fontFamily:"monospace",fontWeight:700,
               letterSpacing:"0.1em",textAlign:"center",width:"100%",maxWidth:320,
-              background:"rgba(255,255,255,0.08)",border:"1.5px solid rgba(255,255,255,0.25)",
-              borderRadius:14,color:"var(--text)",outline:"none",WebkitAppearance:"none"}}/>
-          <button onClick={submitManual}
-            style={{width:"100%",maxWidth:320,padding:"14px",background:"#0f2f38",color:"#ffffff",border:"none",
-              border:"none",borderRadius:12,fontSize:15,fontWeight:700,cursor:"pointer"}}>
-            {L.submit}
-          </button>
+              background:"#fff",border:"1px solid #D2DADC",
+              borderRadius:14,color:"#102A31",outline:"none",WebkitAppearance:"none"}}/>
+          <PBtn onClick={submitManual} icon="send" style={{maxWidth:320}}>{L.submit}</PBtn>
         </div>
       )}
 
-      {/* ── QR Share Button ── */}
-      {status==="scanning"&&(
-        <div style={{position:"absolute",top:12,right:12,zIndex:10}}>
-          {navigator.share&&(
-            <button onClick={()=>shareContent({title:BRAND()+" QR",text:RL()==="en"?"My QR code for lesson attendance":K("Ji bo tescîla dersê QR-a min")})}
-              style={{background:"rgba(255,255,255,0.15)",border:"none",borderRadius:10,
-                padding:"8px 10px",fontSize:14,cursor:"pointer",color:"#fff"}}
-              aria-label="Share QR">
-              📤
-            </button>
-          )}
-        </div>
-      )}
-      {/* ── Success ── */}
+      {/* ── Başarılı ── */}
       {status==="success"&&(
-        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
-          <div className="check-anim" style={{width:100,height:100,borderRadius:"50%",
-            background:"var(--green-bg)",display:"flex",alignItems:"center",justifyContent:"center",
-            fontSize:48,marginBottom:20}}>✅</div>
-          <div style={{color:"#fff",fontSize:22,fontWeight:700,marginBottom:8}}>{L.confirmed}</div>
-          <div style={{color:"rgba(255,255,255,0.7)",fontSize:14,textAlign:"center",marginBottom:6}}>{lessonName}</div>
-          <div style={{color:"#7DC499",fontSize:13,marginBottom:4}}>{student.name}</div>
-          <div style={{color:"rgba(255,255,255,0.5)",fontSize:12,fontFamily:"monospace",marginBottom:4}}>{student.no}</div>
-          <div style={{color:"rgba(255,255,255,0.35)",fontSize:11,marginBottom:36}}>{checkinTime}</div>
-          <button onClick={onClose}
-            style={{padding:"12px 36px",background:"#0f2f38",color:"#ffffff",border:"none",
-              borderRadius:12,fontSize:14,fontWeight:700,cursor:"pointer"}}>{L.ok}</button>
+        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px 20px"}}>
+          <div className="check-anim" style={{width:96,height:96,borderRadius:48,background:"#E3F1E8",color:"#1E7A46",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:20}}>
+            <Ico n="check" size={48} style={{strokeWidth:2.4}}/></div>
+          <div style={{color:"#102A31",fontSize:24,fontWeight:700,marginBottom:6,textAlign:"center",letterSpacing:"-0.01em"}}>{L.confirmed}</div>
+          <div style={{color:"#56676C",fontSize:14,marginBottom:22}}>{checkinTime}</div>
+          <div style={{width:"100%",maxWidth:340,borderRadius:20,background:"#F7F8F8",padding:16,display:"flex",flexDirection:"column",gap:12,marginBottom:28}}>
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <span style={{width:44,height:44,borderRadius:22,background:"#0f2f38",color:"#E7C77B",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Ico n="music" size={20}/></span>
+              <div style={{minWidth:0}}>
+                <div style={{fontSize:12,color:"#56676C"}}>{lang==="en"?"Lesson":K("Ders")}</div>
+                <div style={{fontSize:16,fontWeight:700,color:"#102A31"}}>{lessonName||"—"}</div>
+              </div>
+            </div>
+            <div style={{height:1,background:"#E1E6E7"}}/>
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <span style={{width:44,height:44,borderRadius:22,background:"#EEF3F3",color:"#0f2f38",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Ico n="user" size={20}/></span>
+              <div style={{minWidth:0}}>
+                <div style={{fontSize:15,fontWeight:600,color:"#102A31"}}>{student.name}</div>
+                <div style={{fontSize:13,color:"#56676C",fontVariantNumeric:"tabular-nums"}}>{student.no}</div>
+              </div>
+            </div>
+          </div>
+          <PBtn onClick={onClose} style={{maxWidth:340}}>{L.ok}</PBtn>
         </div>
       )}
 
-      {/* ── Loading (GPS alınıyor) ── */}
+      {/* ── Konum doğrulanıyor ── */}
       {status==="loading"&&(
         <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
-          <div style={{width:72,height:72,borderRadius:"50%",border:"3px solid rgba(15,47,56,0.2)",borderTopColor:"#0f2f38",animation:"spin 0.8s linear infinite",marginBottom:20}}/>
-          <div style={{color:"#fff",fontSize:15,fontWeight:600,marginBottom:8}}>
-            {lang==="en"?"📍 Verifying location...":K("📍 Cih tê verastkirin...")}
+          <div style={{width:64,height:64,borderRadius:"50%",border:"4px solid #E1E6E7",borderTopColor:"#0f2f38",animation:"spin 0.8s linear infinite",marginBottom:20}}/>
+          <div style={{color:"#102A31",fontSize:16,fontWeight:600,marginBottom:8,display:"flex",alignItems:"center",gap:8}}>
+            <Ico n="pin" size={18}/>{lang==="en"?"Verifying location...":K("Cih tê verastkirin...")}
           </div>
-          <div style={{color:"rgba(255,255,255,0.45)",fontSize:12}}>{errorMsg}</div>
+          <div style={{color:"#56676C",fontSize:13}}>{errorMsg}</div>
         </div>
       )}
 
-      {/* ── Error ── */}
+      {/* ── Hata ── */}
       {(status==="error")&&(
-        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:28}}>
-          <div style={{fontSize:56,marginBottom:16}}>⚠️</div>
-          <div style={{color:"#fff",fontSize:17,fontWeight:700,marginBottom:10}}>{L.failed}</div>
-          <div style={{color:"rgba(255,255,255,0.55)",fontSize:13,textAlign:"center",marginBottom:32,lineHeight:1.7}}>{errorMsg}</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,width:"100%",maxWidth:320}}>
-            <button onClick={()=>{setErrorMsg("");setStatus("scanning");setTab("camera");if(mode==="live")tryLive();}}
-              style={{padding:"13px",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",
-                borderRadius:10,color:"#fff",fontSize:13,cursor:"pointer"}}>
-              🔄 {L.retry}
-            </button>
-            <button onClick={onClose}
-              style={{padding:"13px",background:"var(--accent)",border:"none",borderRadius:8,
-                color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer"}}>← {L.back}</button>
+        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px 20px"}}>
+          <div style={{width:96,height:96,borderRadius:48,background:"#FDECEA",color:"#B42318",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:20}}>
+            <Ico n="warn" size={44}/></div>
+          <div style={{color:"#102A31",fontSize:22,fontWeight:700,marginBottom:10}}>{L.failed}</div>
+          <div style={{color:"#56676C",fontSize:14,textAlign:"center",marginBottom:28,lineHeight:1.6,maxWidth:320}}>{window.aatEmoStrip?window.aatEmoStrip(errorMsg):errorMsg}</div>
+          <div style={{display:"flex",flexDirection:"column",gap:10,width:"100%",maxWidth:340}}>
+            <PBtn onClick={()=>{setErrorMsg("");setStatus("scanning");setTab("camera");if(mode==="live")tryLive();}} icon="refresh">{L.retry}</PBtn>
+            <PBtn kind="ghost" onClick={onClose}>{L.back}</PBtn>
           </div>
         </div>
       )}
@@ -18673,22 +18745,13 @@ const DarkFix=(()=>{
 /* ─── THEME CONTEXT ──────────────────────────────────────────────────────── */
 // Uygulama her zaman koyu tema kullanır — gelecek için light mode altyapısı hazır
 function useTheme(){
-  // Varsayılan: açık tema. Kullanıcı açıkça "dark" seçmişse koyu.
-  const [dark,setDark]=useState(()=>{
-    try{return localStorage.getItem("aat-theme")==="dark";}catch{return false;}
-  });
+  // Tek tema: açık (koyu mod kaldırıldı). Eski "aat-theme" seçimi temizlenir.
   useEffect(()=>{
-    try{localStorage.setItem("aat-theme",dark?"dark":"light");}catch{}
-    // Tüm tema renkleri html.theme-dark sınıfındaki CSS değişkenleriyle gelir.
-    document.documentElement.classList.toggle("theme-dark", dark);
-    try{ DarkFix.set(dark); }catch(_){}
-    // Tarayıcı/durum çubuğu rengi
-    try{
-      const meta=document.querySelector('meta[name="theme-color"]');
-      if(meta) meta.setAttribute("content", dark?"#0c1422":"#0f2f38");
-    }catch(_){}
-  },[dark]);
-  return [dark,setDark];
+    try{localStorage.removeItem("aat-theme");}catch{}
+    document.documentElement.classList.remove("theme-dark");
+    try{ const meta=document.querySelector('meta[name="theme-color"]'); if(meta) meta.setAttribute("content","#0f2f38"); }catch(_){}
+  },[]);
+  return [false,()=>{}];
 }
 
 function ThemeToggle({dark,onToggle,lang}){
@@ -18854,13 +18917,6 @@ function SettingsSheet({open, onClose, dark, onThemeToggle, lang, rawLang, setLa
         <LangSelect value={rawLang||lang} onChange={setLang}/>
       </div>
       
-      {settingRow("🌓",
-        dark?(lang==="en"?"Dark Mode":K("Moda Tarî")):(lang==="en"?"Light Mode":K("Moda Ronahî")),
-        lang==="en"?"Toggle display theme":K("Temaya xuyangê biguherîne"),
-        <Toggle on={dark}/>,
-        onThemeToggle
-      )}
-      
       {settingRow("🔔",
         lang==="en"?"Notifications":K("Agahdarî"),
         permission==="granted"
@@ -18921,6 +18977,9 @@ function App(){
   try{ document.title=BRAND(); }catch(_){}
   const lang=langRaw==="en"?"en":"ku";
   const [screen,setScreen]=useState("login");
+  // Emoji → çizgi simge dönüşümü giriş ekranları dışında açık (giriş tasarımı aynen kalır)
+  window.__aatEmo=screen!=="login"&&screen!=="forgot";
+  try{ document.documentElement.classList.toggle("aat-in",window.__aatEmo); }catch(_){}
   const [currentUser,setCurrentUser]=useState(null);
   const currentUserRef=useRef(null);
   useEffect(()=>{ currentUserRef.current=currentUser; },[currentUser]);
@@ -19438,13 +19497,13 @@ function App(){
             </div>
           );
         }
-        return <LoginScreen students={students} teachers={teachers} t={t} lang={lang} rawLang={langRaw} setLang={setLang} onLogin={(type,user)=>{handleLogin(type,user);handleNotifRequest();}} onForgot={()=>setScreen("forgot")} dark={dark} onThemeToggle={()=>setDark(d=>!d)}/>;
+        return <LoginScreen students={students} teachers={teachers} t={t} lang={lang} rawLang={langRaw} setLang={setLang} onLogin={(type,user)=>{handleLogin(type,user);handleNotifRequest();}} onForgot={()=>setScreen("forgot")} dark={false}/>;
       })()}
       {screen==="forgot"&&(
         <ForgotScreen t={t} lang={lang} onBack={()=>setScreen("login")} onSuccess={()=>toast("✓ "+t.forgotSuccess)} students={students} teachers={teachers} onDataChange={onDataChange}/>
       )}
       {screen==="admin"&&currentUser&&(
-        <AdminPanel admin={currentUser} students={students} teachers={teachers} schedule={schedule} t={t} lang={lang} toast={toast} onLogout={handleLogout} onDataChange={onDataChange} onSettings={()=>setShowSettings(true)} dark={dark} onThemeToggle={()=>setDark(d=>!d)}/>
+        <AdminPanel admin={currentUser} students={students} teachers={teachers} schedule={schedule} t={t} lang={lang} toast={toast} onLogout={handleLogout} onDataChange={onDataChange} onSettings={()=>setShowSettings(true)} dark={false}/>
       )}
       {screen==="teacher"&&currentUser&&(
         <TeacherPanel teacher={currentUser} students={students} schedule={schedule} t={t} lang={lang} toast={toast} onLogout={handleLogout} onDataChange={onDataChange} onSettings={()=>setShowSettings(true)}/>
@@ -19465,7 +19524,7 @@ function App(){
         <StudentPanel student={currentUser} schedule={schedule} t={t} lang={lang} toast={toast} onLogout={handleLogout} onDataChange={onDataChange} onSettings={()=>setShowSettings(true)}/>
       )}
       <Toast msg={toastMsg}/>
-      <SettingsSheet open={showSettings} onClose={()=>setShowSettings(false)} dark={dark} onThemeToggle={()=>setDark(d=>!d)} lang={lang} rawLang={langRaw} setLang={setLang} t={t} onLegal={(type)=>{setShowSettings(false);setLegalModal(type);}} networkInfo={networkInfo} battery={battery} toast={toast}/>
+      <SettingsSheet open={showSettings} onClose={()=>setShowSettings(false)} dark={false} lang={lang} rawLang={langRaw} setLang={setLang} t={t} onLegal={(type)=>{setShowSettings(false);setLegalModal(type);}} networkInfo={networkInfo} battery={battery} toast={toast}/>
       {!gdprAccepted && <GDPRBanner lang={lang} onAccept={()=>setGdprAccepted(true)}/>}
       <BirthdayModal open={!!birthdayUser} name={birthdayUser&&birthdayUser.name} lang={lang} onClose={()=>setBirthdayUser(null)}/>
       <LiveRegion msg={liveMsg}/>
