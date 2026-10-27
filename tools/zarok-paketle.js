@@ -32,6 +32,7 @@ fs.rmSync(OUT, { recursive: true, force: true });
 })(SRC, OUT);
 fs.copyFileSync(path.join(ROOT, 'app', 'lang-pack.js'), path.join(OUT, 'lang-pack.js'));
 fs.copyFileSync(path.join(ROOT, 'app', 'simge.js'), path.join(OUT, 'simge.js'));
+fs.copyFileSync(path.join(ROOT, 'app', 'secim.js'), path.join(OUT, 'secim.js'));
 fs.copyFileSync(path.join(ROOT, 'kvkk.html'), path.join(OUT, 'kvkk.html'));
 fs.writeFileSync(path.join(OUT, 'CNAME'), domain + '\n');
 
@@ -48,6 +49,7 @@ edit('index.html', [
 edit('app/index.html', [
   ['<script src="../../app/lang-pack.js"></script>', '<script src="../lang-pack.js"></script>'],
   ['<script src="../../app/simge.js"></script>', '<script src="../simge.js"></script>'],
+  ['<script src="../../app/secim.js" defer></script>', '<script src="../secim.js" defer></script>'],
   ['const MAIN_APP = "../../app/";', 'const MAIN_APP = "' + main + '/app/";'],
   ['const KVKK = "../../kvkk.html";', 'const KVKK = "../kvkk.html";'],
 ]);
