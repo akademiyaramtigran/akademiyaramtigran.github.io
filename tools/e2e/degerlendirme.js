@@ -97,7 +97,7 @@ function evalWeek(d) { const x = d ? new Date(d) : new Date(); const y = new Dat
   ok('İlerleme 1 / 2', (await tp.locator('[data-ev-progress]').innerText()).includes('1 / 2'));
   // 3) Duyuru: yalnız kendi sınıfına, dosyasız
   await goA(tp, 'announce'); await tp.waitForTimeout(800);
-  await btn(tp, '📤 Bişîne'); await tp.waitForTimeout(400);
+  await tp.locator('[role=tab]', { hasText: 'Bişîne' }).first().click(); await tp.waitForTimeout(400);
   ok('Duyuruda dosya ekleme yok', (await tp.locator('input[type=file]').count()) === 0);
   await tp.click('[data-ann-class="C1"]');
   await tp.locator('input[maxlength="140"]').fill('Prova Înê'); await tp.locator('textarea[maxlength="3000"]').fill('Saet 14:00 li salonê');

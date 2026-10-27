@@ -1588,6 +1588,74 @@ html.aat-in .c-note-err{background:#FDECEA;color:#8A1C12}
 html.aat-in .c-lbl{display:block;font-size:14px;font-weight:600;color:#102A31;margin-bottom:8px}
 html.aat-in .c-h{font-size:14px;font-weight:600;color:#102A31;margin:0 0 10px}
 html.aat-in .c-check{display:flex;align-items:center;gap:12px;min-height:44px;cursor:pointer;font-size:14px;color:#102A31}
+
+/* Aşama 2 — mesaj/duyuru yapı taşları */
+html.aat-in .c-backbar{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+html.aat-in .c-backbar-t{flex:1;min-width:0;font-size:17px;font-weight:700;color:#102A31;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+html.aat-in .c-iconbtn{width:44px;height:44px;border-radius:22px;background:#F2F4F4;border:0;color:#102A31;display:inline-flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;cursor:pointer}
+html.aat-in .c-iconbtn.sm{width:36px;height:36px;border-radius:18px;background:transparent}
+html.aat-in .c-iconbtn.danger{color:#B42318}
+html.aat-in .c-iconbtn:not(.sm).danger{background:#FDECEA}
+html.aat-in .c-iconbtn.sm:hover{background:#F2F4F4}
+html.aat-in .c-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+html.aat-in .c-chips.scroll{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;margin-bottom:12px}
+html.aat-in .c-chips.scroll::-webkit-scrollbar{display:none}
+html.aat-in .c-chips.scroll .c-chip{flex-shrink:0}
+html.aat-in .c-cnt{font-size:12px;font-weight:600;opacity:.65;margin-left:4px}
+html.aat-in .c-badge{min-width:20px;height:20px;border-radius:10px;background:#B42318;color:#fff;font-size:11px;font-weight:700;padding:0 6px;display:inline-flex;align-items:center;justify-content:center}
+html.aat-in .c-list{background:#fff;border:1px solid var(--border);border-radius:16px;overflow:hidden}
+html.aat-in .c-row{display:flex;align-items:center;gap:4px;padding-right:8px;border-bottom:1px solid #EEF1F2}
+html.aat-in .c-row:last-child{border-bottom:0}
+html.aat-in .c-row-main{flex:1;min-width:0;display:flex;align-items:center;gap:12px;padding:12px 6px 12px 14px;background:none;border:0;text-align:left;cursor:pointer;color:inherit;font:inherit}
+html.aat-in .c-row-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+html.aat-in .c-row-top{display:flex;align-items:center;gap:8px}
+html.aat-in .c-row-ti{flex:1;min-width:0;font-size:14px;font-weight:600;color:#102A31;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+html.aat-in .c-row-time{font-size:12px;color:#56676C;flex-shrink:0}
+html.aat-in .c-row-sub{font-size:13.5px;color:#102A31;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+html.aat-in .c-row-pre{font-size:13px;color:#56676C;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+html.aat-in .c-row.unread .c-row-ti,html.aat-in .c-row.unread .c-row-sub{font-weight:700}
+html.aat-in .c-dot{width:9px;height:9px;border-radius:5px;background:#0f2f38;flex-shrink:0}
+html.aat-in .c-av{width:40px;height:40px;border-radius:20px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;background:#EEF3F3;color:#0f2f38}
+html.aat-in .c-av.err{background:#FDECEA;color:#B42318}
+html.aat-in .c-av.gold{background:#FBF5E6;color:#8A5A0B}
+html.aat-in .c-av.ok{background:#E3F1E8;color:#1E7A46}
+html.aat-in .c-av.lg{width:56px;height:56px;border-radius:28px;margin:0 auto 10px}
+html.aat-in .c-empty{text-align:center;padding:30px 16px;color:#56676C;font-size:14px;background:#fff;border:1px solid var(--border);border-radius:16px}
+html.aat-in .c-tag{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:11px;background:#F2F4F4;color:#3E5056;font-size:11.5px;font-weight:600;white-space:nowrap}
+html.aat-in .c-tag.gold{background:#FBF5E6;color:#8A5A0B}
+html.aat-in .c-tag.ok{background:#E3F1E8;color:#1E5B3A}
+html.aat-in .c-tag.err{background:#FDECEA;color:#8A1C12}
+html.aat-in .c-attach{width:100%;min-height:48px;border:1.5px dashed #D2DADC;border-radius:14px;background:#F7F8F8;color:#3E5056;display:flex;align-items:center;justify-content:center;gap:8px;font:500 14px var(--font-ui);cursor:pointer}
+html.aat-in .c-file{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 12px;border-radius:12px;background:#F2F4F4;font-size:13px;color:#102A31}
+html.aat-in .c-x{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:11px;background:#102A31;color:#fff;border:2px solid #fff;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer}
+html.aat-in .c-link{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:600;color:#0f2f38;text-decoration:none}
+/* Ortak eski yardımcılar: PrimaryBtn (.btn-navy) ve FieldWrap etiketi */
+html.aat-in .btn-navy{border-radius:26px!important;min-height:52px}
+html.aat-in .fw-lbl{font-size:14px!important;font-weight:600!important;color:#102A31!important;letter-spacing:0!important;margin-bottom:8px!important}
+
+/* Aşama 3 — rapor süzgeçleri ve özet */
+html.aat-in .c-ftags{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;align-items:center}
+html.aat-in .c-ftag{display:inline-flex;align-items:center;gap:2px;height:32px;padding:0 4px 0 12px;border-radius:16px;background:#FBF5E6;color:#5A4513;font-size:13px;font-weight:600}
+html.aat-in .c-ftag button{width:26px;height:26px;border:0;border-radius:13px;background:transparent;color:#5A4513;display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer}
+html.aat-in .c-ftag button:hover{background:rgba(90,69,19,.1)}
+html.aat-in .c-ftag-clear{height:32px;padding:0 10px;border:0;background:none;color:#56676C;font:600 13px var(--font-ui);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+html.aat-in .c-stat{background:#F7F8F8;border-radius:14px;padding:12px 10px;text-align:center}
+html.aat-in .c-stat-v{font-size:24px;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums}
+html.aat-in .c-stat-l{font-size:12px;color:#56676C;margin-top:4px}
+html.aat-in .c-pct{min-width:52px;height:28px;padding:0 10px;border-radius:14px;background:#F2F4F4;font-size:13px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
+
+/* Aşama 4 — telefonda alt şerit (yüzen, koyu) */
+html.aat-in .c-dock{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));height:64px;z-index:150;
+  background:#0f2f38;border-radius:22px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:center;padding:0 6px;
+  box-shadow:0 10px 30px rgba(15,47,56,.28);max-width:560px;margin:0 auto}
+html.aat-in .c-dock-b{position:relative;height:56px;border:0;background:none;color:#A9BEC3;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;min-width:0}
+html.aat-in .c-dock-ic{display:inline-flex;align-items:center;justify-content:center;height:44px;width:56px;border-radius:22px;transition:background .15s}
+html.aat-in .c-dock-b.on .c-dock-ic{background:#E7C77B;color:#0f2f38}
+html.aat-in .c-dock-lb{display:none}
+html.aat-in .c-dock-bdg{position:absolute;top:6px;right:calc(50% - 22px);min-width:18px;height:18px;border-radius:9px;background:#B42318;color:#fff;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid #0f2f38}
+html.aat-in.has-dock .scroll-area{padding-bottom:calc(100px + env(safe-area-inset-bottom,0px))!important}
+html.aat-in.has-dock .pano-body{padding-bottom:calc(100px + env(safe-area-inset-bottom,0px))}
+@media (min-width:1000px){html.aat-in .c-dock{display:none}}
 </style>
 </head>
 <body style="position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;overflow:hidden;background:#ffffff;margin:0;padding:0;overscroll-behavior:none;">
@@ -3904,7 +3972,10 @@ const ICO={trash:"M4 7h16M9 7V4.5h6V7m-8.5 0 1 12.5h9l1-12.5M10 11v5.5M14 11v5.5
   send:"m22 2-7 20-4-9-9-4zM22 2 11 13",check:"M20 6 9 17l-5-5",
   shield:"M12 21s7-3.5 7-9V5.5L12 3 5 5.5V12c0 5.5 7 9 7 9z",lock:"M6 11h12v9H6zM8 11V7a4 4 0 0 1 8 0v4",
   ok:"M21 11.1V12a9 9 0 1 1-5.3-8.2M21 4 12 13l-3-3",pin:"M12 21s7-6.2 7-11.5a7 7 0 0 0-14 0C5 14.8 12 21 12 21zM12 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z",
-  back:"M15 18l-6-6 6-6",refresh:"M20 12a8 8 0 0 1-14 5.3L4 15M4 12a8 8 0 0 1 14-5.3L20 9M20 4v5h-5M4 20v-5h5"};
+  back:"M15 18l-6-6 6-6",film:"M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4",
+  mask:"M4 4h16v7a8 8 0 0 1-16 0zM8.5 9h.01M15.5 9h.01M9 14a4 4 0 0 0 6 0",palette:"M12 3a9 9 0 0 0 0 18c1 0 1.8-.8 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.4-.7-.4-1.2 0-1 .8-1.8 1.8-1.8h2.1A5.2 5.2 0 0 0 22 9.8C21.6 5.9 17.3 3 12 3zM7.5 11.5h.01M10 7.5h.01M15 7.5h.01",
+  dance:"M12 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM12 8v6l-3 7M12 14l3 7M7 10l5-2 5 2",clip:"m21.4 11.1-9.2 9.2a6 6 0 0 1-8.5-8.5l8.6-8.6a4 4 0 1 1 5.7 5.7l-8.6 8.6a2 2 0 0 1-2.8-2.8l8.5-8.5",
+  file:"M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h4",download:"M20 15v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-4M7 10l5 5 5-5M12 15V3",refresh:"M20 12a8 8 0 0 1-14 5.3L4 15M4 12a8 8 0 0 1 14-5.3L20 9M20 4v5h-5M4 20v-5h5"};
 // Menü bölümü → simge ve (geniş ekranda) grup
 const NAV_ICO={home:"today",attendance:"att",scanner:"qr",checkin:"qr",myclass:"cls",sinif:"cls",students:"users",schedule:"cal",
   qad:"music",serledan:"inbox",announce:"ann",announcements:"ann",messages:"msg",feedback:"note",alerts:"bell",
@@ -3961,8 +4032,8 @@ function Seg({value,onChange,items}){ // items: [[anahtar, etiket, simge?]]
       {ic&&<Ico n={ic} size={17}/>}<span>{lb}</span></button>)}
   </div>;
 }
-function Chips({value,onChange,items}){
-  return <div className="c-chips">{items.map(([k,lb,ic,attrs])=><button key={k} type="button" aria-pressed={value===k} className={"c-chip"+(value===k?" on":"")} onClick={()=>onChange(k)} {...(attrs||{})}>
+function Chips({value,onChange,items,scroll}){
+  return <div className={"c-chips"+(scroll?" scroll":"")}>{items.map(([k,lb,ic,attrs])=><button key={k} type="button" aria-pressed={value===k} className={"c-chip"+(value===k?" on":"")} onClick={()=>onChange(k)} {...(attrs||{})}>
     {value===k?<Ico n="check" size={15}/>:(ic?<Ico n={ic} size={15}/>:null)}<span>{lb}</span></button>)}</div>;
 }
 function PBtn({children,onClick,disabled,icon,style,kind,type}){
@@ -3972,6 +4043,51 @@ function Note({children,tone,icon,style}){
   return <div className={"c-note"+(tone?" c-note-"+tone:"")} style={style}><Ico n={icon||"info"} size={18}/><div>{children}</div></div>;
 }
 function FLabel({children,htmlFor}){ return <label htmlFor={htmlFor} className="c-lbl">{children}</label>; }
+// Etiket başındaki emojiyi at (simge ayrıca verildiğinde çift görünmesin)
+function noEmo(x){ const s=String(x==null?"":x); return window.aatEmoStrip?window.aatEmoStrip(s):s.replace(/^\S+\s+/,""); }
+// Geri çubuğu: yuvarlak geri düğmesi + başlık + sağda isteğe bağlı eylem
+function BackBar({onBack,title,right,lang}){
+  return <div className="c-backbar">
+    <button type="button" className="c-iconbtn" aria-label={lang==="en"?"Back":K("Vegere")} onClick={onBack}><Ico n="back" size={20}/></button>
+    <div className="c-backbar-t">{title}</div>{right}
+  </div>;
+}
+// Mesaj / duyuru satırı: simge dairesi, başlık + zaman, konu, önizleme, okunmadı noktası, sil
+function MsgRow({icon,tone,title,time,subject,preview,unread,onClick,onDelete,lang,attrs}){
+  return <div className={"c-row"+(unread?" unread":"")} {...(attrs||{})}>
+    <button type="button" className="c-row-main" onClick={onClick}>
+      <span className={"c-av "+(tone||"")}><Ico n={icon||"msg"} size={19}/></span>
+      <span className="c-row-tx">
+        <span className="c-row-top"><span className="c-row-ti">{title}</span><span className="c-row-time">{time}</span></span>
+        {subject&&<span className="c-row-sub">{subject}</span>}
+        {preview&&<span className="c-row-pre">{preview}</span>}
+      </span>
+      {unread&&<span className="c-dot" aria-label={lang==="en"?"Unread":K("Nexwandî")}/>}
+    </button>
+    {onDelete&&<button type="button" className="c-iconbtn sm danger" aria-label={lang==="en"?"Delete":K("Jêbire")} onClick={onDelete}><Ico n="trash" size={17}/></button>}
+  </div>;
+}
+function EmptyState({icon,text,children}){
+  return <div className="c-empty"><span className="c-av lg"><Ico n={icon||"inbox"} size={24}/></span><div>{text}</div>{children}</div>;
+}
+// Dosya ekleme kutusu + eklenen dosyalar
+function AttachBox({files,onPick,onRemove,label,lang}){
+  const imgs=(files||[]).filter(f=>f.type==="image"), docs=(files||[]).filter(f=>f.type!=="image");
+  return <div style={{display:"flex",flexDirection:"column",gap:8}}>
+    <button type="button" className="c-attach" onClick={onPick}><Ico n="clip" size={18}/>{noEmo(label)}</button>
+    {imgs.length>0&&<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{imgs.map(f=>(
+      <div key={f.id} style={{position:"relative",width:68,height:68}}>
+        <img src={f.preview} alt="" style={{width:68,height:68,objectFit:"cover",borderRadius:12,border:"1px solid var(--border)"}}/>
+        <button type="button" className="c-x" aria-label={lang==="en"?"Remove":K("Rake")} onClick={()=>onRemove(f.id)}><Ico n="close" size={12}/></button>
+      </div>))}</div>}
+    {docs.map(f=>(
+      <div key={f.id} className="c-file"><Ico n="file" size={18}/>
+        <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</span>
+        <span style={{fontSize:12,color:"var(--text2)"}}>{f.size}</span>
+        <button type="button" className="c-iconbtn sm" aria-label={lang==="en"?"Remove":K("Rake")} onClick={()=>onRemove(f.id)}><Ico n="close" size={15}/></button>
+      </div>))}
+  </div>;
+}
 function Card({children,style,onClick}){
   return(
     <div onClick={onClick} className={`card${onClick?" card-tap":""}`} style={{marginBottom:10,...style}}>
@@ -3994,7 +4110,7 @@ function PrimaryBtn({children,onClick,style,icon,disabled}){
 function FieldWrap({label,children}){
   return(
     <div style={{marginBottom:14}}>
-      <label style={{fontSize:11.5,color:"var(--text2)",fontWeight:600,marginBottom:6,display:"block",letterSpacing:"0.03em"}}>{label}</label>
+      <label className="fw-lbl" style={{fontSize:11.5,color:"var(--text2)",fontWeight:600,marginBottom:6,display:"block",letterSpacing:"0.03em"}}>{label}</label>
       {children}
     </div>
   );
@@ -5815,55 +5931,53 @@ function AdminMessagesPanel({students,teachers,lang,t,toast,adminName}){
     attach:lang==="en"?"Attach File / Photo":K("Dosya / Wêne Zêde Bike"),
   };
 
+  const delMsg=async(msg)=>{
+    if(!window.confirm(lang==="en"?"Delete this message?":K("Peyam were jêbirin?"))) return false;
+    if(window.__FB &&window.__FB.isConfigured()){
+      const delId = msg.fireId || (msg.id && String(msg.id));
+      if(delId) try{ await window.__FB.deleteMessage(delId); }catch(e){ console.warn("msg del:",e); }
+    }
+    setMessages(p=>p.filter(m=>{
+      const matchFire = msg.fireId && m.fireId && m.fireId===msg.fireId;
+      const matchId   = msg.id   && m.id   && String(m.id)===String(msg.id);
+      return !matchFire && !matchId;
+    }));
+    toast(lang==="en"?"Message deleted":K("Peyam hate jêbirin"));
+    return true;
+  };
+  const msgIco=m=>m.isStudentFeedback?(m.type==="complaint"?["warn","err"]:m.type==="question"?["help",""]:["note","gold"]):m.fromType==="head"?["users",""]:m.type==="bulk"?["ann",""]:["msg",""];
+
   if(selectedMsg) return(
     <>
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-        <button onClick={()=>setSelectedMsg(null)} style={{padding:"7px 14px",fontSize:12,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:8,cursor:"pointer",color:"var(--text)",fontWeight:600}}>← {t.back||"Vegere"}</button>
-        <div style={{fontSize:13,fontWeight:700,color:"var(--text)",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{selectedMsg.subject}</div>
-        <button onClick={async()=>{
-          if(!window.confirm(lang==="en"?"Delete this message?":K("Peyam were jêbirin?"))) return; // confirm OK
-
-          if(window.__FB &&window.__FB.isConfigured()){
-            const delId = selectedMsg.fireId || (selectedMsg.id && String(selectedMsg.id));
-            if(delId) try{ await window.__FB.deleteMessage(delId); }catch(e){ console.warn("msg del:",e); }
-          }
-          setMessages(p=>p.filter(m=>{
-            const matchFire = selectedMsg.fireId && m.fireId && m.fireId===selectedMsg.fireId;
-            const matchId   = selectedMsg.id   && m.id   && String(m.id)===String(selectedMsg.id);
-            return !matchFire && !matchId;
-          }));
-          setSelectedMsg(null);
-          toast(lang==="en"?"🗑 Message deleted":K("🗑 Peyam hate jêbirin"));
-        }} style={{padding:"7px 12px",fontSize:12,background:"var(--red-bg,#fde8e8)",border:"0.5px solid #ef4444",borderRadius:8,cursor:"pointer",color:"#ef4444",fontWeight:700,flexShrink:0}}>
-          <Ico n="trash"/> {lang==="en"?"Delete":K("Jêbire")}
-        </button>
-      </div>
+      <BackBar lang={lang} onBack={()=>setSelectedMsg(null)} title={selectedMsg.subject}
+        right={<button type="button" className="c-iconbtn danger" aria-label={lang==="en"?"Delete":K("Jêbire")}
+          onClick={async()=>{ if(await delMsg(selectedMsg)) setSelectedMsg(null); }}><Ico n="trash" size={19}/></button>}/>
       <Card>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-          <div>
-            <div style={{fontSize:12,fontWeight:700,color:"var(--text)"}}>{selectedMsg.direction==="inbox"?selectedMsg.from:("→ "+selectedMsg.to)}</div>
-            <div style={{fontSize:10,color:"var(--text2)",marginTop:2}}>{selectedMsg.time}</div>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+          <span className={"c-av "+msgIco(selectedMsg)[1]}><Ico n={msgIco(selectedMsg)[0]} size={19}/></span>
+          <div style={{minWidth:0,flex:1}}>
+            <div style={{fontSize:15,fontWeight:700,color:"var(--text)"}}>{selectedMsg.direction==="inbox"?selectedMsg.from:("→ "+selectedMsg.to)}</div>
+            <div style={{fontSize:12.5,color:"var(--text2)",marginTop:2}}>{selectedMsg.time}</div>
           </div>
-          <span style={{fontSize:10,padding:"2px 8px",borderRadius:8,background:selectedMsg.type==="bulk"?"var(--bg2)":"rgba(22,163,74,.06)",color:selectedMsg.type==="bulk"?"var(--accent)":"#1a7a4a",fontWeight:600}}>{selectedMsg.type==="bulk"?L.bulk:L.private}</span>
+          <span className="c-tag">{selectedMsg.type==="bulk"?L.bulk:L.private}</span>
         </div>
-        <div style={{fontSize:14,color:"var(--text)",lineHeight:1.7,padding:"10px 0",borderTop:"1px solid var(--border)"}}>{selectedMsg.body}</div>
-        {/* Ekler */}
+        <div style={{fontSize:15,color:"var(--text)",lineHeight:1.65,paddingTop:12,borderTop:"1px solid var(--border)",whiteSpace:"pre-wrap"}}>{selectedMsg.body}</div>
         {selectedMsg.attachments&&selectedMsg.attachments.length>0&&(
-          <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid var(--border)"}}>
-            <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",marginBottom:8}}>📎 {lang==="en"?"Attachments":K("Pêvekirin")} ({selectedMsg.attachments.length})</div>
+          <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8}}>
+            <div className="c-h" style={{marginBottom:2}}>{lang==="en"?"Attachments":K("Pêvekirin")} ({selectedMsg.attachments.length})</div>
             {selectedMsg.attachments.filter(a=>a.type==="image").length>0&&(
-              <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                 {selectedMsg.attachments.filter(a=>a.type==="image").map((a,i)=>(
-                  <img key={i} src={a.preview||a.url} style={{width:80,height:80,objectFit:"cover",borderRadius:8,border:"1px solid var(--border)",cursor:"pointer"}} alt={a.name} onClick={()=>openImageSafe(a.url)}/>
+                  <img key={i} src={a.preview||a.url} style={{width:84,height:84,objectFit:"cover",borderRadius:12,border:"1px solid var(--border)",cursor:"pointer"}} alt={a.name} onClick={()=>openImageSafe(a.url)}/>
                 ))}
               </div>
             )}
             {selectedMsg.attachments.filter(a=>a.type==="file").map((a,i)=>(
-              <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",background:"var(--bg2)",borderRadius:8,marginBottom:5}}>
-                <span style={{fontSize:18}}>📄</span>
-                <span style={{flex:1,fontSize:12,color:"var(--text)"}}>{a.name}</span>
-                <span style={{fontSize:10,color:"var(--text2)"}}>{a.size}</span>
-                {safeHref(a.url)&&<a href={safeHref(a.url)} download={a.name} rel="noopener" style={{fontSize:12,color:"var(--text)",textDecoration:"none",fontWeight:600}}>⬇ {lang==="en"?"Download":K("Dakêşe")}</a>}
+              <div key={i} className="c-file">
+                <Ico n="file" size={18}/>
+                <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.name}</span>
+                <span style={{fontSize:12,color:"var(--text2)"}}>{a.size}</span>
+                {safeHref(a.url)&&<a href={safeHref(a.url)} download={a.name} rel="noopener" className="c-link"><Ico n="download" size={16}/> {lang==="en"?"Download":K("Dakêşe")}</a>}
               </div>
             ))}
           </div>
@@ -5874,19 +5988,10 @@ function AdminMessagesPanel({students,teachers,lang,t,toast,adminName}){
 
   if(mode==="compose") return(
     <>
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-        <button onClick={()=>setMode("inbox")} style={{padding:"7px 14px",fontSize:12,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:8,cursor:"pointer",color:"var(--text)",fontWeight:600}}>← {t.back||"Vegere"}</button>
-        <div style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>✍️ {L.compose}</div>
-      </div>
-      <Card style={{marginBottom:12}}>
-        <div style={{display:"flex",gap:6,marginBottom:14}}>
-          {[{k:"private",icon:"👤",label:L.private},{k:"bulk",icon:"📣",label:L.bulk}].map(opt=>(
-            <button key={opt.k} onClick={()=>setMsgType(opt.k)} style={{flex:1,padding:"10px 6px",border:`2px solid ${msgType===opt.k?"#0f2f38":"var(--border2)"}`,borderRadius:10,background:msgType===opt.k?"#0f2f38":"var(--bg2)",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
-              <span style={{fontSize:20}}>{opt.icon}</span>
-              <span style={{fontSize:11,fontWeight:700,color:msgType===opt.k?"#fff":"var(--text)"}}>{opt.label}</span>
-            </button>
-          ))}
-        </div>
+      <BackBar lang={lang} onBack={()=>setMode("inbox")} title={L.compose}/>
+      <Card>
+        <Seg value={msgType} onChange={setMsgType} items={[["private",L.private,"user"],["bulk",L.bulk,"ann"]]}/>
+        <div style={{marginTop:16}}>
         {msgType==="private"?(
           <FieldWrap label={L.recipient}>
             <select style={selectStyle} value={recipient} onChange={e=>setRecipient(e.target.value)}>
@@ -5906,135 +6011,56 @@ function AdminMessagesPanel({students,teachers,lang,t,toast,adminName}){
             </select>
           </FieldWrap>
         )}
-        <FieldWrap label={L.subject}><input style={inputStyle} value={subject} onChange={e=>setSubject(e.target.value)} placeholder="..."/></FieldWrap>
-        <FieldWrap label={L.message}><textarea style={{...inputStyle,minHeight:90,resize:"vertical"}} value={body} onChange={e=>setBody(e.target.value)} placeholder="..."/></FieldWrap>
-        {/* ── DOSYA / FOTOĞRAF EKLEME ── */}
-        <div style={{marginBottom:14}}>
-          <button onClick={()=>attachRef.current.click()}
-            style={{width:"100%",padding:"11px",borderRadius:10,border:"2px dashed var(--border2)",
-              background:"var(--bg2)",cursor:"pointer",
-              display:"flex",alignItems:"center",justifyContent:"center",gap:7,
-              color:"var(--text2)",fontSize:12,fontWeight:500}}>
-            <span style={{fontSize:16}}>📎</span> {L.attach}
-          </button>
-          <input ref={attachRef} type="file" multiple accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.mp4,.mp3"
-            style={{display:"none"}} onChange={handleAttach}/>
-          {attachments.length>0&&(
-            <div style={{marginTop:8,display:"flex",flexDirection:"column",gap:5}}>
-              {attachments.filter(f=>f.type==="image").length>0&&(
-                <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:4}}>
-                  {attachments.filter(f=>f.type==="image").map(f=>(
-                    <div key={f.id} style={{position:"relative",width:64,height:64}}>
-                      <img src={f.preview} style={{width:64,height:64,objectFit:"cover",borderRadius:7,border:"1.5px solid var(--border2)"}} alt=""/>
-                      <button onClick={()=>setAttachments(p=>p.filter(x=>x.id!==f.id))}
-                        style={{position:"absolute",top:-5,right:-5,width:17,height:17,borderRadius:"50%",
-                          background:"#ef4444",border:"none",color:"#fff",fontSize:10,cursor:"pointer",lineHeight:"17px",textAlign:"center",padding:0}}>×</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {attachments.filter(f=>f.type==="file").map(f=>(
-                <div key={f.id} style={{display:"flex",alignItems:"center",gap:7,padding:"6px 9px",background:"var(--surface)",borderRadius:7,border:"1px solid var(--border)"}}>
-                  <span>📄</span>
-                  <span style={{flex:1,fontSize:11,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</span>
-                  <span style={{fontSize:10,color:"var(--text2)"}}>{f.size}</span>
-                  <button onClick={()=>setAttachments(p=>p.filter(x=>x.id!==f.id))} style={{background:"none",border:"none",color:"var(--red)",cursor:"pointer",fontSize:13}}>✕</button>
-                </div>
-              ))}
-              <div style={{fontSize:10,color:"var(--green)",fontWeight:600}}>✅ {attachments.length} {lang==="en"?"file(s)":K("pel")}</div>
-            </div>
-          )}
+        <FieldWrap label={L.subject}><input style={inputStyle} value={subject} onChange={e=>setSubject(e.target.value)} placeholder={lang==="en"?"Subject":K("Sernav")}/></FieldWrap>
+        <FieldWrap label={L.message}><textarea style={{...inputStyle,minHeight:120,resize:"vertical",lineHeight:1.55}} value={body} onChange={e=>setBody(e.target.value)} placeholder={lang==="en"?"Write your message…":K("Peyama xwe binivîse…")}/></FieldWrap>
+        <AttachBox lang={lang} label={L.attach} files={attachments} onPick={()=>attachRef.current.click()} onRemove={id=>setAttachments(p=>p.filter(x=>x.id!==id))}/>
+        <input ref={attachRef} type="file" multiple accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.mp4,.mp3"
+          style={{display:"none"}} onChange={handleAttach}/>
+        <PBtn onClick={sendMsg} icon="send" style={{marginTop:16}}>{L.send}</PBtn>
         </div>
-        <PrimaryBtn onClick={sendMsg} icon="📤">{L.send}</PrimaryBtn>
       </Card>
     </>
   );
 
+  const cnt=n=>n>0?<span className="c-cnt">{n}</span>:null;
+  const list=inboxTab==="inbox"?displayInbox:sent;
   return(
     <>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-        <div style={{display:"flex",gap:6}}>
-          {[{k:"inbox",label:L.inbox},{k:"sent",label:L.sent}].map(tab=>(
-            <button key={tab.k} onClick={()=>setInboxTab(tab.k)} style={{padding:"7px 14px",fontSize:12,border:"none",borderRadius:8,cursor:"pointer",fontWeight:inboxTab===tab.k?700:500,background:inboxTab===tab.k?"#0f2f38":"var(--bg2)",color:inboxTab===tab.k?"#fff":"var(--text)"}}>
-              {tab.label}{tab.k==="inbox"&&inbox.filter(m=>!m.read).length>0&&<span style={{marginLeft:5,background:"#ef4444",color:"#fff",borderRadius:8,padding:"0 5px",fontSize:10}}>{inbox.filter(m=>!m.read).length}</span>}
-            </button>
-          ))}
+      <div className="c-toolbar">
+        <div style={{flex:"1 1 200px",maxWidth:320}}>
+          <Seg value={inboxTab} onChange={setInboxTab} items={[["inbox",<>{L.inbox}{unreadCount>0&&<span className="c-badge" style={{marginLeft:6}}>{unreadCount}</span>}</>,"inbox"],["sent",L.sent,"send"]]}/>
         </div>
-        <button onClick={()=>setMode("compose")} style={{padding:"8px 14px",background:"#0f2f38",color:"#ffffff",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer"}}>✍️ {L.compose}</button>
+        <button type="button" className="c-btn" style={{width:"auto",minHeight:44,padding:"0 18px",fontSize:14,boxShadow:"none"}} onClick={()=>setMode("compose")}><Ico n="edit" size={17}/>{L.compose}</button>
       </div>
-      {/* Feedback filter — shown only in inbox tab */}
       {inboxTab==="inbox"&&(
-        <div style={{display:"flex",gap:6,marginBottom:10,overflowX:"auto"}}>
-          {[
-            {k:"all",label:lang==="en"?"All":K("Hemû"),count:inbox.length},
-            {k:"feedback",label:lang==="en"?"💡 Feedback":K("💡 Pêşniyar/Gilî"),count:feedbackMsgs.length},
-            {k:"messages",label:lang==="en"?"💬 Messages":K("💬 Peyam"),count:regularMsgs.length},
-            {k:"heads",label:lang==="en"?"🎓 Department heads":K("🎓 Berpirsên beşan"),count:headMsgs.length},
-            {k:"genHead",label:lang==="en"?"🎓 General head":K("🎓 Berpirsê giştî"),count:genHeadMsgs.length},
-          ].map(f=>(
-            <button key={f.k} onClick={()=>setInboxFilter(f.k)}
-              style={{padding:"5px 10px",borderRadius:20,fontSize:10,fontWeight:inboxFilter===f.k?700:400,flexShrink:0,
-                background:inboxFilter===f.k?"#0f2f38":"var(--bg2)",
-                color:inboxFilter===f.k?"#fff":"var(--text2)",
-                border:`1px solid ${inboxFilter===f.k?"#0f2f38":"var(--border)"}`,cursor:"pointer"}}>
-              {f.label}{f.count>0&&<span style={{marginLeft:4,background:inboxFilter===f.k?"rgba(255,255,255,0.3)":"var(--border2)",borderRadius:8,padding:"0 4px",fontSize:9}}>{f.count}</span>}
-            </button>
-          ))}
-        </div>
+        <Chips scroll value={inboxFilter} onChange={setInboxFilter} items={[
+          ["all",<>{lang==="en"?"All":K("Hemû")}{cnt(inbox.length)}</>],
+          ["feedback",<>{noEmo(lang==="en"?"💡 Feedback":K("💡 Pêşniyar/Gilî"))}{cnt(feedbackMsgs.length)}</>,"note"],
+          ["messages",<>{noEmo(lang==="en"?"💬 Messages":K("💬 Peyam"))}{cnt(regularMsgs.length)}</>,"msg"],
+          ["heads",<>{noEmo(lang==="en"?"🎓 Department heads":K("🎓 Berpirsên beşan"))}{cnt(headMsgs.length)}</>,"users"],
+          ["genHead",<>{noEmo(lang==="en"?"🎓 General head":K("🎓 Berpirsê giştî"))}{cnt(genHeadMsgs.length)}</>,"star"],
+        ]}/>
       )}
-      {(inboxTab==="inbox"?displayInbox:sent).length===0?(
-        <Card><div style={{textAlign:"center",padding:24,color:"var(--text2)",fontSize:13}}>
-          <div style={{fontSize:36,marginBottom:8}}>💬</div>
-          {lang==="en"?"No messages":K("Peyam tune")}
-        </div></Card>
+      {list.length===0?(
+        <EmptyState icon="msg" text={lang==="en"?"No messages":K("Peyam tune")}/>
       ):(
-        <Card>
-          {(inboxTab==="inbox"?displayInbox:sent).map((msg,i,arr)=>(
-            <div key={msg.id||msg.fireId} onClick={()=>{
-              setSelectedMsg(msg);
-              setMessages(p=>p.map(m=>(m.id===msg.id||m.fireId===msg.fireId)?{...m,read:true}:m));
-              if(msg.fireId && !msg.read){ const fb=window.__FB; if(window.__FB &&window.__FB.isConfigured())window.__FB.markRead(msg.fireId).catch(()=>{}); }
-            }}
-              style={{display:"flex",alignItems:"flex-start",gap:10,padding:"11px 0",borderBottom:i<arr.length-1?"0.5px solid var(--border)":"none",cursor:"pointer"}}>
-              <div style={{width:36,height:36,borderRadius:"50%",
-                background:msg.isStudentFeedback?(msg.type==="complaint"?"rgba(220,38,38,.06)":msg.type==="question"?"var(--bg2)":"rgba(22,163,74,.06)"):msg.type==="bulk"?"var(--bg2)":"rgba(22,163,74,.06)",
-                display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>
-                {msg.isStudentFeedback?(msg.type==="complaint"?"⚠️":msg.type==="question"?"❓":"💡"):msg.type==="bulk"?"📣":"💬"}
-              </div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:4}}>
-                  <div style={{fontSize:12,fontWeight:!msg.read&&inboxTab==="inbox"?700:500,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                    {inboxTab==="inbox"?msg.from:("→ "+msg.to)}
-                    {msg.isStudentFeedback&&<span style={{marginLeft:5,fontSize:9,padding:"1px 5px",borderRadius:4,background:"rgba(231,199,123,0.2)",color:"#a07800"}}>Feedback</span>}
-                  </div>
-                  <span style={{fontSize:9,color:"var(--text2)",flexShrink:0}}>{msg.time}</span>
-                </div>
-                <div style={{fontSize:12,fontWeight:!msg.read&&inboxTab==="inbox"?600:400,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{msg.subject}</div>
-                <div style={{fontSize:11,color:"var(--text2)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{msg.body}</div>
-              </div>
-              {!msg.read&&inboxTab==="inbox"&&<div style={{width:8,height:8,borderRadius:"50%",background:"#0f2f38",flexShrink:0,marginTop:4}}/>}
-              <button onClick={async(e)=>{
-                e.stopPropagation();
-                if(!window.confirm(lang==="en"?"Delete?":K("Peyam were jêbirin?"))) return;
-
-                if(window.__FB &&window.__FB.isConfigured()){
-                  const delId = msg.fireId || (msg.id && String(msg.id));
-                  if(delId) try{ await window.__FB.deleteMessage(delId); }catch(err){ console.warn("msg del:",err); }
-                }
-                setMessages(p=>p.filter(m=>{
-                  const matchFire = msg.fireId && m.fireId && m.fireId===msg.fireId;
-                  const matchId   = msg.id   && m.id   && String(m.id)===String(msg.id);
-                  return !matchFire && !matchId;
-                }));
-                toast(lang==="en"?"🗑 Deleted":K("🗑 Hate jêbirin"));
-              }} style={{padding:"4px 8px",fontSize:11,background:"transparent",border:"0.5px solid #ef4444",borderRadius:6,cursor:"pointer",color:"#ef4444",flexShrink:0,marginLeft:4}}><Ico n="trash" solo/></button>
-            </div>
-          ))}
-        </Card>
+        <div className="c-list">
+          {list.map(msg=>{ const [ic,tone]=msgIco(msg); const un=!msg.read&&inboxTab==="inbox";
+            return <MsgRow key={msg.id||msg.fireId} icon={ic} tone={tone} unread={un}
+              title={<>{inboxTab==="inbox"?msg.from:("→ "+msg.to)}{msg.isStudentFeedback&&<span className="c-tag gold" style={{marginLeft:6}}>{lang==="en"?"Feedback":K("Pêşniyar")}</span>}</>}
+              time={msg.time} subject={msg.subject} preview={msg.body}
+              onClick={()=>{
+                setSelectedMsg(msg);
+                setMessages(p=>p.map(m=>(m.id===msg.id||m.fireId===msg.fireId)?{...m,read:true}:m));
+                if(msg.fireId && !msg.read){ if(window.__FB &&window.__FB.isConfigured())window.__FB.markRead(msg.fireId).catch(()=>{}); }
+              }}
+              onDelete={()=>delMsg(msg)} lang={lang}/>; })}
+        </div>
       )}
     </>
   );
 }
+
 function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toast}){
   const [mode,setMode]=useState("inbox");
   const [bulkTo,setBulkTo]=useState("all"); // "all" = sınıflarımın tüm öğrencileri | sınıf id
@@ -6167,51 +6193,36 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
   /* ── Detay görünümü ── */
   if(selectedMsg) return(
     <div style={{paddingBottom:20}}>
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-        <button onClick={()=>setSelectedMsg(null)}
-          style={{padding:"8px 14px",fontSize:12,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:8,cursor:"pointer",color:"var(--text)",fontWeight:600}}>
-          ← {L.back}
-        </button>
-        <div style={{fontSize:13,fontWeight:700,color:"var(--text)",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{selectedMsg.subject}</div>
-      </div>
+      <BackBar lang={lang} onBack={()=>setSelectedMsg(null)} title={selectedMsg.subject}/>
       <Card>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
-          <div>
-            <div style={{fontSize:11,color:"var(--text2)"}}>{selectedMsg.direction==="inbox"?L.from:L.to}</div>
-            <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{selectedMsg.direction==="inbox"?selectedMsg.from:selectedMsg.to}</div>
-            <div style={{fontSize:10,color:"var(--text2)",marginTop:3}}>{selectedMsg.time}</div>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+          <span className="c-av"><Ico n={(selectedMsg.senderId==="admin"||selectedMsg.fromType==="admin")?"shield":selectedMsg.fromType==="student"?"user":"msg"} size={19}/></span>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:12,color:"var(--text2)"}}>{selectedMsg.direction==="inbox"?L.from:L.to}</div>
+            <div style={{fontSize:15,fontWeight:700,color:"var(--text)"}}>{selectedMsg.direction==="inbox"?selectedMsg.from:selectedMsg.to}</div>
+            <div style={{fontSize:12.5,color:"var(--text2)",marginTop:2}}>{selectedMsg.time}</div>
           </div>
-          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
-            <span style={{fontSize:10,padding:"2px 8px",borderRadius:8,
-              background:selectedMsg.type==="bulk"?"var(--bg2)":"rgba(22,163,74,.06)",
-              color:selectedMsg.type==="bulk"?"var(--accent)":"#1a7a4a",fontWeight:600}}>
-              {selectedMsg.type==="bulk"?L.bulk:L.private}
-            </span>
-            {(selectedMsg.senderId==="admin"||selectedMsg.fromType==="admin")&&
-              <span style={{fontSize:10,padding:"1px 6px",borderRadius:6,background:"var(--gold-bg)",color:"var(--gold)",fontWeight:600}}>🛡 Admin</span>}
-          </div>
+          <span className="c-tag">{selectedMsg.type==="bulk"?L.bulk:L.private}</span>
         </div>
-        <div style={{fontSize:14,color:"var(--text)",lineHeight:1.8,padding:"12px 0",borderTop:"1px solid var(--border)"}}>{selectedMsg.body}</div>
+        <div style={{fontSize:15,color:"var(--text)",lineHeight:1.65,paddingTop:12,borderTop:"1px solid var(--border)",whiteSpace:"pre-wrap"}}>{selectedMsg.body}</div>
         {selectedMsg.direction==="inbox"&&selectedMsg.fromType==="student"&&selectedMsg.fromNo&&(()=>{ const st=myStudents.find(x=>String(x.no)===String(selectedMsg.fromNo)); return st?(
-          <button data-reply-student onClick={()=>{ setMsgType("private"); setRecipient(String(st.id)); setSubject("Re: "+(selectedMsg.subject||"")); setBody(""); setSelectedMsg(null); setMode("compose"); }}
-            style={{width:"100%",padding:11,borderRadius:10,border:"none",background:"#0f2f38",color:"#fff",fontWeight:800,fontSize:13,cursor:"pointer",marginTop:6}}>↩ {lang==="en"?"Reply":K("Bersiv bide")}</button>):null; })()}
-        {/* Ekler */}
+          <button type="button" data-reply-student className="c-btn" style={{marginTop:16}} onClick={()=>{ setMsgType("private"); setRecipient(String(st.id)); setSubject("Re: "+(selectedMsg.subject||"")); setBody(""); setSelectedMsg(null); setMode("compose"); }}>
+            <Ico n="send" size={18}/>{lang==="en"?"Reply":K("Bersiv bide")}</button>):null; })()}
         {selectedMsg.attachments&&selectedMsg.attachments.length>0&&(
-          <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid var(--border)"}}>
-            <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",marginBottom:8}}>📎 {lang==="en"?"Attachments":K("Pêvekirin")} ({selectedMsg.attachments.length})</div>
+          <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:8}}>
+            <div className="c-h" style={{marginBottom:2}}>{lang==="en"?"Attachments":K("Pêvekirin")} ({selectedMsg.attachments.length})</div>
             {selectedMsg.attachments.filter(a=>a.type==="image").length>0&&(
-              <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                 {selectedMsg.attachments.filter(a=>a.type==="image").map((a,i)=>(
-                  <img key={i} src={a.preview||a.url} style={{width:80,height:80,objectFit:"cover",borderRadius:8,border:"1px solid var(--border)",cursor:"pointer"}} alt={a.name} onClick={()=>openImageSafe(a.url)}/>
+                  <img key={i} src={a.preview||a.url} style={{width:84,height:84,objectFit:"cover",borderRadius:12,border:"1px solid var(--border)",cursor:"pointer"}} alt={a.name} onClick={()=>openImageSafe(a.url)}/>
                 ))}
               </div>
             )}
             {selectedMsg.attachments.filter(a=>a.type==="file").map((a,i)=>(
-              <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",background:"var(--bg2)",borderRadius:8,marginBottom:5}}>
-                <span style={{fontSize:18}}>📄</span>
-                <span style={{flex:1,fontSize:12,color:"var(--text)"}}>{a.name}</span>
-                <span style={{fontSize:10,color:"var(--text2)"}}>{a.size}</span>
-                {safeHref(a.url)&&<a href={safeHref(a.url)} download={a.name} rel="noopener" style={{fontSize:12,color:"var(--text)",textDecoration:"none",fontWeight:600}}>⬇</a>}
+              <div key={i} className="c-file"><Ico n="file" size={18}/>
+                <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.name}</span>
+                <span style={{fontSize:12,color:"var(--text2)"}}>{a.size}</span>
+                {safeHref(a.url)&&<a href={safeHref(a.url)} download={a.name} rel="noopener" className="c-iconbtn sm" aria-label={lang==="en"?"Download":K("Dakêşe")}><Ico n="download" size={16}/></a>}
               </div>
             ))}
           </div>
@@ -6220,34 +6231,19 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
     </div>
   );
 
-  /* ── Compose ── */
+  /* ── Yeni mesaj ── */
   if(mode==="compose") return(
     <div style={{paddingBottom:20}}>
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-        <button onClick={()=>setMode("inbox")}
-          style={{padding:"8px 14px",fontSize:12,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:8,cursor:"pointer",color:"var(--text)",fontWeight:600}}>
-          ← {L.back}
-        </button>
-        <div style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>✍️ {L.compose}</div>
-      </div>
-      <Card style={{marginBottom:12}}>
-        <div style={{display:"flex",gap:8,marginBottom:14}}>
-          {[{k:"private",icon:"👤",label:L.private},{k:"bulk",icon:"📣",label:lang==="en"?"All":K("Hemûyan")}].map(opt=>(
-            <button key={opt.k} onClick={()=>setMsgType(opt.k)}
-              style={{flex:1,padding:"11px 6px",border:`2px solid ${msgType===opt.k?"#0f2f38":"var(--border2)"}`,
-                borderRadius:10,background:msgType===opt.k?"#0f2f38":"var(--bg2)",cursor:"pointer",
-                display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
-              <span style={{fontSize:22}}>{opt.icon}</span>
-              <span style={{fontSize:11,fontWeight:700,color:msgType===opt.k?"#fff":"var(--text)"}}>{opt.label}</span>
-            </button>
-          ))}
-        </div>
+      <BackBar lang={lang} onBack={()=>setMode("inbox")} title={L.compose}/>
+      <Card>
+        <Seg value={msgType} onChange={setMsgType} items={[["private",L.private,"user"],["bulk",lang==="en"?"All":K("Hemûyan"),"users"]]}/>
+        <div style={{marginTop:16}}>
         {msgType==="private"?(
           <FieldWrap label={lang==="en"?"Recipient":K("Wergir")}>
             <select style={selectStyle} value={recipient} onChange={e=>setRecipient(e.target.value)}>
               <option value="">{lang==="en"?"Select...":K("Hilbijêre...")}</option>
               <optgroup label={lang==="en"?"Admin":K("Rêveber")}>
-                <option value="admin">🛡 {lang==="en"?"Admin":K("Rêveber")}</option>
+                <option value="admin">{lang==="en"?"Admin":K("Rêveber")}</option>
               </optgroup>
               <optgroup label={lang==="en"?"Students":K("Xwendekar")}>
                 {myStudents.map(s=><option key={s.id} value={String(s.id)}>{s.name} · {s.no}</option>)}
@@ -6255,95 +6251,67 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
             </select>
           </FieldWrap>
         ):(
-          <div style={{padding:"10px 12px",background:"rgba(15,47,56,0.05)",borderRadius:10,marginBottom:12,
-            border:"1px solid rgba(15,47,56,0.18)",fontSize:12,color:"var(--text)",fontWeight:600}}>
-            <select style={{...selectStyle,marginBottom:8}} value={bulkTo} onChange={e=>setBulkTo(e.target.value)} aria-label="bulk-to">
-              <option value="all">📣 {L.allStudents} ({myStudents.length})</option>
-              {(classGroups||[]).map(g=><option key={g.id} value={g.id}>🏫 {g.name} ({g.students.length})</option>)}
+          <FieldWrap label={lang==="en"?"Recipients":K("Wergir")}>
+            <select style={selectStyle} value={bulkTo} onChange={e=>setBulkTo(e.target.value)} aria-label="bulk-to">
+              <option value="all">{L.allStudents} ({myStudents.length})</option>
+              {(classGroups||[]).map(g=><option key={g.id} value={g.id}>{g.name} ({g.students.length})</option>)}
             </select>
-            <div style={{fontWeight:500,color:"var(--text2)",fontSize:11}}>
-              {lang==="en"?"Only students in your classes receive it.":K("Tenê xwendekarên sinifên te digirin.")} · {bulkTargets.length} {lang==="en"?"students":K("xwendekar")}
+            <div style={{fontSize:12.5,color:"var(--text2)",marginTop:8,display:"flex",alignItems:"center",gap:6}}>
+              <Ico n="users" size={15}/>{lang==="en"?"Only students in your classes receive it.":K("Tenê xwendekarên sinifên te digirin.")} · {bulkTargets.length} {lang==="en"?"students":K("xwendekar")}
             </div>
-          </div>
+          </FieldWrap>
         )}
         <FieldWrap label={L.subject}>
           <input style={inputStyle} value={subject} onChange={e=>setSubject(e.target.value)} placeholder={lang==="en"?"Subject...":K("Sernav...")}/>
         </FieldWrap>
         <FieldWrap label={L.message}>
-          <textarea style={{...inputStyle,minHeight:100,resize:"vertical"}} value={body} onChange={e=>setBody(e.target.value)} placeholder={lang==="en"?"Write your message...":K("Peyamê binivîse...")}/>
+          <textarea style={{...inputStyle,minHeight:120,resize:"vertical",lineHeight:1.55}} value={body} onChange={e=>setBody(e.target.value)} placeholder={lang==="en"?"Write your message...":K("Peyamê binivîse...")}/>
         </FieldWrap>
-        <div style={{fontSize:11,color:"var(--text2)",marginBottom:12}}>📎 {lang==="en"?"Files and documents are sent from My Class → Homework & Documents.":K("Pel û belge ji Sinifa Min → Erk û Belge tên şandin.")}</div>
-        <PrimaryBtn onClick={sendMsg} icon="📤">{L.send}</PrimaryBtn>
+        <Note style={{marginBottom:16}} icon="clip">{lang==="en"?"Files and documents are sent from My Class → Homework & Documents.":K("Pel û belge ji Sinifa Min → Erk û Belge tên şandin.")}</Note>
+        <PBtn onClick={sendMsg} icon="send">{noEmo(L.send)}</PBtn>
+        </div>
       </Card>
     </div>
   );
 
   /* ── Liste ── */
+  const list=inboxTab==="inbox"?inbox:sent;
   return(
     <div style={{paddingBottom:20}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-        <div style={{display:"flex",gap:6}}>
-          {[{k:"inbox",label:L.inbox,cnt:unreadCount},{k:"sent",label:L.sent,cnt:0}].map(tb=>(
-            <button key={tb.k} onClick={()=>setInboxTab(tb.k)}
-              style={{padding:"7px 14px",fontSize:12,border:"none",borderRadius:8,cursor:"pointer",
-                fontWeight:inboxTab===tb.k?700:500,
-                background:inboxTab===tb.k?"#0f2f38":"var(--bg2)",
-                color:inboxTab===tb.k?"#fff":"var(--text)",
-                position:"relative"}}>
-              {tb.label}
-              {tb.cnt>0&&<span style={{marginLeft:5,background:"#ef4444",color:"#fff",borderRadius:8,padding:"0 5px",fontSize:10}}>{tb.cnt}</span>}
-            </button>
-          ))}
+      <div className="c-toolbar">
+        <div style={{flex:"1 1 200px",maxWidth:320}}>
+          <Seg value={inboxTab} onChange={setInboxTab} items={[["inbox",<>{L.inbox}{unreadCount>0&&<span className="c-badge" style={{marginLeft:6}}>{unreadCount}</span>}</>,"inbox"],["sent",L.sent,"send"]]}/>
         </div>
-        <button onClick={()=>setMode("compose")}
-          style={{padding:"8px 14px",background:"#0f2f38",color:"#ffffff",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer"}}>
-          ✍️ {L.compose}
-        </button>
+        <button type="button" className="c-btn" style={{width:"auto",minHeight:44,padding:"0 18px",fontSize:14,boxShadow:"none"}} onClick={()=>setMode("compose")}><Ico n="edit" size={17}/>{noEmo(L.compose)}</button>
       </div>
-      {(inboxTab==="inbox"?inbox:sent).length===0?(
-        <Card>
-          <div style={{textAlign:"center",padding:28,color:"var(--text2)",fontSize:13}}>
-            <div style={{fontSize:36,marginBottom:8}}>💬</div>
-            {L.noMsgs}
-          </div>
-        </Card>
+      {list.length===0?(
+        <EmptyState icon="msg" text={L.noMsgs}/>
       ):(
-        <Card>
-          {(inboxTab==="inbox"?inbox:sent).map((msg,i,arr)=>{
+        <div className="c-list">
+          {list.map(msg=>{
             const isUnread=!msg.read&&inboxTab==="inbox";
             const isAdmin=msg.senderId==="admin"||msg.fromType==="admin";
             return(
-              <div key={msg.id||msg.fireId}
-                onClick={()=>{
-                  setSelectedMsg(msg);
-                  setMessages(p=>p.map(m=>(m.id===msg.id||m.fireId===msg.fireId)?{...m,read:true}:m));
-                  if(msg.fireId&&!msg.read){const fb=window.__FB;if(window.__FB &&window.__FB.isConfigured())window.__FB.markRead(msg.fireId).catch(()=>{});}
-                }}
-                style={{display:"flex",alignItems:"flex-start",gap:10,padding:"11px 0",
-                  borderBottom:i<arr.length-1?"0.5px solid var(--border)":"none",cursor:"pointer",
-                  background:isUnread?"rgba(255,255,255,0.02)":"transparent"}}>
-                <div style={{width:38,height:38,borderRadius:"50%",flexShrink:0,
-                  background:isAdmin?"var(--bg2)":msg.type==="bulk"?"var(--bg2)":"rgba(22,163,74,.06)",
-                  display:"flex",alignItems:"center",justifyContent:"center",fontSize:17}}>
-                  {isAdmin?"🛡":msg.type==="bulk"?"📣":"💬"}
+              <div key={msg.id||msg.fireId} className={"c-row"+(isUnread?" unread":"")}>
+                <div className="c-row-main" role="button" tabIndex={0} style={{cursor:"pointer"}}
+                  onKeyDown={e=>{ if(e.key==="Enter") e.currentTarget.click(); }}
+                  onClick={()=>{
+                    setSelectedMsg(msg);
+                    setMessages(p=>p.map(m=>(m.id===msg.id||m.fireId===msg.fireId)?{...m,read:true}:m));
+                    if(msg.fireId&&!msg.read){ if(window.__FB &&window.__FB.isConfigured())window.__FB.markRead(msg.fireId).catch(()=>{}); }
+                  }}>
+                  <span className="c-av"><Ico n={isAdmin?"shield":msg.fromType==="student"?"user":msg.type==="bulk"?"ann":"msg"} size={19}/></span>
+                  <span className="c-row-tx">
+                    <span className="c-row-top"><span className="c-row-ti">{inboxTab==="inbox"?(msg.from||(isAdmin?"Admin":"?")):("→ "+msg.to)}</span><span className="c-row-time">{msg.time?.slice(-5)||""}</span></span>
+                    <span className="c-row-sub">{msg.subject}</span>
+                    <span className="c-row-pre">{msg.body}</span>
+                  </span>
+                  {isUnread&&<span className="c-dot"/>}
                 </div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:4,marginBottom:2}}>
-                    <div style={{fontSize:12,fontWeight:isUnread?700:500,color:"var(--text)",
-                      overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                      {inboxTab==="inbox"?(msg.from||(isAdmin?"Admin":"?")):("→ "+msg.to)}
-                    </div>
-                    <span style={{fontSize:9,color:"var(--text2)",flexShrink:0}}>{msg.time?.slice(-5)||""}</span>
-                  </div>
-                  <div style={{fontSize:12,fontWeight:isUnread?600:400,color:"var(--text)",
-                    overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginBottom:1}}>{msg.subject}</div>
-                  <div style={{fontSize:11,color:"var(--text2)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{msg.body}</div>
-                </div>
-                {isUnread&&<div style={{width:8,height:8,borderRadius:"50%",background:"#0f2f38",flexShrink:0,marginTop:5}}/>}
               </div>
             );
           })}
-        </Card>
+        </div>
       )}
     </div>
   );
@@ -7159,8 +7127,11 @@ function AdminPressPanel({teachers,onDataChange,lang,toast,t}){
 /* ─── SOL MENÜ PANELİ (tüm paneller için ortak) ──────────────────────────── */
 // items: [{key,icon,label,badge?}] — onSelect(key) menüyü kapatıp bölüme gider.
 // extraItems: menü altına ayraçla eklenen ikincil eylemler (ayarlar, çıkış...)
-function SideMenu({open,onClose,items,activeKey,onSelect,user,roleLabel,extraItems}){
+function SideMenu({open,onClose,onOpen,items,activeKey,onSelect,user,roleLabel,extraItems,dock}){
   const phone=useIsPhone();
+  // Alt şerit (telefon): role göre en sık 4 bölüm + Pano düğmesi
+  const dockItems=phone&&dock&&onOpen?dock.map(k=>items.find(i=>i.key===k)).filter(Boolean).slice(0,4):[];
+  useEffect(()=>{ document.documentElement.classList.toggle("has-dock",dockItems.length>0); return ()=>document.documentElement.classList.remove("has-dock"); },[dockItems.length]);
   useEffect(()=>{
     if(!open) return;
     const onKey=e=>{ if(e.key==="Escape") onClose(); };
@@ -7187,8 +7158,21 @@ function SideMenu({open,onClose,items,activeKey,onSelect,user,roleLabel,extraIte
       </div>
     </div>
   );
+  const dockBar=dockItems.length>0&&(
+    <nav className="c-dock" aria-label={RL()==="en"?"Main menu":K("Menûya sereke")}>
+      <button type="button" data-dock-key="pano" className={"c-dock-b"+(open?" on":"")} aria-label="Pano" onClick={()=>open?onClose():onOpen()}>
+        <span className="c-dock-ic"><Ico n="grid" size={22}/>{open&&<span className="c-dock-lb">Pano</span>}</span></button>
+      {dockItems.map(it=>{ const on=!open&&activeKey===it.key; return(
+        <button key={it.key} type="button" data-dock-key={it.key} className={"c-dock-b"+(on?" on":"")} aria-label={it.label} aria-current={on?"page":undefined}
+          onClick={()=>{onSelect(it.key); if(open) onClose();}}>
+          <span className="c-dock-ic">{icoOf(it)}{on&&<span className="c-dock-lb">{it.label}</span>}</span>
+          {it.badge>0&&<span className="c-dock-bdg">{it.badge>99?"99+":it.badge}</span>}
+        </button>); })}
+    </nav>);
   // ── Telefon: tam ekran Pano (kare kartlar) — panel bununla açılır ──
   if(phone) return(
+    <>
+    {dockBar}
     <div className={"pano"+(open?" open":"")} role="navigation" aria-label="Menu" aria-hidden={!open}>
       {head}
       <div className="pano-body">
@@ -7215,6 +7199,7 @@ function SideMenu({open,onClose,items,activeKey,onSelect,user,roleLabel,extraIte
         )}
       </div>
     </div>
+    </>
   );
   // ── Geniş ekran: sabit, gruplu yan menü ──
   const groups=[];
@@ -7627,7 +7612,7 @@ function PressPanel({user,lang,toast,onLogout}){
   ];
   return(
     <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
-      <SideMenu open={menuOpen} onClose={()=>setMenuOpen(false)} items={pressTabs} activeKey={ptab}
+      <SideMenu open={menuOpen} onClose={()=>setMenuOpen(false)} onOpen={()=>setMenuOpen(true)} items={pressTabs} activeKey={ptab}
         onSelect={setPtab} user={user}
         roleLabel={lang==="en"?"Press":K("Çapemenî")}
         extraItems={[
@@ -7759,7 +7744,7 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
   const roleLabel=ALL?(lang==="en"?"General Head":K("Berpirsê Giştî")):(lang==="en"?"Department Head":K("Berpirsê Beşê"))+" · "+areaName(area,lang);
   return(
     <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
-      <SideMenu open={menuOpen} onClose={()=>setMenuOpen(false)} items={items} activeKey={tab} onSelect={setTab} user={user} roleLabel={roleLabel}
+      <SideMenu dock={["schedule","reports","messages","announce"]} open={menuOpen} onClose={()=>setMenuOpen(false)} onOpen={()=>setMenuOpen(true)} items={items} activeKey={tab} onSelect={setTab} user={user} roleLabel={roleLabel}
         extraItems={[...(onSettings?[{icon:"⚙️",label:t.settings||"Mîheng",onClick:onSettings}]:[]),{icon:"↩",label:t.logout||"Derkeve",onClick:onLogout,danger:true}]}/>
       <SpecialPanelHeader user={user} icon="🎓" lang={lang} onLogout={onLogout} onMenu={()=>setMenuOpen(true)} roleLabel={roleLabel}/>
       <div className="scroll-area" style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
@@ -7890,7 +7875,7 @@ function KidHeadPanel({user,t,lang,toast,onLogout,onSettings}){
   const ts=x=>x&&x.seconds?new Date(x.seconds*1000).toLocaleString(lang==="tr"?"tr-TR":"en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"";
   return(
     <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
-      <SideMenu open={menuOpen} onClose={()=>setMenuOpen(false)} items={items} activeKey={tab} onSelect={setTab} user={user} roleLabel={roleLabel}
+      <SideMenu dock={["schedule","reports","messages","announce"]} open={menuOpen} onClose={()=>setMenuOpen(false)} onOpen={()=>setMenuOpen(true)} items={items} activeKey={tab} onSelect={setTab} user={user} roleLabel={roleLabel}
         extraItems={[...(onSettings?[{icon:"⚙️",label:t.settings||"Mîheng",onClick:onSettings}]:[]),{icon:"↩",label:t.logout||"Derkeve",onClick:onLogout,danger:true}]}/>
       <SpecialPanelHeader user={user} icon="🎼" lang={lang} onLogout={onLogout} onMenu={()=>setMenuOpen(true)} roleLabel={roleLabel}/>
       <div className="scroll-area" style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
@@ -8001,71 +7986,73 @@ function HeadMessagesPanel({user,inbox,sent,teachers,lang,t,toast}){
   }
   const fmt=m=>m.time||(m.createdAt&&m.createdAt.seconds?new Date(m.createdAt.seconds*1000).toLocaleString():"");
   const list=mode==="inbox"?inbox:sent;
-  const tabBtn=(k,lbl)=>(
-    <button key={k} onClick={()=>{setMode(k);setOpen(null);}} style={{flex:1,padding:"9px 6px",borderRadius:9,border:"none",cursor:"pointer",fontSize:12,fontWeight:mode===k?800:600,
-      background:mode===k?"var(--surface)":"transparent",color:mode===k?"var(--accent)":"var(--text2)"}}>{lbl}</button>);
+  const unreadN=inbox.filter(m=>!m.read).length;
   return(
     <div>
-      <div style={{display:"flex",gap:5,marginBottom:12,background:"var(--bg2)",padding:4,borderRadius:12}}>
-        {tabBtn("inbox",W("Gihîştî","Inbox")+(inbox.filter(m=>!m.read).length?" ("+inbox.filter(m=>!m.read).length+")":""))}
-        {tabBtn("sent",W("Şandî","Sent"))}
-        {tabBtn("compose",W("Peyamek Nû","New Message"))}
+      <div style={{marginBottom:14}}>
+        <Seg value={mode} onChange={k=>{setMode(k);setOpen(null);}} items={[
+          ["inbox",<>{W("Gihîştî","Inbox")}{unreadN>0&&<span className="c-badge" style={{marginLeft:6}}>{unreadN}</span>}</>,"inbox"],
+          ["sent",W("Şandî","Sent"),"send"],
+          ["compose",W("Peyamek Nû","New Message"),"edit"]]}/>
       </div>
       {mode==="compose"?(
         <Card>
-          <div style={{fontSize:11,color:"var(--text2)",marginBottom:12,lineHeight:1.6}}>
-            ℹ️ {W("Ji xwendekaran re tenê ragihandin tê şandin. Peyam ji rêveber û mamosteyên beşê re ye.","Students receive announcements only. Messages go to the admin and the department's teachers.")}
-          </div>
+          <Note style={{marginBottom:16}}>{W("Ji xwendekaran re tenê ragihandin tê şandin. Peyam ji rêveber û mamosteyên beşê re ye.","Students receive announcements only. Messages go to the admin and the department's teachers.")}</Note>
           <FieldWrap label={W("Bo","To")}>
             <select style={selectStyle} value={to} onChange={e=>setTo(e.target.value)} data-head-to="1">
-              <option value="admin">🛡 {W("Rêveber","Admin")}</option>
-              {(teachers||[]).map(tc=><option key={tc.id} value={"t_"+tc.id}>👨‍🏫 {tc.name}</option>)}
+              <option value="admin">{W("Rêveber","Admin")}</option>
+              {(teachers||[]).map(tc=><option key={tc.id} value={"t_"+tc.id}>{tc.name}</option>)}
             </select>
           </FieldWrap>
-          <FieldWrap label={W("Sernav","Subject")}><input style={inputStyle} value={subject} onChange={e=>setSubject(e.target.value)} id="hm-subject"/></FieldWrap>
-          <FieldWrap label={W("Peyam","Message")}><textarea style={{...inputStyle,minHeight:110,resize:"vertical"}} value={body} onChange={e=>setBody(e.target.value)} id="hm-body"/></FieldWrap>
+          <FieldWrap label={W("Sernav","Subject")}><input style={inputStyle} value={subject} onChange={e=>setSubject(e.target.value)} id="hm-subject" placeholder={W("Sernav","Subject")}/></FieldWrap>
+          <FieldWrap label={W("Peyam","Message")}><textarea style={{...inputStyle,minHeight:120,resize:"vertical",lineHeight:1.55}} value={body} onChange={e=>setBody(e.target.value)} id="hm-body" placeholder={W("Peyama xwe binivîse…","Write your message…")}/></FieldWrap>
           <input ref={fileRef} type="file" multiple accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx" style={{display:"none"}} onChange={addFiles}/>
-          <button onClick={()=>fileRef.current&&fileRef.current.click()} style={{width:"100%",padding:"11px",marginBottom:10,borderRadius:10,border:"1.5px dashed var(--border2)",background:"transparent",color:"var(--text2)",fontSize:13,cursor:"pointer"}}>
-            📎 {W("Belge / Wêne Zêde Bike","Attach Document / Photo")}
-          </button>
-          {files.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
-            {files.map(f=><span key={f.id} style={{fontSize:11,padding:"4px 8px",borderRadius:8,background:"var(--bg2)",color:"var(--text)"}}>{f.type==="image"?"🖼":"📄"} {f.name} <button onClick={()=>setFiles(p=>p.filter(x=>x.id!==f.id))} aria-label="✕" style={{border:"none",background:"none",color:"var(--red)",cursor:"pointer"}}>✕</button></span>)}
-          </div>}
-          <PrimaryBtn onClick={send} icon="📤">{busy?"…":W("Bişîne","Send")}</PrimaryBtn>
+          <AttachBox lang={lang} label={W("Belge / Wêne Zêde Bike","Attach Document / Photo")} files={files}
+            onPick={()=>fileRef.current&&fileRef.current.click()} onRemove={id=>setFiles(p=>p.filter(x=>x.id!==id))}/>
+          <PBtn onClick={send} disabled={busy} icon="send" style={{marginTop:16}}>{busy?"…":W("Bişîne","Send")}</PBtn>
         </Card>
       ):(
-        list.length===0?<Card><div style={{textAlign:"center",color:"var(--text2)",fontSize:13,padding:"10px 0"}}>{W("Peyam tune","No messages")}</div></Card>:
-        list.map(m=>{
-          const isOpen=open===m.fireId;
+        list.length===0?<EmptyState icon={mode==="inbox"?"inbox":"send"} text={W("Peyam tune","No messages")}/>:
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {list.map(m=>{
+          const isOpen=open===m.fireId, un=mode==="inbox"&&!m.read;
+          const ic=m.fromType==="student"?"user":m.fromType==="admin"?"shield":mode==="sent"?"send":"msg";
           return(
-            <Card key={m.fireId||m.id}>
-              <div onClick={()=>{ setOpen(isOpen?null:m.fireId); if(mode==="inbox"&&!m.read&&m.fireId) try{window.__FB.markRead(m.fireId);}catch(_){} }} style={{cursor:"pointer"}}>
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  {mode==="inbox"&&!m.read&&<span style={{width:8,height:8,borderRadius:4,background:"var(--red)",flexShrink:0}}/>}
-                  <div style={{flex:1,minWidth:0,fontSize:13,fontWeight:700,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.subject||"—"}</div>
-                  <div style={{fontSize:10,color:"var(--text2)",flexShrink:0}}>{fmt(m)}</div>
+            <div key={m.fireId||m.id} className="card" style={{padding:0,overflow:"hidden"}}>
+              <div onClick={()=>{ setOpen(isOpen?null:m.fireId); if(mode==="inbox"&&!m.read&&m.fireId) try{window.__FB.markRead(m.fireId);}catch(_){} }}
+                style={{cursor:"pointer",display:"flex",alignItems:"center",gap:12,padding:"12px 14px"}}>
+                <span className="c-av"><Ico n={ic} size={19}/></span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <div style={{flex:1,minWidth:0,fontSize:14,fontWeight:un?700:600,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.subject||"—"}</div>
+                    <div style={{fontSize:12,color:"var(--text2)",flexShrink:0}}>{fmt(m)}</div>
+                  </div>
+                  <div style={{fontSize:13,color:"var(--text2)",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                    {mode==="inbox"?(W("Ji","From")+": "+(m.from||"—")+(m.fromType==="student"?" · "+W("Xwendekar","Student"):"")):(W("Bo","To")+": "+(m.to||"—"))}
+                  </div>
                 </div>
-                <div style={{fontSize:11,color:"var(--text2)",marginTop:3}}>
-                  {mode==="inbox"?(W("Ji","From")+": "+(m.from||"—")+(m.fromType==="student"?" · 🎓":"")):(W("Bo","To")+": "+(m.to||"—"))}
-                </div>
+                {un&&<span className="c-dot"/>}
               </div>
               {isOpen&&(
-                <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid var(--border)"}}>
-                  <div style={{fontSize:13,color:"var(--text)",lineHeight:1.6,whiteSpace:"pre-wrap"}}>{m.body}</div>
-                  {(m.attachments||[]).map((a,i)=>safeHref(a.url)&&(
-                    <a key={i} href={safeHref(a.url)} download={a.name} rel="noopener" style={{display:"inline-block",marginTop:8,marginRight:6,fontSize:11,padding:"5px 9px",borderRadius:8,background:"var(--bg2)",color:"var(--text)",textDecoration:"none"}}>{a.type==="image"?"🖼":"📄"} {a.name}</a>
-                  ))}
+                <div style={{padding:"0 14px 14px",borderTop:"1px solid var(--border)"}}>
+                  <div style={{fontSize:14.5,color:"var(--text)",lineHeight:1.6,whiteSpace:"pre-wrap",paddingTop:12}}>{m.body}</div>
+                  {(m.attachments||[]).length>0&&<div style={{display:"flex",flexDirection:"column",gap:6,marginTop:10}}>
+                    {(m.attachments||[]).map((a,i)=>safeHref(a.url)&&(
+                      <a key={i} href={safeHref(a.url)} download={a.name} rel="noopener" className="c-file" style={{textDecoration:"none"}}>
+                        <Ico n={a.type==="image"?"file":"file"} size={18}/><span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.name}</span><Ico n="download" size={16}/></a>
+                    ))}</div>}
                   {mode==="inbox"&&m.fromType==="student"&&(m.fromNo&&!m.anonymous?(
-                    <div style={{marginTop:10}}>
-                      <textarea style={{...inputStyle,minHeight:70,resize:"vertical"}} value={reply} onChange={e=>setReply(e.target.value)} placeholder={W("Bersiva xwe binivîse…","Write your reply…")} id="hm-reply"/>
-                      <button onClick={()=>sendReply(m)} disabled={busy} style={{marginTop:6,padding:"9px 16px",borderRadius:10,border:"none",background:"#0f2f38",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>↩ {W("Bersiv bide","Reply")}</button>
+                    <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:8}}>
+                      <textarea style={{...inputStyle,minHeight:80,resize:"vertical"}} value={reply} onChange={e=>setReply(e.target.value)} placeholder={W("Bersiva xwe binivîse…","Write your reply…")} id="hm-reply"/>
+                      <button type="button" className="c-btn" onClick={()=>sendReply(m)} disabled={busy} style={{minHeight:46,fontSize:15,boxShadow:"none"}}><Ico n="send" size={17}/>{W("Bersiv bide","Reply")}</button>
                     </div>
-                  ):(m.anonymous?<div style={{marginTop:8,fontSize:11,color:"var(--text2)"}}>🔒 {W("Peyama bênav — bersiv nayê dayîn","Anonymous message — cannot be answered")}</div>:null))}
+                  ):(m.anonymous?<Note style={{marginTop:10}} icon="lock">{W("Peyama bênav — bersiv nayê dayîn","Anonymous message — cannot be answered")}</Note>:null))}
                 </div>
               )}
-            </Card>
+            </div>
           );
-        })
+        })}
+        </div>
       )}
     </div>
   );
@@ -8976,9 +8963,9 @@ function TeacherClassHub({teacher,myStudents,classGroups,lang,t,toast,initial,ms
     background:on?"var(--surface)":"transparent",color:on?"var(--accent)":"var(--text2)",boxShadow:on?"0 1px 4px rgba(15,47,56,0.15)":"none"});
   return(
     <div>
-      <div style={{display:"flex",gap:5,marginBottom:12,background:"var(--bg2)",padding:4,borderRadius:12}}>
-        <button data-hub-tab="posts" onClick={()=>setTab("posts")} style={tb(tab==="posts")}>📝 {W2("Erk û Belge","Homework & Documents")}</button>
-        <button data-hub-tab="messages" onClick={()=>setTab("messages")} style={tb(tab==="messages")}>💬 {W2("Peyam","Messages")}{msgUnread>0&&<span style={{marginLeft:6,background:"#ef4444",color:"#fff",fontSize:10,fontWeight:800,borderRadius:8,padding:"1px 6px"}}>{msgUnread}</span>}</button>
+      <div role="tablist" className="c-seg" style={{gridTemplateColumns:"repeat(2,minmax(0,1fr))",marginBottom:14}}>
+        <button type="button" role="tab" aria-selected={tab==="posts"} data-hub-tab="posts" onClick={()=>setTab("posts")} className={"c-seg-b"+(tab==="posts"?" on":"")}><Ico n="cls" size={17}/><span>{W2("Erk û Belge","Homework & Documents")}</span></button>
+        <button type="button" role="tab" aria-selected={tab==="messages"} data-hub-tab="messages" onClick={()=>setTab("messages")} className={"c-seg-b"+(tab==="messages"?" on":"")}><Ico n="msg" size={17}/><span>{W2("Peyam","Messages")}</span>{msgUnread>0&&<span className="c-badge">{msgUnread}</span>}</button>
       </div>
       {tab==="posts"
         ?<ClassPostsPanel mode="teacher" teacher={teacher} lang={lang} toast={toast} classIds={(classGroups||[]).map(g=>g.id)}/>
@@ -9996,7 +9983,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
 
   return(
     <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
-      <SideMenu open={menuOpen} onClose={()=>setMenuOpen(false)} items={regTabs} activeKey={section}
+      <SideMenu dock={["serledan","qad","sinif","zarok"]} open={menuOpen} onClose={()=>setMenuOpen(false)} onOpen={()=>setMenuOpen(true)} items={regTabs} activeKey={section}
         onSelect={setSection} user={user}
         roleLabel={lang==="en"?"Student Affairs":K("Karûbarên Xwendekaran")}
         extraItems={[{icon:"↩",label:(t&&t.logout)||"Derkeve",onClick:onLogout,danger:true}]}/>
@@ -10312,156 +10299,95 @@ function AnnouncementsPanel({t,toast,lang,senderName,senderRole,senderArea,sende
     setTitle(""); setMsg(""); setMediaFiles([]);
   }
 
+  const delAnn=async ann=>{
+    setSentList(p=>p.filter(x=>(x.id||x.fireId)!==(ann.id||ann.fireId)));
+    const annDelId = ann.fireId||(ann.id&&String(ann.id));
+    if(window.__FB &&window.__FB.isConfigured()&&annDelId){try{await window.__FB.deleteDoc(window.__FB.doc(window.__FB.db,"announcements",annDelId));}catch(e){console.warn("ann del:",e);}}
+  };
+  const AREA_ICO={muzik:"music",tiyatro:"mask",sinema:"film",resim:"palette",dans:"dance",edebiyat:"book"};
   return(
     <>
-    <Card style={{marginBottom:12}}>
-      <div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:14,display:"flex",alignItems:"center",gap:8}}>
-        <span style={{width:32,height:32,borderRadius:10,background:"rgba(15,47,56,0.1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>📢</span>
-        {lang==="en"?"Send Announcement":K("Ragihandinek Bişîne")}
+    <Card style={{marginBottom:16}}>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
+        <span className="c-av"><Ico n="ann" size={19}/></span>
+        <div style={{fontSize:16,fontWeight:700,color:"var(--text)"}}>{lang==="en"?"Send Announcement":K("Ragihandinek Bişîne")}</div>
       </div>
 
       {locked?(
-        <div style={{marginBottom:14}}>
-          <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>{L.targetLabel}</div>
-          <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"var(--bg2)",borderRadius:10,border:"1.5px solid var(--border2)"}}>
-            <div style={{width:18,height:18,borderRadius:4,background:"var(--navy)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#fff",fontWeight:700,flexShrink:0}}>✓</div>
-            <span style={{fontSize:13,color:"var(--text)",fontWeight:600}}>{AREA_MAP[senderArea]?.icon} {areaName(senderArea,lang)}</span>
-            <span style={{marginLeft:"auto",fontSize:10,color:"var(--text2)",padding:"2px 8px",borderRadius:6,background:"var(--surface)"}}>🔒 {lang==="en"?"Locked":K("Kilkkirî")}</span>
+        <FieldWrap label={L.targetLabel}>
+          <div className="c-file" style={{padding:"10px 12px"}}>
+            <Ico n="check" size={17}/>
+            <span style={{fontWeight:600}}>{areaName(senderArea,lang)}</span>
+            <span className="c-tag" style={{marginLeft:"auto"}}><Ico n="lock" size={12} style={{marginRight:4}}/>{lang==="en"?"Locked":K("Kilkkirî")}</span>
           </div>
-        </div>
+        </FieldWrap>
       ):(
         <FieldWrap label={L.targetLabel}>
-          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+          <div className="c-chips">
           {[
-            {k:"all",label:"🌍 "+(lang==="en"?"Everyone":K("Hemû"))},
-            {k:"allStudents",label:"🎓 "+L.allStudents},
-            ...AREAS.filter(a=>a.key!=="genel").map(a=>({k:a.key,label:a.icon+" "+areaName(a.key,lang)})),
-            {k:"teachers",label:"👨‍🏫 "+L.teachers}
+            {k:"all",ic:"globe",label:lang==="en"?"Everyone":K("Hemû")},
+            {k:"allStudents",ic:"users",label:L.allStudents},
+            ...AREAS.filter(a=>a.key!=="genel").map(a=>({k:a.key,ic:AREA_ICO[a.key]||"music",label:areaName(a.key,lang)})),
+            {k:"teachers",ic:"user",label:L.teachers}
           ].map(item=>(
-            <div key={item.k} onClick={()=>toggleTarget(item.k)}
-              style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",cursor:"pointer",
-                borderRadius:20,border:`1.5px solid ${targets[item.k]?"#0f2f38":"var(--border2)"}`,
-                background:targets[item.k]?"#0f2f38":"#ffffff",transition:"all .15s"}}>
-              <span style={{fontSize:11,fontWeight:600,color:targets[item.k]?"#fff":"var(--text)"}}>{item.label}</span>
-            </div>
+            <button key={item.k} type="button" aria-pressed={!!targets[item.k]} onClick={()=>toggleTarget(item.k)} className={"c-chip"+(targets[item.k]?" on":"")}>
+              <Ico n={targets[item.k]?"check":item.ic} size={15}/><span>{item.label}</span></button>
           ))}
           </div>
         </FieldWrap>
       )}
 
       <FieldWrap label={L.titleLabel}><input style={inputStyle} value={title} onChange={e=>setTitle(e.target.value)} placeholder={L.placeholder_title}/></FieldWrap>
-      <FieldWrap label={L.msgLabel}><textarea style={{...inputStyle,minHeight:80,resize:"vertical"}} value={msg} onChange={e=>setMsg(e.target.value)} placeholder={L.placeholder_msg}/></FieldWrap>
-
-      {/* ── MEDYA / DOSYA EKLEME ── */}
-      <div style={{marginBottom:14}}>
-        <div style={{fontSize:11.5,fontWeight:600,color:"var(--text2)",marginBottom:8,letterSpacing:"0.03em"}}>
-          {lang==="en"?"Attachments (optional)":K("Pêvekirin (vebijarkî)")}
-        </div>
-        <button onClick={()=>mediaRef.current.click()}
-          style={{width:"100%",padding:"12px",borderRadius:12,border:"2px dashed var(--border2)",
-            background:"var(--bg2)",cursor:"pointer",
-            display:"flex",alignItems:"center",justifyContent:"center",gap:8,
-            color:"var(--text2)",fontSize:12,fontWeight:500,transition:"all .15s"}}>
-          <span style={{fontSize:18}}>📎</span> {L.addMedia}
-        </button>
-        <input ref={mediaRef} type="file" multiple accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.mp4,.mp3"
-          style={{display:"none"}} onChange={handleMediaUpload}/>
-
-        {mediaFiles.length>0&&(
-          <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:6}}>
-            {/* Resim önizlemeleri */}
-            {mediaFiles.filter(f=>f.type==="image").length>0&&(
-              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                {mediaFiles.filter(f=>f.type==="image").map(f=>(
-                  <div key={f.id} style={{position:"relative",width:72,height:72}}>
-                    <img src={f.preview} style={{width:72,height:72,objectFit:"cover",borderRadius:8,border:"1.5px solid var(--border2)"}} alt={f.name}/>
-                    <button onClick={()=>setMediaFiles(p=>p.filter(x=>x.id!==f.id))}
-                      style={{position:"absolute",top:-5,right:-5,width:18,height:18,borderRadius:"50%",
-                        background:"#ef4444",border:"none",color:"#fff",fontSize:11,cursor:"pointer",
-                        lineHeight:"18px",textAlign:"center",padding:0}}>×</button>
-                  </div>
-                ))}
-              </div>
-            )}
-            {/* Dosya listesi */}
-            {mediaFiles.filter(f=>f.type==="file").map(f=>(
-              <div key={f.id} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",
-                background:"var(--surface)",borderRadius:8,border:"1px solid var(--border)"}}>
-                <span style={{fontSize:18}}>📄</span>
-                <span style={{flex:1,fontSize:11,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</span>
-                <span style={{fontSize:10,color:"var(--text2)"}}>{f.size}</span>
-                <button onClick={()=>setMediaFiles(p=>p.filter(x=>x.id!==f.id))} style={{background:"none",border:"none",color:"var(--red)",cursor:"pointer",fontSize:14,padding:"0 3px"}}>✕</button>
-              </div>
-            ))}
-            <div style={{fontSize:10,color:"var(--green)",fontWeight:600}}>✅ {mediaFiles.length} {lang==="en"?"file(s) attached":K("dosya / wêne")}</div>
-          </div>
-        )}
-      </div>
-
-      <PrimaryBtn onClick={send} icon="📤">{L.send}</PrimaryBtn>
+      <FieldWrap label={L.msgLabel}><textarea style={{...inputStyle,minHeight:120,resize:"vertical",lineHeight:1.55}} value={msg} onChange={e=>setMsg(e.target.value)} placeholder={L.placeholder_msg}/></FieldWrap>
+      <FieldWrap label={lang==="en"?"Attachments (optional)":K("Pêvekirin (vebijarkî)")}>
+        <AttachBox lang={lang} label={L.addMedia} files={mediaFiles} onPick={()=>mediaRef.current.click()} onRemove={id=>setMediaFiles(p=>p.filter(x=>x.id!==id))}/>
+      </FieldWrap>
+      <input ref={mediaRef} type="file" multiple accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.mp4,.mp3"
+        style={{display:"none"}} onChange={handleMediaUpload}/>
+      <PBtn onClick={send} icon="send">{noEmo(L.send)}</PBtn>
     </Card>
     {sentList.length>0&&(
-      <Card>
-        <div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:12}}>📋 {L.sent}</div>
-        {sentList.map((ann,i)=>{
+      <div>
+        <div className="c-h" style={{color:"var(--text2)"}}>{noEmo(L.sent)}</div>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {sentList.map(ann=>{
           const isExpanded=expandedAnn===ann.id;
-          const hasMedia=ann.media&&ann.media.length>0;
+          const imgs=(ann.media||[]).filter(m=>m.type==="image"), docs=(ann.media||[]).filter(m=>m.type==="file");
+          const hasMedia=imgs.length+docs.length>0;
           return(
-          <div key={ann.id||ann.fireId} style={{padding:"12px 0",borderBottom:i<sentList.length-1?"0.5px solid var(--border)":"none"}}>
-            <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:8}}>
-              <div style={{flex:1,cursor:hasMedia?"pointer":"default"}} onClick={()=>hasMedia&&setExpandedAnn(isExpanded?null:ann.id)}>
-                <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{ann.title}</div>
-                <div style={{fontSize:11,color:"var(--text2)",marginTop:2,lineHeight:1.5}}>{ann.msg}</div>
-                {/* Medya önizleme */}
-                {hasMedia&&(
-                  <div style={{marginTop:8}}>
-                    {isExpanded?(
-                      <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                        {ann.media.filter(m=>m.type==="image").length>0&&(
-                          <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-                            {ann.media.filter(m=>m.type==="image").map((m,mi)=>(
-                              <img key={mi} src={m.preview||m.url} style={{width:80,height:80,objectFit:"cover",borderRadius:8,border:"1px solid var(--border)"}} alt={m.name}/>
-                            ))}
-                          </div>
-                        )}
-                        {ann.media.filter(m=>m.type==="file").map((m,mi)=>(
-                          <div key={mi} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 8px",background:"var(--bg2)",borderRadius:6}}>
-                            <span>📄</span>
-                            <span style={{fontSize:11,color:"var(--text)"}}>{m.name}</span>
-                            <span style={{fontSize:10,color:"var(--text2)"}}>{m.size}</span>
-                            {safeHref(m.url)&&<a href={safeHref(m.url)} rel="noopener" download={m.name} style={{marginLeft:"auto",fontSize:11,color:"var(--text)",textDecoration:"none"}}>⬇</a>}
-                          </div>
-                        ))}
-                      </div>
-                    ):(
-                      <div style={{display:"flex",gap:5,alignItems:"center"}}>
-                        {ann.media.filter(m=>m.type==="image").slice(0,3).map((m,mi)=>(
-                          <img key={mi} src={m.preview||m.url} style={{width:36,height:36,objectFit:"cover",borderRadius:5,border:"1px solid var(--border)"}} alt=""/>
-                        ))}
-                        {ann.media.filter(m=>m.type==="file").length>0&&(
-                          <span style={{fontSize:10,padding:"2px 7px",borderRadius:6,background:"var(--bg2)",color:"var(--text2)"}}>📎 {ann.media.filter(m=>m.type==="file").length}</span>
-                        )}
-                        <span style={{fontSize:10,color:"var(--navy)",fontWeight:600}}>▼</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-                <div style={{display:"flex",gap:8,marginTop:6}}>
-                  <span style={{fontSize:10,padding:"1px 7px",borderRadius:8,background:"rgba(15,47,56,0.08)",color:"var(--text)"}}>{ann.to}</span>
-                  <span style={{fontSize:10,color:"var(--text2)"}}>{ann.time}</span>
+          <div key={ann.id||ann.fireId} className="card" style={{display:"flex",gap:12,alignItems:"flex-start"}}>
+            <span className="c-av"><Ico n="ann" size={18}/></span>
+            <div style={{flex:1,minWidth:0,cursor:hasMedia?"pointer":"default"}} onClick={()=>hasMedia&&setExpandedAnn(isExpanded?null:ann.id)}>
+              <div style={{fontSize:14.5,fontWeight:700,color:"var(--text)"}}>{ann.title}</div>
+              <div style={{fontSize:13.5,color:"var(--text2)",marginTop:3,lineHeight:1.5,whiteSpace:"pre-wrap"}}>{ann.msg}</div>
+              {hasMedia&&(isExpanded?(
+                <div style={{display:"flex",flexDirection:"column",gap:8,marginTop:10}}>
+                  {imgs.length>0&&<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    {imgs.map((m,mi)=><img key={mi} src={m.preview||m.url} style={{width:84,height:84,objectFit:"cover",borderRadius:12,border:"1px solid var(--border)"}} alt={m.name}/>)}</div>}
+                  {docs.map((m,mi)=>(
+                    <div key={mi} className="c-file"><Ico n="file" size={17}/>
+                      <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</span>
+                      <span style={{fontSize:12,color:"var(--text2)"}}>{m.size}</span>
+                      {safeHref(m.url)&&<a href={safeHref(m.url)} rel="noopener" download={m.name} className="c-iconbtn sm" aria-label={lang==="en"?"Download":K("Dakêşe")} onClick={e=>e.stopPropagation()}><Ico n="download" size={16}/></a>}
+                    </div>))}
                 </div>
+              ):(
+                <div style={{display:"flex",gap:6,alignItems:"center",marginTop:8}}>
+                  {imgs.slice(0,3).map((m,mi)=><img key={mi} src={m.preview||m.url} style={{width:40,height:40,objectFit:"cover",borderRadius:8,border:"1px solid var(--border)"}} alt=""/>)}
+                  {docs.length>0&&<span className="c-tag"><Ico n="clip" size={12} style={{marginRight:4}}/>{docs.length}</span>}
+                </div>
+              ))}
+              <div style={{display:"flex",gap:8,marginTop:10,alignItems:"center",flexWrap:"wrap"}}>
+                <span className="c-tag">{ann.to}</span>
+                <span style={{fontSize:12,color:"var(--text2)"}}>{ann.time}</span>
               </div>
-              <button onClick={async()=>{
-                setSentList(p=>p.filter(x=>(x.id||x.fireId)!==(ann.id||ann.fireId)));
-
-                const annDelId = ann.fireId||(ann.id&&String(ann.id));
-                if(window.__FB &&window.__FB.isConfigured()&&annDelId){try{await window.__FB.deleteDoc(window.__FB.doc(window.__FB.db,"announcements",annDelId));}catch(e){console.warn("ann del:",e);}}
-              }} style={{fontSize:13,background:"var(--red-bg)",border:"none",borderRadius:6,padding:"5px 8px",cursor:"pointer",color:"var(--red)",flexShrink:0}}><Ico n="trash" solo/></button>
             </div>
+            <button type="button" className="c-iconbtn sm danger" aria-label={lang==="en"?"Delete":K("Jêbire")} onClick={()=>delAnn(ann)}><Ico n="trash" size={17}/></button>
           </div>
           );
         })}
-      </Card>
+        </div>
+      </div>
     )}
     </>
   );
@@ -11195,7 +11121,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
   return(
     <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg2)",overflow:"hidden"}}>
       <StatusBar/>
-      <SideMenu open={menuOpen} onClose={()=>setMenuOpen(false)} items={tabs} activeKey={tab}
+      <SideMenu dock={["reports","messages","announcements","alerts"]} open={menuOpen} onClose={()=>setMenuOpen(false)} onOpen={()=>setMenuOpen(true)} items={tabs} activeKey={tab}
         onSelect={setTab} user={adminData}
         roleLabel={lang==="en"?"Admin":K("Rêveber")}
         extraItems={[
@@ -12538,119 +12464,82 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
 
   return(
     <>
-      {/* Report Type */}
-      <Card style={{marginBottom:10}}>
-        <div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:12}}>📊 {lang==="en"?"Report Type":K("Cureyê Rapor")}</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          {[
-            {key:"attendance",icon:"📋",label:lang==="en"?"Attendance":K("Amadebûn")},
-            {key:"full",icon:"📄",label:lang==="en"?"Full Report (with evaluation)":K("Rapor Tevahî (bi nirxandinê)")},
-          ].map(rt=>(
-            <button key={rt.key} onClick={()=>setReportType(rt.key)}
-              style={{padding:"10px 6px",borderRadius:10,fontSize:11,fontWeight:reportType===rt.key?600:400,
-                background:"var(--surface)",
-                color:reportType===rt.key?"var(--accent)":"#64748b",
-                border:`1.5px solid ${reportType===rt.key?"#0f2f38":"rgba(15,23,42,.12)"}`,
-                cursor:"pointer",display:"flex",alignItems:"center",gap:7,justifyContent:"center"}}>
-              <span style={{fontSize:18}}>{rt.icon}</span>
-              <span>{rt.label}</span>
-            </button>
-          ))}
-        </div>
-      </Card>
+      {/* Rapor türü */}
+      <div style={{marginBottom:12}}>
+        <Seg value={reportType} onChange={setReportType} items={[
+          ["attendance",lang==="en"?"Attendance":K("Amadebûn"),"att"],
+          ["full",lang==="en"?"Full report":K("Rapor Tevahî"),"report"]]}/>
+      </div>
 
-      {/* Survey target selector — only show for survey type */}
+      {/* Anket hedefi — yalnız anket türünde */}
       {reportType==="survey"&&(
-        <Card style={{marginBottom:10}}>
-          <div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:10}}>🎯 {lang==="en"?"Survey Target":K("Armanca Ankêtê")}</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-            {[
-              {key:"all_students",icon:"🎓",label:lang==="en"?"All Students":K("Hemû Xwendekar")},
-              {key:"all_teachers",icon:"👨‍🏫",label:lang==="en"?"All Teachers":K("Hemû Mamoste")},
-              {key:"area_students",icon:"🏫",label:lang==="en"?"Field Students":K("Xwendekarên Qadê")},
-              {key:"area_teachers",icon:"🔬",label:lang==="en"?"Field Teachers":K("Mamosteên Qadê")},
-            ].map(opt=>(
-              <button key={opt.key} onClick={()=>setSurveyTarget(opt.key)}
-                style={{padding:"9px 8px",borderRadius:10,fontSize:11,fontWeight:surveyTarget===opt.key?700:400,
-                  background:surveyTarget===opt.key?"rgba(15,47,56,0.9)":"var(--bg2)",
-                  color:surveyTarget===opt.key?"var(--accent)":"#64748b",
-                  border:`1.5px solid ${surveyTarget===opt.key?"#0f2f38":"rgba(15,23,42,.12)"}`,
-                  cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
-                <span style={{fontSize:16}}>{opt.icon}</span>
-                <span style={{lineHeight:1.3}}>{opt.label}</span>
-              </button>
-            ))}
-          </div>
+        <Card style={{marginBottom:12}}>
+          <div className="c-h">{lang==="en"?"Survey Target":K("Armanca Ankêtê")}</div>
+          <Chips value={surveyTarget} onChange={setSurveyTarget} items={[
+            ["all_students",lang==="en"?"All Students":K("Hemû Xwendekar"),"users"],
+            ["all_teachers",lang==="en"?"All Teachers":K("Hemû Mamoste"),"user"],
+            ["area_students",lang==="en"?"Field Students":K("Xwendekarên Qadê"),"users"],
+            ["area_teachers",lang==="en"?"Field Teachers":K("Mamosteên Qadê"),"user"]]}/>
           {(surveyTarget==="area_students"||surveyTarget==="area_teachers")&&(
-            <div style={{marginTop:10,fontSize:11,color:"var(--text2)",padding:"8px 10px",background:"var(--bg2)",borderRadius:8}}>
-              ℹ️ {lang==="en"?"Select a field below to filter by area":K("Li jêr qadekê hilbijêre da ku bi qadê veqetîne")}
-            </div>
+            <Note style={{marginTop:10}}>{lang==="en"?"Select a field below to filter by area":K("Li jêr qadekê hilbijêre da ku bi qadê veqetîne")}</Note>
           )}
         </Card>
       )}
 
-      {/* Area Selector */}
-      <Card style={{marginBottom:10}}>
-        <div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:12}}>🎭 {lang==="en"?"Field Filter":K("Fîltera Qadê")}</div>
-        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-          <button onClick={()=>setSelectedArea("all")}
-            style={{padding:"6px 12px",borderRadius:20,fontSize:11,fontWeight:selectedArea==="all"?700:400,
-              background:selectedArea==="all"?"#0f2f38":"var(--bg2)",
-              color:selectedArea==="all"?"#ffffff":"#64748b",
-              border:`1.5px solid ${selectedArea==="all"?"#0f2f38":"rgba(15,23,42,.12)"}`,cursor:"pointer"}}>
-            {lang==="en"?"🏫 All Fields":K("🏫 Hemû Qadan")}
-          </button>
-          {AREAS.map(a=>(
-            <button key={a.key} onClick={()=>setSelectedArea(a.key)}
-              style={{padding:"6px 12px",borderRadius:20,fontSize:11,fontWeight:selectedArea===a.key?700:400,
-                background:"var(--surface)",
-                color:selectedArea===a.key?"var(--accent)":"#64748b",
-                border:`1.5px solid ${selectedArea===a.key?a.color:"var(--border)"}`,cursor:"pointer"}}>
-              {a.icon} {areaName(a.key,lang)}
-            </button>
-          ))}
-        </div>
-      </Card>
-
-      {/* Sınıf · öğretmen · öğrenci filtreleri */}
-      <Card style={{marginBottom:10}}>
-        <div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:10}}>🔎 {lang==="en"?"Class · Teacher · Student":K("Sinif · Mamoste · Xwendekar")}</div>
+      {/* Süzgeçler: bölüm (çip satırı) + sınıf · öğretmen · öğrenci */}
+      <Card style={{marginBottom:12}}>
+        <div className="c-h" style={{display:"flex",alignItems:"center",gap:8}}><Ico n="settings" size={17}/>{lang==="en"?"Filters":K("Fîlter")}</div>
+        <Chips scroll value={selectedArea} onChange={setSelectedArea} items={[
+          ["all",noEmo(lang==="en"?"🏫 All Fields":K("🏫 Hemû Qadan")),"grid"],
+          ...AREAS.map(a=>[a.key,areaName(a.key,lang),({muzik:"music",tiyatro:"mask",sinema:"film",resim:"palette",dans:"dance",edebiyat:"cls"})[a.key]||"grid"])]}/>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8}}>
-          <select aria-label={lang==="en"?"Class":K("Sînif")} value={clsF} onChange={e=>setClsF(e.target.value)} style={{padding:"9px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:13}}>
-            <option value="all">🏫 {lang==="en"?"All classes":K("Hemû sinif")}</option>
+          <select aria-label={lang==="en"?"Class":K("Sînif")} value={clsF} onChange={e=>setClsF(e.target.value)} style={selectStyle}>
+            <option value="all">{lang==="en"?"All classes":K("Hemû sinif")}</option>
             {clsDocs.filter(d=>d.kind&&(selectedArea==="all"||d.area===selectedArea||d.area==="genel")).sort((a,b)=>classLabel(a,lang).localeCompare(classLabel(b,lang))).map(d=><option key={d.id} value={d.id}>{classLabel(d,lang)}</option>)}
           </select>
-          <select aria-label={lang==="en"?"Teacher":K("Mamoste")} value={teachF} onChange={e=>setTeachF(e.target.value)} style={{padding:"9px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:13}}>
-            <option value="all">👩‍🏫 {lang==="en"?"All teachers":K("Hemû mamoste")}</option>
+          <select aria-label={lang==="en"?"Teacher":K("Mamoste")} value={teachF} onChange={e=>setTeachF(e.target.value)} style={selectStyle}>
+            <option value="all">{lang==="en"?"All teachers":K("Hemû mamoste")}</option>
             {plainTeachers.slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"")).map(t2=><option key={t2.no} value={t2.no}>{t2.name}</option>)}
           </select>
-          <input value={stuQ} onChange={e=>setStuQ(e.target.value)} placeholder={"🔎 "+(lang==="en"?"Student name/no":K("Nav/jimareya xwendekar"))} style={{padding:"9px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:13}}/>
-          <select aria-label={lang==="en"?"Student":K("Xwendekar")} value={stuF} onChange={e=>setStuF(e.target.value)} style={{padding:"9px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:13}}>
-            <option value="all">🎓 {lang==="en"?"All students":K("Hemû xwendekar")}</option>
+          <input value={stuQ} onChange={e=>setStuQ(e.target.value)} placeholder={lang==="en"?"Student name/no":K("Nav/jimareya xwendekar")} style={inputStyle}/>
+          <select aria-label={lang==="en"?"Student":K("Xwendekar")} value={stuF} onChange={e=>setStuF(e.target.value)} style={selectStyle}>
+            <option value="all">{lang==="en"?"All students":K("Hemû xwendekar")}</option>
             {students.filter(s=>!stuQ.trim()||(s.name||"").toLocaleLowerCase().includes(stuQ.trim().toLocaleLowerCase())||String(s.no||"").includes(stuQ.trim())).slice(0,100).map(s=><option key={s.fireId||s.id} value={s.fireId||s.id}>{s.name} · {s.no}</option>)}
           </select>
         </div>
-        {(clsF!=="all"||teachF!=="all"||stuF!=="all")&&<button onClick={()=>{setClsF("all");setTeachF("all");setStuF("all");setStuQ("");}} style={{marginTop:8,padding:"6px 12px",borderRadius:20,fontSize:11,border:"1px solid var(--border2)",background:"var(--surface)",color:"var(--text)",cursor:"pointer"}}>✕ {lang==="en"?"Clear filters":K("Fîlteran paqij bike")}</button>}
+        {/* Etkin süzgeçler — tek dokunuşla kaldırılır */}
+        {(selectedArea!=="all"||clsF!=="all"||teachF!=="all"||stuF!=="all")&&(()=>{
+          const cd=clsDocs.find(d=>d.id===clsF), td=plainTeachers.find(x=>String(x.no)===String(teachF)), sd=students.find(x=>(x.fireId||x.id)===stuF);
+          const tags=[
+            selectedArea!=="all"&&[areaName(selectedArea,lang),()=>setSelectedArea("all")],
+            clsF!=="all"&&[(cd?classLabel(cd,lang):clsF),()=>setClsF("all")],
+            teachF!=="all"&&[(td?td.name:teachF),()=>setTeachF("all")],
+            stuF!=="all"&&[(sd?sd.name:stuF),()=>setStuF("all")]].filter(Boolean);
+          return <div className="c-ftags">
+            {tags.map(([lb,clr],i)=><span key={i} className="c-ftag">{lb}<button type="button" aria-label={(lang==="en"?"Remove filter: ":K("Fîlterê rake")+": ")+lb} onClick={clr}><Ico n="close" size={13}/></button></span>)}
+            <button type="button" className="c-ftag-clear" onClick={()=>{setSelectedArea("all");setClsF("all");setTeachF("all");setStuF("all");setStuQ("");}}>{lang==="en"?"Clear all":K("Hemûyan paqij bike")}</button>
+          </div>;
+        })()}
       </Card>
 
       {/* Summary Preview */}
       {reportType!=="survey"&&(
       <Card style={{marginBottom:10}}>
-        <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:10}}>
-          {selectedArea!=="all"?AREA_MAP[selectedArea].icon:"🏫"} {selectedArea==="all"?(lang==="en"?"All Fields":K("Hemû Qadan")):areaName(selectedArea,lang)} {lang==="en"?"Summary":K("Kurte")}
+        <div className="c-h">
+          {selectedArea==="all"?(lang==="en"?"All Fields":K("Hemû Qadan")):areaName(selectedArea,lang)} {lang==="en"?"Summary":K("Kurte")}
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
-          <div style={{background:"var(--surface)",borderRadius:10,padding:"10px 8px",textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
-            <div style={{fontSize:20,fontWeight:800,color:"var(--text)"}}>{reportType==="teachers"?filteredTeachers.length:filteredStudents.length}</div>
-            <div style={{fontSize:9,color:"#64748b",marginTop:2}}>{reportType==="teachers"?(lang==="en"?"Teachers":K("Mamoste")):(lang==="en"?"Students":K("Xwendekar"))}</div>
+          <div className="c-stat">
+            <div className="c-stat-v" style={{color:"var(--text)"}}>{reportType==="teachers"?filteredTeachers.length:filteredStudents.length}</div>
+            <div className="c-stat-l">{reportType==="teachers"?(lang==="en"?"Teachers":K("Mamoste")):(lang==="en"?"Students":K("Xwendekar"))}</div>
           </div>
-          <div style={{background:"var(--surface)",borderRadius:10,padding:"10px 8px",textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
-            <div style={{fontSize:20,fontWeight:800,color:hasAttData?pctColor(avgAtt):"#94a3b8"}}>{hasAttData?avgAtt+"%":"—"}</div>
-            <div style={{fontSize:9,color:"var(--text2)",marginTop:2}}>{lang==="en"?"Avg Attendance":K("Navgîna Amadebûnê")}</div>
+          <div className="c-stat">
+            <div className="c-stat-v" style={{color:hasAttData?pctColor(avgAtt):"#94a3b8"}}>{hasAttData?avgAtt+"%":"—"}</div>
+            <div className="c-stat-l">{lang==="en"?"Avg Attendance":K("Navgîna Amadebûnê")}</div>
           </div>
-          <div style={{background:"var(--surface)",borderRadius:10,padding:"10px 8px",textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
-            <div style={{fontSize:20,fontWeight:800,color:riskCount>0?"var(--red)":"#94a3b8"}}>{riskCount}</div>
-            <div style={{fontSize:9,color:"#64748b",marginTop:2}}>{lang==="en"?"At Risk":K("Di Xeterê de")}</div>
+          <div className="c-stat">
+            <div className="c-stat-v" style={{color:riskCount>0?"var(--red)":"#94a3b8"}}>{riskCount}</div>
+            <div className="c-stat-l">{lang==="en"?"At Risk":K("Di Xeterê de")}</div>
           </div>
         </div>
 
@@ -12660,15 +12549,15 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
           const a=AREA_MAP[s.area]||AREA_MAP["genel"]||{color:"#0f2f38",bg:"rgba(15,47,56,0.08)",icon:"🎓"};
           const attColor=attColorOf(st);
           return(
-            <div key={s.id} data-rep-student={s.no} onClick={()=>setDetail(s)} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",cursor:"pointer",borderBottom:"0.5px solid var(--border)"}}>
-              <Avatar name={s.name} color={a.color} size={30} photo={s.photo}/>
+            <div key={s.id} data-rep-student={s.no} onClick={()=>setDetail(s)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",cursor:"pointer",borderBottom:"1px solid #EEF1F2"}}>
+              <Avatar name={s.name} color={a.color} size={36} photo={s.photo}/>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:12,fontWeight:500,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</div>
-                <div style={{fontSize:10,color:"var(--text2)",fontFamily:"monospace"}}>{s.no}</div>
+                <div style={{fontSize:14,fontWeight:600,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</div>
+                <div style={{fontSize:12,color:"var(--text2)",fontVariantNumeric:"tabular-nums"}}>{s.no}</div>
                 {(st.leaves>0||leavesOf(s).length>0)&&<div data-rep-leave style={{fontSize:10,color:"#185FA5"}} title={leaveTxt(s)}>🏷 {lang==="en"?"On leave":K("Destûrî")}{st.leaves?": "+st.leaves+" "+(lang==="en"?"lessons":K("ders")):""}{leaveTxt(s)?" · "+leaveTxt(s):""}</div>}
               </div>
               {(reportType==="attendance"||reportType==="full"||reportType==="attendance_lesson")&&(
-                <div style={{fontSize:12,fontWeight:700,color:attColor,minWidth:38,textAlign:"right"}}>{attTextOf(st)}</div>
+                <div className="c-pct" style={{color:attColor}}>{attTextOf(st)}</div>
               )}
             </div>
           );
@@ -12713,7 +12602,7 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
             {showAll?(lang==="en"?"Show less":K("Kêmtir nîşan bide")):("+"+(filteredStudents.length-5)+" "+(lang==="en"?"more — show all":K("zêdetir — hemûyan nîşan bide")))}
           </button>
         )}
-        <div style={{fontSize:10.5,color:"var(--text2)",textAlign:"center",marginTop:4}}>👆 {lang==="en"?"Tap a student for the weekly chart and evaluations":K("Ji bo grafika heftane û nirxandinan li xwendekarekî bitikîne")}</div>
+        <div style={{fontSize:12.5,color:"var(--text2)",textAlign:"center",marginTop:8}}>{lang==="en"?"Tap a student for the weekly chart and evaluations":K("Ji bo grafika heftane û nirxandinan li xwendekarekî bitikîne")}</div>
       </Card>
       )}
 
@@ -14089,106 +13978,79 @@ function TeacherAnnounceView({teacher, anns, setAnns, classGroups, lang, toast})
 
   return (
     <div style={{paddingBottom:20}}>
-      {/* Tabs */}
-      <div style={{display:"flex",gap:0,background:"rgba(0,0,0,.15)",borderRadius:10,padding:3,marginBottom:14}}>
-        {[
-          {k:"inbox",label:(lang==="en"?"📥 Inbox":K("📥 Gihîştî")),badge:unread},
-          {k:"send",label:(lang==="en"?"📤 Send":K("📤 Bişîne"))},
-          {k:"sent",label:(lang==="en"?"📋 Sent":K("📋 Şandî"))},
-        ].map(x=>(
-          <button key={x.k} onClick={()=>setTab(x.k)}
-            style={{flex:1,padding:"8px 4px",fontSize:11,fontWeight:tab===x.k?700:400,
-              color:tab===x.k?"var(--accent)":"#64748b",background:"transparent",borderBottom:tab===x.k?"2px solid #0f2f38":"2px solid transparent",
-              border:"none",borderRadius:8,cursor:"pointer",position:"relative"}}>
-            {x.label}
-            {x.badge>0&&<span style={{position:"absolute",top:2,right:4,background:"#ef4444",color:"#fff",fontSize:9,fontWeight:700,minWidth:14,height:14,borderRadius:7,display:"inline-flex",alignItems:"center",justifyContent:"center",padding:"0 3px"}}>{x.badge}</span>}
-          </button>
-        ))}
+      <div style={{marginBottom:14}}>
+        <Seg value={tab} onChange={setTab} items={[
+          ["inbox",<>{noEmo(lang==="en"?"📥 Inbox":K("📥 Gihîştî"))}{unread>0&&<span className="c-badge" style={{marginLeft:6}}>{unread}</span>}</>,"inbox"],
+          ["send",noEmo(lang==="en"?"📤 Send":K("📤 Bişîne")),"send"],
+          ["sent",noEmo(lang==="en"?"📋 Sent":K("📋 Şandî")),"list"]]}/>
       </div>
 
-      {/* INBOX */}
+      {/* GELEN */}
       {tab==="inbox"&&(
-        inboxAnns.length===0?(
-          <div style={{textAlign:"center",padding:32,color:"var(--text2)"}}>
-            <div style={{fontSize:36,marginBottom:8}}>📭</div>
-            <div style={{fontSize:13}}>{lang==="en"?"No announcements":K("Ragihandin tune")}</div>
-          </div>
-        ):(
-          inboxAnns.map((ann,i)=>{
+        inboxAnns.length===0?<EmptyState icon="inbox" text={lang==="en"?"No announcements":K("Ragihandin tune")}/>:(
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {inboxAnns.map(ann=>{
             const id=ann.fireId||ann.id;
             const isUnread=!ann._read&&!readIds.includes(id);
             return(
-              <div key={id} onClick={()=>markRead(id, ann.fireId)}
-                style={{background:"var(--surface)",borderRadius:12,padding:"13px 14px",marginBottom:8,
-                  border:`1px solid ${isUnread?a.color+"55":"var(--border)"}`,cursor:"pointer"}}>
-                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-                  <div style={{width:32,height:32,borderRadius:"50%",background:"var(--surface2)",
-                    display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>
-                    {ann.senderRole==="admin"?"🛡":a.icon}
+              <div key={id} onClick={()=>markRead(id, ann.fireId)} className="card" style={{cursor:"pointer",display:"flex",gap:12,alignItems:"flex-start",borderColor:isUnread?"#0f2f38":undefined}}>
+                <span className="c-av"><Ico n={ann.senderRole==="admin"?"shield":"users"} size={18}/></span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{flex:1,minWidth:0,fontSize:13,color:"var(--text2)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ann.senderName||"Rêveber"}</span>
+                    <span style={{fontSize:12,color:"var(--text2)",flexShrink:0}}>{ann.time}</span>
+                    {isUnread&&<span className="c-dot"/>}
                   </div>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:12,fontWeight:600,color:"var(--text)"}}>{ann.senderName||"Rêveber"}</div>
-                    <div style={{fontSize:11,fontWeight:600,color:"var(--text)",marginTop:1}}>{ann.title}</div>
-                  </div>
-                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:3}}>
-                    <span style={{fontSize:10,color:"var(--text2)"}}>{ann.time}</span>
-                    {isUnread&&<div style={{width:8,height:8,borderRadius:"50%",background:"#0f2f38"}}/>}
-                  </div>
+                  <div style={{fontSize:15,fontWeight:700,color:"var(--text)",marginTop:2}}>{ann.title}</div>
+                  <div style={{fontSize:14,color:"var(--text)",lineHeight:1.55,marginTop:4,whiteSpace:"pre-wrap"}}>{ann.msg}</div>
                 </div>
-                <div style={{fontSize:12,color:"var(--text)",lineHeight:1.55,paddingLeft:40}}>{ann.msg}</div>
               </div>
             );
-          })
+          })}
+          </div>
         )
       )}
 
-      {/* SEND — yalnızca kendi sınıflarına (dosyasız) */}
+      {/* GÖNDER — yalnızca kendi sınıflarına (dosyasız) */}
       {tab==="send"&&(
         <Card>
-          <div style={{fontSize:12,color:"var(--text2)",marginBottom:12,background:"var(--bg2)",padding:"10px 12px",borderRadius:8,lineHeight:1.6}}>
-            📢 {lang==="en"?"The announcement goes only to the students of the classes you choose. To send a file or homework use My Class → Homework & Documents.":K("Ragihandin tenê digihîje xwendekarên sinifên ku tu hildibijêrî. Ji bo pel an erka malê: Sinifa Min → Erk û Belge.")}
-          </div>
-          {(classGroups||[]).length===0?<div style={{fontSize:13,color:"var(--text2)",marginBottom:10}}>🏫 {lang==="en"?"You have no class yet.":K("Hîn sinifa te tune.")}</div>:
-          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
-            {classGroups.map(g=><button key={g.id} data-ann-class={g.id} onClick={()=>setSelCls(x=>({...x,[g.id]:!x[g.id]}))}
-              style={{padding:"7px 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",border:"1.5px solid "+(selCls[g.id]?"#0f2f38":"var(--border2)"),background:selCls[g.id]?"#0f2f38":"var(--surface)",color:selCls[g.id]?"#fff":"var(--text)"}}>
-              {selCls[g.id]?"✓ ":""}🏫 {g.name} ({g.students.length})</button>)}
+          <Note style={{marginBottom:16}} icon="ann">{lang==="en"?"The announcement goes only to the students of the classes you choose. To send a file or homework use My Class → Homework & Documents.":K("Ragihandin tenê digihîje xwendekarên sinifên ku tu hildibijêrî. Ji bo pel an erka malê: Sinifa Min → Erk û Belge.")}</Note>
+          <FieldWrap label={lang==="en"?"Classes":K("Sinif")}>
+          {(classGroups||[]).length===0?<div style={{fontSize:14,color:"var(--text2)"}}>{lang==="en"?"You have no class yet.":K("Hîn sinifa te tune.")}</div>:
+          <div className="c-chips">
+            {classGroups.map(g=><button key={g.id} type="button" data-ann-class={g.id} aria-pressed={!!selCls[g.id]} onClick={()=>setSelCls(x=>({...x,[g.id]:!x[g.id]}))}
+              className={"c-chip"+(selCls[g.id]?" on":"")}><Ico n={selCls[g.id]?"check":"cls"} size={15}/><span>{g.name} · {g.students.length}</span></button>)}
           </div>}
+          </FieldWrap>
           <FieldWrap label={lang==="en"?"Title":K("Sernav")}>
-            <input style={inputStyle} value={title} maxLength={140} onChange={e=>setTitle(e.target.value)} placeholder="..."/>
+            <input style={inputStyle} value={title} maxLength={140} onChange={e=>setTitle(e.target.value)} placeholder={lang==="en"?"Title":K("Sernav")}/>
           </FieldWrap>
           <FieldWrap label={lang==="en"?"Message":K("Peyam")}>
-            <textarea style={{...inputStyle,minHeight:80,resize:"vertical"}} value={msg} maxLength={3000} onChange={e=>setMsg(e.target.value)} placeholder="..."/>
+            <textarea style={{...inputStyle,minHeight:120,resize:"vertical",lineHeight:1.55}} value={msg} maxLength={3000} onChange={e=>setMsg(e.target.value)} placeholder={lang==="en"?"Write your message…":K("Peyama xwe binivîse…")}/>
           </FieldWrap>
-          <PrimaryBtn onClick={sendAnn} icon="📤">
-            {busy?"⏳":(lang==="en"?"Send":K("Bişîne"))}
-          </PrimaryBtn>
+          <PBtn onClick={sendAnn} disabled={busy} icon="send">{busy?"…":(lang==="en"?"Send":K("Bişîne"))}</PBtn>
         </Card>
       )}
 
-      {/* SENT — kendi sınıf duyurularım */}
+      {/* GÖNDERİLEN — kendi sınıf duyurularım */}
       {tab==="sent"&&(
-        sentPosts.length===0?(
-          <div style={{textAlign:"center",padding:32,color:"var(--text2)"}}>
-            <div style={{fontSize:36,marginBottom:8}}>📋</div>
-            <div style={{fontSize:13}}>{lang==="en"?"No announcements sent yet":K("Hîn ragihandin nehatiye şandin")}</div>
-          </div>
-        ):(
-          <Card>
-            {sentPosts.map((p,i)=>(
-              <div key={p.fireId} data-sent-ann style={{padding:"10px 0",borderBottom:i<sentPosts.length-1?"0.5px solid var(--border)":"none"}}>
-                <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                  <div style={{flex:1,fontSize:13,fontWeight:600,color:"var(--text)"}}>{p.title}</div>
-                  <button aria-label="🗑" onClick={()=>delPost(p)} style={{border:"none",background:"var(--bg2)",borderRadius:8,padding:"4px 8px",cursor:"pointer"}}><Ico n="trash" solo/></button>
+        sentPosts.length===0?<EmptyState icon="ann" text={lang==="en"?"No announcements sent yet":K("Hîn ragihandin nehatiye şandin")}/>:(
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {sentPosts.map(p=>(
+              <div key={p.fireId} data-sent-ann className="card" style={{display:"flex",gap:12,alignItems:"flex-start"}}>
+                <span className="c-av"><Ico n="ann" size={18}/></span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:15,fontWeight:700,color:"var(--text)"}}>{p.title}</div>
+                  {p.body&&<div style={{fontSize:13.5,color:"var(--text2)",marginTop:3,lineHeight:1.5,whiteSpace:"pre-wrap"}}>{p.body}</div>}
+                  <div style={{display:"flex",gap:8,marginTop:8,alignItems:"center",flexWrap:"wrap"}}>
+                    <span className="c-tag">{p.className||""}</span>
+                    <span style={{fontSize:12,color:"var(--text2)"}}>{p.createdAt&&p.createdAt.toDate?fmtDateTx(p.createdAt.toDate().toISOString()):""}</span>
+                  </div>
                 </div>
-                {p.body&&<div style={{fontSize:11,color:"var(--text2)",marginTop:2,lineHeight:1.4,whiteSpace:"pre-wrap"}}>{p.body}</div>}
-                <div style={{display:"flex",gap:8,marginTop:5}}>
-                  <span style={{fontSize:10,padding:"1px 7px",borderRadius:8,background:a.bg,color:"var(--text)"}}>🏫 {p.className||""}</span>
-                  <span style={{fontSize:10,color:"var(--text2)"}}>{p.createdAt&&p.createdAt.toDate?fmtDateTx(p.createdAt.toDate().toISOString()):""}</span>
-                </div>
+                <button type="button" className="c-iconbtn sm danger" aria-label={lang==="en"?"Delete":K("Jêbire")} onClick={()=>delPost(p)}><Ico n="trash" size={17}/></button>
               </div>
             ))}
-          </Card>
+          </div>
         )
       )}
     </div>
@@ -15369,7 +15231,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     <>
     <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg2)",overflow:"hidden"}}>
       <StatusBar/>
-      <SideMenu open={menuOpen} onClose={()=>setMenuOpen(false)} items={navItems} activeKey={view}
+      <SideMenu dock={["home","attendance","myclass","profile"]} open={menuOpen} onClose={()=>setMenuOpen(false)} onOpen={()=>setMenuOpen(true)} items={navItems} activeKey={view}
         onSelect={setView} user={teacher}
         roleLabel={(lang==="en"?"Teacher":K("Mamoste"))+" · "+areaName(teacher.area,lang)}
         extraItems={[
@@ -16405,33 +16267,44 @@ function StudentTeacherMessenger({student,teachers,lang,toast}){
   return(
     <div style={{marginBottom:12}}>
       {!open?(
-        <button data-new-tmsg onClick={()=>setOpen(true)} style={{width:"100%",padding:"12px",borderRadius:12,border:"none",background:"#0f2f38",color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer"}}>
-          ✍️ {W2("Ji mamosteyê xwe re peyam binivîse","Write to your teacher")}</button>
+        <button type="button" data-new-tmsg onClick={()=>setOpen(true)} className="c-btn">
+          <Ico n="edit" size={18}/>{W2("Ji mamosteyê xwe re peyam binivîse","Write to your teacher")}</button>
       ):(
-        <Card style={{border:"2px solid #0f2f38"}}>
-          <div style={{fontSize:13,fontWeight:800,color:"var(--text)",marginBottom:8}}>✍️ {W2("Peyama nû ji mamoste re","New message to a teacher")}</div>
-          {teachers.length===0?<div style={{fontSize:12.5,color:"var(--text2)"}}>{W2("Hîn mamosteyê te tune.","You have no teachers yet.")}</div>:<>
-          <select data-tmsg-to value={to} onChange={e=>setTo(e.target.value)} style={{...selectStyle,marginBottom:8}}>
-            <option value="">— {W2("Mamoste hilbijêre","Choose a teacher")} —</option>
-            {teachers.map(t=><option key={t.no} value={t.no}>👩‍🏫 {t.name||t.no}{t.lessons&&t.lessons.length?" · "+t.lessons.join(", "):""}</option>)}
-          </select>
-          <input value={subject} maxLength={300} onChange={e=>setSubject(e.target.value)} placeholder={W2("Sernav","Subject")} style={{...inputStyle,marginBottom:8}}/>
-          <textarea value={body} maxLength={5000} onChange={e=>setBody(e.target.value)} placeholder={W2("Peyama te…","Your message…")} style={{...inputStyle,minHeight:90,resize:"vertical"}}/>
-          <div style={{display:"flex",gap:8,marginTop:8}}>
-            <button onClick={()=>setOpen(false)} style={{flex:1,padding:11,borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,cursor:"pointer"}}>{W2("Betal","Cancel")}</button>
-            <button data-tmsg-send disabled={busy} onClick={send} style={{flex:2,padding:11,borderRadius:10,border:"none",background:"#16a34a",color:"#fff",fontWeight:800,cursor:"pointer"}}>{busy?"⏳":"📤 "+W2("Bişîne","Send")}</button>
-          </div></>}
+        <Card>
+          <div className="c-backbar" style={{marginBottom:12}}>
+            <div className="c-backbar-t">{W2("Peyama nû ji mamoste re","New message to a teacher")}</div>
+            <button type="button" className="c-iconbtn" aria-label={W2("Betal","Cancel")} onClick={()=>setOpen(false)}><Ico n="close" size={18}/></button>
+          </div>
+          {teachers.length===0?<Note>{W2("Hîn mamosteyê te tune.","You have no teachers yet.")}</Note>:<>
+          <FieldWrap label={W2("Mamoste","Teacher")}>
+            <select data-tmsg-to value={to} onChange={e=>setTo(e.target.value)} style={selectStyle}>
+              <option value="">{W2("Mamoste hilbijêre","Choose a teacher")}</option>
+              {teachers.map(t=><option key={t.no} value={t.no}>{t.name||t.no}{t.lessons&&t.lessons.length?" · "+t.lessons.join(", "):""}</option>)}
+            </select>
+          </FieldWrap>
+          <FieldWrap label={W2("Sernav","Subject")}><input value={subject} maxLength={300} onChange={e=>setSubject(e.target.value)} placeholder={W2("Sernav","Subject")} style={inputStyle}/></FieldWrap>
+          <FieldWrap label={W2("Peyam","Message")}><textarea value={body} maxLength={5000} onChange={e=>setBody(e.target.value)} placeholder={W2("Peyama te…","Your message…")} style={{...inputStyle,minHeight:120,resize:"vertical",lineHeight:1.55}}/></FieldWrap>
+          <button type="button" data-tmsg-send disabled={busy} onClick={send} className="c-btn">{busy?"…":<>{W2("Bişîne","Send")}<Ico n="send" size={18}/></>}</button>
+          </>}
         </Card>)}
       {sent.length>0&&(
-        <Card style={{marginTop:10}}>
-          <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:6}}>📤 {W2("Ji mamosteyan re şandî","Sent to teachers")}</div>
-          {sent.slice(0,10).map((m,i)=>(
-            <div key={m.fireId} style={{padding:"7px 0",borderTop:i?"0.5px solid var(--border)":"none"}}>
-              <div style={{fontSize:12,fontWeight:700,color:"var(--text)"}}>👩‍🏫 {m.to} · {m.subject}</div>
-              <div style={{fontSize:11.5,color:"var(--text2)",whiteSpace:"pre-wrap"}}>{m.body}</div>
-              <div style={{fontSize:10,color:"var(--text2)"}}>{m.time||""}{m.read?" · ✓✓":""}</div>
+        <div style={{marginTop:16}}>
+          <div className="c-h" style={{color:"var(--text2)"}}>{W2("Ji mamosteyan re şandî","Sent to teachers")}</div>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {sent.slice(0,10).map(m=>(
+            <div key={m.fireId} style={{display:"flex",gap:12,padding:12,borderRadius:16,background:"#F7F8F8"}}>
+              <span className="c-av"><Ico n="user" size={18}/></span>
+              <div style={{minWidth:0,flex:1}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{flex:1,minWidth:0,fontSize:14,fontWeight:600,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.to} · {m.subject}</span>
+                  {m.read&&<span className="c-tag ok">{W2("Hat xwendin","Read")}</span>}
+                </div>
+                <div style={{fontSize:13,color:"var(--text2)",whiteSpace:"pre-wrap",marginTop:2,lineHeight:1.45}}>{m.body}</div>
+                <div style={{fontSize:12,color:"var(--text2)",marginTop:4}}>{m.time||""}</div>
+              </div>
             </div>))}
-        </Card>)}
+          </div>
+        </div>)}
     </div>);
 }
 
@@ -16943,7 +16816,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
     <>
     <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg2)",overflow:"hidden"}}>
       <StatusBar/>
-      <SideMenu open={menuOpen} onClose={()=>setMenuOpen(false)} items={navItems} activeKey={view}
+      <SideMenu dock={["schedule","messages","announce","profile"]} open={menuOpen} onClose={()=>setMenuOpen(false)} onOpen={()=>setMenuOpen(true)} items={navItems} activeKey={view}
         onSelect={setView} user={student}
         roleLabel={(lang==="en"?"Student":K("Xwendekar"))+" · "+areaName(student.area,lang)}
         extraItems={[

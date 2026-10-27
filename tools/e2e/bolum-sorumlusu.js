@@ -111,7 +111,7 @@ async function routes(ctx) {
   await goA(s1, 'feedback'); await s1.waitForTimeout(1500);
   ok('Öğrenci "bölüm sorumlusu" seçeneğini görür', (await s1.locator('[data-to-head="1"]').count()) === 1);
   await s1.click('[data-to-head="1"]');
-  await s1.locator('input').filter({ hasNot: s1.locator('[type=checkbox]') }).last().fill('Kostûm');
+  await s1.fill('#fb-subj', 'Kostûm');
   await s1.locator('textarea').last().fill('Ji bo provayê kostûm heye?');
   await btn(s1, 'Bişîne'); await s1.waitForTimeout(2000);
   const sm = (await list('messages')).filter(d => d.fields.body && d.fields.body.stringValue === 'Ji bo provayê kostûm heye?');
