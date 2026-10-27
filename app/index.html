@@ -15186,7 +15186,9 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
         return false;
       });
       filtered.sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
-      setTeacherAnns(filtered);
+      // Daha önce okunanlar (cihazda saklı) yeniden "yeni" görünmesin
+      let rd=[]; try{ rd=JSON.parse(localStorage.getItem("aat-ann-read-"+teacher.id)||"[]"); }catch(_){}
+      setTeacherAnns(filtered.map(x=>rd.includes(x.fireId||x.id)?{...x,_read:true}:x));
     });
     return ()=>unsub();
   },[teacher.area, teacher.name]);
@@ -16717,7 +16719,11 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
     return ()=>{ try{u();}catch(_){} };
   },[myCidKey]);
   const announcements=[...schoolAnns,...classAnns].sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
-  const [readIds,setReadIds]=useState([]);
+  // Okunan duyurular cihazda saklanır (her girişte yeniden "okunmadı" görünmesin)
+  const RK="aat-ann-read-s-"+String(student.no||student.id||"");
+  const [readIds,setReadIdsRaw]=useState(()=>{ try{ return JSON.parse(localStorage.getItem(RK)||"[]"); }catch(_){ return []; } });
+  const setReadIds=f=>setReadIdsRaw(p=>{ const n=[...new Set(typeof f==="function"?f(p):f)].filter(Boolean).slice(-500);
+    try{ localStorage.setItem(RK,JSON.stringify(n)); }catch(_){} return n; });
   useEffect(()=>{
 
     if(!window.__FB||!window.__FB.isConfigured()) return;
@@ -17086,7 +17092,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
           <>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
               <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>📢 {lang==="en"?"Announcements":t.announcements}</div>
-              {unreadCount>0&&<button onClick={()=>setReadIds(announcements.map(a=>a.id))}
+              {unreadCount>0&&<button onClick={()=>setReadIds(p=>[...p,...announcements.map(a=>a.fireId||a.id)])}
                 style={{fontSize:11,padding:"4px 10px",borderRadius:8,background:"var(--bg2)",border:"0.5px solid var(--border2)",cursor:"pointer",color:"var(--text)"}}>
                 {lang==="en"?"Mark all as read":K("Hemûyan xwendî nîşan bide")}
               </button>}
