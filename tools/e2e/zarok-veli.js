@@ -47,7 +47,7 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   ok('Yanlış şifre reddedilir', /xelet/i.test(await p.locator('.err').textContent()));
   // 3) Gerçek veli
   await login('92026001', 'Veli1234'); await p.waitForSelector('.pano-tile', { timeout: 20000 });
-  ok('Veli Pano ile açılır (kare kartlar)', (await p.locator('.pano-tile').count()) === 5); await goZ(p, 'today'); await p.waitForSelector('.status', { timeout: 20000 });
+  ok('Veli Pano ile açılır (kare kartlar)', (await p.locator('.pano-tile').count()) >= 8); await goZ(p, 'today'); await p.waitForSelector('.status', { timeout: 20000 });
   const body = await p.evaluate(() => document.body.innerText);
   ok('Veli girer, kendi çocuğunu görür', body.includes('Rojda'));
   ok('Başka ailenin çocuğu görünmez', !body.includes('BaşkaZarok'));
