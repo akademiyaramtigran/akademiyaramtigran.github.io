@@ -140,19 +140,6 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   ok('Atölye kapandı, programdan kalktı', W2.fields.status.stringValue === 'closed' && W2.fields.attSummary && WL2.status === 404);
   ok('Kapanan atölye arşivde', /Atolyeyên girtî \(1\)/.test(await txt(p)));
 
-  // ── 5b) Haftalık atölye (ör. hafta sonu): her hafta tekrarlanan ders ──
-  await clickText(p, '➕ Atolye veke'); await p.waitForTimeout(300);
-  await p.locator('input[aria-label="Navê sinifê"]').fill('Atolyeya Hefteyî');
-  await p.evaluate(() => document.querySelector('[data-ws-weekly] input').click());
-  await check(p, 'Mamoste Dilovan'); await check(p, 'Baran Şêx');
-  await clickText(p, '💾 Tomar bike'); await p.waitForTimeout(2000);
-  const WW = await cls('Atolyeya Hefteyî'); const WWid = idOf(WW);
-  const WWL = await getDocF('schedule/ws_' + WWid);
-  const DOWN = ['Yekşem', 'Dûşem', 'Sêşem', 'Çarşem', 'Pêncşem', 'Înî', 'Şemî'][new Date(TODAY + 'T12:00:00').getDay()];
-  ok('Haftalık atölye: her hafta (gün, başlangıç, atölye türü)', WW && WW.fields.weekly.booleanValue === true && WWL.fields && WWL.fields.lessonType.stringValue === 'main'
-    && WWL.fields.day.stringValue === DOWN && WWL.fields.from.stringValue === TODAY && WWL.fields.category.stringValue === 'workshop', WWL.fields ? JSON.stringify({ d: WWL.fields.day, f: WWL.fields.from }) : '');
-  ok('Haftalık atölye kartında 🔁 gün', (await txt(p)).includes('🔁'));
-
   // ── 6) Rapor: sınıf filtresi ──
   ok('Öğrenci İşleri panelinde rapor yok', !(await p.evaluate(() => [...document.querySelectorAll('.sm-it[data-key],.pano-tile[data-key]')].some(e => e.dataset.key === 'rapor'))));
   const rpA = await login(await mk(), '1000', 'Admin123');

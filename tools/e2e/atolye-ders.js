@@ -37,13 +37,8 @@ async function routes(ctx) {
   await put('idx_students/20202601', { no: '20202601' });
   await put('students/S1', { no: '20202601', name: 'Rojîn Aram', area: 'tiyatro', fireId: 'S1', id: 101 });
   await put('students/S2', { no: '20202602', name: 'Baran Şêx', area: 'tiyatro', fireId: 'S2', id: 102 });
-  await put('classes/W1', { kind: 'workshop', name: 'Atolyeya Şanoyê', area: 'genel', studentNos: ['20202601', '20202603'], teacherNos: ['50202601'], teacherNames: ['Mamoste Şano'], status: 'open', date: '2026-11-01', start: '10:00', end: '12:00', lessonId: 1 });
+  await put('classes/W1', { kind: 'workshop', name: 'Atolyeya Şanoyê', area: 'genel', studentNos: ['20202601'], teacherNos: ['50202601'], teacherNames: ['Mamoste Şano'], status: 'open', date: '2026-11-01', start: '10:00', end: '12:00', lessonId: 1 });
   await put('schedule/ws_W1', { id: 1, fireId: 'ws_W1', classId: 'W1', area: 'genel', name: 'Atolyeya Şanoyê', lessonType: 'extra', extraDates: ['2026-11-01'], start: '10:00', end: '12:00', teacherNo: '50202601' });
-  await put('idx_students/20202603', { no: '20202603' });
-  await put('students/S3', { no: '20202603', name: 'Dilan Atolye', area: 'tiyatro', fireId: 'S3', id: 103 });
-  await signUp('20202603@ogrenci.aat', 'Stu12345');
-  await signUp('20202601@ogrenci.aat', 'Stu12345');
-  await put('schedule/L2', { id: 8, fireId: 'L2', area: 'tiyatro', name: 'Dersa Bê Sinif', lessonType: 'main', day: 'Dûşem', start: '11:00', end: '12:00', teacherNo: '50202601' });
   await put('classes/A1', { kind: 'area', name: '1. Sînif', area: 'tiyatro', studentNos: ['20202601', '20202602'] });
   await put('schedule/L1', { id: 7, fireId: 'L1', classId: 'A1', area: 'tiyatro', name: 'Şano 1', lessonType: 'main', day: 'Dûşem', start: '09:00', end: '10:00' });
   // Yoklamalar: Rojîn bölüm dersine gelmedi, atölyeye geldi
@@ -96,20 +91,6 @@ async function routes(ctx) {
   ok('Atolye: yalnız atölye yoklaması (%100), atölyede olmayan öğrenci listede yok', pWs.startsWith('100') && !s2ws, pWs);
   ok('Dersên beşê: atölye hariç (%0), tüm bölüm öğrencileri listede', pDept.startsWith('0') && s2d, pDept);
   ok('Etkin filtre etiketi görünür', (await p.evaluate(() => [...document.querySelectorAll('.c-ftag')].some(x => x.textContent.includes('Dersên beşê')))));
-  // Öğrenci programı: yalnız atölye öğrencisi sınıfsız bölüm dersini görmez, bölüm öğrencisi görür
-  const stuSees = async no => { const sp = await c.newPage(); sp.on('pageerror', e => errs.push(no + ': ' + e.message));
-    await sp.goto('http://localhost:8765/app/?emu=1'); await sp.waitForSelector('text=Têkeve', { timeout: 60000 });
-    await sp.getByText('Xwendekar', { exact: true }).first().click();
-    await sp.locator('input.inp').first().fill(no); await sp.locator('input[type=password]').first().fill('Stu12345');
-    await sp.getByText('Têkeve', { exact: true }).last().click(); await sp.waitForTimeout(7000);
-    await sp.evaluate(() => { const e = document.querySelector('.sm-it[data-key="schedule"],.pano-tile[data-key="schedule"]'); e && e.click(); }); await sp.waitForTimeout(1200);
-    const tx = await sp.evaluate(() => document.body.innerText); await sp.close(); return tx; };
-  const t3 = await stuSees('20202603');
-  ok('Yalnız atölye öğrencisi: sınıfsız bölüm dersi görünmez', !t3.includes('Dersa Bê Sinif') && t3.includes('Têkeve') === false);
-  const t1 = await stuSees('20202601');
-  ok('Bölüm öğrencisi: sınıfsız bölüm dersi görünür', t1.includes('Dersa Bê Sinif'));
-  ok('Atölyeye eklenen bölüm öğrencisi atölyenin haftalık dersini de görür', t1.includes('Şano – Hefteya dawî'));
-  ok('Yalnız atölye öğrencisi atölyenin haftalık dersini görür', t3.includes('Şano – Hefteya dawî'));
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);
 })().catch(e => { console.error('E2E HATA', e); process.exit(1); });

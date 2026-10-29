@@ -8258,14 +8258,10 @@ function classLabel(d,lang){
 function inClass(d,no){ return !!d&&(d.studentNos||[]).map(String).includes(String(no)); }
 // Öğrencinin açık sınıfları (alan + genel + açık atölye)
 function classesOfStudent(docs,no){ return (docs||[]).filter(d=>d.kind&&d.status!=="closed"&&inClass(d,no)); }
-// Yalnız atölye öğrencisi (akademi dışı, ör. hafta sonu atölyesi): bölüm/genel sınıfı yok, açık bir atölyede.
-// Sınıfa bağlı olmayan bölüm dersleri bu öğrencilere görünmez, yoklama listelerine girmez — yalnız kendi atölyesinin dersleri.
-function wsOnlyStudent(docs,no){ const c=classesOfStudent(docs,no); return c.length>0&&c.every(d=>d.kind==="workshop"); }
 // Dersin öğrenci listesi: sınıfa bağlıysa o sınıf; değilse dersin alanı (genel → herkes)
 function lessonRoster(ls,students,docs){
   const all=(students||[]).filter(s=>!s.isAdmin);
   if(ls&&ls.classId){ const d=(docs||[]).find(x=>x.id===ls.classId); return d?all.filter(s=>inClass(d,s.no)):[]; }
-  if(docs&&docs.length){ const r=lessonRoster(ls,students,null); return r.filter(s=>!wsOnlyStudent(docs,s.no)); }
   if(!ls||!ls.area||ls.area==="genel") return all;
   return all.filter(s=>s.area===ls.area);
 }
@@ -8331,12 +8327,12 @@ function ClassStudio({cfg,lang,t,toast}){
 
   function newForm(k){
     const today=ymdLocal(new Date());
-    setForm({kind:k,name:"",area:k==="area"?areaF:"genel",sel:{},tsel:{},date:today,weekly:false,start:"14:00",end:"16:00",loc:"",guest:"",pa:"all",q:""});
+    setForm({kind:k,name:"",area:k==="area"?areaF:"genel",sel:{},tsel:{},date:today,start:"14:00",end:"16:00",loc:"",guest:"",pa:"all",q:""});
     setAttFor(null);
   }
   function editForm(d){
     setForm({id:d.id,kind:d.kind,name:d.name||"",area:d.area||"genel",sel:Object.fromEntries((d.studentNos||[]).map(n=>[String(n),true])),
-      tsel:Object.fromEntries((d.teacherNos||[]).map(n=>[String(n),true])),date:d.date||"",weekly:!!d.weekly,start:d.start||"",end:d.end||"",loc:d.loc||"",guest:d.guest||"",
+      tsel:Object.fromEntries((d.teacherNos||[]).map(n=>[String(n),true])),date:d.date||"",start:d.start||"",end:d.end||"",loc:d.loc||"",guest:d.guest||"",
       lessonId:d.lessonId||null,pa:"all",q:""});
     setAttFor(null);
   }
@@ -8360,8 +8356,8 @@ function ClassStudio({cfg,lang,t,toast}){
         // Atölyenin kendi günlük dersi (ws_{sınıf}); sınıfa bağlanan haftalık dersler buna karışmaz
         const prev=lessonsOf(ref.id).find(l=>String(l.fireId||"")==="ws_"+ref.id)||null;
         const lessonId=await cfg.saveWorkshopLesson(ref.id,{name:nm.slice(0,80),date:form.date,start:form.start||"",end:form.end||"",loc:form.loc.trim().slice(0,80),
-          guest:form.guest.trim().slice(0,80),teacherNo:tnos[0]||null,teacherName:tnames[0]||null,weekly:!!form.weekly},prev);
-        Object.assign(data,{date:form.date,weekly:!!form.weekly,start:form.start||"",end:form.end||"",loc:form.loc.trim().slice(0,80),guest:form.guest.trim().slice(0,80),lessonId});
+          guest:form.guest.trim().slice(0,80),teacherNo:tnos[0]||null,teacherName:tnames[0]||null},prev);
+        Object.assign(data,{date:form.date,start:form.start||"",end:form.end||"",loc:form.loc.trim().slice(0,80),guest:form.guest.trim().slice(0,80),lessonId});
         if(!form.id) data.status="open";
         await F.setDoc(ref,data,{merge:true});
       } else {
@@ -8386,10 +8382,7 @@ function ClassStudio({cfg,lang,t,toast}){
 
   // ── Atölye yoklaması ──
   const wsRoster=d=>studs.filter(s=>inClass(d,s.no)).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
-  // Haftalık atölye: yoklama bugünün oturumu için alınır
-  const wsAttDay=d=>d.weekly?{...d,date:ymdLocal(new Date())}:d;
   async function openAtt(d){
-    d=wsAttDay(d);
     setForm(null);
     if(attFor===d.id){ setAttFor(null); return; }
     let rec={};
@@ -8397,7 +8390,6 @@ function ClassStudio({cfg,lang,t,toast}){
     setAtt(rec); setAttFor(d.id); setOpen(d.id);
   }
   async function saveAtt(d,close){
-    d=wsAttDay(d);
     const roster=wsRoster(d);
     const records={}; roster.forEach(s=>{ records[s.id]=att[s.id]||"off"; });
     const sum={on:0,late:0,off:0}; Object.values(records).forEach(v=>{ sum[v]=(sum[v]||0)+1; });
@@ -8435,15 +8427,10 @@ function ClassStudio({cfg,lang,t,toast}){
         <input aria-label={W2("Navê sinifê","Class name")} style={{...inp,width:"100%"}} value={form.name} maxLength={80} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
           placeholder={isWs?W2("ör. Atolyeya Tomarkirina Deng","e.g. Sound Recording Workshop"):isArea?W2("ör. 1. Sinif · Koma A","e.g. 1st Class · Group A"):W2("ör. Çanda Muzîkê ya Hevpar","e.g. Shared Music Culture")}/>
         {isWs&&(<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:8,marginTop:8}}>
-          <label style={small}>📅 {form.weekly?W2("Roja yekem","First day"):W2("Tarîx","Date")}<DateInput style={{...inp,width:"100%"}} value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/></label>
+          <label style={small}>📅 {W2("Tarîx","Date")}<DateInput style={{...inp,width:"100%"}} value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/></label>
           <label style={small}>🕐 {W2("Destpêk","Start")}<input type="time" style={{...inp,width:"100%"}} value={form.start} onChange={e=>setForm(f=>({...f,start:e.target.value}))}/></label>
           <label style={small}>🕐 {W2("Dawî","End")}<input type="time" style={{...inp,width:"100%"}} value={form.end} onChange={e=>setForm(f=>({...f,end:e.target.value}))}/></label>
           <label style={small}>📍 {W2("Cih","Place")}<input style={{...inp,width:"100%"}} value={form.loc} maxLength={80} onChange={e=>setForm(f=>({...f,loc:e.target.value}))}/></label>
-          {cfg.coll==="classes"&&<label data-ws-weekly="1" style={{...small,gridColumn:"1/-1",display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",cursor:"pointer",fontSize:13,fontWeight:600,color:"var(--text)"}}>
-            <input type="checkbox" checked={!!form.weekly} onChange={e=>{const v=e.target.checked;setForm(f=>({...f,weekly:v}));}} style={{width:20,height:20}}/>
-            🔁 {W2("Her hefte dubare bibe (mînak: atolyeya dawiya hefteyê)","Repeat every week (e.g. weekend workshop)")}
-            {form.weekly&&form.date&&<span style={{marginLeft:"auto",fontSize:11,color:"var(--text2)",fontWeight:500}}>{K(["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"][new Date(form.date+"T12:00:00").getDay()])}</span>}
-          </label>}
           <label style={{...small,gridColumn:"1/-1"}}>🎤 {W2("Perwerdekarê ji derve (vebijarkî)","Guest instructor (optional)")}<input style={{...inp,width:"100%"}} value={form.guest} maxLength={80} onChange={e=>setForm(f=>({...f,guest:e.target.value}))}/></label>
         </div>)}
         <div style={{fontSize:12,fontWeight:800,color:"var(--text)",margin:"12px 0 4px"}}>👩‍🏫 {isWs?W2("Mamosteyê berpirsiyar","Responsible teacher"):W2("Mamosteyê sinifê","Class teacher")}</div>
@@ -8482,7 +8469,6 @@ function ClassStudio({cfg,lang,t,toast}){
   }
 
   function renderAtt(d){
-    d=wsAttDay(d);
     const roster=wsRoster(d);
     const cnt=v=>roster.filter(s=>att[s.id]===v).length;
     return(
@@ -8518,7 +8504,7 @@ function ClassStudio({cfg,lang,t,toast}){
             <div style={{fontWeight:800,color:"var(--text)"}}>{isOpen?"▾":"▸"} {isWs?"🛠 ":d.kind==="general"?"🌐 ":""}{isWs?d.name:classNameTx(d.name)} <span style={small}>({ms.length} {MW()})</span>
               {isWs&&<span style={{marginLeft:6,fontSize:10.5,fontWeight:800,padding:"2px 8px",borderRadius:20,background:closed?"rgba(100,116,139,.15)":"rgba(22,163,74,.12)",color:closed?"var(--text2)":"#15803d"}}>{closed?"🔒 "+W2("Girtî","Closed"):"🟢 "+W2("Vekirî","Open")}</span>}</div>
             <div style={{...small,marginTop:2}}>👩‍🏫 {tns.length?tns.join(", "):W2("Mamosteyê sinifê tune","No class teacher")}{isWs&&d.guest?" · 🎤 "+d.guest:""}</div>
-            {isWs?<div style={{...small,marginTop:2}}>📅 {d.weekly?"🔁 "+K(["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"][new Date(d.date+"T12:00:00").getDay()])+" · "+W2("ji","from")+" "+d.date:d.date} · {d.start}–{d.end}{d.loc?" · 📍 "+d.loc:""}{d.attSummary?" · ✅ "+(d.attSummary.on||0)+" ⏱ "+(d.attSummary.late||0)+" ❌ "+(d.attSummary.off||0):""}</div>
+            {isWs?<div style={{...small,marginTop:2}}>📅 {d.date} · {d.start}–{d.end}{d.loc?" · 📍 "+d.loc:""}{d.attSummary?" · ✅ "+(d.attSummary.on||0)+" ⏱ "+(d.attSummary.late||0)+" ❌ "+(d.attSummary.off||0):""}</div>
               :<div style={{...small,marginTop:2}}>📅 {ls.length} {W2("ders di bernameyê de","lessons in schedule")}</div>}
           </div>
           {!closed&&<button onClick={()=>editForm(d)} style={ghost}><Ico n="edit"/> {W2("Biguherîne","Edit")}</button>}
@@ -8639,11 +8625,8 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
       onSave={(u)=>{onDataChange("updateSchedule",u);close();toast("✓ "+u.name);}}/>,
     // Atölyenin ek dersi: schedule/ws_{sınıf} → öğretmen QR/yoklama açabilir, öğrenci programında görür
     saveWorkshopLesson:async(classId,w,prev)=>{
-      // Haftalık atölye: tarihin gününde her hafta (o günden başlar); değilse tek günlük ek ders
-      const DOW=["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"][new Date(w.date+"T12:00:00").getDay()];
-      const ls={...(prev||{}),id:prev?prev.id:Date.now(),fireId:prev&&prev.fireId?prev.fireId:"ws_"+classId,classId,area:"genel",name:w.name,category:"workshop",
-        ...(w.weekly?{lessonType:"main",day:DOW,from:w.date,extraDates:null}:{lessonType:"extra",day:null,from:null,extraDates:[w.date]}),
-        start:w.start,end:w.end,loc:w.loc||"—",teacherNo:w.teacherNo,teacherName:w.teacherName,guestTeacher:w.guest||null};
+      const ls={...(prev||{}),id:prev?prev.id:Date.now(),fireId:prev&&prev.fireId?prev.fireId:"ws_"+classId,classId,area:"genel",name:w.name,
+        lessonType:"extra",day:null,extraDates:[w.date],start:w.start,end:w.end,loc:w.loc||"—",teacherNo:w.teacherNo,teacherName:w.teacherName,guestTeacher:w.guest||null};
       onDataChange(prev?"updateSchedule":"addSchedule",ls);
       return ls.id;
     },
@@ -16871,15 +16854,12 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
   // Sınıflarım: alan sınıfı + genel sınıf + açık atölye
   const myClasses=classesOfStudent(useClassDocs("classes"),student.no);
   const myClassIds=new Set(myClasses.map(d=>d.id));
-  const wsOnly=myClasses.length>0&&myClasses.every(d=>d.kind==="workshop");
   const mySchedule=schedule.filter(s=>{
     if(!s.area||!student.area) return false;
     // Öğretmeni atanmamış ders henüz aktif değildir — kimseye gösterilmez (atölyede dış eğitmen yeter)
     if(!s.teacherNo&&!s.guestTeacher) return false;
     // Sınıfa bağlı ders yalnızca o sınıfın öğrencilerine görünür
     if(s.classId) return myClassIds.has(s.classId);
-    // Yalnız atölye öğrencisi: sınıfa bağlı olmayan dersleri görmez
-    if(wsOnly) return false;
     // Genel alan dersleri herkese görünür
     if(s.area==="genel") return true;
     // Direkt eşleşme
