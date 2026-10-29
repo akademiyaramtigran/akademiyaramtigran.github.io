@@ -112,7 +112,7 @@ function evalWeek(d) { const x = d ? new Date(d) : new Date(); const y = new Dat
   ok('Sınıfım gönderiminde "duyuru" türü yok', !(await tp.evaluate(() => [...document.querySelectorAll('button')].some(b => b.offsetParent && /📢/.test(b.textContent) && /Ragihandin/.test(b.textContent)))));
   await tp.click('[data-hub-tab="messages"]'); await tp.waitForTimeout(800);
   await btn(tp, 'Peyamek Nû').catch(() => {}); await tp.waitForTimeout(600);
-  ok('Mesaj yazarken dosya ekleme yok', (await tp.locator('input[type=file]').count()) === 0 && (await txt(tp)).includes('Erk û Belge'));
+  ok('Mesaj yazarken dosya ekleme var (≤20 MB)', (await tp.locator('[data-tmsg-attach] input[type=file]').count()) === 1 && (await txt(tp)).includes('20 MB'));
 
   // 5) Öğrenci: sınıf duyurusu Duyurular'da; öğretmen değerlendirmesi
   const sp = await login(await mk(430), '20202601', 'Stu12345', 'Xwendekar');

@@ -241,7 +241,10 @@ service cloud.firestore {
         && exists(clsDoc(c, request.resource.data.classId))
         && (prefix() in get(clsDoc(c, request.resource.data.classId)).data.get('teacherNos', []) || teachesClassLesson(sc))
         && request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 140
-        && request.resource.data.type in ['duyuru', 'odev', 'belge'];
+        && request.resource.data.type in ['duyuru', 'odev', 'belge']
+        // İsteğe bağlı: yalnız seçilen öğrenciler (öğrenci numaraları, 1–60)
+        && (!('studentNos' in request.resource.data)
+            || (request.resource.data.studentNos is list && request.resource.data.studentNos.size() >= 1 && request.resource.data.studentNos.size() <= 60));
     }
     match /classPosts/{id} {
       allow read: if member();

@@ -140,7 +140,7 @@
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.googleapis.com;
   font-src 'self' https://fonts.gstatic.com https://*.gstatic.com data:;
   img-src 'self' blob: data: https:;
-  connect-src 'self' blob: data: http://127.0.0.1:9099 http://127.0.0.1:8080 ws://127.0.0.1:8080 http://127.0.0.1:5001
+  connect-src 'self' blob: data: http://127.0.0.1:9099 http://127.0.0.1:8080 ws://127.0.0.1:8080 http://127.0.0.1:5001 http://127.0.0.1:9199
     https://*.googleapis.com
     https://*.google.com
     https://*.gstatic.com
@@ -438,6 +438,29 @@
     } catch (e) { _storageDown = true; return null; }
   }
 
+  // Mesaj / ödev ekleri: attachments/{uid}/… — dosya başına ≤20MB (kural: storage.rules).
+  // Yerel testte (?emu=1) Storage emülatörüne bağlanır. Hata → istisna fırlatır (çağıran uyarı gösterir).
+  let _attStorage = null;
+  async function uploadAttachment(file, onProgress) {
+    const mod = await _withTimeout(import("https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js"), 10000);
+    const { getStorage, connectStorageEmulator, ref: sRef, uploadBytesResumable, getDownloadURL } = mod;
+    if (!_attStorage) { _attStorage = getStorage(); if (EMU) connectStorageEmulator(_attStorage, "127.0.0.1", 9199); }
+    const u = auth.currentUser; if (!u) throw new Error("auth");
+    const safe = String(file.name || "pel").replace(/[^A-Za-z0-9._-]+/g, "_").slice(-80);
+    const r = sRef(_attStorage, "attachments/" + u.uid + "/" + Date.now() + "_" + Math.random().toString(36).slice(2, 8) + "_" + safe);
+    await new Promise((resolve, reject) => {
+      const task = uploadBytesResumable(r, file, { contentType: file.type });
+      let lastBytes = -1, lastTick = Date.now();
+      const watchdog = setInterval(() => { if (Date.now() - lastTick > 30000) { clearInterval(watchdog); try { task.cancel(); } catch(_){} reject(new Error("storage-stall")); } }, 5000);
+      task.on("state_changed",
+        st => { if (st.bytesTransferred !== lastBytes) { lastBytes = st.bytesTransferred; lastTick = Date.now(); }
+          if (onProgress && st.totalBytes) onProgress(Math.round(st.bytesTransferred / st.totalBytes * 100)); },
+        err => { clearInterval(watchdog); reject(err); },
+        () => { clearInterval(watchdog); resolve(); });
+    });
+    return await _withTimeout(getDownloadURL(r), 10000);
+  }
+
   // ── Üyelik dizini (güvenlik) ─────────────────────────────────────────
   // Firestore kuralları personeli/öğrenciyi yalnızca e-posta uzantısına göre
   // DEĞİL, personelin yazdığı dizin kaydına göre tanır:
@@ -492,6 +515,7 @@
     ADMIN_EMAIL,
     idxPut, idxDel, syncMemberIndex,
     uploadNewsMedia,
+    uploadAttachment,
     collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
     onSnapshot, serverTimestamp, query, orderBy, where, limit,
     // Auth fonksiyonlarını dışa aç
@@ -1854,6 +1878,8 @@ function KF(ku,args){
 // yalnızca güvenli şemalarla kullanılır: "javascript:", "data:text/html" vb. engellenir.
 function safeHref(u){
   const s=String(u||"").trim();
+  // http://127.0.0.1:… yalnızca yerel testte (emülatör dosya adresleri)
+  if(/^(localhost|127\.0\.0\.1)$/.test(location.hostname)&&/^http:\/\/(127\.0\.0\.1|localhost):\d+\//.test(s)) return s;
   return /^(https:\/\/|blob:|data:(?!text\/html|image\/svg|application\/(x-)?javascript)[a-z]+\/[-+.\w]+[;,])/i.test(s)?s:undefined;
 }
 // Görseli yeni sekmede güvenle aç (document.write ile HTML birleştirmeden)
@@ -4096,10 +4122,12 @@ function EmptyState({icon,text,children}){
   return <div className="c-empty"><span className="c-av lg"><Ico n={icon||"inbox"} size={24}/></span><div>{text}</div>{children}</div>;
 }
 // Dosya ekleme kutusu + eklenen dosyalar
-function AttachBox({files,onPick,onRemove,label,lang}){
+function AttachBox({files,onPick,onRemove,label,lang,busy}){
   const imgs=(files||[]).filter(f=>f.type==="image"), docs=(files||[]).filter(f=>f.type!=="image");
   return <div style={{display:"flex",flexDirection:"column",gap:8}}>
-    <button type="button" className="c-attach" onClick={onPick}><Ico n="clip" size={18}/>{noEmo(label)}</button>
+    <button type="button" className="c-attach" onClick={onPick} disabled={!!busy}><Ico n="clip" size={18}/>{noEmo(label)}</button>
+    {busy&&<div data-att-busy="1" style={{fontSize:12.5,color:"var(--text2)"}}>⏳ {lang==="en"?"Uploading":K("Tê barkirin")}: {busy.n} · {busy.pc||0}%</div>}
+    <div style={{fontSize:11.5,color:"var(--text2)"}}>{lang==="en"?"Image, PDF, Word, Excel, PowerPoint or audio · max 20 MB per file":K("Wêne, PDF, Word, Excel, PowerPoint an deng · her pel herî zêde 20 MB")}</div>
     {imgs.length>0&&<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{imgs.map(f=>(
       <div key={f.id} style={{position:"relative",width:68,height:68}}>
         <img src={f.preview} alt="" style={{width:68,height:68,objectFit:"cover",borderRadius:12,border:"1px solid var(--border)"}}/>
@@ -5895,27 +5923,10 @@ function AdminMessagesPanel({students,teachers,lang,t,toast,adminName}){
   const unreadCount=inbox.filter(m=>!m.read).length;
   const [inboxTab,setInboxTab]=useState("inbox");
 
-  function handleAttach(e){
-    const files=Array.from(e.target.files);
-    files.forEach(file=>{
-      const isImg=file.type.startsWith("image/");
-      const reader=new FileReader();
-      reader.onload=ev=>{
-        setAttachments(prev=>[...prev,{
-          id:Date.now()+Math.random(),
-          name:file.name,
-          size:(file.size/1024).toFixed(0)+"KB",
-          type:isImg?"image":"file",
-          url:ev.target.result,
-          preview:isImg?ev.target.result:null
-        }]);
-      };
-      reader.readAsDataURL(file);
-    });
-    e.target.value="";
-  }
+  const att=useAttachUpload(setAttachments,toast,lang);
 
   async function sendMsg(){
+    if(att.busy){ toast("⏳ "+(lang==="en"?"Wait for the upload to finish":K("Li benda barkirinê bimîne"))); return; }
     if(!subject.trim()||!body.trim()){toast(lang==="en"?"⚠ Title and message required":K("⚠ Sernav û peyam lazim e"));return;}
     if(msgType==="private"&&!recipient){toast(lang==="en"?"⚠ Select recipient":K("⚠ Wergir hilbijêre"));return;}
     const toLabel=msgType==="private"
@@ -6045,9 +6056,8 @@ function AdminMessagesPanel({students,teachers,lang,t,toast,adminName}){
         )}
         <FieldWrap label={L.subject}><input style={inputStyle} value={subject} onChange={e=>setSubject(e.target.value)} placeholder={lang==="en"?"Subject":K("Sernav")}/></FieldWrap>
         <FieldWrap label={L.message}><textarea style={{...inputStyle,minHeight:120,resize:"vertical",lineHeight:1.55}} value={body} onChange={e=>setBody(e.target.value)} placeholder={lang==="en"?"Write your message…":K("Peyama xwe binivîse…")}/></FieldWrap>
-        <AttachBox lang={lang} label={L.attach} files={attachments} onPick={()=>attachRef.current.click()} onRemove={id=>setAttachments(p=>p.filter(x=>x.id!==id))}/>
-        <input ref={attachRef} type="file" multiple accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.mp4,.mp3"
-          style={{display:"none"}} onChange={handleAttach}/>
+        <AttachBox lang={lang} label={L.attach} files={attachments} busy={att.busy} onPick={()=>attachRef.current.click()} onRemove={id=>setAttachments(p=>p.filter(x=>x.id!==id))}/>
+        <input ref={attachRef} type="file" multiple accept={ATT_ACCEPT} style={{display:"none"}} onChange={att.onChange}/>
         <PBtn onClick={sendMsg} icon="send" style={{marginTop:16}}>{L.send}</PBtn>
         </div>
       </Card>
@@ -6157,27 +6167,10 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
     attach:lang==="en"?"Attach File / Photo":K("Dosya / Wêne Zêde Bike"),
   };
 
-  function handleAttach(e){
-    const files=Array.from(e.target.files);
-    files.forEach(file=>{
-      const isImg=file.type.startsWith("image/");
-      const reader=new FileReader();
-      reader.onload=ev=>{
-        setAttachments(prev=>[...prev,{
-          id:Date.now()+Math.random(),
-          name:file.name,
-          size:(file.size/1024).toFixed(0)+"KB",
-          type:isImg?"image":"file",
-          url:ev.target.result,
-          preview:isImg?ev.target.result:null
-        }]);
-      };
-      reader.readAsDataURL(file);
-    });
-    e.target.value="";
-  }
+  const att=useAttachUpload(setAttachments,toast,lang);
 
   async function sendMsg(){
+    if(att.busy){ toast("⏳ "+(lang==="en"?"Wait for the upload to finish":K("Li benda barkirinê bimîne"))); return; }
     if(!subject.trim()||!body.trim()){toast("⚠ "+L.subject+" & "+L.message);return;}
     if(msgType==="private"&&!recipient){toast(lang==="en"?"⚠ Select recipient":K("⚠ Wergir hilbijêre"));return;}
     if(msgType==="bulk"&&!bulkTargets.length){toast(lang==="en"?"⚠ No students in this class":K("⚠ Di vê sinifê de xwendekar tune"));return;}
@@ -6299,7 +6292,10 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
         <FieldWrap label={L.message}>
           <textarea style={{...inputStyle,minHeight:120,resize:"vertical",lineHeight:1.55}} value={body} onChange={e=>setBody(e.target.value)} placeholder={lang==="en"?"Write your message...":K("Peyamê binivîse...")}/>
         </FieldWrap>
-        <Note style={{marginBottom:16}} icon="clip">{lang==="en"?"Files and documents are sent from My Class → Homework & Documents.":K("Pel û belge ji Sinifa Min → Erk û Belge tên şandin.")}</Note>
+        <div style={{marginBottom:16}} data-tmsg-attach="1">
+          <AttachBox lang={lang} label={L.attach} files={attachments} busy={att.busy} onPick={()=>attachRef.current.click()} onRemove={id=>setAttachments(p=>p.filter(x=>x.id!==id))}/>
+          <input ref={attachRef} type="file" multiple accept={ATT_ACCEPT} style={{display:"none"}} onChange={att.onChange}/>
+        </div>
         <PBtn onClick={sendMsg} icon="send">{noEmo(L.send)}</PBtn>
         </div>
       </Card>
@@ -8057,16 +8053,9 @@ function HeadMessagesPanel({user,inbox,sent,teachers,lang,t,toast}){
     catch(e){ toast("❌ "+W("Nehat şandin","Not sent")+" — "+(e.message||e)); }
     setBusy(false);
   }
-  function addFiles(e){
-    Array.from(e.target.files||[]).forEach(file=>{
-      if(file.size>700*1024){ toast("⚠ "+file.name+" — "+W("pir mezin e (herî zêde 700 KB)","too large (max 700 KB)")); return; }
-      const isImg=file.type.startsWith("image/"); const r=new FileReader();
-      r.onload=ev=>setFiles(p=>[...p,{id:Date.now()+Math.random(),name:file.name,size:(file.size/1024).toFixed(0)+"KB",type:isImg?"image":"file",url:ev.target.result,preview:isImg?ev.target.result:null}]);
-      r.readAsDataURL(file);
-    });
-    e.target.value="";
-  }
+  const att=useAttachUpload(setFiles,toast,lang);
   async function send(){
+    if(att.busy){ toast("⏳ "+W("Li benda barkirinê bimîne","Wait for the upload to finish")); return; }
     if(!subject.trim()||!body.trim()){ toast("⚠ "+W("Sernav û peyam pêwîst in","Subject and message are required")); return; }
     const tc=to==="admin"?null:(teachers||[]).find(x=>"t_"+x.id===to);
     if(to!=="admin"&&!tc){ toast(W("⚠ Wergir hilbijêre","⚠ Select recipient")); return; }
@@ -8103,8 +8092,8 @@ function HeadMessagesPanel({user,inbox,sent,teachers,lang,t,toast}){
           </FieldWrap>
           <FieldWrap label={W("Sernav","Subject")}><input style={inputStyle} value={subject} onChange={e=>setSubject(e.target.value)} id="hm-subject" placeholder={W("Sernav","Subject")}/></FieldWrap>
           <FieldWrap label={W("Peyam","Message")}><textarea style={{...inputStyle,minHeight:120,resize:"vertical",lineHeight:1.55}} value={body} onChange={e=>setBody(e.target.value)} id="hm-body" placeholder={W("Peyama xwe binivîse…","Write your message…")}/></FieldWrap>
-          <input ref={fileRef} type="file" multiple accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx" style={{display:"none"}} onChange={addFiles}/>
-          <AttachBox lang={lang} label={W("Belge / Wêne Zêde Bike","Attach Document / Photo")} files={files}
+          <input ref={fileRef} type="file" multiple accept={ATT_ACCEPT} style={{display:"none"}} onChange={att.onChange}/>
+          <AttachBox lang={lang} label={W("Belge / Wêne Zêde Bike","Attach Document / Photo")} files={files} busy={att.busy}
             onPick={()=>fileRef.current&&fileRef.current.click()} onRemove={id=>setFiles(p=>p.filter(x=>x.id!==id))}/>
           <PBtn onClick={send} disabled={busy} icon="send" style={{marginTop:16}}>{busy?"…":W("Bişîne","Send")}</PBtn>
         </Card>
@@ -8978,19 +8967,44 @@ const POST_TYPES=[["duyuru","📢"],["odev","📝"],["belge","📎"]];
 // Sınıfım kartında yalnızca ödev ve belge (sınıf duyurusu "Duyurular" kartından gönderilir/okunur)
 const CLASS_POST_TYPES=POST_TYPES.filter(x=>x[0]!=="duyuru");
 function postTypeLabel(k){ const L={duyuru:["Ragihandin","Announcement"],odev:["Erka malê","Homework"],belge:["Belge","Document"]}[k]||["",""]; return RL()==="en"?L[1]:K(L[0]); }
-async function readPostFiles(fileList,toast,W2){
-  const out=[]; let total=0;
-  for(const f of Array.from(fileList||[]).slice(0,4)){
-    const url=await new Promise(res=>{ const r=new FileReader(); r.onload=e=>res(e.target.result); r.onerror=()=>res(null); r.readAsDataURL(f); });
-    if(!url) continue;
-    let data=url;
-    if(/^image\//.test(f.type)) data=await compressImage(url,1400,1400,0.75);
-    else if(f.type==="application/pdf"){ if(f.size>600000){ toast("⚠ "+f.name+" — "+W2("PDF pir mezin e (herî zêde 600 KB)","PDF too large (max 600 KB)")); continue; } }
-    else { toast("⚠ "+f.name+" — "+W2("Tenê wêne an PDF","Images or PDF only")); continue; }
-    if(total+data.length>880000){ toast("⚠ "+W2("Pel pir mezin in — kêmtir pel hilbijêre","Files too large — choose fewer")); break; }
-    total+=data.length; out.push({name:f.name.slice(0,80),url:data});
+// Ekler (mesaj + ödev/belge): Storage'a yüklenir (attachments/{uid}/…), dosya başına ≤20MB.
+// Türler: görsel, PDF, Word, Excel, PowerPoint, ses. Görseller önce küçültülür.
+// Dönen: [{id,name,size,type:"image"|"file",url,preview}] — yüklenemeyen dosya için uyarı verilir.
+const ATT_MAX=20*1024*1024;
+const ATT_EXT={pdf:"application/pdf",doc:"application/msword",docx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xls:"application/vnd.ms-excel",xlsx:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",ppt:"application/vnd.ms-powerpoint",
+  pptx:"application/vnd.openxmlformats-officedocument.presentationml.presentation",jpg:"image/jpeg",jpeg:"image/jpeg",png:"image/png",webp:"image/webp",
+  gif:"image/gif",heic:"image/heic",heif:"image/heif",mp3:"audio/mpeg",m4a:"audio/mp4",aac:"audio/aac",ogg:"audio/ogg",wav:"audio/wav",amr:"audio/amr",opus:"audio/ogg"};
+const ATT_ACCEPT="image/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx";
+const attMime=f=>{ const e=String(f.name||"").split(".").pop().toLowerCase(); const t=f.type&&f.type!=="application/octet-stream"?f.type:(ATT_EXT[e]||""); return t==="audio/x-m4a"?"audio/mp4":t; };
+const attOk=m=>Object.values(ATT_EXT).includes(m)||/^audio\/(mpeg|mp4|aac|ogg|wav|x-wav|webm|3gpp|amr)$/.test(m);
+const attSize=n=>n>=1048576?(n/1048576).toFixed(1)+" MB":Math.max(1,Math.round(n/1024))+" KB";
+async function uploadAttachFiles(fileList,toast,lang,onBusy){
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const F=window.__FB, out=[];
+  for(const f0 of Array.from(fileList||[]).slice(0,6)){
+    const mime=attMime(f0);
+    if(!attOk(mime)){ toast("⚠ "+f0.name+" — "+W2("Ev cureyê pelê nayê şandin (wêne, PDF, Word, Excel, PowerPoint, deng)","This file type can't be sent (image, PDF, Word, Excel, PowerPoint, audio)"),6000); continue; }
+    let file=f0, isImg=/^image\//.test(mime);
+    if(isImg&&!/heic|heif|gif/.test(mime)){ try{ const d=await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=e=>res(e.target.result); r.onerror=rej; r.readAsDataURL(f0); });
+      const c=await compressImage(d,1600,1600,0.8); const b=await (await fetch(c)).blob(); if(b.size<f0.size) file=new File([b],f0.name.replace(/\.[^.]+$/,"")+".jpg",{type:"image/jpeg"}); }catch(_){} }
+    if(file.size>=ATT_MAX){ toast("⚠ "+f0.name+" — "+W2("Pel pir mezin e (herî zêde 20 MB)","File too large (max 20 MB)"),6000); continue; }
+    const typed=file.type===attMime(file)?file:new File([file],file.name,{type:attMime(file)});
+    try{
+      if(onBusy) onBusy(f0.name,0);
+      const url=await F.uploadAttachment(typed,pc=>onBusy&&onBusy(f0.name,pc));
+      out.push({id:Date.now()+Math.random(),name:String(f0.name).slice(0,120),size:attSize(typed.size),type:isImg?"image":"file",url,preview:isImg?url:null});
+    }catch(e){ toast("❌ "+f0.name+" — "+W2("Nehat barkirin, dîsa biceribîne","Upload failed, try again"),6000); }
   }
+  if(onBusy) onBusy(null);
   return out;
+}
+// Dosya seçici → Storage'a yükle → listeye ekle; busy: {n:ad, pc:yüzde} | null
+function useAttachUpload(setList,toast,lang){
+  const [busy,setBusy]=useState(null);
+  const onChange=async e=>{ const fl=Array.from(e.target.files||[]); e.target.value="";
+    const add=await uploadAttachFiles(fl,toast,lang,(n,pc)=>setBusy(n?{n,pc:pc||0}:null)); if(add.length) setList(p=>[...p,...add]); };
+  return {busy,onChange};
 }
 function PostCard({p,lang,onDelete,showClass,classLabel}){
   const W2=(ku,en)=>lang==="en"?en:K(ku);
@@ -9006,6 +9020,7 @@ function PostCard({p,lang,onDelete,showClass,classLabel}){
         {onDelete&&<button aria-label="🗑" onClick={()=>onDelete(p)} style={{border:"none",background:"var(--bg2)",borderRadius:8,padding:"4px 8px",cursor:"pointer"}}><Ico n="trash" solo/></button>}
       </div>
       <div style={{fontWeight:800,color:"var(--text)",marginTop:6}}>{p.title}</div>
+      {(p.studentNos||[]).length>0&&<div data-post-only="1" style={{fontSize:11.5,color:"var(--text2)",marginTop:3}}>👤 {(p.studentNames||[]).length?(p.studentNames||[]).join(", "):(p.studentNos.length+" "+W2("xwendekar","students"))}</div>}
       {p.body&&<div style={{fontSize:13,color:"var(--text)",whiteSpace:"pre-wrap",marginTop:4,lineHeight:1.6}}>{p.body}</div>}
       {p.type==="odev"&&p.due&&<div style={{fontSize:12,fontWeight:700,marginTop:6,color:late?"#dc2626":"#b45309"}}>⏰ {W2("Dawî","Due")}: {p.due}</div>}
       {(p.files||[]).length>0&&<div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>
@@ -9015,7 +9030,7 @@ function PostCard({p,lang,onDelete,showClass,classLabel}){
     </div>);
 }
 // mode: "teacher" (gönder + kendi gönderdikleri) | "student" (kendi sınıfı)
-function ClassPostsPanel({mode,teacher,student,lang,toast,classIds}){
+function ClassPostsPanel({mode,teacher,student,students,lang,toast,classIds}){
   const F=window.__FB;
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   const live=!!(F&&F.isConfigured());
@@ -9032,7 +9047,9 @@ function ClassPostsPanel({mode,teacher,student,lang,toast,classIds}){
   const [title,setTitle]=useState(""); const [body,setBody]=useState(""); const [due,setDue]=useState("");
   const [files,setFiles]=useState([]); const [busy,setBusy]=useState(false);
   const [tf,setTf]=useState("all");
+  const [to,setTo]=useState("all"); const [pick,setPick]=useState({}); // all = tüm sınıf | pick = seçilen öğrenciler
   const fileRef=useRef(null);
+  const att=useAttachUpload(setFiles,toast,lang);
   useEffect(()=>{
     if(!live) return; let u=()=>{};
     try{
@@ -9045,18 +9062,28 @@ function ClassPostsPanel({mode,teacher,student,lang,toast,classIds}){
   const clsLabel=p=>{ const d=docs.find(x=>x.id===p.classId)||p; return classLabel(d,lang)||p.className||""; };
   const inp={width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:14,boxSizing:"border-box",fontFamily:"inherit",minHeight:42};
   const chip=on=>({padding:"7px 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",border:"1.5px solid "+(on?"#0f2f38":"var(--border2)"),background:on?"#0f2f38":"var(--surface)",color:on?"#fff":"var(--text)"});
+  // Tek sınıf seçiliyken: sınıfın tamamı ya da seçilen öğrenciler
+  const selCls=mine.filter(d=>sel[d.id]);
+  const oneCls=selCls.length===1?selCls[0]:null;
+  const roster=oneCls?(students||[]).filter(s=>s&&s.no&&inClass(oneCls,s.no)).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""))):[];
+  const pickedSt=roster.filter(s=>pick[String(s.no)]);
+  useEffect(()=>{ if(!oneCls){ setTo("all"); setPick({}); } },[oneCls&&oneCls.id]);
   async function send(){
-    const targets=mine.filter(d=>sel[d.id]);
+    const targets=selCls;
     if(!targets.length){ toast("⚠ "+W2("Sinifekê hilbijêre","Choose a class")); return; }
     if(!title.trim()){ toast("⚠ "+W2("Sernav pêwîst e","Title required")); return; }
+    if(att.busy){ toast("⏳ "+W2("Li benda barkirinê bimîne","Wait for the upload to finish")); return; }
+    const only=oneCls&&to==="pick";
+    if(only&&!pickedSt.length){ toast("⚠ "+W2("Herî kêm xwendekarekî hilbijêre","Choose at least one student")); return; }
     if(busy) return; setBusy(true);
     try{
       for(const d of targets){
         await F.addDoc(F.collection(F.db,"classPosts"),{classId:d.id,area:d.area||"genel",className:String(d.name||"").slice(0,80),type,title:title.trim().slice(0,140),body:body.trim().slice(0,3000),
-          due:type==="odev"?(due||""):"",files,teacherNo:me,teacherName:teacher.name||"",createdAt:F.serverTimestamp()});
+          due:type==="odev"?(due||""):"",files:files.map(f=>({name:f.name,url:f.url,size:f.size||""})),teacherNo:me,teacherName:teacher.name||"",createdAt:F.serverTimestamp(),
+          ...(only?{studentNos:pickedSt.slice(0,60).map(s=>String(s.no)),studentNames:pickedSt.slice(0,60).map(s=>String(s.name||"").slice(0,80))}:{})});
       }
-      toast("✅ "+W2("Ji sinifê re hate şandin","Sent to class")+" ("+targets.length+")");
-      setTitle(""); setBody(""); setDue(""); setFiles([]); if(fileRef.current) fileRef.current.value="";
+      toast("✅ "+(only?W2("Ji xwendekarên hilbijartî re hate şandin","Sent to the selected students")+" ("+pickedSt.length+")":W2("Ji sinifê re hate şandin","Sent to class")+" ("+targets.length+")"));
+      setTitle(""); setBody(""); setDue(""); setFiles([]); setTo("all"); setPick({}); if(fileRef.current) fileRef.current.value="";
     }catch(e){ toast("❌ "+(/permission/i.test(String(e&&e.code))?W2("Tenê ji sinifên xwe re dikarî bişînî","You can only post to your own classes"):(e.code||e.message))); }
     setBusy(false);
   }
@@ -9065,7 +9092,8 @@ function ClassPostsPanel({mode,teacher,student,lang,toast,classIds}){
     try{ await F.deleteDoc(F.doc(F.db,"classPosts",p.fireId)); }catch(e){ toast("❌ "+(e.code||e.message)); }
   }
   if(!live) return <Card><div style={{fontSize:13,color:"var(--text2)"}}>{W2("Firebase girêdayî nîne.","Firebase is not connected.")}</div></Card>;
-  const shown=posts.filter(p=>p.type!=="duyuru"&&(tf==="all"||p.type===tf));
+  const shown=posts.filter(p=>p.type!=="duyuru"&&(tf==="all"||p.type===tf)
+    &&(mode==="teacher"||!(p.studentNos||[]).length||(student&&(p.studentNos||[]).map(String).includes(String(student.no)))));
   const filterRow=(
     <div style={{display:"flex",gap:6,flexWrap:"wrap",margin:"4px 0 10px"}}>
       <button onClick={()=>setTf("all")} style={chip(tf==="all")}>{W2("Hemû","All")}</button>
@@ -9093,13 +9121,24 @@ function ClassPostsPanel({mode,teacher,student,lang,toast,classIds}){
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>{CLASS_POST_TYPES.map(([k,ic])=><button key={k} onClick={()=>setType(k)} style={chip(type===k)}>{ic} {postTypeLabel(k)}</button>)}</div>
         <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",margin:"6px 0 4px"}}>🏫 {W2("Sinif","Class")}</div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>{mine.map(d=><button key={d.id} onClick={()=>setSel(x=>({...x,[d.id]:!x[d.id]}))} style={chip(!!sel[d.id])}>{sel[d.id]?"✓ ":""}{classLabel(d,lang)}</button>)}</div>
+        {oneCls&&<div data-post-to="1" style={{marginBottom:8}}>
+          <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",margin:"6px 0 4px"}}>👤 {W2("Ji kê re?","To whom?")}</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            <button data-to="all" onClick={()=>setTo("all")} style={chip(to==="all")}>{W2("Hemû sinif","Whole class")} ({roster.length})</button>
+            <button data-to="pick" onClick={()=>setTo("pick")} style={chip(to==="pick")}>{W2("Xwendekarên taybet","Selected students")}{pickedSt.length?" ("+pickedSt.length+")":""}</button>
+          </div>
+          {to==="pick"&&<div style={{maxHeight:220,overflowY:"auto",border:"1px solid var(--border2)",borderRadius:10,padding:"4px 8px",marginTop:8}}>
+            {roster.map(s2=>(<label key={s2.no} data-pick-st={s2.no} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 2px",fontSize:13,color:"var(--text)",cursor:"pointer"}}>
+              <input type="checkbox" checked={!!pick[String(s2.no)]} onChange={e=>{const v=e.target.checked;setPick(x=>({...x,[String(s2.no)]:v}));}}/>{s2.name} <span style={{fontSize:11.5,color:"var(--text2)"}}>#{s2.no}</span></label>))}
+            {roster.length===0&&<div style={{fontSize:12.5,color:"var(--text2)",padding:6}}>{W2("Di vê sinifê de xwendekar tune.","No students in this class.")}</div>}
+          </div>}
+        </div>}
         <input style={inp} value={title} maxLength={140} onChange={e=>setTitle(e.target.value)} placeholder={W2("Sernav","Title")}/>
         <textarea style={{...inp,minHeight:90,marginTop:8,resize:"vertical"}} value={body} maxLength={3000} onChange={e=>setBody(e.target.value)} placeholder={W2("Nivîs (vebijarkî)","Text (optional)")}/>
         {type==="odev"&&<div style={{marginTop:8}}><div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:4}}>⏰ {W2("Roja dawî","Due date")}</div><DateInput style={inp} value={due} onChange={e=>setDue(e.target.value)}/></div>}
-        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginTop:8}}>
-          <button onClick={()=>fileRef.current&&fileRef.current.click()} style={{...chip(false),borderStyle:"dashed"}}>📎 {W2("Pel zêde bike (wêne/PDF)","Attach file (image/PDF)")}</button>
-          {files.map((f,i)=><span key={i} style={{fontSize:12,color:"var(--text)"}}>📄 {f.name} <button onClick={()=>setFiles(x=>x.filter((_,j)=>j!==i))} style={{border:"none",background:"none",cursor:"pointer"}}>✕</button></span>)}
-          <input ref={fileRef} type="file" multiple accept="image/*,application/pdf" style={{display:"none"}} onChange={async e=>{ const add=await readPostFiles(e.target.files,toast,W2); setFiles(x=>[...x,...add].slice(0,4)); e.target.value=""; }}/>
+        <div style={{marginTop:8}} data-post-attach="1">
+          <AttachBox lang={lang} label={W2("Pel zêde bike","Attach file")} files={files} busy={att.busy} onPick={()=>fileRef.current&&fileRef.current.click()} onRemove={id=>setFiles(x=>x.filter(f=>f.id!==id))}/>
+          <input ref={fileRef} type="file" multiple accept={ATT_ACCEPT} style={{display:"none"}} onChange={att.onChange}/>
         </div>
         <button disabled={busy} onClick={send} style={{marginTop:10,width:"100%",padding:"12px",borderRadius:10,border:"none",background:"#16a34a",color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer"}}>{busy?"⏳":"📤 "+W2("Bişîne","Send")}</button>
       </div>)}
@@ -9109,7 +9148,7 @@ function ClassPostsPanel({mode,teacher,student,lang,toast,classIds}){
     </div>);
 }
 
-// Öğretmen "Sınıfım": ödev & belge (dosyalı) + mesajlar (toplu ya da birebir, dosyasız)
+// Öğretmen "Sınıfım": ödev & belge (sınıfa ya da seçilen öğrencilere) + mesajlar (toplu ya da birebir, ekli)
 function TeacherClassHub({teacher,myStudents,classGroups,lang,t,toast,initial,msgUnread}){
   const [tab,setTab]=useState(initial||"posts");
   const W2=(ku,en)=>lang==="en"?en:K(ku);
@@ -9122,7 +9161,7 @@ function TeacherClassHub({teacher,myStudents,classGroups,lang,t,toast,initial,ms
         <button type="button" role="tab" aria-selected={tab==="messages"} data-hub-tab="messages" onClick={()=>setTab("messages")} className={"c-seg-b"+(tab==="messages"?" on":"")}><Ico n="msg" size={17}/><span>{W2("Peyam","Messages")}</span>{msgUnread>0&&<span className="c-badge">{msgUnread}</span>}</button>
       </div>
       {tab==="posts"
-        ?<ClassPostsPanel mode="teacher" teacher={teacher} lang={lang} toast={toast} classIds={(classGroups||[]).map(g=>g.id)}/>
+        ?<ClassPostsPanel mode="teacher" teacher={teacher} students={myStudents} lang={lang} toast={toast} classIds={(classGroups||[]).map(g=>g.id)}/>
         :<TeacherMessagesPanel teacher={teacher} myStudents={myStudents} classGroups={classGroups} aColor="#0f2f38" lang={lang} t={t} toast={toast}/>}
     </div>);
 }
@@ -17339,9 +17378,15 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
                             <span style={{fontSize:9,color:"var(--text2)",flexShrink:0}}>{msg.time?.slice(-5)||msg.time}</span>
                           </div>
                           <div style={{fontSize:12,fontWeight:isUnread?600:400,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{msg.subject}</div>
-                          {msg._open?(
+                          {msg._open?(<>
                             <div style={{fontSize:12,color:"var(--text)",lineHeight:1.6,marginTop:6,paddingTop:8,borderTop:"0.5px solid var(--border)"}}>{msg.body}</div>
-                          ):(
+                            {(msg.attachments||[]).length>0&&<div data-msg-att="1" onClick={e=>e.stopPropagation()} style={{display:"flex",flexDirection:"column",gap:6,marginTop:8}}>
+                              {(msg.attachments||[]).map((a,i)=>{ const h=safeHref(a.url); return h?(
+                                <a key={i} href={h} download={a.name} target="_blank" rel="noopener noreferrer" className="c-file" style={{textDecoration:"none"}}>
+                                  <Ico n="file" size={17}/><span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.name}</span>
+                                  <span style={{fontSize:12,color:"var(--text2)"}}>{a.size}</span><Ico n="download" size={16}/></a>):null; })}
+                            </div>}
+                          </>):(
                             <div style={{fontSize:11,color:"var(--text2)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{msg.body}</div>
                           )}
                         </div>
