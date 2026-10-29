@@ -317,8 +317,10 @@ service cloud.firestore {
     // Öğrenci izni: bölüm sorumlusu kendi bölümünün öğrencisine (çocuk akademisi sorumlusu kendi dersinin
     // çocuğuna) izin işler; izinli öğrenci yoklama listesinde görünmez. Yönetici her izni işler/siler.
     function leaveOk(d) {
-      return d.keys().hasOnly(['studentNo', 'studentId', 'studentName', 'area', 'from', 'to', 'reason', 'by', 'byNo', 'kid', 'createdAt'])
+      return d.keys().hasOnly(['studentNo', 'studentId', 'studentName', 'area', 'from', 'to', 'reason', 'by', 'byNo', 'kid', 'createdAt', 'lessonIds', 'lessonNames'])
         && d.studentNo is string && d.from is string && d.to is string && d.from <= d.to
+        && (!('lessonIds' in d) || (d.lessonIds is list && d.lessonIds.size() <= 20))
+        && (!('lessonNames' in d) || (d.lessonNames is list && d.lessonNames.size() <= 20))
         && d.reason is string && d.reason.size() > 0 && d.reason.size() <= 300
         && d.kid is bool && d.byNo == prefix();
     }
