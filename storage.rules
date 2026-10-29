@@ -10,6 +10,7 @@ rules_version = '2';
 //
 // photos/       : profil fotoğrafları — üyeler okur; yazma yalnızca görsel ≤5MB.
 // news/         : haber medyası — herkes okur; yükleme yalnızca BASIN + yönetici.
+// attachments/  : mesaj ve ödev/belge ekleri — üyeler okur; kendi klasörüne ≤20MB.
 // applications/ : kayıt başvurusu belgeleri — girişsiz YÜKLENEBİLİR ama
 //                 yalnızca başvuru dönemi AÇIKKEN, görsel/PDF ≤8MB.
 service firebase.storage {
@@ -52,6 +53,24 @@ service firebase.storage {
       allow create, update: if isImage(5 * 1024 * 1024) && (isRegistrar() || (isStaff()
         && string(firestore.get(/databases/(default)/documents/teachers/$(file.split('[.]')[0])).data.no) == prefix()));
       allow delete: if isRegistrar();
+    }
+
+    // Mesaj ve ödev/belge ekleri: attachments/<yükleyenin uid>/<dosya>
+    // Üyeler (personel + öğrenci) okur (bağlantı tahmin edilemez belirteç taşır); yalnızca giriş yapan
+    // KENDİ klasörüne yükler; dosya başına <20MB; görsel (SVG hariç), PDF, Word, Excel, PowerPoint, ses.
+    function attachType() {
+      return (request.resource.contentType.matches('image/(jpeg|png|webp|gif|heic|heif)'))
+        || request.resource.contentType in ['application/pdf', 'application/msword', 'application/vnd.ms-excel', 'application/vnd.ms-powerpoint',
+             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+             'application/vnd.openxmlformats-officedocument.presentationml.presentation']
+        || request.resource.contentType.matches('audio/(mpeg|mp4|aac|ogg|wav|x-wav|webm|x-m4a|3gpp|amr)');
+    }
+    match /attachments/{uid}/{file} {
+      allow read:   if member();
+      allow create: if member() && request.auth.uid == uid
+                    && request.resource.size < 20 * 1024 * 1024 && attachType();
+      allow delete: if (member() && request.auth.uid == uid) || isRegistrar();
     }
 
     // Haber medyası (basın paneli): site herkese açık gösterir → okuma serbest;

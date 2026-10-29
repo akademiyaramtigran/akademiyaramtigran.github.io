@@ -3,7 +3,7 @@
 const fs = require('fs');
 const { initializeTestEnvironment, assertSucceeds, assertFails } = require('@firebase/rules-unit-testing');
 const { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, addDoc } = require('firebase/firestore');
-const { ref, uploadString, getBytes } = require('firebase/storage');
+const { ref, uploadString, uploadBytes, getBytes } = require('firebase/storage');
 
 (async () => {
   const env = await initializeTestEnvironment({
@@ -267,6 +267,20 @@ const { ref, uploadString, getBytes } = require('firebase/storage');
   await t('Storage: öğretmen yöneticinin fotoğrafını DEĞİŞTİREMEZ', uploadString(ref(st('11202601@ogretmen.aat'), 'photos/teachers/T1.jpg'), png, 'data_url'), false);
   await t('Storage: sahte öğrenci foto YÜKLEYEMEZ', uploadString(ref(st('7777@ogrenci.aat'), 'photos/students/S1.jpg'), png, 'data_url'), false);
   await t('Storage: girişsiz başvuru PDF yükler', uploadString(ref(env.unauthenticatedContext().storage(), 'applications/a.pdf'), 'data:application/pdf;base64,JVBERi0=', 'data_url'), true);
+  // Mesaj / ödev ekleri: attachments/<uid>/…
+  const pdf = 'data:application/pdf;base64,JVBERi0=';
+  await t('Storage ek: öğrenci KENDİ klasörüne PDF yükler', uploadString(ref(st('10202601@ogrenci.aat'), 'attachments/uid-10202601@ogrenci.aat/a.pdf'), pdf, 'data_url'), true);
+  await t('Storage ek: öğretmen Word yükler', uploadString(ref(st('11202601@ogretmen.aat'), 'attachments/uid-11202601@ogretmen.aat/b.docx'), 'data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,UEs=', 'data_url'), true);
+  await t('Storage ek: öğretmen ses dosyası yükler', uploadString(ref(st('11202601@ogretmen.aat'), 'attachments/uid-11202601@ogretmen.aat/c.mp3'), 'data:audio/mpeg;base64,SUQz', 'data_url'), true);
+  await t('Storage ek: BAŞKASININ klasörüne yükleyemez', uploadString(ref(st('10202601@ogrenci.aat'), 'attachments/uid-11202601@ogretmen.aat/x.pdf'), pdf, 'data_url'), false);
+  await t('Storage ek: HTML yüklenemez', uploadString(ref(st('11202601@ogretmen.aat'), 'attachments/uid-11202601@ogretmen.aat/x.html'), 'data:text/html;base64,PHNjcmlwdD4=', 'data_url'), false);
+  await t('Storage ek: SVG yüklenemez', uploadString(ref(st('11202601@ogretmen.aat'), 'attachments/uid-11202601@ogretmen.aat/x.svg'), 'data:image/svg+xml;base64,PHN2Zz4=', 'data_url'), false);
+  await t('Storage ek: 20 MB üstü yüklenemez', uploadBytes(ref(st('11202601@ogretmen.aat'), 'attachments/uid-11202601@ogretmen.aat/big.pdf'), new Uint8Array(20 * 1024 * 1024 + 10), { contentType: 'application/pdf' }), false);
+  await t('Storage ek: sahte personel yükleyemez', uploadString(ref(st('9999@ogretmen.aat'), 'attachments/uid-9999@ogretmen.aat/a.pdf'), pdf, 'data_url'), false);
+  await t('Storage ek: veli (çocuk akademisi) yükleyemez', uploadString(ref(st('92026001@veli.aat'), 'attachments/uid-92026001@veli.aat/a.pdf'), pdf, 'data_url'), false);
+  await t('Storage ek: girişsiz yükleyemez', uploadString(ref(env.unauthenticatedContext().storage(), 'attachments/x/a.pdf'), pdf, 'data_url'), false);
+  await t('Storage ek: öğrenci öğretmenin ekini okur', getBytes(ref(st('10202601@ogrenci.aat'), 'attachments/uid-11202601@ogretmen.aat/b.docx')), true);
+  await t('Storage ek: girişsiz okuyamaz', getBytes(ref(env.unauthenticatedContext().storage(), 'attachments/uid-11202601@ogretmen.aat/b.docx')), false);
   await t('Storage: girişsiz başvuru EXE yükleyemez', uploadString(ref(env.unauthenticatedContext().storage(), 'applications/a.exe'), 'data:application/octet-stream;base64,TVo=', 'data_url'), false);
   // Sınıflar (ana akademi + çocuk akademisi)
   const cReg = as('98202601@ogretmen.aat'), cTch = as('11202601@ogretmen.aat'), cStu = as('10202601@ogrenci.aat'), cVel = as('92026001@veli.aat'), cKidT = as('72026001@zmamoste.aat');
@@ -294,6 +308,9 @@ const { ref, uploadString, getBytes } = require('firebase/storage');
   await t('Paylaşım: öğretmen başkası adına gönderemez', setDoc(doc(cT3, 'classPosts/P3'), post('11202601', 'muzik_1')), false);
   await t('Paylaşım: olmayan sınıfa gönderilemez', setDoc(doc(cT2, 'classPosts/P4'), post('11202601', 'sinema_3')), false);
   await t('Paylaşım: geçersiz tür reddedilir', setDoc(doc(cT2, 'classPosts/P5'), post('11202601', 'muzik_1', { type: 'x' })), false);
+  await t('Paylaşım: seçilen öğrencilere (studentNos) gönderilir', setDoc(doc(cT2, 'classPosts/P7'), post('11202601', 'muzik_1', { studentNos: ['10202601'] })), true);
+  await t('Paylaşım: studentNos liste değilse reddedilir', setDoc(doc(cT2, 'classPosts/P8'), post('11202601', 'muzik_1', { studentNos: '10202601' })), false);
+  await t('Paylaşım: boş studentNos reddedilir', setDoc(doc(cT2, 'classPosts/P9'), post('11202601', 'muzik_1', { studentNos: [] })), false);
   await t('Paylaşım: öğrenci okur', getDoc(doc(cS, 'classPosts/P1')), true);
   await t('Paylaşım: öğrenci YAZAMAZ', setDoc(doc(cS, 'classPosts/P6'), post('10202601', 'muzik_1')), false);
   await t('Paylaşım: başka öğretmen SİLEMEZ', deleteDoc(doc(cT3, 'classPosts/P1')), false);
