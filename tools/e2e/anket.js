@@ -145,7 +145,7 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   { const p = kp;
   await btn(p, 'Ankêta nû (dêûbav'); await p.waitForTimeout(500);
   const k1 = await txt(p);
-  ok('Çocuk anketi: hedef veliler/öğretmenler + alan (sınıf yok)', k1.includes('Hemû dêûbav') && k1.includes('Hemû mamoste') && k1.includes('Drama') && !/\b1\. Sînif\b/.test(k1));
+  ok('Çocuk anketi: hedef veliler/öğretmenler + alan + sınıf (bölüm sınıfları / atölye)', k1.includes('Hemû dêûbav') && k1.includes('Hemû mamoste') && k1.includes('Drama') && k1.includes('Sinifên beşan'));
   await btn(p, 'Razîbûna dêûbavan'); await p.waitForTimeout(300);
   await btn(p, '🚀 Biweşîne'); await p.waitForTimeout(800);
   await p.waitForTimeout(1500);
