@@ -5165,6 +5165,15 @@ function AddTeacherSheet({open,onClose,defaultArea,teachers,t,lang,toast,onSave,
   );
 }
 
+// Ders öğretmeni seçenekleri: önce dersin bölümünün öğretmenleri, sonra diğer bölümlerden öğretmenler
+// (ör. müzik bölümündeki hoca tiyatroda şan dersine girer — ders programında ona atanır, yoklamayı o alır)
+function lessonTeacherOptions(teachers,area,lang){
+  const plain=(teachers||[]).filter(tc=>tc.no&&!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&!tc.isHead)
+    .sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
+  const own=plain.filter(tc=>area==="genel"||tc.area===area||tc.area==="genel"), other=plain.filter(tc=>!own.includes(tc));
+  const opt=(tc,x)=><option key={tc.no} value={tc.no}>👨‍🏫 {tc.name} ({tc.no}){x?" · "+areaName(tc.area,lang):""}</option>;
+  return <>{own.map(tc=>opt(tc,false))}{other.length>0&&<optgroup label={lang==="en"?"Teachers from other departments":K("Mamosteyên beşên din")}>{other.map(tc=>opt(tc,true))}</optgroup>}</>;
+}
 function AddLessonSheet({open,onClose,defaultArea,defaultClassId,t,lang,toast,onSave,teachers,lockArea=false}){
   // Takvimden gün seçilir: ders o güne eklenir; "Her hafta tekrarlansın" işaretliyse o günden itibaren
   // her hafta aynı gün ve saatte tekrarlar (dönem seçilirse dönem bitişine kadar).
@@ -5229,7 +5238,7 @@ function AddLessonSheet({open,onClose,defaultArea,defaultClassId,t,lang,toast,on
       <FieldWrap label={"🏫 "+(lang==="en"?"Class":K("Sinif"))}>
         <select style={selectStyle} value={classId} onChange={e=>setClassId(e.target.value)}>
           <option value="">— {lang==="en"?"Choose a class":K("Sinifekê hilbijêre")}</option>
-          {clsOpts.map(d=>(<option key={d.id} value={d.id}>{classNameTx(d.name)} ({(d.studentNos||[]).length})</option>))}
+          {clsOpts.map(d=>(<option key={d.id} value={d.id}>{lessonClassOptTx(d)} ({(d.studentNos||[]).length})</option>))}
         </select>
       </FieldWrap>
       <FieldWrap label={t.lessonName}>
@@ -5240,9 +5249,7 @@ function AddLessonSheet({open,onClose,defaultArea,defaultClassId,t,lang,toast,on
         <select style={selectStyle} value={teacherNo} onChange={e=>setTeacherNo(e.target.value)}>
           <option value="">— {lang==="en"?"Unassigned (all field teachers see it)":K("Ne diyar (hemû mamosteyên qadê dibînin)")}</option>
           <option value="__guest">🎟 {lang==="en"?"Guest teacher (attendance by the department head)":K("Mamosteyê mêvan (amadebûnê berpirsê beşê digire)")}</option>
-          {(teachers||[]).filter(tc=>!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&!tc.isHead&&(area==="genel"||tc.area===area||tc.area==="genel")).map(tc=>(
-            <option key={tc.no} value={tc.no}>👨‍🏫 {tc.name} ({tc.no})</option>
-          ))}
+          {lessonTeacherOptions(teachers,area,lang)}
         </select>
       </FieldWrap>
       {teacherNo==="__guest"&&<FieldWrap label={lang==="en"?"Guest teacher's name":K("Navê mamosteyê mêvan")}>
@@ -7666,6 +7673,67 @@ function PressPanel({user,lang,toast,onLogout}){
    Yalnızca üç bölüm: Duyuru (kendi bölümünün öğrencilerine, belge/foto ekli),
    Mesaj (öğrenciden gelen; yöneticiye ve bölüm öğretmenlerine belgeli mesaj —
    öğrencilere mesaj YAZILMAZ, yalnızca duyuru), Rapor (yalnızca kendi bölümü). */
+/* Sorumlu (bölüm / genel / çocuk akademisi bölüm sorumlusu) profil ekranı: bilgiler, profil düzenleme, şifre değiştirme */
+function StaffProfileView({user,roleLabel,icon,lang,t,toast,onLogout,onDataChange}){
+  const [me,setMe]=useState(user);
+  const [showChangePass,setShowChangePass]=useState(false);
+  const [showSelfProfile,setShowSelfProfile]=useState(false);
+  const row={width:"100%",padding:"12px",marginBottom:8,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer",color:"var(--text)",textAlign:"left",display:"flex",alignItems:"center",gap:10};
+  return(<div data-staff-profile="1">
+    <div style={{background:"#0f2f38",borderRadius:16,padding:"20px 16px 18px",marginBottom:12,position:"relative",overflow:"hidden"}}>
+      <div style={{position:"absolute",right:-10,top:-10,fontSize:80,opacity:0.10,pointerEvents:"none"}}>{icon}</div>
+      <div style={{display:"flex",alignItems:"center",gap:14,position:"relative",zIndex:1}}>
+        <Avatar name={me.name} color="#E7C77B" size={64} photo={me.photo}/>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{color:"#fff",fontSize:16,fontWeight:700}}>{me.name}</div>
+          <div style={{color:"rgba(255,255,255,0.7)",fontSize:11,marginTop:2}}>{me.no}</div>
+          <div style={{color:"#C9D6D9",fontSize:11,marginTop:2}}>{roleLabel}</div>
+        </div>
+      </div>
+    </div>
+    <Card style={{marginBottom:10}}>
+      <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:12}}>👤 {lang==="en"?"Personal Info":K("Agahiyên Kesane")}</div>
+      {[
+        {icon:"📱",label:lang==="en"?"Phone":K("Têlefon"),val:me.phone},
+        {icon:"✉️",label:lang==="en"?"Email":K("E-Posta"),val:me.email},
+        {icon:"🎂",label:lang==="en"?"Date of Birth":K("Roja Jidayikbûnê"),val:me.dob},
+        {icon:"📍",label:lang==="en"?"Address":K("Navnîşan"),val:me.address},
+        {icon:"📝",label:lang==="en"?"About":K("Derbarê"),val:me.bio},
+      ].filter(x=>x.val).map((x,i,arr)=>(
+        <div key={i} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"8px 0",borderBottom:i<arr.length-1?"0.5px solid var(--border)":"none"}}>
+          <span style={{fontSize:15,flexShrink:0,marginTop:1}}>{x.icon}</span>
+          <div>
+            <div style={{fontSize:10,color:"var(--text2)"}}>{x.label}</div>
+            <div style={{fontSize:13,color:"var(--text)",fontWeight:500}}>{x.val}</div>
+          </div>
+        </div>
+      ))}
+      {![me.phone,me.email,me.dob,me.address,me.bio].some(Boolean)&&<div style={{fontSize:12.5,color:"var(--text2)"}}>{lang==="en"?"No details yet — add them from “Edit Profile”.":K("Hîn agahî tune — ji “Profîla Min” lê zêde bike.")}</div>}
+    </Card>
+    <Card>
+      <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:12}}>⚙️ {lang==="en"?"Account Settings":K("Mîhengên Hesabê")}</div>
+      <button data-staff-edit="1" onClick={()=>setShowSelfProfile(true)} style={row}>
+        <span style={{fontSize:18}}>👤</span> {lang==="en"?"Edit Profile":K("Profîla Min")}
+        <span style={{marginLeft:"auto",color:"var(--text2)"}}>›</span>
+      </button>
+      <button data-staff-pass="1" onClick={()=>setShowChangePass(true)} style={row}>
+        <span style={{fontSize:18}}>🔒</span> {lang==="en"?"Change Password":K("Şîfre Biguherîne")}
+        <span style={{marginLeft:"auto",color:"var(--text2)"}}>›</span>
+      </button>
+      <button onClick={onLogout} style={{...row,marginBottom:0,background:"var(--red-bg)",border:"0.5px solid var(--red)",color:"var(--red)"}}>
+        <span style={{fontSize:18}}>↩</span> {lang==="en"?"Sign Out":K("Derkeve")}
+        <span style={{marginLeft:"auto"}}>›</span>
+      </button>
+    </Card>
+    {showSelfProfile&&(
+      <SelfProfileSheet user={me} userType="teacher" lang={lang} toast={toast}
+        onClose={()=>setShowSelfProfile(false)}
+        onSave={async(u)=>{ setMe(u); if(onDataChange) await onDataChange("updateTeacher",u); }}/>
+    )}
+    {showChangePass&&<StudentChangePassSheet onClose={()=>setShowChangePass(false)} toast={toast} lang={lang} user={me} userType="teacher"
+      onSavePass={(newHash)=>{ if(onDataChange) onDataChange("updateTeacher",{...me,pass:newHash,passHash:newHash,_plainPass:""}); }}/>}
+  </div>);
+}
 function HeadPanel(props){
   if(isKidArea(props.user&&props.user.area)) return <KidHeadPanel {...props}/>;
   return <AatHeadPanel {...props}/>;
@@ -7765,6 +7833,7 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
     {key:"leaves",label:lang==="en"?"Student leave":K("Destûra Xwendekaran")},
     {key:"surveys",label:lang==="en"?"Surveys":K("Ankêt")},
     {key:"reports",label:lang==="en"?"Reports":K("Rapor")},
+    {key:"profile",label:t.profile||(lang==="en"?"Profile":K("Profîl"))},
   ];
   const roleLabel=ALL?(lang==="en"?"General Head":K("Berpirsê Giştî")):(lang==="en"?"Department Head":K("Berpirsê Beşê"))+" · "+areaName(area,lang);
   return(
@@ -7780,6 +7849,7 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
         {tab==="schedule"&&<AdminScheduleTab mode="head" byName={user.name} fixedArea={ALL?null:area} schedule={aSchedule} teachers={teachers||[]} students={aStudents} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>}
         {tab==="surveys"&&<HeadSurveysPanel user={user} students={aStudents} teachers={aTeachers} lang={lang} toast={toast}/>}
         {tab==="reports"&&<AdminReportCenter students={aStudents} teachers={aTeachers} schedule={aSchedule} lang={lang} t={t} toast={toast} byName={user.name} headArea={area} headNo={myNo}/>}
+        {tab==="profile"&&<StaffProfileView user={user} roleLabel={roleLabel} icon="🎓" lang={lang} t={t} toast={toast} onLogout={onLogout} onDataChange={onDataChange}/>}
       </div>
     </div>
   );
@@ -7844,7 +7914,7 @@ function HeadSurveysPanel({user,students,teachers,lang,toast}){
 }
 
 /* Çocuk akademisi bölüm sorumlusu: Duyuru (kendi dersinin velilerine) · Mesaj (velilerle) · Anket · Rapor */
-function KidHeadPanel({user,t,lang,toast,onLogout,onSettings}){
+function KidHeadPanel({user,t,lang,toast,onLogout,onSettings,onDataChange}){
   const [menuOpen,setMenuOpen]=useState(isPhoneNow);
   const [tab,setTab]=useState("announce");
   const F=window.__FB; const live=!!(F&&F.isConfigured());
@@ -7877,6 +7947,7 @@ function KidHeadPanel({user,t,lang,toast,onLogout,onSettings}){
     {key:"leaves",label:lang==="en"?"Student leave":K("Destûra Xwendekaran")},
     {key:"surveys",label:lang==="en"?"Surveys":K("Ankêt")},
     {key:"reports",label:lang==="en"?"Reports":K("Rapor")},
+    {key:"profile",label:t.profile||(lang==="en"?"Profile":K("Profîl"))},
   ];
   const roleLabel=(lang==="en"?"Department Head":K("Berpirsê Beşê"))+" · "+headAreaLabel(area,lang);
   // Duyuru
@@ -7956,6 +8027,7 @@ function KidHeadPanel({user,t,lang,toast,onLogout,onSettings}){
           </div>))}
         {tab==="surveys"&&<KidSurveysPanel lang={lang} toast={toast} lockArea={area} ownerNo={myNo}/>}
         {tab==="reports"&&<KidHeadReports lang={lang} toast={toast} area={area} byName={user.name}/>}
+        {tab==="profile"&&<StaffProfileView user={user} roleLabel={roleLabel} icon="🎼" lang={lang} t={t} toast={toast} onLogout={onLogout} onDataChange={onDataChange}/>}
       </div>
     </div>
   );
@@ -8186,18 +8258,25 @@ function classLabel(d,lang){
 function inClass(d,no){ return !!d&&(d.studentNos||[]).map(String).includes(String(no)); }
 // Öğrencinin açık sınıfları (alan + genel + açık atölye)
 function classesOfStudent(docs,no){ return (docs||[]).filter(d=>d.kind&&d.status!=="closed"&&inClass(d,no)); }
+// Yalnız atölye öğrencisi (akademi dışı, ör. hafta sonu atölyesi): bölüm/genel sınıfı yok, açık bir atölyede.
+// Sınıfa bağlı olmayan bölüm dersleri bu öğrencilere görünmez, yoklama listelerine girmez — yalnız kendi atölyesinin dersleri.
+function wsOnlyStudent(docs,no){ const c=classesOfStudent(docs,no); return c.length>0&&c.every(d=>d.kind==="workshop"); }
 // Dersin öğrenci listesi: sınıfa bağlıysa o sınıf; değilse dersin alanı (genel → herkes)
 function lessonRoster(ls,students,docs){
   const all=(students||[]).filter(s=>!s.isAdmin);
   if(ls&&ls.classId){ const d=(docs||[]).find(x=>x.id===ls.classId); return d?all.filter(s=>inClass(d,s.no)):[]; }
+  if(docs&&docs.length){ const r=lessonRoster(ls,students,null); return r.filter(s=>!wsOnlyStudent(docs,s.no)); }
   if(!ls||!ls.area||ls.area==="genel") return all;
   return all.filter(s=>s.area===ls.area);
 }
-// Ders formlarında sınıf seçimi: alan dersi → o alanın sınıfları, genel ders → genel sınıflar
-function lessonClassOptions(docs,area){
-  return (docs||[]).filter(d=>area==="genel"?d.kind==="general":(d.kind==="area"&&d.area===area))
-    .sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
+// Ders formlarında sınıf seçimi: alan dersi → o alanın sınıfları, genel ders → genel sınıflar;
+// açık atölyeler (bölümler arası gruplar, ör. hafta sonu atölyesi) her bölümde seçilebilir
+function lessonClassOptions(docs,area,keepId){
+  const ws=d=>d.kind==="workshop"&&(d.status!=="closed"||d.id===keepId);
+  return (docs||[]).filter(d=>(area==="genel"?d.kind==="general":(d.kind==="area"&&d.area===area))||ws(d))
+    .sort((a,b)=>(a.kind==="workshop")-(b.kind==="workshop")||String(a.name||"").localeCompare(String(b.name||"")));
 }
+const lessonClassOptTx=d=>d.kind==="workshop"?"🛠 "+(d.name||""):classNameTx(d.name);
 
 // Sınıf stüdyosu — alan sınıfları · genel sınıflar · atölyeler (ana akademi + çocuk akademisi ortak)
 //  cfg: { coll, members:[{id,no,name,area}], teachers:[{no,name,area}], areas:[{key,icon}], areaLabel(a),
@@ -8252,12 +8331,12 @@ function ClassStudio({cfg,lang,t,toast}){
 
   function newForm(k){
     const today=ymdLocal(new Date());
-    setForm({kind:k,name:"",area:k==="area"?areaF:"genel",sel:{},tsel:{},date:today,start:"14:00",end:"16:00",loc:"",guest:"",pa:"all",q:""});
+    setForm({kind:k,name:"",area:k==="area"?areaF:"genel",sel:{},tsel:{},date:today,weekly:false,start:"14:00",end:"16:00",loc:"",guest:"",pa:"all",q:""});
     setAttFor(null);
   }
   function editForm(d){
     setForm({id:d.id,kind:d.kind,name:d.name||"",area:d.area||"genel",sel:Object.fromEntries((d.studentNos||[]).map(n=>[String(n),true])),
-      tsel:Object.fromEntries((d.teacherNos||[]).map(n=>[String(n),true])),date:d.date||"",start:d.start||"",end:d.end||"",loc:d.loc||"",guest:d.guest||"",
+      tsel:Object.fromEntries((d.teacherNos||[]).map(n=>[String(n),true])),date:d.date||"",weekly:!!d.weekly,start:d.start||"",end:d.end||"",loc:d.loc||"",guest:d.guest||"",
       lessonId:d.lessonId||null,pa:"all",q:""});
     setAttFor(null);
   }
@@ -8278,10 +8357,11 @@ function ClassStudio({cfg,lang,t,toast}){
       if(!form.id) data.createdAt=F.serverTimestamp();
       if(isWs){
         // Atölye kendi tek günlük dersini taşır → öğretmen programında görür, veli/öğrenci programında çıkar
-        const prev=lessonsOf(ref.id)[0]||null;
+        // Atölyenin kendi günlük dersi (ws_{sınıf}); sınıfa bağlanan haftalık dersler buna karışmaz
+        const prev=lessonsOf(ref.id).find(l=>String(l.fireId||"")==="ws_"+ref.id)||null;
         const lessonId=await cfg.saveWorkshopLesson(ref.id,{name:nm.slice(0,80),date:form.date,start:form.start||"",end:form.end||"",loc:form.loc.trim().slice(0,80),
-          guest:form.guest.trim().slice(0,80),teacherNo:tnos[0]||null,teacherName:tnames[0]||null},prev);
-        Object.assign(data,{date:form.date,start:form.start||"",end:form.end||"",loc:form.loc.trim().slice(0,80),guest:form.guest.trim().slice(0,80),lessonId});
+          guest:form.guest.trim().slice(0,80),teacherNo:tnos[0]||null,teacherName:tnames[0]||null,weekly:!!form.weekly},prev);
+        Object.assign(data,{date:form.date,weekly:!!form.weekly,start:form.start||"",end:form.end||"",loc:form.loc.trim().slice(0,80),guest:form.guest.trim().slice(0,80),lessonId});
         if(!form.id) data.status="open";
         await F.setDoc(ref,data,{merge:true});
       } else {
@@ -8306,7 +8386,10 @@ function ClassStudio({cfg,lang,t,toast}){
 
   // ── Atölye yoklaması ──
   const wsRoster=d=>studs.filter(s=>inClass(d,s.no)).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+  // Haftalık atölye: yoklama bugünün oturumu için alınır
+  const wsAttDay=d=>d.weekly?{...d,date:ymdLocal(new Date())}:d;
   async function openAtt(d){
+    d=wsAttDay(d);
     setForm(null);
     if(attFor===d.id){ setAttFor(null); return; }
     let rec={};
@@ -8314,6 +8397,7 @@ function ClassStudio({cfg,lang,t,toast}){
     setAtt(rec); setAttFor(d.id); setOpen(d.id);
   }
   async function saveAtt(d,close){
+    d=wsAttDay(d);
     const roster=wsRoster(d);
     const records={}; roster.forEach(s=>{ records[s.id]=att[s.id]||"off"; });
     const sum={on:0,late:0,off:0}; Object.values(records).forEach(v=>{ sum[v]=(sum[v]||0)+1; });
@@ -8351,10 +8435,15 @@ function ClassStudio({cfg,lang,t,toast}){
         <input aria-label={W2("Navê sinifê","Class name")} style={{...inp,width:"100%"}} value={form.name} maxLength={80} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
           placeholder={isWs?W2("ör. Atolyeya Tomarkirina Deng","e.g. Sound Recording Workshop"):isArea?W2("ör. 1. Sinif · Koma A","e.g. 1st Class · Group A"):W2("ör. Çanda Muzîkê ya Hevpar","e.g. Shared Music Culture")}/>
         {isWs&&(<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:8,marginTop:8}}>
-          <label style={small}>📅 {W2("Tarîx","Date")}<DateInput style={{...inp,width:"100%"}} value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/></label>
+          <label style={small}>📅 {form.weekly?W2("Roja yekem","First day"):W2("Tarîx","Date")}<DateInput style={{...inp,width:"100%"}} value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/></label>
           <label style={small}>🕐 {W2("Destpêk","Start")}<input type="time" style={{...inp,width:"100%"}} value={form.start} onChange={e=>setForm(f=>({...f,start:e.target.value}))}/></label>
           <label style={small}>🕐 {W2("Dawî","End")}<input type="time" style={{...inp,width:"100%"}} value={form.end} onChange={e=>setForm(f=>({...f,end:e.target.value}))}/></label>
           <label style={small}>📍 {W2("Cih","Place")}<input style={{...inp,width:"100%"}} value={form.loc} maxLength={80} onChange={e=>setForm(f=>({...f,loc:e.target.value}))}/></label>
+          {cfg.coll==="classes"&&<label data-ws-weekly="1" style={{...small,gridColumn:"1/-1",display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",cursor:"pointer",fontSize:13,fontWeight:600,color:"var(--text)"}}>
+            <input type="checkbox" checked={!!form.weekly} onChange={e=>{const v=e.target.checked;setForm(f=>({...f,weekly:v}));}} style={{width:20,height:20}}/>
+            🔁 {W2("Her hefte dubare bibe (mînak: atolyeya dawiya hefteyê)","Repeat every week (e.g. weekend workshop)")}
+            {form.weekly&&form.date&&<span style={{marginLeft:"auto",fontSize:11,color:"var(--text2)",fontWeight:500}}>{K(["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"][new Date(form.date+"T12:00:00").getDay()])}</span>}
+          </label>}
           <label style={{...small,gridColumn:"1/-1"}}>🎤 {W2("Perwerdekarê ji derve (vebijarkî)","Guest instructor (optional)")}<input style={{...inp,width:"100%"}} value={form.guest} maxLength={80} onChange={e=>setForm(f=>({...f,guest:e.target.value}))}/></label>
         </div>)}
         <div style={{fontSize:12,fontWeight:800,color:"var(--text)",margin:"12px 0 4px"}}>👩‍🏫 {isWs?W2("Mamosteyê berpirsiyar","Responsible teacher"):W2("Mamosteyê sinifê","Class teacher")}</div>
@@ -8393,6 +8482,7 @@ function ClassStudio({cfg,lang,t,toast}){
   }
 
   function renderAtt(d){
+    d=wsAttDay(d);
     const roster=wsRoster(d);
     const cnt=v=>roster.filter(s=>att[s.id]===v).length;
     return(
@@ -8428,7 +8518,7 @@ function ClassStudio({cfg,lang,t,toast}){
             <div style={{fontWeight:800,color:"var(--text)"}}>{isOpen?"▾":"▸"} {isWs?"🛠 ":d.kind==="general"?"🌐 ":""}{isWs?d.name:classNameTx(d.name)} <span style={small}>({ms.length} {MW()})</span>
               {isWs&&<span style={{marginLeft:6,fontSize:10.5,fontWeight:800,padding:"2px 8px",borderRadius:20,background:closed?"rgba(100,116,139,.15)":"rgba(22,163,74,.12)",color:closed?"var(--text2)":"#15803d"}}>{closed?"🔒 "+W2("Girtî","Closed"):"🟢 "+W2("Vekirî","Open")}</span>}</div>
             <div style={{...small,marginTop:2}}>👩‍🏫 {tns.length?tns.join(", "):W2("Mamosteyê sinifê tune","No class teacher")}{isWs&&d.guest?" · 🎤 "+d.guest:""}</div>
-            {isWs?<div style={{...small,marginTop:2}}>📅 {d.date} · {d.start}–{d.end}{d.loc?" · 📍 "+d.loc:""}{d.attSummary?" · ✅ "+(d.attSummary.on||0)+" ⏱ "+(d.attSummary.late||0)+" ❌ "+(d.attSummary.off||0):""}</div>
+            {isWs?<div style={{...small,marginTop:2}}>📅 {d.weekly?"🔁 "+K(["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"][new Date(d.date+"T12:00:00").getDay()])+" · "+W2("ji","from")+" "+d.date:d.date} · {d.start}–{d.end}{d.loc?" · 📍 "+d.loc:""}{d.attSummary?" · ✅ "+(d.attSummary.on||0)+" ⏱ "+(d.attSummary.late||0)+" ❌ "+(d.attSummary.off||0):""}</div>
               :<div style={{...small,marginTop:2}}>📅 {ls.length} {W2("ders di bernameyê de","lessons in schedule")}</div>}
           </div>
           {!closed&&<button onClick={()=>editForm(d)} style={ghost}><Ico n="edit"/> {W2("Biguherîne","Edit")}</button>}
@@ -8549,8 +8639,11 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
       onSave={(u)=>{onDataChange("updateSchedule",u);close();toast("✓ "+u.name);}}/>,
     // Atölyenin ek dersi: schedule/ws_{sınıf} → öğretmen QR/yoklama açabilir, öğrenci programında görür
     saveWorkshopLesson:async(classId,w,prev)=>{
-      const ls={...(prev||{}),id:prev?prev.id:Date.now(),fireId:prev&&prev.fireId?prev.fireId:"ws_"+classId,classId,area:"genel",name:w.name,
-        lessonType:"extra",day:null,extraDates:[w.date],start:w.start,end:w.end,loc:w.loc||"—",teacherNo:w.teacherNo,teacherName:w.teacherName,guestTeacher:w.guest||null};
+      // Haftalık atölye: tarihin gününde her hafta (o günden başlar); değilse tek günlük ek ders
+      const DOW=["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"][new Date(w.date+"T12:00:00").getDay()];
+      const ls={...(prev||{}),id:prev?prev.id:Date.now(),fireId:prev&&prev.fireId?prev.fireId:"ws_"+classId,classId,area:"genel",name:w.name,category:"workshop",
+        ...(w.weekly?{lessonType:"main",day:DOW,from:w.date,extraDates:null}:{lessonType:"extra",day:null,from:null,extraDates:[w.date]}),
+        start:w.start,end:w.end,loc:w.loc||"—",teacherNo:w.teacherNo,teacherName:w.teacherName,guestTeacher:w.guest||null};
       onDataChange(prev?"updateSchedule":"addSchedule",ls);
       return ls.id;
     },
@@ -10624,7 +10717,7 @@ function EditLessonSheet({lesson,onClose,t,lang,toast,onSave,teachers}){
   const [name,setName]=useState(lesson.name);
   const [classId,setClassId]=useState(lesson.classId||"");
   const clsDocs=useClassDocs("classes");
-  const clsOpts=lessonClassOptions(clsDocs,lesson.area);
+  const clsOpts=lessonClassOptions(clsDocs,lesson.area,lesson.classId);
   const wsLesson=!!(lesson.classId&&clsDocs.some(d=>d.id===lesson.classId&&d.kind==="workshop"));
   const [teacherNo,setTeacherNo]=useState(lesson.teacherNo||"");
   const [day,setDay]=useState(lesson.day||"Dûşem");
@@ -10673,7 +10766,7 @@ function EditLessonSheet({lesson,onClose,t,lang,toast,onSave,teachers}){
       {!wsLesson&&<FieldWrap label={"🏫 "+(lang==="en"?"Class":K("Sinif"))}>
         <select style={selectStyle} value={classId} onChange={e=>setClassId(e.target.value)}>
           <option value="">— {lesson.area==="genel"?(lang==="en"?"All students":K("Hemû xwendekar")):(lang==="en"?"Whole field (no class)":K("Hemû qad (bê sinif)"))}</option>
-          {clsOpts.map(d=>(<option key={d.id} value={d.id}>{d.name} ({(d.studentNos||[]).length})</option>))}
+          {clsOpts.map(d=>(<option key={d.id} value={d.id}>{lessonClassOptTx(d)} ({(d.studentNos||[]).length})</option>))}
         </select>
       </FieldWrap>}
 
@@ -10681,9 +10774,7 @@ function EditLessonSheet({lesson,onClose,t,lang,toast,onSave,teachers}){
       <FieldWrap label={(lang==="en"?"Teacher (optional)":K("Mamosteyê Dersê (vebijarkî)"))}>
         <select style={selectStyle} value={teacherNo} onChange={e=>setTeacherNo(e.target.value)}>
           <option value="">— {lang==="en"?"Unassigned (all field teachers see it)":K("Ne diyar (hemû mamosteyên qadê dibînin)")}</option>
-          {(teachers||[]).filter(tc=>!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&!tc.isHead&&(lesson.area==="genel"||tc.area===lesson.area||tc.area==="genel")).map(tc=>(
-            <option key={tc.no} value={tc.no}>👨‍🏫 {tc.name} ({tc.no})</option>
-          ))}
+          {lessonTeacherOptions(teachers,lesson.area,lang)}
         </select>
       </FieldWrap>
       {!teacherNo&&<FieldWrap label={lang==="en"?"Guest teacher (optional)":K("Mamosteyê mêvan (vebijarkî)")}>
@@ -11511,6 +11602,8 @@ function AdminWeeklyReportPanel({students, teachers, schedule, lang, toast}) {
   });
   const [rEnd,setREnd]=useState(()=>ymdLocal(new Date()));
   const [selectedArea, setSelectedArea] = useState("all");
+  const [scopeF,setScopeF]=useState("all"); // all | dept (bölüm dersleri) | ws (atölye)
+  const clsDocs=useClassDocs("classes");
   const [pickedTermId,setPickedTermId]=useState("");
   function pickTerm(id){
     setPickedTermId(id);
@@ -11519,7 +11612,7 @@ function AdminWeeklyReportPanel({students, teachers, schedule, lang, toast}) {
   }
   const pickedTerm=(terms.list||[]).find(x=>x.id===pickedTermId);
   const periodKeys = weeksInRange(rStart,rEnd);
-  const weekLabel = (pickedTerm?pickedTerm.label+" · ":"")+rStart+" → "+rEnd;
+  const weekLabel = (pickedTerm?pickedTerm.label+" · ":"")+rStart+" → "+rEnd+(scopeF!=="all"?" · "+attScopeLabel(scopeF,lang):"");
   // ── Geçmişe dönük yoklama: attendance koleksiyonundaki gerçek kayıtlar ──
   const [attDocs,setAttDocs]=useState([]);
   useEffect(()=>{
@@ -11543,12 +11636,12 @@ function AdminWeeklyReportPanel({students, teachers, schedule, lang, toast}) {
     ? (lang==="en"?"Term Report":K("Raporta Demsalê"))
     : (lang==="en"?"Evaluation Report":K("Raporta Nirxandinê"));
 
-  const filteredStudents = selectedArea==="all" ? students : students.filter(s=>s.area===selectedArea);
+  const filteredStudents = (selectedArea==="all" ? students : students.filter(s=>s.area===selectedArea)).filter(s=>scopeF!=="ws"||inAnyWorkshop(clsDocs,s.no));
 
   // ── Geçmişe dönük devam: seçili tarih aralığındaki yoklama kayıtlarından ──
   // records:{öğrenciId:"on"|"late"|"off"}; % = (on+late)/toplam.
   // Aralıkta hiç kaydı olmayan öğrenci "değerlendirilmemiş" (nötr) sayılır.
-  const rangeDocsAll = attDocs.filter(d=>d.date && d.date>=rStart && d.date<=rEnd);
+  const rangeDocsAll = attDocs.filter(d=>d.date && d.date>=rStart && d.date<=rEnd && attScopeOk(d,scopeF,schedule,clsDocs));
   const absentDocs = rangeDocsAll.filter(d=>d.teacherAbsent && (selectedArea==="all"||d.area===selectedArea));
   const rangeDocs = rangeDocsAll.filter(d=>!d.teacherAbsent);
   const studentsWithAtt = filteredStudents.map(s=>{
@@ -11731,7 +11824,7 @@ tr:hover td{background:#f9fbff}
     const blob = new Blob([html],{type:"text/html"});
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href=url; a.download=`rapor-nirxandin-${rStart}_${rEnd}.html`; a.click();
+    a.href=url; a.download=`rapor-nirxandin-${rStart}_${rEnd}${scopeF==="ws"?"-atolye":scopeF==="dept"?"-bes":""}.html`; a.click();
     URL.revokeObjectURL(url);
     toast("✓ "+(lang==="en"?"Report downloaded":K("Rapor hat dakêşandin")));
   }
@@ -11784,6 +11877,7 @@ tr:hover td{background:#f9fbff}
             {AREAS.map(a=><option key={a.key} value={a.key}>{a.icon} {areaName(a.key,lang)}</option>)}
           </select>
         </div>
+        <AttScopeSeg value={scopeF} onChange={setScopeF} lang={lang}/>
       </div>
 
       {/* Hafta etiketi */}
@@ -12226,6 +12320,8 @@ function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
   // Devam bilgisi DOĞRUDAN yoklama kayıtlarından (attendance) — kim alırsa alsın (öğretmen, sorumlu, QR) anında doğru.
   //  records:{öğrenciId:"on"|"late"|"off"|"leave"}; "ders yapılmadı" (teacherAbsent) kayıtları sayılmaz.
   const [attDocsR,setAttDocsR]=useState([]);
+  const [scopeF,setScopeF]=useState("all"); // all | dept (bölüm dersleri) | ws (atölye)
+  const clsDocs=useClassDocs("classes");
   useEffect(()=>{
     const F=window.__FB; if(!F||!F.isConfigured()) return; let u=()=>{};
     try{ u=F.onSnapshot(F.collection(F.db,"attendance"),sn=>setAttDocsR(sn.docs.map(d=>d.data())),()=>{}); }catch(_){}
@@ -12233,12 +12329,12 @@ function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
   },[]);
   const attMap=useMemo(()=>{
     const m={};
-    attDocsR.forEach(d=>{ if(d.teacherAbsent||!d.records) return;
+    attDocsR.forEach(d=>{ if(d.teacherAbsent||!d.records||!attScopeOk(d,scopeF,schedule,clsDocs)) return;
       Object.entries(d.records).forEach(([id,v])=>{ const x=m[id]||(m[id]={totalLessons:0,attended:0,absent:0,late:0,leaves:0});
         if(v==="leave") x.leaves++; else if(v==="on"||v==="late"||v==="off"){ x.totalLessons++; if(v==="off") x.absent++; else x.attended++; if(v==="late") x.late++; } }); });
     Object.values(m).forEach(x=>{ x.att=x.totalLessons?Math.round(x.attended/x.totalLessons*100):0; });
     return m;
-  },[attDocsR]);
+  },[attDocsR,scopeF,schedule,clsDocs]);
   const attSt=id=>attMap[String(id)]||{att:0,totalLessons:0,attended:0,absent:0,late:0,leaves:0,note:""};
   const [selectedArea,setSelectedArea]=useState("all");
   const [reportType,setReportType]=useState("attendance"); // attendance | full | survey | teachers
@@ -12246,7 +12342,6 @@ function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
  // config | preview
 
   // Ek filtreler: sınıf · sınıf öğretmeni · tek öğrenci
-  const clsDocs=useClassDocs("classes");
   const [clsF,setClsF]=useState("all");
   const [teachF,setTeachF]=useState("all");
   const [stuF,setStuF]=useState("all");
@@ -12258,6 +12353,7 @@ function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
   const filteredStudents = students
     .filter(s=>selectedArea==="all"||s.area===selectedArea)
     .filter(s=>!clsObj||inClass(clsObj,s.no))
+    .filter(s=>scopeF!=="ws"||inAnyWorkshop(clsDocs,s.no))
     // Öğretmen: sınıf öğretmeni olduğu sınıfların öğrencileri (sınıfı yoksa kendi alanının öğrencileri)
     .filter(s=>!teachObj||(teachCls.length?teachCls.some(d=>inClass(d,s.no)):(teachObj.area==="genel"||s.area===teachObj.area)))
     .filter(s=>stuF==="all"||String(s.fireId||s.id)===String(stuF));
@@ -12272,7 +12368,7 @@ function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
   const [detail,setDetail]=useState(null);
   const [showAll,setShowAll]=useState(false);
   const leaveTxt=s=>leavesOf(s).map(l=>(l.reason||"")+" ("+fmtDateTx(l.from)+(l.to&&l.to!==l.from?" – "+fmtDateTx(l.to):"")+((l.lessonNames||[]).length?" · "+l.lessonNames.join(", "):"")+")").join("; ");
-  const filterNote=[clsObj?"🏫 "+classLabel(clsObj,lang):"",teachObj?"👩‍🏫 "+teachObj.name:"",stuF!=="all"?"🎓 "+((students.find(s=>String(s.fireId||s.id)===String(stuF))||{}).name||""):""].filter(Boolean).join(" · ");
+  const filterNote=[scopeF!=="all"?attScopeLabel(scopeF,lang):"",clsObj?"🏫 "+classLabel(clsObj,lang):"",teachObj?"👩‍🏫 "+teachObj.name:"",stuF!=="all"?"🎓 "+((students.find(s=>String(s.fireId||s.id)===String(stuF))||{}).name||""):""].filter(Boolean).join(" · ");
 
   const reportDate = lang==="en"?new Date().toLocaleDateString("en-GB",{year:"numeric",month:"long",day:"numeric"}):fmtDateTx(new Date().toISOString());
 
@@ -12412,12 +12508,12 @@ ${`</html>`}`;
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    const areaLabel = selectedArea==="all"?"hemû-qad":selectedArea;
+    const areaLabel = (selectedArea==="all"?"hemû-qad":selectedArea)+(scopeF==="ws"?"-atolye":scopeF==="dept"?"-bes":"");
     const typeLabel = reportType==="attendance"?"attendance":"full";
     a.download = `rapor-${areaLabel}-${typeLabel}-${ymdLocal(new Date())}.html`;
     a.click();
     URL.revokeObjectURL(url);
-    logReportArchive({type:"liste",label:(reportType==="attendance"?(lang==="en"?"Attendance":K("Amadebûn")):(lang==="en"?"Full":K("Tevahî")))+" · "+(selectedArea==="all"?(lang==="en"?"All fields":K("Hemû qad")):areaName(selectedArea,lang))});
+    logReportArchive({type:"liste",label:(reportType==="attendance"?(lang==="en"?"Attendance":K("Amadebûn")):(lang==="en"?"Full":K("Tevahî")))+" · "+(selectedArea==="all"?(lang==="en"?"All fields":K("Hemû qad")):areaName(selectedArea,lang))+(scopeF!=="all"?" · "+attScopeLabel(scopeF,lang):"")});
     toast("✓ "+(lang==="en"?"Report downloaded!":K("Rapor hat dakêşîn!")));
   }
 
@@ -12429,8 +12525,8 @@ ${`</html>`}`;
       const d=attSt(st2.id);
       rows.push([st2.name,st2.no,areaName(st2.area,lang),classesOfStudent(clsDocs,st2.no).map(d=>d.name).join(" | "),statHasData(d)?d.att:"",d.absent||0,d.late||0,d.leaves||0,leaveTxt(st2),(e=>e.avg==null?"":e.avg.toFixed(1))(evOf(st2))]);
     });
-    downloadCSV("rapor-"+(selectedArea==="all"?"hemu":selectedArea)+"-"+ymdLocal(new Date())+".csv",rows);
-    logReportArchive({type:"csv",label:"CSV · "+(selectedArea==="all"?W2("Hemû qad","All fields"):areaName(selectedArea,lang))});
+    downloadCSV("rapor-"+(selectedArea==="all"?"hemu":selectedArea)+(scopeF==="ws"?"-atolye":scopeF==="dept"?"-bes":"")+"-"+ymdLocal(new Date())+".csv",rows);
+    logReportArchive({type:"csv",label:"CSV · "+(selectedArea==="all"?W2("Hemû qad","All fields"):areaName(selectedArea,lang))+(scopeF!=="all"?" · "+attScopeLabel(scopeF,lang):"")});
     toast("⬇ CSV");
   }
 
@@ -12567,13 +12663,14 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
       {/* Süzgeçler: bölüm (çip satırı) + sınıf · öğretmen · öğrenci */}
       <Card style={{marginBottom:12}}>
         <div className="c-h" style={{display:"flex",alignItems:"center",gap:8}}><Ico n="settings" size={17}/>{lang==="en"?"Filters":K("Fîlter")}</div>
+        <AttScopeSeg value={scopeF} onChange={v=>{ setScopeF(v); const cd=clsDocs.find(d=>d.id===clsF); if(cd&&(v==="ws")!==(cd.kind==="workshop")&&v!=="all") setClsF("all"); }} lang={lang}/>
         <Chips scroll value={selectedArea} onChange={setSelectedArea} items={[
           ["all",noEmo(lang==="en"?"🏫 All Fields":K("🏫 Hemû Qadan")),"grid"],
           ...AREAS.map(a=>[a.key,areaName(a.key,lang),({muzik:"music",tiyatro:"mask",sinema:"film",resim:"palette",dans:"dance",edebiyat:"cls"})[a.key]||"grid"])]}/>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8}}>
           <select aria-label={lang==="en"?"Class":K("Sînif")} value={clsF} onChange={e=>setClsF(e.target.value)} style={selectStyle}>
             <option value="all">{lang==="en"?"All classes":K("Hemû sinif")}</option>
-            {clsDocs.filter(d=>d.kind&&(selectedArea==="all"||d.area===selectedArea||d.area==="genel")).sort((a,b)=>classLabel(a,lang).localeCompare(classLabel(b,lang))).map(d=><option key={d.id} value={d.id}>{classLabel(d,lang)}</option>)}
+            {clsDocs.filter(d=>d.kind&&(selectedArea==="all"||d.area===selectedArea||d.area==="genel")&&(scopeF==="all"||(scopeF==="ws")===(d.kind==="workshop"))).sort((a,b)=>classLabel(a,lang).localeCompare(classLabel(b,lang))).map(d=><option key={d.id} value={d.id}>{classLabel(d,lang)}</option>)}
           </select>
           <select aria-label={lang==="en"?"Teacher":K("Mamoste")} value={teachF} onChange={e=>setTeachF(e.target.value)} style={selectStyle}>
             <option value="all">{lang==="en"?"All teachers":K("Hemû mamoste")}</option>
@@ -12586,16 +12683,17 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
           </select>
         </div>
         {/* Etkin süzgeçler — tek dokunuşla kaldırılır */}
-        {(selectedArea!=="all"||clsF!=="all"||teachF!=="all"||stuF!=="all")&&(()=>{
+        {(scopeF!=="all"||selectedArea!=="all"||clsF!=="all"||teachF!=="all"||stuF!=="all")&&(()=>{
           const cd=clsDocs.find(d=>d.id===clsF), td=plainTeachers.find(x=>String(x.no)===String(teachF)), sd=students.find(x=>(x.fireId||x.id)===stuF);
           const tags=[
+            scopeF!=="all"&&[attScopeLabel(scopeF,lang),()=>setScopeF("all")],
             selectedArea!=="all"&&[areaName(selectedArea,lang),()=>setSelectedArea("all")],
             clsF!=="all"&&[(cd?classLabel(cd,lang):clsF),()=>setClsF("all")],
             teachF!=="all"&&[(td?td.name:teachF),()=>setTeachF("all")],
             stuF!=="all"&&[(sd?sd.name:stuF),()=>setStuF("all")]].filter(Boolean);
           return <div className="c-ftags">
             {tags.map(([lb,clr],i)=><span key={i} className="c-ftag">{lb}<button type="button" aria-label={(lang==="en"?"Remove filter: ":K("Fîlterê rake")+": ")+lb} onClick={clr}><Ico n="close" size={13}/></button></span>)}
-            <button type="button" className="c-ftag-clear" onClick={()=>{setSelectedArea("all");setClsF("all");setTeachF("all");setStuF("all");setStuQ("");}}>{lang==="en"?"Clear all":K("Hemûyan paqij bike")}</button>
+            <button type="button" className="c-ftag-clear" onClick={()=>{setScopeF("all");setSelectedArea("all");setClsF("all");setTeachF("all");setStuF("all");setStuQ("");}}>{lang==="en"?"Clear all":K("Hemûyan paqij bike")}</button>
           </div>;
         })()}
       </Card>
@@ -12882,6 +12980,20 @@ function absenceLabel(k){ const L={absent:["Bêdestûr","Absent"],report:["Bi ra
 function isExtraLesson(ls){ if(!ls) return false; if(ls.category) return ls.category==="extra"||ls.category==="workshop"; return String(ls.fireId||ls.id||"").startsWith("ws_"); }
 function lessonCat(ls){ if(!ls) return "main"; if(ls.category) return ls.category; return String(ls.fireId||ls.id||"").startsWith("ws_")?"workshop":"main"; }
 const LESSON_CATS=[["main","Dersa sereke","Main lesson"],["extra","Dersa zêde","Extra lesson"],["workshop","Atolye","Workshop"]];
+// Rapor kapsamı: yoklama kaydı atölyeye mi ait? (atölye sınıfı ya da "atolye" türündeki ders)
+function attIsWorkshop(d,schedule,clsDocs){
+  const c=d&&d.classId&&(clsDocs||[]).find(x=>x.id===d.classId); if(c&&c.kind==="workshop") return true;
+  const l=d&&(schedule||[]).find(x=>String(x.id)===String(d.lessonId)); return !!l&&lessonCat(l)==="workshop";
+}
+function attScopeOk(d,scope,schedule,clsDocs){ if(!scope||scope==="all") return true; const w=attIsWorkshop(d,schedule,clsDocs); return scope==="ws"?w:!w; }
+const inAnyWorkshop=(docs,no)=>(docs||[]).some(d=>d.kind==="workshop"&&inClass(d,no));
+const attScopeLabel=(k,lang)=>k==="ws"?(lang==="en"?"Workshops":K("Atolye")):k==="dept"?(lang==="en"?"Department lessons":K("Dersên beşê")):(lang==="en"?"All lessons":K("Hemû ders"));
+function AttScopeSeg({value,onChange,lang}){
+  return(<div data-att-scope="1" style={{marginBottom:10}}>
+    <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:6}}>{lang==="en"?"Lessons in the report":K("Dersên di raporê de")}</div>
+    <Seg value={value} onChange={onChange} items={[["all",attScopeLabel("all",lang),"grid"],["dept",attScopeLabel("dept",lang),"cls"],["ws",attScopeLabel("ws",lang),"music"]]}/>
+  </div>);
+}
 const lessonCatLabel=k=>{ const c=LESSON_CATS.find(x=>x[0]===k)||LESSON_CATS[0]; return RL()==="en"?c[2]:K(c[1]); };
 // Misafir öğretmenli ders (sistemde öğretmen hesabı yok): yoklamayı bölüm sorumlusu alır
 const isGuestLesson=ls=>!!(ls&&!ls.teacherNo&&String(ls.guestTeacher||"").trim());
@@ -16759,12 +16871,15 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
   // Sınıflarım: alan sınıfı + genel sınıf + açık atölye
   const myClasses=classesOfStudent(useClassDocs("classes"),student.no);
   const myClassIds=new Set(myClasses.map(d=>d.id));
+  const wsOnly=myClasses.length>0&&myClasses.every(d=>d.kind==="workshop");
   const mySchedule=schedule.filter(s=>{
     if(!s.area||!student.area) return false;
     // Öğretmeni atanmamış ders henüz aktif değildir — kimseye gösterilmez (atölyede dış eğitmen yeter)
     if(!s.teacherNo&&!s.guestTeacher) return false;
     // Sınıfa bağlı ders yalnızca o sınıfın öğrencilerine görünür
     if(s.classId) return myClassIds.has(s.classId);
+    // Yalnız atölye öğrencisi: sınıfa bağlı olmayan dersleri görmez
+    if(wsOnly) return false;
     // Genel alan dersleri herkese görünür
     if(s.area==="genel") return true;
     // Direkt eşleşme
