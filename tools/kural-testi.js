@@ -383,6 +383,8 @@ const { ref, uploadString, getBytes } = require('firebase/storage');
   await t('B.sorumlusu: başkası adına izin işleyemez', setDoc(doc(head, 'studentLeaves/L3'), lv({ byNo: '1000' })), false);
   await t('B.sorumlusu: nedensiz izin işleyemez', setDoc(doc(head, 'studentLeaves/L4'), lv({ reason: '' })), false);
   await t('B.sorumlusu: çocuk izni işleyemez', setDoc(doc(head, 'studentLeaves/L5'), lv({ kid: true })), false);
+  await t('B.sorumlusu: derse özel izin işler (lessonIds + lessonNames)', setDoc(doc(head, 'studentLeaves/L6'), lv({ lessonIds: ['L1'], lessonNames: ['Şano 14:00'] })), true);
+  await t('B.sorumlusu: derse özel izinde liste dışı tür reddedilir', setDoc(doc(head, 'studentLeaves/L7'), lv({ lessonIds: 'L1' })), false);
   await t('Öğretmen izinleri okur', getDoc(doc(teacher, 'studentLeaves/L1')), true);
   await t('Öğretmen izin İŞLEYEMEZ', setDoc(doc(teacher, 'studentLeaves/L6'), lv({ byNo: '11202601' })), false);
   await t('Öğrenci izinleri OKUYAMAZ', getDoc(doc(student, 'studentLeaves/L1')), false);

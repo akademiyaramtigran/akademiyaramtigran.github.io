@@ -7689,8 +7689,8 @@ function HeadGuestAttendance({user,students,schedule,lang,toast}){
   const [saved,setSaved]=useState(false);
   const ls=todays.find(x=>String(x.id)===String(sel))||null;
   const roster=ls?lessonRoster(ls,students,clsDocs):[];
-  const onLeaveL=roster.filter(st=>leaveOf(leaves,st.no,today));
-  const list=roster.filter(st=>!leaveOf(leaves,st.no,today));
+  const onLeaveL=roster.filter(st=>leaveOf(leaves,st.no,today,false,ls&&ls.id));
+  const list=roster.filter(st=>!leaveOf(leaves,st.no,today,false,ls&&ls.id));
   const docId=ls?String(ls.id)+"-"+today:"";
   useEffect(()=>{ setRecs({}); setSaved(false); if(!ls||!F||!F.isConfigured()) return;
     F.getDoc(F.doc(F.db,"attendance",docId)).then(d=>{ if(d.exists()){ setRecs(d.data().records||{}); setSaved(true); } }).catch(()=>{}); },[docId]);
@@ -7776,7 +7776,7 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
         {tab==="announce"&&<AnnouncementsPanel t={t} toast={toast} lang={lang} senderName={user.name} senderRole="head" senderArea={area} senderNo={myNo}/>}
         {tab==="messages"&&<HeadMessagesPanel user={user} inbox={inbox} sent={sent} teachers={aTeachers} lang={lang} t={t} toast={toast}/>}
         {tab==="gatt"&&<HeadGuestAttendance user={user} students={aStudents} schedule={aSchedule} lang={lang} toast={toast}/>}
-        {tab==="leaves"&&<LeavesPanel user={user} students={aStudents.filter(s=>!s.isAdmin)} area={area} all={ALL} lang={lang} toast={toast}/>}
+        {tab==="leaves"&&<LeavesPanel user={user} students={aStudents.filter(s=>!s.isAdmin)} schedule={aSchedule} area={area} all={ALL} lang={lang} toast={toast}/>}
         {tab==="schedule"&&<AdminScheduleTab mode="head" byName={user.name} fixedArea={ALL?null:area} schedule={aSchedule} teachers={teachers||[]} students={aStudents} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>}
         {tab==="surveys"&&<HeadSurveysPanel user={user} students={aStudents} teachers={aTeachers} lang={lang} toast={toast}/>}
         {tab==="reports"&&<AdminReportCenter students={aStudents} teachers={aTeachers} schedule={aSchedule} lang={lang} t={t} toast={toast} byName={user.name} headArea={area} headNo={myNo}/>}
@@ -8644,26 +8644,54 @@ function useLeaves(enabled=true){
   },[enabled]);
   return v;
 }
-// Öğrenci o tarihte izinli mi? (kid: çocuk akademisi izni)
-function leaveOf(leaves,no,date,kid=false){ return (leaves||[]).find(l=>!!l.kid===!!kid&&String(l.studentNo)===String(no)&&l.from<=date&&date<=l.to)||null; }
-function LeavesPanel({user,students,area,all=false,kid=false,lang,toast,readOnly=false}){
+// Öğrenci o tarihte (ve verilmişse o derste) izinli mi? (kid: çocuk akademisi izni)
+//  lessonIds boşsa izin tüm gün içindir; doluysa yalnızca o derslerin yoklamasında geçerlidir.
+function leaveLessonOk(l,lessonId){ const ids=l.lessonIds||[]; return !ids.length||(lessonId!=null&&ids.map(String).includes(String(lessonId))); }
+function leaveOf(leaves,no,date,kid=false,lessonId=null){ return (leaves||[]).find(l=>!!l.kid===!!kid&&String(l.studentNo)===String(no)&&l.from<=date&&date<=l.to&&leaveLessonOk(l,lessonId))||null; }
+function LeavesPanel({user,students,schedule,area,all=false,kid=false,lang,toast,readOnly=false}){
   const F=window.__FB;
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   const leaves=useLeaves(true);
+  const terms=useTerms();
+  const clsDocs=useClassDocs("classes");
   const today=ymdLocal(new Date());
-  const [f,setF]=useState({no:"",from:today,to:today,reason:""});
+  const [f,setF]=useState({no:"",from:today,to:today,reason:"",scope:"day",lessons:{}});
+  // Çocuk akademisi: bölümün ders programı (derse özel izin için)
+  const [kSched,setKSched]=useState([]);
+  useEffect(()=>{ if(!kid||readOnly||!area||!F||!F.isConfigured()) return; let u=()=>{};
+    try{ u=F.onSnapshot(F.query(F.collection(F.db,"kidSchedule"),F.where("area","==",area)),sn=>setKSched(sn.docs.map(d=>({...d.data(),id:d.id}))),()=>{}); }catch(_){}
+    return ()=>{ try{u();}catch(_){} }; },[kid,readOnly,area]);
   const mine=leaves.filter(l=>!!l.kid===!!kid&&(all||l.area===area)).sort((a,b)=>String(b.from).localeCompare(String(a.from)));
   const studs=(students||[]).filter(s=>s&&s.no).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
-  const card={background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:14,padding:14,marginBottom:12};
+  const stu=studs.find(x=>String(x.no)===String(f.no))||null;
+  // Seçilen öğrencinin, seçilen günlerdeki dersleri (en çok 31 gün)
+  const lessonChoices=(()=>{
+    if(!stu||!f.from||!f.to||f.to<f.from) return [];
+    const days=[]; const d=new Date(f.from+"T12:00:00"), end=new Date(f.to+"T12:00:00");
+    while(d<=end&&days.length<31){ days.push(ymdLocal(d)); d.setDate(d.getDate()+1); }
+    const KU=["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"], out=new Map();
+    days.forEach(ds=>{ const dow=new Date(ds+"T12:00:00").getDay();
+      if(kid){ kSched.forEach(l=>{ if((l.date?l.date===ds:+l.day===dow)&&!out.has(l.id)) out.set(l.id,{id:String(l.id),name:l.title||"",start:l.start||"",day:l.date||K(KU[dow])}); }); return; }
+      (schedule||[]).forEach(ls=>{
+        const on=ls.lessonType==="extra"?(ls.extraDates||[]).includes(ds):(ls.day===KU[dow]&&lessonOnDate(ls,terms,ds));
+        if(!on||out.has(String(ls.id))) return;
+        if(!lessonRoster(ls,students,clsDocs).some(x=>String(x.no)===String(stu.no))) return;
+        out.set(String(ls.id),{id:String(ls.id),name:ls.name||"",start:ls.start||"",day:ls.lessonType==="extra"?fmtDateTx(ds):K(ls.day)});
+      }); });
+    return [...out.values()].sort((a,b)=>String(a.start).localeCompare(String(b.start)));
+  })();
+  const pickedIds=Object.keys(f.lessons).filter(k=>f.lessons[k]&&lessonChoices.some(c=>c.id===k));
   async function save(){
-    const st=studs.find(x=>String(x.no)===String(f.no));
-    if(!st){ toast("⚠ "+W2("Xwendekarekî hilbijêre","Choose a student")); return; }
+    if(!stu){ toast("⚠ "+W2("Xwendekarekî hilbijêre","Choose a student")); return; }
     if(!f.from||!f.to||f.to<f.from){ toast("⚠ "+W2("Tarîxa destpêk û dawiyê hilbijêre","Choose start and end dates")); return; }
+    if(f.scope==="lesson"&&!pickedIds.length){ toast("⚠ "+W2("Herî kêm dersekê hilbijêre","Choose at least one lesson")); return; }
     if(!f.reason.trim()){ toast("⚠ "+W2("Sedema destûrê binivîse","Write the reason for the leave")); return; }
+    const picked=lessonChoices.filter(c=>pickedIds.includes(c.id));
     try{
-      await F.addDoc(F.collection(F.db,"studentLeaves"),{studentNo:String(st.no),studentId:String(st.id!=null?st.id:st.fireId||""),studentName:st.name||"",area:st.area||area||"",
-        from:f.from,to:f.to,reason:f.reason.trim().slice(0,300),by:user.name||"",byNo:String(user.no||""),kid:!!kid,createdAt:F.serverTimestamp()});
-      toast("✅ "+W2("Destûr hate tomarkirin","Leave saved")); setF({no:"",from:today,to:today,reason:""});
+      await F.addDoc(F.collection(F.db,"studentLeaves"),{studentNo:String(stu.no),studentId:String(stu.id!=null?stu.id:stu.fireId||""),studentName:stu.name||"",area:stu.area||area||"",
+        from:f.from,to:f.to,reason:f.reason.trim().slice(0,300),by:user.name||"",byNo:String(user.no||""),kid:!!kid,createdAt:F.serverTimestamp(),
+        ...(f.scope==="lesson"?{lessonIds:picked.map(c=>c.id),lessonNames:picked.map(c=>(c.name+(c.start?" "+c.start:"")).slice(0,80))}:{})});
+      toast(W2("Destûr hate tomarkirin","Leave saved")); setF({no:"",from:today,to:today,reason:"",scope:"day",lessons:{}});
     }catch(e){ toast("❌ "+((e&&e.code)||e)); }
   }
   async function del(l){
@@ -8673,31 +8701,56 @@ function LeavesPanel({user,students,area,all=false,kid=false,lang,toast,readOnly
   const range=l=>l.from===l.to?fmtDateTx(l.from):fmtDateTx(l.from)+" – "+fmtDateTx(l.to);
   return(
     <div>
-      {!readOnly&&<div style={card}>
-        <div style={{fontSize:14,fontWeight:800,color:"var(--text)",marginBottom:4}}>🏷 {W2("Destûra xwendekar","Student leave")}</div>
-        <div style={{fontSize:11.5,color:"var(--text2)",lineHeight:1.6,marginBottom:10}}>{W2("Xwendekarê bi destûr di wan rojan de di lîsteya amadebûnê ya mamoste de xuya nabe û wek “tunebû” nayê hesibandin. Sedem di raporê de tê nîşandan.","A student on leave does not appear in the teacher's attendance list on those days and is not counted absent. The reason is shown in the report.")}</div>
-        <select id="lv-student" aria-label={W2("Xwendekar","Student")} style={{...inputStyle,marginBottom:8}} value={f.no} onChange={e=>setF(x=>({...x,no:e.target.value}))}>
-          <option value="">— {W2("Xwendekarekî hilbijêre","Choose a student")}</option>
-          {studs.map(s=><option key={s.no} value={s.no}>{s.name} · {s.no}</option>)}
-        </select>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-          <div><div style={{fontSize:11,color:"var(--text2)",marginBottom:3}}>{W2("Destpêk","From")}</div><DateInput id="lv-from" value={f.from} onChange={e=>setF(x=>({...x,from:e.target.value,to:x.to<e.target.value?e.target.value:x.to}))}/></div>
-          <div><div style={{fontSize:11,color:"var(--text2)",marginBottom:3}}>{W2("Dawî","Until")}</div><DateInput id="lv-to" value={f.to} min={f.from||undefined} onChange={e=>setF(x=>({...x,to:e.target.value}))}/></div>
+      {!readOnly&&<Card style={{marginBottom:16}}>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
+          <span className="c-av"><Ico n="leave" size={19}/></span>
+          <div style={{fontSize:16,fontWeight:700,color:"var(--text)"}}>{W2("Destûra xwendekar","Student leave")}</div>
         </div>
-        <textarea id="lv-reason" aria-label={W2("Sedem","Reason")} style={{...inputStyle,minHeight:64,resize:"vertical",marginBottom:8}} maxLength={300} value={f.reason} onChange={e=>setF(x=>({...x,reason:e.target.value}))} placeholder={W2("Sedema destûrê (mînak: nexweşî, rêwîtiya malbatê…)","Reason (e.g. illness, family trip…)")}/>
-        <PrimaryBtn onClick={save} icon="💾">{W2("Destûrê tomar bike","Save leave")}</PrimaryBtn>
-      </div>}
-      {mine.length===0&&<div style={{...card,textAlign:"center",color:"var(--text2)",fontSize:13}}>{W2("Destûr tune.","No leaves.")}</div>}
+        <Note style={{marginBottom:16}}>{W2("Xwendekarê bi destûr di wan rojan de di lîsteya amadebûnê ya mamoste de xuya nabe û wek “tunebû” nayê hesibandin. Sedem di raporê de tê nîşandan.","A student on leave does not appear in the teacher's attendance list on those days and is not counted absent. The reason is shown in the report.")}</Note>
+        <FieldWrap label={W2("Xwendekar","Student")}>
+          <select id="lv-student" aria-label={W2("Xwendekar","Student")} style={selectStyle} value={f.no} onChange={e=>setF(x=>({...x,no:e.target.value,lessons:{}}))}>
+            <option value="">{W2("Xwendekarekî hilbijêre","Choose a student")}</option>
+            {studs.map(s=><option key={s.no} value={s.no}>{s.name} · {s.no}</option>)}
+          </select>
+        </FieldWrap>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          <FieldWrap label={W2("Destpêk","From")}><DateInput id="lv-from" value={f.from} onChange={e=>setF(x=>({...x,from:e.target.value,to:x.to<e.target.value?e.target.value:x.to,lessons:{}}))}/></FieldWrap>
+          <FieldWrap label={W2("Dawî","Until")}><DateInput id="lv-to" value={f.to} min={f.from||undefined} onChange={e=>setF(x=>({...x,to:e.target.value,lessons:{}}))}/></FieldWrap>
+        </div>
+        <FieldWrap label={W2("Kîjan ders?","Which lessons?")}>
+          <Seg value={f.scope} onChange={v=>setF(x=>({...x,scope:v}))} items={[["day",W2("Tevahiya rojê","Whole day"),"today"],["lesson",W2("Dersên taybet","Specific lessons"),"cal"]]}/>
+          {f.scope==="lesson"&&<div style={{marginTop:12}} data-leave-lessons="1">
+            {!stu?<div style={{fontSize:13,color:"var(--text2)"}}>{W2("Pêşî xwendekar û tarîx hilbijêre.","Choose the student and date first.")}</div>
+            :lessonChoices.length===0?<div style={{fontSize:13,color:"var(--text2)"}}>{W2("Di van rojan de dersa vî xwendekarî tune.","This student has no lessons on these days.")}</div>
+            :<><div className="c-chips">{lessonChoices.map(c=>{ const on=!!f.lessons[c.id]; return(
+                <button key={c.id} type="button" data-leave-lesson={c.id} aria-pressed={on} className={"c-chip"+(on?" on":"")} onClick={()=>setF(x=>({...x,lessons:{...x.lessons,[c.id]:!on}}))}>
+                  <Ico n={on?"check":"music"} size={15}/><span>{c.name}{c.start?" · "+c.start:""}{f.from!==f.to?" · "+c.day:""}</span></button>); })}</div>
+              <div style={{fontSize:12.5,color:"var(--text2)",marginTop:8}}>{W2("Destûr tenê ji bo van dersan e; di dersên din ên rojê de xwendekar di lîsteyê de dimîne.","The leave applies only to these lessons; in the day's other lessons the student stays on the list.")}</div></>}
+          </div>}
+        </FieldWrap>
+        <FieldWrap label={W2("Sedem","Reason")}>
+          <textarea id="lv-reason" aria-label={W2("Sedem","Reason")} style={{...inputStyle,minHeight:80,resize:"vertical"}} maxLength={300} value={f.reason} onChange={e=>setF(x=>({...x,reason:e.target.value}))} placeholder={W2("Sedema destûrê (mînak: nexweşî, rêwîtiya malbatê…)","Reason (e.g. illness, family trip…)")}/>
+        </FieldWrap>
+        <PBtn onClick={save} icon="save">{W2("Destûrê tomar bike","Save leave")}</PBtn>
+      </Card>}
+      {mine.length===0&&<EmptyState icon="leave" text={W2("Destûr tune.","No leaves.")}/>}
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
       {mine.map(l=>(
-        <div key={l.fireId} data-leave-row="1" style={{...card,display:"flex",gap:10,alignItems:"flex-start",opacity:l.to<today?.75:1}}>
+        <div key={l.fireId} data-leave-row="1" className="card" style={{display:"flex",gap:12,alignItems:"flex-start",opacity:l.to<today?.7:1}}>
+          <span className="c-av"><Ico n="leave" size={18}/></span>
           <div style={{flex:1,minWidth:0}}>
-            <div style={{fontWeight:800,color:"var(--text)"}}>🏷 {l.studentName} <span style={{fontSize:11,color:"var(--text2)",fontWeight:500}}>#{l.studentNo}{all?" · "+(kid?headAreaLabel(l.area,lang):areaName(l.area,lang)):""}</span></div>
-            <div style={{fontSize:12,color:"var(--text)",marginTop:3}}>📅 {range(l)}</div>
-            <div style={{fontSize:12.5,color:"var(--text)",marginTop:3,whiteSpace:"pre-wrap"}}>📝 {l.reason}</div>
-            <div style={{fontSize:11,color:"var(--text2)",marginTop:3}}>✍ {l.by}</div>
+            <div style={{fontSize:15,fontWeight:700,color:"var(--text)"}}>{l.studentName} <span style={{fontSize:12,color:"var(--text2)",fontWeight:500}}>#{l.studentNo}{all?" · "+(kid?headAreaLabel(l.area,lang):areaName(l.area,lang)):""}</span></div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}}>
+              <span className="c-tag">{range(l)}</span>
+              {(l.lessonNames||[]).length?l.lessonNames.map((n,i)=><span key={i} className="c-tag gold" data-leave-lesson-tag="1">{n}</span>)
+                :<span className="c-tag">{W2("Tevahiya rojê","Whole day")}</span>}
+            </div>
+            <div style={{fontSize:13.5,color:"var(--text)",marginTop:6,whiteSpace:"pre-wrap"}}>{l.reason}</div>
+            <div style={{fontSize:12,color:"var(--text2)",marginTop:4}}>{l.by}</div>
           </div>
-          {!readOnly&&String(l.byNo)===String(user&&user.no)&&<button aria-label="🗑" onClick={()=>del(l)} style={{padding:"6px 9px",borderRadius:8,border:"1px solid var(--red)",background:"var(--red-bg)",cursor:"pointer",color:"var(--red)"}}><Ico n="trash" solo/></button>}
+          {!readOnly&&String(l.byNo)===String(user&&user.no)&&<button type="button" className="c-iconbtn sm danger" aria-label={W2("Jêbire","Delete")} onClick={()=>del(l)}><Ico n="trash" size={17}/></button>}
         </div>))}
+      </div>
     </div>);
 }
 // Çocuk akademisi bölüm sorumlusu: kendi dersinin (alanının) haftalık programı + öğretmen ataması.
@@ -12218,7 +12271,7 @@ function AdminReportsPanel({students,teachers,schedule,lang,t,toast}){
     return {n:l.length,avg:v.length?v.reduce((a,b)=>a+b,0)/v.length:null,note:last?last.note+" ("+(last.teacherName||"")+")":""}; };
   const [detail,setDetail]=useState(null);
   const [showAll,setShowAll]=useState(false);
-  const leaveTxt=s=>leavesOf(s).map(l=>(l.reason||"")+" ("+fmtDateTx(l.from)+(l.to&&l.to!==l.from?" – "+fmtDateTx(l.to):"")+")").join("; ");
+  const leaveTxt=s=>leavesOf(s).map(l=>(l.reason||"")+" ("+fmtDateTx(l.from)+(l.to&&l.to!==l.from?" – "+fmtDateTx(l.to):"")+((l.lessonNames||[]).length?" · "+l.lessonNames.join(", "):"")+")").join("; ");
   const filterNote=[clsObj?"🏫 "+classLabel(clsObj,lang):"",teachObj?"👩‍🏫 "+teachObj.name:"",stuF!=="all"?"🎓 "+((students.find(s=>String(s.fireId||s.id)===String(stuF))||{}).name||""):""].filter(Boolean).join(" · ");
 
   const reportDate = lang==="en"?new Date().toLocaleDateString("en-GB",{year:"numeric",month:"long",day:"numeric"}):fmtDateTx(new Date().toISOString());
@@ -14918,8 +14971,8 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
   // İzinli öğrenciler (bölüm sorumlusu işaretler) o gün yoklama listesinde görünmez
   const leaves = useLeaves(true);
   const attAll = attLesson ? rosterOf(attLesson) : [];
-  const attRoster = attAll.filter(s=>!leaveOf(leaves,s.no,todayStr_t));
-  const attOnLeave = attAll.filter(s=>leaveOf(leaves,s.no,todayStr_t));
+  const attRoster = attAll.filter(s=>!leaveOf(leaves,s.no,todayStr_t,false,attLesson&&attLesson.id));
+  const attOnLeave = attAll.filter(s=>leaveOf(leaves,s.no,todayStr_t,false,attLesson&&attLesson.id));
   const attCount = v => attRoster.filter(s=>attendance[s.id]===v).length;
   // Elle yoklama listesi derse özeldir: ders değişince temizlenir ve o dersin bugünkü kaydı
   // (QR ile alınan ya da daha önce elle kaydedilen) yüklenir. Henüz kaydedilmemiş işaretler korunur.
@@ -15164,8 +15217,8 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     const lessonId = session?.lessonId || ("manual_"+Date.now());
     // Yoklama listesi dersin sınıfıdır (sınıfsız ders → alanın öğrencileri)
     const sesLs = mySchedule.find(l=>String(l.id)===String(lessonId));
-    const roster = sesLs ? rosterOf(sesLs).filter(s=>!leaveOf(leaves,s.no,dateStr)) : [];
-    const onLeaveNow = sesLs ? rosterOf(sesLs).filter(s=>leaveOf(leaves,s.no,dateStr)) : [];
+    const roster = sesLs ? rosterOf(sesLs).filter(s=>!leaveOf(leaves,s.no,dateStr,false,sesLs.id)) : [];
+    const onLeaveNow = sesLs ? rosterOf(sesLs).filter(s=>leaveOf(leaves,s.no,dateStr,false,sesLs.id)) : [];
     // QR okutamayan öğrenciyi öğretmen elle "geldi/geç" işaretlediyse o işaret korunur
     const manual = String(lessonId)===String(attLessonRef.current) ? attendance : {};
     const records  = {};
@@ -15438,7 +15491,6 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                   <button onClick={()=>{ openLessonQR(attLesson); setView("scanner"); }} style={{padding:"11px 8px",background:"var(--bg2)",color:"var(--text)",border:"1px solid var(--border2)",borderRadius:10,fontSize:12.5,fontWeight:700,cursor:"pointer"}}>
                     📡 {lang==="en"?"Lesson QR (students' phones)":K("QR ya dersê (têlefona xwendekar)")}</button>
                 </div>
-                {attOnLeave.length>0&&<div data-on-leave="1" style={{fontSize:11.5,color:"var(--text2)",marginTop:8}}>🏷 {lang==="en"?"On leave today (not in the list)":K("Îro bi destûr (ne di lîsteyê de)")}: {attOnLeave.map(s=>s.name).join(", ")}</div>}
                 {attScan&&<div style={{marginTop:10}}><TeacherCardScanner myStudents={attRoster} lang={lang} onCheckin={cardCheckin} onClose={()=>setAttScan(false)}/></div>}
                 <button data-end-lesson="1" disabled={attSaving} onClick={endLesson} style={{width:"100%",marginTop:10,padding:"11px 8px",background:"var(--red-bg)",color:"var(--red)",border:"1px solid var(--red)",borderRadius:10,fontSize:13,fontWeight:800,cursor:"pointer"}}>
                   ⏹ {lang==="en"?"End lesson":K("Dersê bi dawî bike")}</button>
@@ -15457,6 +15509,8 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                 <div style={{fontSize:22,fontWeight:700,color:"var(--red)"}}>{attCount("off")}</div>
               </div>
             </div>
+            {/* İzinli öğrenciler (tüm gün ya da yalnızca bu ders için) — ders başlamadan da görünür */}
+            {attOnLeave.length>0&&<Note style={{marginBottom:12}} icon="leave"><span data-on-leave="1">{lang==="en"?"On leave (not in the list)":K("Bi destûr (ne di lîsteyê de)")}: <b>{attOnLeave.map(s=>s.name).join(", ")}</b></span></Note>}
             <Card>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
                 <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>📋 {t.attendanceList}</div>
