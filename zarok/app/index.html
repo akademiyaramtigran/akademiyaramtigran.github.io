@@ -608,12 +608,14 @@ async function readFiles(list) {
   return out;
 }
 // ── Veli anketleri ──
-// Hedef: veli anketi ("guardians") → çocuklarının alanı · öğretmen anketi ("kidteachers") → öğretmenin alanı (boş = hepsi)
+// Hedef: veli anketi ("guardians") → çocuklarının alanı (+ varsa seçilen sınıflar) · öğretmen anketi ("kidteachers") → öğretmenin alanı (boş = hepsi)
 const isTeacherMode = () => S.mode === "teacher";
 const myAreas = () => isTeacherMode() ? [(S.teacher && S.teacher.area) || ""].filter(Boolean) : [...new Set(S.kids.map(k => k.area).filter(Boolean))];
 const survFor = () => S.ksv.filter(sv => !(sv.endDate && sv.endDate < todayStr())
   && (isTeacherMode() ? sv.targetType === "kidteachers" : sv.targetType !== "kidteachers")
-  && (!(sv.targetAreas || []).length || (isTeacherMode() && !(S.teacher && S.teacher.area)) || (sv.targetAreas || []).some(a => myAreas().includes(a))));
+  && (!(sv.targetAreas || []).length || (isTeacherMode() && !(S.teacher && S.teacher.area)) || (sv.targetAreas || []).some(a => myAreas().includes(a)))
+  // Sınıf hedefli veli anketi: yalnızca çocuğu seçilen sınıflarda (alan sınıfı / atölye) olan veliler
+  && (isTeacherMode() || !(sv.targetClassIds || []).length || S.kids.some(k => classesOf(k).some(c => sv.targetClassIds.includes(c.id)))));
 const survResp = sv => S.kresp.find(r => r.surveyId === sv.id);
 const survPending = () => survFor().filter(sv => !survResp(sv));
 function survInput(q, A) {

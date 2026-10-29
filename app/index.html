@@ -7857,6 +7857,7 @@ function HeadSurveysPanel({user,students,teachers,lang,toast}){
   const F=window.__FB; const live=!!(F&&F.isConfigured());
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   const myNo=String(user.no||""), ALL=user.area==="genel";
+  const svCls=useClassDocs("classes");
   const [list,setList]=useState([]); const [resps,setResps]=useState([]);
   const [view,setView]=useState("list"); const [edit,setEdit]=useState(null);
   useEffect(()=>{
@@ -7869,6 +7870,7 @@ function HeadSurveysPanel({user,students,teachers,lang,toast}){
   const rOf=sv=>resps.filter(r=>String(r.surveyId)===String(sv.id)||String(r.surveyId)===String(sv.fireId));
   const isT=sv=>sv.targetType==="teachers"||sv.targetType==="teachers_area";
   const exp=sv=>isT(sv)?(teachers||[]).filter(t2=>!(sv.targetAreas||[]).length||(sv.targetAreas||[]).includes(t2.area)).length
+    :(sv.targetClassIds||[]).length?(students||[]).filter(st=>inSvClasses(sv,svCls,st.no)).length
     :(students||[]).filter(st=>!(sv.targetAreas||[]).length||(sv.targetAreas||[]).includes(st.area)).length;
   async function save(part){
     const now=new Date().toISOString();
@@ -7879,7 +7881,7 @@ function HeadSurveysPanel({user,students,teachers,lang,toast}){
     catch(e){ toast("❌ "+((e&&e.code)||e)); }
   }
   if(!live) return <div style={{fontSize:13,color:"var(--text2)"}}>{W2("Firebase girêdayî nîne.","Firebase is not connected.")}</div>;
-  if(view==="studio") return <SurveyStudio mode="academy" initial={edit} teachers={teachers} lang={lang} toast={toast} onSave={save} onCancel={()=>{setView("list");setEdit(null);}} lockAreas={ALL?null:[user.area]}/>;
+  if(view==="studio") return <SurveyStudio mode="academy" initial={edit} teachers={teachers} lang={lang} toast={toast} onSave={save} onCancel={()=>{setView("list");setEdit(null);}} lockAreas={ALL?null:[user.area]} memberNos={ALL?null:(students||[]).map(s2=>s2.no)}/>;
   if(view==="results"&&edit) return(
     <div>
       <button onClick={()=>{setView("list");setEdit(null);}} style={{padding:"7px 14px",fontSize:12,background:"var(--bg2)",border:"1px solid var(--border2)",borderRadius:10,cursor:"pointer",color:"var(--text)",fontWeight:600,marginBottom:10}}>← {W2("Vegere","Back")}</button>
@@ -7897,7 +7899,7 @@ function HeadSurveysPanel({user,students,teachers,lang,toast}){
       {list.map(sv=>{ const closed=sv.endDate&&sv.endDate<today; return(
         <div key={sv.fireId} style={{background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:14,padding:12,marginBottom:10}}>
           <div style={{fontWeight:800,color:"var(--text)"}}>{sv.title}</div>
-          <div style={{fontSize:11,color:"var(--text2)",marginTop:3}}>{!sv.active?"⏸ "+W2("Reşnivîs","Draft"):closed?"⌛ "+W2("Dem qediya","Closed"):"🟢 "+W2("Çalak","Live")} · {isT(sv)?"👩‍🏫":"🎓"} · {(sv.questions||[]).length} {W2("pirs","questions")} · 📝 {rOf(sv).length} / {exp(sv)}</div>
+          <div style={{fontSize:11,color:"var(--text2)",marginTop:3}}>{!sv.active?"⏸ "+W2("Reşnivîs","Draft"):closed?"⌛ "+W2("Dem qediya","Closed"):"🟢 "+W2("Çalak","Live")} · {isT(sv)?"👩‍🏫":"🎓"}{(sv.targetClassIds||[]).length?" · 🏫 "+sv.targetClassIds.length+" "+W2("sinif","classes"):""} · {(sv.questions||[]).length} {W2("pirs","questions")} · 📝 {rOf(sv).length} / {exp(sv)}</div>
           <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
             <button onClick={()=>{setEdit(sv);setView("results");}} style={btn}>📊 {W2("Encam","Results")}</button>
             <button onClick={()=>{setEdit(sv);setView("studio");}} style={btn}><Ico n="edit" solo/></button>
@@ -8245,6 +8247,8 @@ function classLabel(d,lang){
   return "🌐 "+classNameTx(d.name);
 }
 function inClass(d,no){ return !!d&&(d.studentNos||[]).map(String).includes(String(no)); }
+// Sınıf hedefli anket: öğrenci (no) seçilen sınıflardan birinde mi?
+const inSvClasses=(sv,docs,no)=>(docs||[]).some(d=>(sv.targetClassIds||[]).includes(d.id)&&inClass(d,no));
 // Öğrencinin açık sınıfları (alan + genel + açık atölye)
 function classesOfStudent(docs,no){ return (docs||[]).filter(d=>d.kind&&d.status!=="closed"&&inClass(d,no)); }
 // Dersin öğrenci listesi: sınıfa bağlıysa o sınıf; değilse dersin alanı (genel → herkes)
@@ -12048,7 +12052,7 @@ function makeSurveyResultsPdf(sv, allResps, lang, byName){
     return {q, kind:"text", n:texts.length, texts};
   });
   const W=(ku,en)=>lang==="en"?en:K(ku);
-  const tgt=sv.targetType==="all"?W("Hemû Xwendekar","All Students"):sv.targetType==="area"?(W("Qad","Field")+": "+(sv.targetAreas||[]).map(a2=>areaName(a2,lang)).join(", ")):sv.targetType==="teachers"?W("Hemû Mamoste","All Teachers"):W("Mamoste (Qad)","Teachers (Field)");
+  const tgt=(sv.targetClassIds||[]).length?"🏫 "+(sv.targetClassIds.length)+" "+W("sinif","classes"):sv.targetType==="all"?W("Hemû Xwendekar","All Students"):sv.targetType==="area"?(W("Qad","Field")+": "+(sv.targetAreas||[]).map(a2=>areaName(a2,lang)).join(", ")):sv.targetType==="teachers"?W("Hemû Mamoste","All Teachers"):W("Mamoste (Qad)","Teachers (Field)");
   let body='<h1>📊 '+esc(sv.title)+'</h1>'
     +'<div class="sub">'+(lang==="en"?"Survey Results":K("Encamên Ankêtê"))+' · '+tgt+' · '+rs.length+' '+(lang==="en"?"responses":K("bersiv"))+' · '+ymdLocal(new Date())+'</div>';
   st.forEach((row,i)=>{
@@ -13162,10 +13166,13 @@ function surveyMissing(sv,answers){
     if(empty&&(q.required||(q.required==null&&false))) out.push(i+1); });
   return out;
 }
-function SurveyStudio({mode,initial,teachers,lang,toast,onSave,onCancel,lockAreas}){
+function SurveyStudio({mode,initial,teachers,lang,toast,onSave,onCancel,lockAreas,memberNos}){
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   const kids=mode==="kids";
   const init=initial||{};
+  // Sınıf hedefi (öğrenci / veli anketi): bölüm sınıfları ve atölyeler ayrı; boş = alana göre
+  const clsDocs=useClassDocs(kids?"kidClasses":"classes");
+  const [cls,setCls]=useState(init.targetClassIds||[]);
   const [title,setTitle]=useState(init.title||"");
   const [desc,setDesc]=useState(init.desc||"");
   const [aud,setAud]=useState(kids?(init.targetType==="kidteachers"?"kidteachers":"guardians"):(init.targetType==="teachers"||init.targetType==="teachers_area"?"teachers":"students"));
@@ -13197,7 +13204,8 @@ function SurveyStudio({mode,initial,teachers,lang,toast,onSave,onCancel,lockArea
     if(bad>=0){ toast("⚠ "+(bad+1)+". "+W2("pirs: herî kêm 2 bijare","question: at least 2 options")); return null; }
     // Hedef: alan filtresi (boş = hepsi) + kitle (öğrenci/öğretmen · veli/çocuk öğretmeni)
     const targetType=kids?aud:aud==="teachers"?(areas.length?"teachers_area":"teachers"):(areas.length?"area":"all");
-    return {title:title.trim(),desc:desc.trim(),targetType,targetAreas:areas,endDate,anonymous:anon,questions:clean,resultType:"mixed",active};
+    const clsOk=(kids?aud==="guardians":aud==="students")?cls.filter(id=>clsDocs.some(d=>d.id===id)):[];
+    return {title:title.trim(),desc:desc.trim(),targetType,targetAreas:areas,targetClassIds:clsOk,endDate,anonymous:anon,questions:clean,resultType:"mixed",active};
   }
   const save=active=>{ const sv=build(active); if(sv) onSave(sv); };
   if(preview) return(
@@ -13250,7 +13258,26 @@ function SurveyStudio({mode,initial,teachers,lang,toast,onSave,onCancel,lockArea
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
           {(lockAreas&&lockAreas.length?areaList.filter(a2=>lockAreas.includes(a2.key)):areaList).map(a2=>{ const on=areas.includes(a2.key); return <button key={a2.key} onClick={()=>{ if(lockAreas&&lockAreas.length) return; setAreas(x=>on?x.filter(y=>y!==a2.key):[...x,a2.key]); }} style={chip(on)}>{a2.icon?a2.icon+" ":""}{a2.label}</button>; })}
         </div>
-        <div style={{fontSize:11,color:"var(--text2)",marginTop:8}}>{kids
+        {(kids?aud==="guardians":aud==="students")&&(()=>{
+          const mem=memberNos?new Set(memberNos.map(String)):null;
+          const hasMem=d=>!mem||(d.studentNos||[]).some(n=>mem.has(String(n)));
+          const lock=lockAreas&&lockAreas.length?lockAreas:null;
+          const areaCls=clsDocs.filter(d=>d.kind&&d.kind!=="workshop"&&d.status!=="closed"&&(lock?(d.kind==="area"?lock.includes(d.area):hasMem(d)):(!areas.length||d.kind!=="area"||areas.includes(d.area))))
+            .sort((a,b)=>classLabel(a,lang).localeCompare(classLabel(b,lang)));
+          const wsCls=clsDocs.filter(d=>d.kind==="workshop"&&d.status!=="closed"&&hasMem(d)).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
+          const lbl=d=>kids?(d.kind==="workshop"?"🛠 "+(d.name||""):d.kind==="general"?"🌐 "+classNameTx(d.name):classNameTx(d.name)):classLabel(d,lang);
+          const row=(list)=>list.map(d=>{ const on=cls.includes(d.id); return <button key={d.id} data-sv-cls={d.id} onClick={()=>setCls(x=>on?x.filter(y=>y!==d.id):[...x,d.id])} style={chip(on)}>{on?"✓ ":""}{lbl(d)} ({(d.studentNos||[]).length})</button>; });
+          return <div data-sv-classes="1" style={{marginTop:12}}>
+            <div style={{fontSize:11.5,color:"var(--text2)",margin:"4px 0 6px"}}>🏫 {W2("Sinif (vebijarkî — vala = li gorî qadê)","Classes (optional — empty = by field)")}</div>
+            <div style={{fontSize:11,fontWeight:800,color:"var(--text2)",margin:"6px 0 4px"}}>{W2("Sinifên beşan","Department classes")}</div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{areaCls.length?row(areaCls):<span style={{fontSize:12,color:"var(--text2)"}}>—</span>}</div>
+            <div style={{fontSize:11,fontWeight:800,color:"var(--text2)",margin:"10px 0 4px"}}>{W2("Atolye","Workshops")}</div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{wsCls.length?row(wsCls):<span style={{fontSize:12,color:"var(--text2)"}}>—</span>}</div>
+          </div>;
+        })()}
+        <div style={{fontSize:11,color:"var(--text2)",marginTop:8}}>{(kids?aud==="guardians":aud==="students")&&cls.length
+          ?(kids?W2("Tenê dêûbavên zarokên di sinifên bijartî de bersiv didin.","Only parents of children in the selected classes answer."):W2("Tenê xwendekarên sinifên bijartî bersiv didin.","Only students of the selected classes answer."))
+          :kids
           ?(aud==="guardians"?W2("Dêûbavên zarokên di qadên bijartî de bersiv didin.","Parents of children in the selected fields answer."):W2("Mamosteyên qadên bijartî bersiv didin.","Teachers of the selected fields answer."))
           :(aud==="students"?W2("Xwendekarên qadên bijartî bersiv didin.","Students of the selected fields answer."):W2("Mamosteyên qadên bijartî bersiv didin.","Teachers of the selected fields answer."))}</div>
       </div>
@@ -13361,6 +13388,7 @@ function KidSurveysPanel({lang,toast,lockArea,ownerNo,readOnly,areaOnly}){
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   const [list,setList]=useState([]); const [resps,setResps]=useState([]); const [kids,setKids]=useState([]); const [kteach,setKteach]=useState([]);
   const [view,setView]=useState("list"); const [edit,setEdit]=useState(null); const [areaF,setAreaF]=useState("all");
+  const kCls=useClassDocs("kidClasses",live);
   useEffect(()=>{
     if(!live) return; const subs=[];
     const L=(c,set)=>{ try{ subs.push(F.onSnapshot(F.collection(F.db,c),s=>set(s.docs.map(d=>({...d.data(),fireId:d.id}))),e=>console.warn("[kidSurveys]",e&&e.code))); }catch(_){} };
@@ -13372,7 +13400,8 @@ function KidSurveysPanel({lang,toast,lockArea,ownerNo,readOnly,areaOnly}){
   // Hedef kitle sayısı: veliler (seçili alanlardaki çocukların aileleri) · çocuk öğretmenleri (seçili alanlar; alanı boş öğretmen hepsine dahil)
   const inA=(sv,a)=>!(sv.targetAreas||[]).length||(sv.targetAreas||[]).includes(a);
   const isT=sv=>sv.targetType==="kidteachers";
-  const famOf=sv=>{ if(isT(sv)) return kteach.filter(t=>!t.area||inA(sv,t.area)).length; const g=new Set(); kids.filter(k=>inA(sv,k.area)).forEach(k=>(k.guardianNos||[]).forEach(x=>g.add(x))); return g.size; };
+  const famOf=sv=>{ if(isT(sv)) return kteach.filter(t=>!t.area||inA(sv,t.area)).length; const g=new Set();
+    kids.filter(k=>inA(sv,k.area)&&(!(sv.targetClassIds||[]).length||inSvClasses(sv,kCls,k.no))).forEach(k=>(k.guardianNos||[]).forEach(x=>g.add(x))); return g.size; };
   const aName=a=>{ const z=ZAROK_AREA_NAMES[a]; return z?(lang==="en"?z[1]:K(z[0])):a; };
   const who=sv=>isT(sv)?W2("mamoste","teachers"):W2("malbat","families");
   const rOf=sv=>resps.filter(r=>r.surveyId===sv.fireId);
@@ -13385,7 +13414,7 @@ function KidSurveysPanel({lang,toast,lockArea,ownerNo,readOnly,areaOnly}){
     }catch(e){ toast("❌ "+(/permission/i.test(String(e&&e.code))?W2("Destûr tune: qaîdeyên Firestore yên nû biweşînin","Permission denied: publish the latest firestore.rules"):(e.code||e.message))); }
   }
   if(!live) return <div style={{fontSize:13,color:"var(--text2)"}}>{W2("Firebase girêdayî nîne.","Firebase is not connected.")}</div>;
-  if(view==="studio"&&!readOnly) return <SurveyStudio mode="kids" initial={edit} lang={lang} toast={toast} onSave={save} onCancel={()=>{setView("list");setEdit(null);}} lockAreas={lockArea?[lockArea]:null}/>;
+  if(view==="studio"&&!readOnly) return <SurveyStudio mode="kids" initial={edit} lang={lang} toast={toast} onSave={save} onCancel={()=>{setView("list");setEdit(null);}} lockAreas={lockArea?[lockArea]:null} memberNos={lockArea?kids.filter(k=>k.area===lockArea).map(k=>k.no):null}/>;
   if(view==="results"&&edit){
     const rs=rOf(edit).filter(r=>areaF==="all"||(r.areas||[]).includes(areaF));
     return(<div>
@@ -13412,7 +13441,7 @@ function KidSurveysPanel({lang,toast,lockArea,ownerNo,readOnly,areaOnly}){
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontWeight:800,color:"var(--text)"}}>{sv.title}</div>
               <div style={{fontSize:11,color:"var(--text2)",marginTop:3}}>
-                <span style={{color:col,fontWeight:700}}>{ic} {lb}</span> · {isT(sv)?"👩‍🏫 "+W2("Mamoste","Teachers"):"👨‍👩‍👧 "+W2("Dêûbav","Parents")} · 🎭 {(sv.targetAreas||[]).length?sv.targetAreas.map(aName).join(", "):W2("Hemû qad","All fields")} · {(sv.questions||[]).length} {W2("pirs","questions")}{sv.endDate?" · ⏰ "+sv.endDate:""}{sv.anonymous?" · 🕶":""}
+                <span style={{color:col,fontWeight:700}}>{ic} {lb}</span> · {isT(sv)?"👩‍🏫 "+W2("Mamoste","Teachers"):"👨‍👩‍👧 "+W2("Dêûbav","Parents")} · 🎭 {(sv.targetAreas||[]).length?sv.targetAreas.map(aName).join(", "):W2("Hemû qad","All fields")}{(sv.targetClassIds||[]).length?" · 🏫 "+sv.targetClassIds.length+" "+W2("sinif","classes"):""} · {(sv.questions||[]).length} {W2("pirs","questions")}{sv.endDate?" · ⏰ "+sv.endDate:""}{sv.anonymous?" · 🕶":""}
               </div>
               <div style={{fontSize:11.5,color:"var(--text)",marginTop:4,fontWeight:700}}>📝 {n} / {ex} {who(sv)}</div>
             </div>
@@ -13535,6 +13564,7 @@ function loadSSR(){ try{const r=localStorage.getItem(STUDENT_SURVEY_RESPONSES_KE
 
 function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
   const [mainTab, setMainTab] = useState("student"); // teacher | student
+  const svClsR=useClassDocs("classes");
 
   /* ─── ÖĞRETMEN ANKETİ ─── */
   const [questions, setQuestions] = useState(loadSurveyQuestions);
@@ -13681,6 +13711,7 @@ function AdminSurveyPanel({lang, t, schedule, teachers, students, toast}) {
   }
   const expectedFor=sv=>{
     if(sv.targetType==="teachers"||sv.targetType==="teachers_area") return (teachers||[]).filter(t2=>t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate&&!t2.isHead&&(sv.targetType==="teachers"||(sv.targetAreas||[]).includes(t2.area))).length;
+    if((sv.targetClassIds||[]).length) return (students||[]).filter(st=>!st.isAdmin&&inSvClasses(sv,svClsR,st.no)).length;
     return (students||[]).filter(st=>!st.isAdmin&&(sv.targetType!=="area"||(sv.targetAreas||[]).includes(st.area))).length;
   };
   function startCreateSurvey(){
@@ -16526,6 +16557,7 @@ function StudentTeacherMessenger({student,teachers,lang,toast}){
 /* ─── STUDENT PANEL ─────────────────────────────────────────────────────── */
 /* ─── STUDENT SURVEY VIEW ────────────────────────────────────────────────── */
 function StudentSurveyView({student, a, lang, toast, mode}) {
+  const myClsIds=classesOfStudent(useClassDocs("classes"),student.no).map(d=>d.id);
   const [surveys, setSurveys] = useState(loadSS);
   const [myResponses, setMyResponses] = useState(()=>loadSSR().filter(r=>r.studentId===student.id));
   const [activeSurvey, setActiveSurvey] = useState(null);
@@ -16565,6 +16597,8 @@ function StudentSurveyView({student, a, lang, toast, mode}) {
       return false;
     }
     if(sv.targetType==="teachers"||sv.targetType==="teachers_area") return false; // öğretmenlere özel — öğrencilere gösterme
+    // Sınıf hedefli anket: yalnızca seçilen sınıfların (bölüm sınıfı / atölye) öğrencileri
+    if((sv.targetClassIds||[]).length) return myClsIds.some(id=>sv.targetClassIds.includes(id));
     if(sv.targetType==="area"&&!(sv.targetAreas||[]).includes(student.area)) return false;
     return true;
   });
