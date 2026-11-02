@@ -5202,7 +5202,7 @@ function lessonTeacherOptions(teachers,area,lang){
   const opt=(tc,x)=><option key={tc.no} value={tc.no}>👨‍🏫 {tc.name} ({tc.no}){x?" · "+areaName(tc.area,lang):""}</option>;
   return <>{own.map(tc=>opt(tc,false))}{other.length>0&&<optgroup label={lang==="en"?"Teachers from other departments":K("Mamosteyên beşên din")}>{other.map(tc=>opt(tc,true))}</optgroup>}</>;
 }
-function AddLessonSheet({open,onClose,defaultArea,defaultClassId,t,lang,toast,onSave,teachers,lockArea=false}){
+function AddLessonSheet({open,onClose,defaultArea,defaultClassId,t,lang,toast,onSave,teachers,lockArea=false,schedule}){
   // Takvimden gün seçilir: ders o güne eklenir; "Her hafta tekrarlansın" işaretliyse o günden itibaren
   // her hafta aynı gün ve saatte tekrarlar (dönem seçilirse dönem bitişine kadar).
   const [area,setArea]=useState(defaultArea||"sinema");
@@ -5250,6 +5250,20 @@ function AddLessonSheet({open,onClose,defaultArea,defaultClassId,t,lang,toast,on
       teacherName: tcSel?tcSel.name:null,
     };
     if(teacherNo==="__guest"&&!guest.trim()){ toast("⚠ "+(lang==="en"?"Write the guest teacher's name":K("Navê mamosteyê mêvan binivîse"))); return; }
+    // Çakışma: aynı sınıfa (sınıfsızsa aynı alana) aynı gün ve örtüşen saatte zaten ders varsa uyar
+    const DOWK=d=>DAY_OF[new Date(d+"T12:00:00").getDay()];
+    const clash=(schedule||[]).filter(x=>{
+      if(ls.classId?String(x.classId||"")!==String(ls.classId):(x.classId||x.area!==ls.area)) return false;
+      if(!(String(x.start||"")<ls.end&&ls.start<String(x.end||""))) return false;
+      const xWeekly=x.lessonType!=="extra";
+      if(weekly) return xWeekly?x.day===ls.day:(x.extraDates||[]).some(d=>d>=date&&DOWK(d)===ls.day);
+      return xWeekly?(x.day===DOWK(date)&&lessonOnDate(x,terms,date)):(x.extraDates||[]).includes(date);
+    });
+    if(clash.length){
+      const c=clash[0], when=c.lessonType!=="extra"?(lang==="en"?"every ":K("her "))+(t.days?.[c.day]||K(c.day||"")):(c.extraDates||[]).join(", ");
+      if(!window.confirm((lang==="en"?"⚠ This class already has a lesson at this time: ":K("⚠ Di vê demê de dersa vê sinifê heye: "))+c.name+" ("+when+" · "+c.start+"–"+c.end+")\n\n"
+        +(lang==="en"?"Add anyway?":K("Dîsa jî were zêdekirin?")))) return;
+    }
     onSave(ls);
     toast("✓ "+name.trim()+" · "+fmtDateTx(date)+(weekly?" · 🔁":""));
     setName(""); setLoc("");
@@ -8393,7 +8407,7 @@ function ClassStudio({cfg,lang,t,toast}){
       const patch={attSaved:true,attSummary:sum,updatedAt:F.serverTimestamp()};
       if(close){
         patch.status="closed"; patch.closedAt=F.serverTimestamp();
-        for(const l of lessonsOf(d.id)) await cfg.deleteLesson(l);   // tek günlük atölye dersi programdan kalkar
+        for(const l of lessonsOf(d.id)) await (cfg.removeLesson||cfg.deleteLesson)(l);   // tek günlük atölye dersi programdan kalkar (yoklaması kalır)
       }
       await F.updateDoc(F.doc(F.db,cfg.coll,d.id),patch);
       toast(close?"🔒 "+W2("Atolye hate girtin","Workshop closed"):"✅ "+W2("Amadebûn hate tomarkirin","Attendance saved"));
@@ -8599,7 +8613,8 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
   const studs=(students||[]).filter(s=>!s.isAdmin);
   const DAYN=d=>(t&&t.days&&t.days[d])||d;
   const lessonsOf=id=>(schedule||[]).filter(l=>l.classId===id);
-  const delLs=l=>onDataChange("deleteSchedule",{id:l.id,fireId:l.fireId||null});
+  const delLs=l=>deleteLessonAsk(l,onDataChange,lang);
+  const removeLs=l=>onDataChange("deleteSchedule",{id:l.id,fireId:l.fireId||null});   // atölye kapanışı: yoklama korunur
   const cfg={
     lessonsReadOnly:false,  // haftalık dersleri Öğrenci İşleri (sınıf kartından) ve bölüm sorumluları hazırlar
     coll:"classes",
@@ -8612,7 +8627,8 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
     lessonLine:l=>({title:l.name,sub:(l.lessonType==="extra"?(l.extraDates||[]).join(", "):DAYN(l.day))+" · "+l.start+"–"+l.end
       +(l.teacherName?" · 👨‍🏫 "+l.teacherName:" · ⚠ "+W2("mamoste tune","no teacher"))+(l.loc&&l.loc!=="—"?" · 📍 "+l.loc:"")}),
     deleteLesson:delLs,
-    renderAddLesson:(cls,close)=><AddLessonSheet open={true} onClose={close} defaultArea={cls.area||"genel"} defaultClassId={cls.id} teachers={teachers} t={t} lang={lang} toast={toast}
+    removeLesson:removeLs,
+    renderAddLesson:(cls,close)=><AddLessonSheet open={true} onClose={close} defaultArea={cls.area||"genel"} defaultClassId={cls.id} teachers={teachers} t={t} lang={lang} toast={toast} schedule={schedule}
       onSave={(ls)=>{onDataChange("addSchedule",ls);close();}}/>,
     renderEditLesson:(l,close)=><EditLessonSheet lesson={l} onClose={close} teachers={teachers} t={t} lang={lang} toast={toast}
       onSave={(u)=>{onDataChange("updateSchedule",u);close();toast("✓ "+u.name);}}/>,
@@ -10941,8 +10957,7 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
   function deleteLesson(ls) {
     const msg=(lang==="en"?"Delete this lesson?":K("Ders bişimitîne?"))+" – "+ls.name;
     if(!window.confirm(msg)) return;
-    onDataChange("deleteSchedule", {id: ls.id, fireId: ls.fireId||null});
-    toast("🗑 "+(lang==="en"?"Lesson deleted":K("Ders hate jêbirin")));
+    deleteLessonAsk(ls,onDataChange,lang).then(n=>toast("🗑 "+(lang==="en"?"Lesson deleted":K("Ders hate jêbirin"))+(n?" · "+n+" "+(lang==="en"?"attendance records":K("tomarên amadebûnê")):"")));
   }
 
   const areaFiltered = filterArea==="all" ? schedule : schedule.filter(l=>l.area===filterArea);
@@ -11266,7 +11281,7 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
         </Sheet>
       )}
       {showAdd&&(
-        <AddLessonSheet open={showAdd} onClose={()=>setShowAdd(false)} defaultArea={filterArea==="all"?null:filterArea} lockArea={mode==="head"&&!!fixedArea} teachers={teachers} t={t} lang={lang} toast={toast}
+        <AddLessonSheet open={showAdd} onClose={()=>setShowAdd(false)} defaultArea={filterArea==="all"?null:filterArea} lockArea={mode==="head"&&!!fixedArea} teachers={teachers} t={t} lang={lang} toast={toast} schedule={schedule}
           onSave={(ls)=>{
             const term=(viewTerm!=="all"?viewTerm:terms.activeId)||null;
             onDataChange("addSchedule",ls.term?ls:(term?{...ls,term}:ls));
@@ -11376,7 +11391,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
         <StatsDetailModal type={statsModal} students={students} teachers={teachers} schedule={schedule} onClose={()=>setStatsModal(null)} t={t} lang={lang} toast={toast} onDataChange={onDataChange}/>
       )}
       {showAdminAddLesson&&(
-        <AddLessonSheet open={showAdminAddLesson} onClose={()=>setShowAdminAddLesson(false)} defaultArea={null} teachers={teachers} t={t} lang={lang} toast={toast}
+        <AddLessonSheet open={showAdminAddLesson} onClose={()=>setShowAdminAddLesson(false)} defaultArea={null} teachers={teachers} t={t} lang={lang} toast={toast} schedule={schedule}
           onSave={(ls)=>{onDataChange("addSchedule",ls);setShowAdminAddLesson(false);toast("✓ "+ls.name);}}/>
       )}
       {showProfileEdit&&(
@@ -12992,6 +13007,21 @@ function saveTerms(data){
 }
 // Ders bu öğretmene görünür mü? YALNIZ atanmış öğretmen görür.
 // Atanmamış dersler hiçbir öğretmen paneline düşmez (izolasyon kuralı).
+// Ders silinirken o derse ait yoklama kayıtları (attendance, lessonId = dersin id'si) da silinebilir.
+// Silinmezse kayıtlar geride kalır ve öğrencinin devamında sayılmaya devam eder (ör. yanlışlıkla iki kez açılmış ders).
+async function deleteLessonAsk(ls,onDataChange,lang){
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const F=window.__FB; let docs=[];
+  try{ if(F&&F.isConfigured()){ const ids=[...new Set([ls.id,String(ls.id)])];
+    docs=(await F.getDocs(F.query(F.collection(F.db,"attendance"),F.where("lessonId","in",ids)))).docs; } }catch(_){}
+  let delAtt=false;
+  if(docs.length) delAtt=window.confirm(W2("Ji vê dersê re "+docs.length+" tomarên amadebûnê hene. Bi dersê re werin jêbirin?\n\nErê (OK): tomar jî tên jêbirin.\nNa (Betal): tenê ders tê jêbirin, tomar dimînin.",
+    "This lesson has "+docs.length+" attendance records. Delete them with the lesson?\n\nOK: records are deleted too.\nCancel: only the lesson is deleted, records stay."));
+  if(delAtt){ let fail=0; for(const d of docs){ try{ await F.deleteDoc(F.doc(F.db,"attendance",d.id)); }catch(_){ fail++; } }
+    if(fail) window.alert(W2(fail+" tomar nehatin jêbirin.",fail+" records could not be deleted.")); }
+  onDataChange("deleteSchedule",{id:ls.id,fireId:ls.fireId||null});
+  return delAtt?docs.length:0;
+}
 function lessonForTeacher(ls,teacher){
   if(!ls.teacherNo) return false;
   return String(ls.teacherNo)===String(teacher.no);
@@ -15130,13 +15160,12 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
   const curRoster = currentLesson ? rosterOf(currentLesson) : [];
   const sessLesson = activeQRSession ? mySchedule.find(l=>String(l.id)===String(activeQRSession.lessonId)) : null;
   const sessRoster = sessLesson ? rosterOf(sessLesson) : [];
-  // Elle yoklama: bugünkü derslerden seçilen (varsayılan: şu anki ders) + o dersin sınıf listesi
-  // Saat/gün sınırı yok: öğretmen programındaki her dersi başlatabilir (bugünküler önce gelir)
+  // Elle yoklama: bugünkü derslerden seçilen (varsayılan: şu anki ders) + o dersin sınıf listesi.
+  // Yalnız o günün dersleri listelenir; geçmiş günün dersine tarih seçilerek gidilir (sonradan yoklama / düzeltme).
   // Geçmiş gün seçilirse: yalnızca o gün programda olan dersler; izin ve kayıt o güne göre
   const attDay = attDate&&attDate<todayStr_t ? attDate : todayStr_t;
   const isPastAtt = attDay<todayStr_t;
-  const attChoices = isPastAtt ? mySchedule.filter(l=>lessonDates(l,_terms,attDay,attDay).length>0)
-    : [...todayLessons, ...mySchedule.filter(l=>!todayLessons.includes(l))];
+  const attChoices = isPastAtt ? mySchedule.filter(l=>lessonDates(l,_terms,attDay,attDay).length>0) : todayLessons;
   const attLesson = attChoices.find(l=>String(l.id)===String(attLsId)) || (isPastAtt?attChoices[0]:(todayLessons.includes(currentLesson)?currentLesson:todayLessons[0])) || null;
   // İzinli öğrenciler (bölüm sorumlusu işaretler) o gün yoklama listesinde görünmez
   const leaves = useLeaves(true);
@@ -15640,9 +15669,12 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
               {attChoices.map(l=>{ const on=attLesson&&String(attLesson.id)===String(l.id); const cd=l.classId&&clsDocs.find(d=>d.id===l.classId); const isT=todayLessons.includes(l); return(
                 <button key={l.id} data-att-lesson={l.id} onClick={()=>setAttLsId(l.id)} style={{padding:"7px 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",
                   border:"1.5px solid "+(on?"#0f2f38":"var(--border2)"),background:on?"#0f2f38":"var(--surface)",color:on?"#fff":"var(--text)",opacity:isT||on?1:.8}}>
-                  {isT?"📅":"🗓"} {isT?"":(t.days?.[l.day]||l.day||"")+" "}{l.start} {l.name}{cd?" · 🏫 "+classNameTx(cd.name):""}</button>); })}
+                  {isT?"📅":"🗓"} {isT?"":(t.days?.[l.day]||l.day||"")+" "}{l.start} {l.name}{cd?" · 🏫 "+classNameTx(cd.name):""}
+                  <span data-att-kind={l.lessonType==="extra"?"once":"weekly"} style={{marginLeft:6,fontSize:11,fontWeight:800,opacity:.85}}>{l.lessonType==="extra"
+                    ?"· "+(l.extraDates||[]).slice().sort().slice(-2).map(d=>d.slice(8,10)+"."+d.slice(5,7)).join(", ")
+                    :"· 🔁"}</span></button>); })}
             </div>
-            {!attLesson&&!isPastAtt&&<Card><div style={{textAlign:"center",padding:16,fontSize:12.5,color:"var(--text2)"}}>{lang==="en"?"No lesson on today's schedule — choose a lesson above to start it.":K("Îro di bernameyê de ders tune — ji jor dersekê hilbijêre û dest pê bike.")}</div></Card>}
+            {!attLesson&&!isPastAtt&&<Card><div style={{textAlign:"center",padding:16,fontSize:12.5,color:"var(--text2)"}}>{lang==="en"?"You have no lesson today. To enter or correct attendance for an earlier day, choose the date above.":K("Îro dersa te tune. Ji bo amadebûna rojeke berê, tarîxê li jor hilbijêre.")}</div></Card>}
             {attLesson&&!isPastAtt&&(()=>{ const st=startOf(attLesson); const hm=ms=>new Date(ms).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
               return !st?(
               <div style={{background:"var(--surface)",borderRadius:14,padding:"14px",marginBottom:12,border:"1.5px solid #0f2f38"}}>
