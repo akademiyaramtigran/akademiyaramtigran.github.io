@@ -8474,7 +8474,7 @@ function ClassStudio({cfg,lang,t,toast}){
       <div style={{...box,border:"2px solid var(--accent)"}}>
         <div style={{fontWeight:800,color:"var(--text)",marginBottom:8}}>{isWs?"🛠":isArea?"🎨":"🌐"} {title}</div>
         <input aria-label={W2("Navê sinifê","Class name")} style={{...inp,width:"100%"}} value={form.name} maxLength={80} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
-          placeholder={isWs?W2("ör. Atolyeya Tomarkirina Deng","e.g. Sound Recording Workshop"):isArea?W2("ör. 1. Sinif · Koma A","e.g. 1st Class · Group A"):W2("ör. Çanda Muzîkê ya Hevpar","e.g. Shared Music Culture")}/>
+          placeholder={isWs?W2("mînak: Atolyeya Tomarkirina Deng","e.g. Sound Recording Workshop"):isArea?W2("mînak: 1. Sinif · Koma A","e.g. 1st Class · Group A"):W2("mînak: Çanda Muzîkê ya Hevpar","e.g. Shared Music Culture")}/>
         {isWs&&(<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:8,marginTop:8}}>
           <label style={small}>📅 {W2("Tarîx","Date")}<DateInput style={{...inp,width:"100%"}} value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/></label>
           <label style={small}>🕐 {W2("Destpêk","Start")}<input type="time" style={{...inp,width:"100%"}} value={form.start} onChange={e=>setForm(f=>({...f,start:e.target.value}))}/></label>
@@ -11740,14 +11740,14 @@ function AlertCenter({data,user,lang,toast,noEvals}){
       toast("✓ "+W2("Hate nîşankirin","Marked")); setNoteFor(null); setNote(""); }catch(e){ toast("❌ "+((e&&e.code)||e)); }
   }
   const manSub={st:W2("Xwendekar","Student"),tc:W2("Mamoste","Teacher"),ls:W2("Ders","Lesson"),cl:W2("Sinif","Class")};
-  const manWhy=r=>r.t==="att"?W2("Amadebûn","Attendance")+" %"+r.v:r.t==="ev"?W2("Nirxandin","Evaluation")+" "+r.v.toFixed(1)+"/10":"📉 "+r.v+" "+W2("puan li gorî meha berê","points vs last month");
+  const manWhy=r=>r.t==="att"?W2("Amadebûn","Attendance")+" %"+r.v:r.t==="ev"?W2("Nirxandin","Evaluation")+" "+r.v.toFixed(1)+"/10":"📉 "+r.v+" "+W2("xal li gorî meha berê","points vs last month");
   const kindLb={man:W2("Analîza mehane","Monthly analysis"),abs:W2("Bêamadebûn","Absence"),sev:W2("Nirxandina xwendekar","Student evaluation"),tev:W2("Nirxandina mamoste","Teacher evaluation"),
     kabs:W2("Zarok · bêamadebûn","Child · absence"),ksev:W2("Nirxandina zarok","Child evaluation"),ktev:W2("Zarok · nirxandina mamoste","Child · teacher evaluation")};
   const kindIc={man:"chart",abs:"att",sev:"star",tev:"user",kabs:"kid",ksev:"kid",ktev:"user"};
   const aLbl=a=>{ const z=typeof ZAROK_AREA_NAMES!=="undefined"&&ZAROK_AREA_NAMES[a]; return z?(lang==="en"?z[1]:K(z[0])):areaName(a,lang); };
   return(<div data-alert-center="1">
     <Note style={{marginBottom:12}} icon="bell">{W2("Hişyarî bixweber çêdibin: di dersekê de "+ALERT_ABS+" caran û zêdetir nehatin (destûr û dereng nayên hesibandin), an nirxandineke di bin 5/10 de. Sal ji 1ê Îlonê dest pê dike.",
-      "Alerts are created automatically: "+ALERT_ABS+" or more absences in one lesson (leave and late don't count), or an evaluation below 5/10. The year starts on 1 September.")}{" "}{W2("Her meh jî analîza meha borî: amadebûn di bin %70 de, nirxandin di bin 5/10 de an li gorî meha berê 15 puan an zêdetir daketin.","Each month also from last month's analysis: attendance below 70%, evaluation below 5/10, or a drop of 15+ points from the previous month.")}</Note>
+      "Alerts are created automatically: "+ALERT_ABS+" or more absences in one lesson (leave and late don't count), or an evaluation below 5/10. The year starts on 1 September.")}{" "}{W2("Her meh jî analîza meha borî: amadebûn di bin %70 de, nirxandin di bin 5/10 de an li gorî meha berê 15 xal an zêdetir daketin.","Each month also from last month's analysis: attendance below 70%, evaluation below 5/10, or a drop of 15+ points from the previous month.")}</Note>
     <div style={{marginBottom:10}}><Seg value={st} onChange={setSt} items={[["open",W2("Vekirî","Open")+" ("+data.open+")","bell"],["done",W2("Pê re mijûl bûn","Handled"),"check"]]}/></div>
     <div className="c-chips" style={{marginBottom:12}}>
       {[["all",W2("Hemû","All")],["man",kindLb.man+(n("man")?" ("+n("man")+")":"")],["abs",kindLb.abs+(n("abs")?" ("+n("abs")+")":"")],...(noEvals?[]:[["sev",kindLb.sev+(n("sev")?" ("+n("sev")+")":"")],["tev",kindLb.tev+(n("tev")?" ("+n("tev")+")":"")]])].map(([k,lb])=>
@@ -14959,7 +14959,7 @@ function EfQuestions({form,ans,setAns,notes,setNotes,lang}){
     <div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:6}}>{i+1}. {q.text}{q.required&&<span style={{color:"#dc2626"}}> *</span>}</div>
     {q.type==="score"?<><Score10 qid={q.id} value={ans[q.id]} onPick={n=>setAns(a=>({...a,[q.id]:n}))}/>
       {setNotes&&<input data-ef-note={q.id} value={(notes||{})[q.id]||""} maxLength={300} onChange={e=>{ const v=e.target.value; setNotes(x=>({...x,[q.id]:v})); }}
-        placeholder={W2("Nîşe (vebijarkî): çima ev puan?","Note (optional): why this score?")} style={{...inputStyle,marginTop:6,fontSize:12.5,padding:"7px 10px"}}/>}</>
+        placeholder={W2("Nîşe (vebijarkî): çima ev xal?","Note (optional): why this score?")} style={{...inputStyle,marginTop:6,fontSize:12.5,padding:"7px 10px"}}/>}</>
       :<textarea data-ef-text={q.id} value={ans[q.id]||""} maxLength={1000} onChange={e=>setAns(a=>({...a,[q.id]:e.target.value}))} placeholder={W2("Bersiva te","Your answer")}
         style={{...inputStyle,minHeight:60,resize:"vertical",fontSize:13}}/>}
   </div>))}</>);
@@ -15049,7 +15049,7 @@ function EfFill({ef,targetsFor,rater,academy,dir,lang,toast,title,intro}){
           {q.type==="score"?<Score10 qid={q.id+"_"+t.no} value={g.answers[q.id]} onPick={n=>setG(t,x=>({...x,answers:{...x.answers,[q.id]:n}}))}/>
             :<textarea data-ef-gtext={q.id+"_"+t.no} value={g.answers[q.id]||""} maxLength={1000} onChange={e=>{ const v=e.target.value; setG(t,x=>({...x,answers:{...x.answers,[q.id]:v}})); }} placeholder={W2("Bersiva te","Your answer")} style={{...inputStyle,minHeight:44,resize:"vertical",fontSize:13}}/>}
           {q.type==="score"&&<input data-ef-gnote={q.id+"_"+t.no} value={g.notes[q.id]||""} maxLength={300} onChange={e=>{ const v=e.target.value; setG(t,x=>({...x,notes:{...x.notes,[q.id]:v}})); }}
-            placeholder={W2("Nîşe (vebijarkî): çima ev puan?","Note (optional): why this score?")} style={{...inputStyle,marginTop:6,fontSize:12.5,padding:"7px 10px"}}/>}
+            placeholder={W2("Nîşe (vebijarkî): çima ev xal?","Note (optional): why this score?")} style={{...inputStyle,marginTop:6,fontSize:12.5,padding:"7px 10px"}}/>}
         </div>); })}
       </div>))}
       <button data-ef-gsave="1" disabled={busy} onClick={saveGrid} style={{position:"sticky",bottom:8,width:"100%",padding:13,borderRadius:12,border:"none",background:"#16a34a",color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer",boxShadow:"0 4px 14px rgba(0,0,0,.15)"}}>{busy?"⏳":"💾 "+W2("Hemûyan tomar bike","Save all")+(Object.keys(grid).length?" ("+Object.keys(grid).length+")":"")}</button>
@@ -15092,7 +15092,7 @@ function EvalFormsPanel({user,academy,area,teachers,lang,toast}){
   if(res) return <EvalFormResults form={res} teachers={teachers} lang={lang} onBack={()=>setRes(null)}/>;
   const btn={padding:"7px 11px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12,cursor:"pointer"};
   return(<div data-ef-panel="1">
-    <Note style={{marginBottom:12}} icon="star">{W2("Formên nirxandinê yên beşa xwe amade bike: kî kê dinirxîne, kengî (her hefte / her meh / carekê) û pirs (puan 1–10 an bersiva nivîskî). Dema tu biweşînî, agahdarî diçe. Encam tenê ji te û rêveberiyê re xuya dibin.",
+    <Note style={{marginBottom:12}} icon="star">{W2("Formên nirxandinê yên beşa xwe amade bike: kî kê dinirxîne, kengî (her hefte / her meh / carekê) û pirs (xal 1–10 an bersiva nivîskî). Dema tu biweşînî, agahdarî diçe. Encam tenê ji te û rêveberiyê re xuya dibin.",
       "Prepare your department's evaluation forms: who rates whom, how often (weekly / monthly / once) and the questions (1–10 score or written answer). Publishing sends a notification. Only you and the management see the results.")}</Note>
     <button data-new-form="1" onClick={()=>{setEdit(null);setView("studio");}} style={{width:"100%",padding:13,borderRadius:12,border:"none",background:"#0f2f38",color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer",marginBottom:12}}>✨ {W2("Formeke nû","New form")}</button>
     {forms.length===0&&<EmptyState icon="star" text={W2("Hîn form tune.","No forms yet.")}/>}
@@ -15134,7 +15134,7 @@ function EvalFormStudio({initial,academy,lang,onSave,onCancel}){
       {f.questions.map((q,i)=>(<div key={q.id} data-ef-q={i} style={{border:"1px solid var(--border2)",borderRadius:12,padding:12,marginBottom:10,background:"var(--bg2)"}}>
         <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",marginBottom:8}}>
           <span style={{fontWeight:800,color:"var(--text)",fontSize:13}}>{i+1}.</span>
-          <button onClick={()=>upd(i,{type:"score"})} style={chip(q.type==="score")}>🔢 {W2("Puan 1–10","Score 1–10")}</button>
+          <button onClick={()=>upd(i,{type:"score"})} style={chip(q.type==="score")}>🔢 {W2("Xal 1–10","Score 1–10")}</button>
           <button onClick={()=>upd(i,{type:"text"})} style={chip(q.type==="text")}>✍️ {W2("Nivîskî","Written")}</button>
           <label style={{fontSize:12,color:"var(--text)",display:"flex",alignItems:"center",gap:4,marginLeft:"auto"}}><input type="checkbox" checked={!!q.required} onChange={e=>upd(i,{required:e.target.checked})}/> {W2("Mecbûrî","Required")}</label>
           <button aria-label="↑" onClick={()=>move(i,-1)} style={ib}>↑</button>
@@ -15144,7 +15144,7 @@ function EvalFormStudio({initial,academy,lang,onSave,onCancel}){
         <input data-ef-qtext={i} style={inputStyle} value={q.text} maxLength={300} onChange={e=>upd(i,{text:e.target.value})} placeholder={W2("Pirsê binivîse","Write the question")}/>
       </div>))}
       {f.questions.length<30&&<div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-        <button data-ef-add="score" onClick={()=>setF(x=>({...x,questions:[...x.questions,newEfQ("score")]}))} style={{...ib,borderStyle:"dashed"}}>➕ 🔢 {W2("Pirsa puanê","Score question")}</button>
+        <button data-ef-add="score" onClick={()=>setF(x=>({...x,questions:[...x.questions,newEfQ("score")]}))} style={{...ib,borderStyle:"dashed"}}>➕ 🔢 {W2("Pirsa xalê","Score question")}</button>
         <button data-ef-add="text" onClick={()=>setF(x=>({...x,questions:[...x.questions,newEfQ("text")]}))} style={{...ib,borderStyle:"dashed"}}>➕ ✍️ {W2("Pirsa nivîskî","Written question")}</button>
       </div>}
     </div>
@@ -15842,7 +15842,7 @@ function EvalCombinedReport({who,students,teachers,allTeachers,lang,toast,headAr
   const col=v=>v==null?"var(--text2)":v<5?"#b42318":v<7?"#b45309":"#15803d";
   const title=isS?W2("Nirxandina xwendekaran (mamoste → xwendekar)","Student evaluation (teacher → student)"):W2("Nirxandina mamosteyan (xwendekar → mamoste, bê nav)","Teacher evaluation (student → teacher, anonymous)");
   function csv(){
-    const out=[[W2("Tarîx","Date"),isS?W2("Xwendekar","Student"):W2("Mamoste","Teacher"),isS?W2("Mamoste","Teacher"):"",W2("Form","Form"),W2("Pirs","Question"),W2("Puan (1–10)","Score (1–10)"),W2("Nîşe","Note")]];
+    const out=[[W2("Tarîx","Date"),isS?W2("Xwendekar","Student"):W2("Mamoste","Teacher"),isS?W2("Mamoste","Teacher"):"",W2("Form","Form"),W2("Pirs","Question"),W2("Xal (1–10)","Score (1–10)"),W2("Nîşe","Note")]];
     rows.forEach(r=>r.list.forEach(e=>{ e.items.forEach(it=>out.push([e.date,r.name,isS?e.teacherName:"",e.title,it.label,it.sc==null?"":it.sc,it.note])); if(e.note) out.push([e.date,r.name,isS?e.teacherName:"",e.title,W2("Nîşe","Note"),"",e.note]); }));
     downloadCSV((isS?"nirxandina-xwendekaran-":"nirxandina-mamosteyan-")+from+"_"+to+".csv",out);
     logReportArchive({type:"csv",label:"CSV · "+title,by:byName||""}); toast("⬇ CSV");
