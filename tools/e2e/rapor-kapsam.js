@@ -91,7 +91,7 @@ async function routes(ctx) {
   ok('Sorumlu menüsünde anket yok', !hk.includes('surveys') && hk.includes('reports') && hk.includes('evalforms'), hk.join(','));
   await go(hp, 'reports');
   const ht = await rtabs(hp);
-  ok('Sorumlu rapor sekmeleri: anket yok, değerlendirmeler var', !ht.includes('anket') && ht.includes('seval') && ht.includes('teval'), ht.join(','));
+  ok('Sorumlu rapor sekmeleri: Devam + Değerlendirme (anket yok)', ht.join(',') === 'devam,eval', ht.join(','));
   ok('Tiyatro sorumlusu: Rojîn genel ders dahil %50 (3/6), müzik öğrencisi yok', (await pct(hp, '20202601')) === '50%' && (await pct(hp, '20202603')) === null, await pct(hp, '20202601'));
   await go(hp, 'alerts');
   const ha = await alerts(hp);
@@ -116,10 +116,9 @@ async function routes(ctx) {
   ok('Öğrenci İşleri menüsünde Rapor var', rk.includes('reports'), rk.join(','));
   await go(rp, 'reports');
   const rt = await rtabs(rp);
-  ok('Öğrenci İşleri sekmeleri: devam, tarih aralığı, öğretmen devamı, izin, çocuk akademisi; değerlendirme/anket yok', ['liste', 'nirxandin', 'mamoste', 'izin', 'zarok'].every(k => rt.includes(k)) && !rt.some(k => ['seval', 'teval', 'kseval', 'kteval', 'anket'].includes(k)), rt.join(','));
+  ok('Öğrenci İşleri sekmeleri: Devam + Çocuk Akademisi; değerlendirme yok', rt.join(',') === 'devam,zarok', rt.join(','));
   ok('Öğrenci İşleri tüm bölümleri görür (tiyatro + müzik öğrencisi)', (await pct(rp, '20202601')) !== null && (await pct(rp, '20202603')) !== null);
-  await rp.evaluate(() => document.querySelector('[data-rtab="nirxandin"]').click()); await rp.waitForTimeout(1200);
-  ok('Tarih aralığı raporunda değerlendirme özeti yok', !(await rp.evaluate(() => document.body.innerText)).includes('Mamoste → xwendekar'));
+  ok('Öğrenci İşleri devam ekranında değerlendirme özeti yok', !(await rp.evaluate(() => document.body.innerText)).includes('Mamoste → xwendekar'));
   await rp.context().close();
 
   // 4) Öğretmen ve öğrenci: anket menüsü yok

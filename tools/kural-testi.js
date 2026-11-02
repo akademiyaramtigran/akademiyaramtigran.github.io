@@ -365,6 +365,8 @@ const { ref, uploadString, uploadBytes, getBytes } = require('firebase/storage')
     const resp = (fid, per, rater, target, dir, x) => ({ formId: fid, period: per, raterNo: rater, raterRole: 'r', targetNo: target, targetName: 'N', area: 'tiyatro', classId: '',
       academy: 'aat', direction: dir, answers: { q1: 8 }, score10: 8, at: new Date(), ...(x || {}) });
     await t('Cevap: öğretmen öğrenciyi değerlendirir (t2s)', setDoc(doc(fT, 'evalResponses/F1_2026-11-02_11202601_10202601'), resp('F1', '2026-11-02', '11202601', '10202601', 't2s')), true);
+    await t('Cevap: soru başına kişiye not (notes) kaydedilir', setDoc(doc(fT, 'evalResponses/F1_2026-11-02_11202601_10202601'), resp('F1', '2026-11-02', '11202601', '10202601', 't2s', { notes: { q1: 'Ders tê de beşdar nabe' } })), true);
+    await t('Cevap: notes harita değilse reddedilir', setDoc(doc(fT, 'evalResponses/F1_2026-11-02_11202601_10202601'), resp('F1', '2026-11-02', '11202601', '10202601', 't2s', { notes: 'x' })), false);
     await t('Cevap: öğrenci t2s formunu dolduramaz', setDoc(doc(fS, 'evalResponses/F1_2026-11-02_10202601_11202601'), resp('F1', '2026-11-02', '10202601', '11202601', 't2s')), false);
     await t('Cevap: öğrenci öğretmeni değerlendirir (s2t)', setDoc(doc(fS, 'evalResponses/F2_2026-11-02_10202601_11202601'), resp('F2', '2026-11-02', '10202601', '11202601', 's2t')), true);
     await t('Cevap: başkası adına yazılamaz', setDoc(doc(fT, 'evalResponses/F1_2026-11-02_10202601_x'), resp('F1', '2026-11-02', '10202601', 'x', 't2s')), false);

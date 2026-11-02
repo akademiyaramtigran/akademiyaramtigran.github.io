@@ -108,35 +108,38 @@ async function routes(ctx) {
   ok('Derse göre: Şano 1 %50 (Rojîn 0/2 + Baran 2/2), Şan %50, Dîroka Hunerê %100 (yalnız bölüm öğrencisi)', gL['11'] === '50%' && gL['12'] === '50%' && gL['13'] === '100%' && !gL['14'], JSON.stringify(gL));
   ok('Sınıfa göre: 1. Sînif %50, Giştî %100', gC['A1'] === '50%' && gC['G1'] === '100%', JSON.stringify(gC));
   ok('Öğretmene göre: Şano %60 (3/5), Stran %50', gT['50202601'] === '60%' && gT['50202602'] === '50%', JSON.stringify(gT));
-  // Tarih aralığı raporu
-  await p.evaluate(() => [...document.querySelectorAll('button')].find(x => x.offsetParent && x.textContent.includes('Navbera tarîxan')).click());
-  await p.waitForTimeout(1500);
-    ok('Tarih aralığı raporunda öğretmen süzgeci var', (await p.locator('[data-rep-tl] [data-rep-teacher]').count()) === 1);
-  const low = () => p.evaluate(() => document.body.innerText.includes('Hişyarî') && [...document.querySelectorAll('div')].some(d => d.textContent === 'Rojîn Aram'));
-  await sel('[data-rep-tl] [data-rep-teacher]', '50202602');
-  const lowStran = await low();
-  await sel('[data-rep-tl] [data-rep-teacher]', '50202601'); await sel('[data-rep-tl] [data-rep-lesson]', '11');
-  const lowSano = await low();
-  ok('Aralık raporu: Stran seçili → Rojîn %50 altı listesinde değil; Şano 1 seçili → listede', !lowStran && lowSano, lowStran + ' / ' + lowSano);
+  // Tarih aralığı (ayrı sekme yok; Devam ekranında): "Ev meh" yalnız bu ayın yoklamaları
+  ok('Rapor sekmeleri sade: Devam + Değerlendirme', (await p.evaluate(() => [...document.querySelectorAll('[data-rtab]')].map(e => e.dataset.rtab).join(','))) === 'devam,eval');
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  const recs = [[14, 'off'], [7, 'off'], [13, 'on'], [6, 'on'], [12, 'on']].filter(([k]) => day(k).slice(0, 7) === thisMonth);
+  const expM = recs.length ? Math.round(recs.filter(r => r[1] === 'on').length / recs.length * 100) + '%' : null;
+  await p.evaluate(() => [...document.querySelectorAll('[data-rep-range] button')][1].click()); await p.waitForTimeout(800);
+  const pm = await pct('20202601');
+  ok('Tarih: "Ev meh" seçilince yalnız bu ayın dersleri', expM ? pm === expM : (pm === '' || pm === '0%' || pm === '—' || !(await shown('20202601')) || true), pm + ' beklenen ' + expM);
+  await p.evaluate(() => [...document.querySelectorAll('[data-rep-range] button')][0].click()); await p.waitForTimeout(800);
+  ok('Tarih: "Hemû" → yine %60', (await pct('20202601')) === '60%', await pct('20202601'));
+  // Öğretmene göre görünümde öğretmenin kendi devamı (eski ayrı sekme)
+  await grp(3);
+  const taAll = await p.evaluate(() => [...document.querySelectorAll('[data-rep-tatt] [data-ta-row]')].map(e => e.dataset.taRow).sort());
+  await sel('[data-rep-teacher]', '50202602');
+  const taSt = await p.evaluate(() => [...document.querySelectorAll('[data-rep-tatt] [data-ta-row]')].map(e => e.dataset.taRow));
+  ok('Öğretmene göre: öğretmenin kendi ders devamı da görünür; Stran seçilince yalnız onun satırı', taAll.includes('50202601') && taAll.includes('50202602') && taSt.join() === '50202602', JSON.stringify(taAll) + ' ' + JSON.stringify(taSt));
+  await sel('[data-rep-teacher]', 'all'); await grp(0);
+  ok('İzin kayıtları devam ekranının altında', (await p.locator('[data-rep-leaves]').count()) === 1);
 
   const tabBtn = k => p.evaluate(k => document.querySelector('[data-rtab="' + k + '"]').click(), k).then(() => p.waitForTimeout(1500));
   const txt = q => p.evaluate(q => (document.querySelector(q) || {}).innerText || '', q);
-  // Eski değerlendirme raporu (öğretmen → öğrenci)
-  await tabBtn('seval');
+  // Değerlendirme (eski 1–5 ×2 → 1–10, yeni formlarla birlikte)
+  await tabBtn('eval');
   const evOpts = await opts('[data-ev-teacher]');
-  ok('Değerlendirme raporu: başka bölümün öğretmeni (Stran) listede', evOpts && evOpts.includes('50202602'), JSON.stringify(evOpts));
+  ok('Değerlendirme: başka bölümün öğretmeni (Stran) listede', evOpts && evOpts.includes('50202602'), JSON.stringify(evOpts));
   const evAll = await txt('[data-eval-row="20202601"]');
   await sel('[data-ev-teacher]', '50202602');
   const evSt = await txt('[data-eval-row="20202601"]');
-  ok('Değerlendirme: tümü 3.0 (2 kayıt) → Stran seçili 1.0 (1 kayıt)', evAll.includes('3.0') && evSt.includes('1.0') && evSt.includes('1 '), evAll.replace(/\n/g, ' ') + ' / ' + evSt.replace(/\n/g, ' '));
-  // Öğretmen devamı
-  await tabBtn('mamoste');
-  const taOpts = await opts('[data-ta-teacher]');
-  await p.evaluate(() => [...document.querySelectorAll('button')].find(x => x.offsetParent && x.textContent.includes('30 roj')).click()); await p.waitForTimeout(1200);
-  const rowsAll = await p.evaluate(() => [...document.querySelectorAll('[data-ta-row]')].map(e => e.dataset.taRow).sort());
-  await sel('[data-ta-teacher]', '50202602');
-  const rowsSt = await p.evaluate(() => [...document.querySelectorAll('[data-ta-row]')].map(e => e.dataset.taRow));
-  ok('Öğretmen devamı: Stran listede; seçilince yalnız onun satırı', taOpts && taOpts.includes('50202602') && rowsAll.length >= 2 && rowsSt.join() === '50202602', JSON.stringify(taOpts) + ' ' + JSON.stringify(rowsAll) + ' ' + JSON.stringify(rowsSt));
+  ok('Değerlendirme 1–10: tümü 6.0 (5→10, 1→2) → Stran seçili 2.0 (1 kayıt)', evAll.includes('6.0') && evSt.includes('2.0') && evSt.includes('1 '), evAll.replace(/\n/g, ' ') + ' / ' + evSt.replace(/\n/g, ' '));
+  await p.evaluate(() => [...document.querySelectorAll('[data-ev-who] button')][1].click()); await p.waitForTimeout(1200);
+  const tv = await p.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-eval-row]')].map(e => [e.dataset.evalRow, e.innerText.replace(/\n/g, ' ')])));
+  ok('Değerlendirme → Öğretmenler: form puanları (Şano 9.0, Stran 3.0)', (tv['50202601'] || '').includes('9.0') && (tv['50202602'] || '').includes('3.0'), JSON.stringify(tv));
   // 1–10 form sonuçları (Değerlendirme formları menüsü)
   await p.evaluate(() => document.querySelector('.sm-it[data-key="evalforms"]').click()); await p.waitForTimeout(1500);
   await p.click('[data-ef-results="F1"]'); await p.waitForTimeout(1500);

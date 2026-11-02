@@ -155,12 +155,12 @@ function evalWeek(d) { const x = d ? new Date(d) : new Date(); const y = new Dat
   // 6) Sorumlu: raporlar — öğrenci + öğretmen değerlendirmesi, anket
   const hp = await login(await mk(), '96202611', 'Head1234');
   await goA(hp, 'reports'); await hp.waitForTimeout(1200);
-  await btn(hp, 'Nirxandina xwendekaran'); await hp.waitForTimeout(1500);
-  ok('Sorumlu: öğrenci değerlendirme raporunda öğrenci satırı', (await hp.locator('[data-eval-row="20202601"]').count()) === 1);
-  await btn(hp, 'Nirxandina mamosteyan'); await hp.waitForTimeout(1500);
+  await hp.evaluate(() => document.querySelector('[data-rtab="eval"]').click()); await hp.waitForTimeout(1500);
+  ok('Sorumlu: Değerlendirme → öğrenciler: öğrenci satırı', (await hp.locator('[data-eval-row="20202601"]').count()) === 1);
+  await hp.evaluate(() => [...document.querySelectorAll('[data-ev-who] button')][1].click()); await hp.waitForTimeout(1500);
   const tr = await hp.locator('[data-eval-row="50202601"]').count();
   await hp.click('[data-eval-row="50202601"] button').catch(() => {}); await hp.waitForTimeout(500);
-  const trT = await hp.evaluate(() => (document.querySelector('[data-eval-report="teacher"]') || {}).innerText || '');
+  const trT = await hp.evaluate(() => (document.querySelector('[data-eval-combined="teacher"]') || {}).innerText || '');
   ok('Sorumlu: öğretmen değerlendirmesi (isimsiz: öğrenci adı yok)', tr === 1 && trT.includes('Ders xweş e') && !trT.includes('Rojîn'), trT.slice(0, 200).replace(/\n/g, ' / '));
 
   // 6b) Sorumlu: misafir öğretmenli dersin yoklamasını alır
@@ -182,9 +182,9 @@ function evalWeek(d) { const x = d ? new Date(d) : new Date(); const y = new Dat
   const det = await ap.evaluate(() => (document.querySelector('[data-student-report]') || {}).innerText || '');
   ok('Öğrenci ayrıntısı: haftalık grafik gerçek yoklamadan (%100 bir hafta)', ch.includes('100%') && det.includes('Şano Bingeh') && det.includes('Pir xebatkar'), ch.replace(/\n/g, ' '));
 
-  // 8) Öğrenci İşleri: rapor yok
+  // 8) Öğrenci İşleri: rapor var ama değerlendirme sekmesi yok
   const rp = await login(await mk(), '98202601', 'Reg12345');
-  ok('Öğrenci İşleri menüsünde rapor yok', !(await keysOf(rp)).split(',').includes('rapor'), await keysOf(rp));
+  ok('Öğrenci İşleri menüsünde Rapor var', (await keysOf(rp)).split(',').includes('reports'), await keysOf(rp));
 
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);
