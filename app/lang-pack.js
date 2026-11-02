@@ -1329,7 +1329,8 @@ window.AAT_TX={"ku":{},"zza":{},"tr":{"Ev hefte: {0} ders":"Bu hafta: {0} ders",
 "Nêrîna mamosteyên zarokan":"Çocuk öğretmenleri görüşü",
 "Amûr û dersxane ji bo zarokan guncav in.":"Araç gereç ve derslikler çocuklar için uygun.",
 "Hejmara zarokan di sinifê de maqûl e.":"Sınıftaki çocuk sayısı makul.",
-"Têkiliya bi dêûbavan re baş e.":"Velilerle iletişim iyi."}};
+"Têkiliya bi dêûbavan re baş e.":"Velilerle iletişim iyi.",
+"Qadekê veke: xwendekar û mamoste tescîl bike. Bernameya giştî ya dersan a hemû beşan li vir tê amadekirin: ders zêde bike, saetan diyar bike, mamosteyan erk bike. Berpirsên beşan jî dikarin beşa xwe biguherînin.":"Öğrenci ve öğretmen kaydı için bir alan açın. Tüm bölümlerin toplu ders programı burada hazırlanır: ders ekleyin, saatleri belirleyin, öğretmen atayın. Bölüm sorumluları da kendi bölümlerini düzenleyebilir."}};
 window.AAT_SITE={"ku":{},"zza":{}};
 window.AAT_SITE_AREA={"ku":{},"zza":{}};
 window.AAT_ZAROK={"ku":{},"zza":{}};
