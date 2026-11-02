@@ -378,7 +378,8 @@ const { ref, uploadString, uploadBytes, getBytes } = require('firebase/storage')
   await t('B.sorumlusu: başka bölümün dersini SİLEMEZ', deleteDoc(doc(head, 'schedule/SM1')), false);
   await t('Öğretmen ders programı YAZAMAZ', setDoc(doc(teacher, 'schedule/ST1'), { area: 'muzik', name: 'x' }), false);
   await t('Öğretmen ders SİLEMEZ', deleteDoc(doc(teacher, 'schedule/SM1')), false);
-  await t('Öğrenci İşleri haftalık ders YAZAMAZ', setDoc(doc(as('98202601@ogretmen.aat'), 'schedule/SR1'), { area: 'muzik', name: 'x' }), false);
+  await t('Öğrenci İşleri haftalık ders yazar', setDoc(doc(as('98202601@ogretmen.aat'), 'schedule/SR1'), { area: 'muzik', name: 'x' }), true);
+  await t('Öğrenci İşleri ders siler', deleteDoc(doc(as('98202601@ogretmen.aat'), 'schedule/SR1')), true);
   await t('Öğrenci İşleri atölye dersini yazar (ws_)', setDoc(doc(as('98202601@ogretmen.aat'), 'schedule/ws_W1'), { area: 'genel', name: 'Atolye', lessonType: 'extra' }), true);
   await t('Yönetici her bölüme ders yazar', setDoc(doc(admin, 'schedule/SA1'), { area: 'dans', name: 'x' }), true);
   await t('Genel sorumlu: her bölüme ders yazar', setDoc(doc(as('96202602@ogretmen.aat'), 'schedule/SG1'), { area: 'dans', name: 'x' }), true);

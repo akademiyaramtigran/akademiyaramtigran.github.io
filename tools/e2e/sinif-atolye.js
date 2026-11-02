@@ -89,8 +89,8 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   ok('Alan sınıfı kaydedildi', A && A.fields.kind.stringValue === 'area' && JSON.stringify(A.fields.studentNos).includes('20202601') && JSON.stringify(A.fields.teacherNos).includes('50202601'));
 
   // ── 2) Sınıfa ders programı ──
-  // Haftalık dersi artık bölüm sorumlusu hazırlar: Öğrenci İşleri'nde ders ekleme düğmesi yok (ders, sorumlu yazmış gibi eklenir)
-  ok('Öğrenci İşleri sınıf kartında ders EKLEYEMEZ (sorumlu hazırlar)', !(await txt(p)).includes('➕ Ders zêde bike') && (await txt(p)).includes('berpirsên beşan'));
+  // Öğrenci İşleri sınıf kartından ders ekleyebilir (bölüm sorumlusu da kendi bölümüne ekler)
+  ok('Öğrenci İşleri sınıf kartında "Ders zêde bike" var', (await txt(p)).includes('➕ Ders zêde bike') && !(await txt(p)).includes('berpirsên beşan'));
   await put('schedule/LS1', { id: 'LS1', fireId: 'LS1', area: A.fields.area.stringValue, name: 'Solfej', classId: Aid, teacherNo: '50202601', teacherName: 'Mamoste Dilovan',
     lessonType: 'main', day: 'Dûşem', start: '09:00', end: '10:30', loc: '—' });
   await p.waitForTimeout(1500);
