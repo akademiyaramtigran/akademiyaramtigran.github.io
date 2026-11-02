@@ -1435,7 +1435,19 @@ window.AAT_TX={"ku":{},"zza":{},"tr":{"Ev hefte: {0} ders":"Bu hafta: {0} ders",
 "Nirxandina mamosteyan (xwendekar → mamoste, bê nav)":"Öğretmen değerlendirmesi (öğrenci → öğretmen, isimsiz)",
 "Puan (1–10)":"Puan (1–10)",
 "Pîvan 1–10 (nirxandinên kevn ên 1–5 ×2).":"Ölçek 1–10 (eski 1–5 puanlar ×2).",
-"Binê 5":"5 altı"}};
+"Binê 5":"5 altı",
+"Analîza giştî":"Genel analiz",
+"Analîza Giştî":"Genel Analiz",
+"Di xeterê de":"Risk altında",
+"Berhevdan bi heyama berê re":"Önceki dönemle karşılaştırma",
+"Karne":"Karne",
+"6 mehên dawî — stûn: amadebûn %, xet: nirxandin":"Son 6 ay — sütun: devam %, çizgi: değerlendirme",
+"Nîşeyên dawî":"Son notlar",
+"Karne li gorî heyamê: amadebûn û nirxandin (1–10), bi heyama berê re tê berhevdan (📈 baştir · ➖ wek hev · 📉 kêmtir).":"Döneme göre karne: devam ve değerlendirme (1–10), önceki dönemle karşılaştırılır (📈 daha iyi · ➖ aynı · 📉 daha düşük).",
+"Mehane":"Aylık",
+"Nirxandin (1–10)":"Değerlendirme (1–10)",
+"Di vê heyamê de agahî tune.":"Bu dönemde veri yok.",
+"Karne (PDF)":"Karne (PDF)"}};
 window.AAT_SITE={"ku":{},"zza":{}};
 window.AAT_SITE_AREA={"ku":{},"zza":{}};
 window.AAT_ZAROK={"ku":{},"zza":{}};
