@@ -109,7 +109,7 @@ async function routes(ctx) {
   ok('Sınıfa göre: 1. Sînif %50, Giştî %100', gC['A1'] === '50%' && gC['G1'] === '100%', JSON.stringify(gC));
   ok('Öğretmene göre: Şano %60 (3/5), Stran %50', gT['50202601'] === '60%' && gT['50202602'] === '50%', JSON.stringify(gT));
   // Tarih aralığı (ayrı sekme yok; Devam ekranında): "Ev meh" yalnız bu ayın yoklamaları
-  ok('Rapor sekmeleri sade: Devam + Değerlendirme', (await p.evaluate(() => [...document.querySelectorAll('[data-rtab]')].map(e => e.dataset.rtab).join(','))) === 'devam,eval');
+  ok('Rapor sekmeleri sade: Devam + Değerlendirme + Genel analiz', (await p.evaluate(() => [...document.querySelectorAll('[data-rtab]')].map(e => e.dataset.rtab).join(','))) === 'devam,eval,analiz');
   // Bu ay / geçen ay: beklenen yüzde test verisinin tarihlerinden hesaplanır (en az biri veri içerir)
   const ym = d => d.slice(0, 7), nowD = new Date(), lastM = ymd(new Date(nowD.getFullYear(), nowD.getMonth() - 1, 1)).slice(0, 7), thisM = ymd(nowD).slice(0, 7);
   const R5 = [[14, 'off'], [7, 'off'], [13, 'on'], [6, 'on'], [12, 'on']];

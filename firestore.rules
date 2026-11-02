@@ -436,8 +436,8 @@ service cloud.firestore {
     }
     // Uyarı merkezi: "ilgilenildi" işaretleri (yönetici + bölüm sorumlusu); belge kimliği = uyarı anahtarı
     match /alertAcks/{id} {
-      allow read: if isAdmin() || headLvl();
-      allow create, update: if (isAdmin() || (headLvl() && request.resource.data.byNo == prefix()))
+      allow read: if isAdmin() || isRegistrar() || headLvl();
+      allow create, update: if (isAdmin() || ((headLvl() || isRegistrar()) && request.resource.data.byNo == prefix()))
         && request.resource.data.keys().hasOnly(['key', 'kind', 'count', 'note', 'by', 'byNo', 'at'])
         && request.resource.data.note is string && request.resource.data.note.size() <= 500
         && request.resource.data.count is int && request.resource.data.count >= 1;

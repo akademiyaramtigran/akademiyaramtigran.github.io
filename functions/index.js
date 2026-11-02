@@ -260,76 +260,42 @@ exports.pushKidAnnouncement = onDocumentCreated("kidAnnouncements/{id}", async (
 //  değerlendirmediği varsa. Öğrenci: sınıfının öğretmenlerinden bu hafta değerlendirmediği varsa.
 //  Hafta anahtarı uygulamayla aynı: haftanın Pazartesi tarihi (YYYY-AA-GG, İstanbul saati).
 const { onSchedule } = require("firebase-functions/v2/scheduler");
-const EVTX = {
-  ku: { t: "📝 Nirxandina heftane", tb: "{0} xwendekar vê heftê nehatine nirxandin", s: "⭐ Mamosteyên xwe binirxîne", sb: "Nirxandina vê heftê li bendê ye" },
-  tr: { t: "📝 Haftalık değerlendirme", tb: "Bu hafta {0} öğrenciniz değerlendirilmedi", s: "⭐ Öğretmenlerini değerlendir", sb: "Bu haftanın değerlendirmesi bekliyor" },
-  en: { t: "📝 Weekly evaluation", tb: "{0} students not evaluated this week", s: "⭐ Rate your teachers", sb: "This week's evaluation is pending" }
-};
-const evtx = (l, k, a) => String((EVTX[l] || EVTX.ku)[k]).replace("{0}", a == null ? "" : a);
-function istanbulMonday() {
-  const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit", weekday: "short" })
-    .formatToParts(new Date()).map(x => [x.type, x.value]));
-  const d = new Date(Date.UTC(+p.year, +p.month - 1, +p.day));
-  const dow = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(p.weekday);
-  d.setUTCDate(d.getUTCDate() - (dow < 0 ? 0 : dow));
-  return d.toISOString().slice(0, 10);
-}
-exports.evalReminder = onSchedule({ schedule: "0 15 * * 5", timeZone: "Europe/Istanbul" }, async () => {
-  const db = admin.firestore(); const wk = istanbulMonday();
-  const [cls, sch, se, te] = await Promise.all([
-    db.collection("classes").get(), db.collection("schedule").get(),
-    db.collection("studentEvals").where("wk", "==", wk).get(), db.collection("teacherEvals").where("wk", "==", wk).get()]);
-  const classes = cls.docs.filter(d => d.get("kind") && d.get("status") !== "closed");
-  const stuOf = {}; classes.forEach(d => { stuOf[d.id] = (d.get("studentNos") || []).map(String); });
-  const tStu = {}, sTch = {};   // öğretmen → öğrenciler, öğrenci → öğretmenler
-  const link = (t, s) => { (tStu[t] = tStu[t] || new Set()).add(s); (sTch[s] = sTch[s] || new Set()).add(t); };
-  classes.forEach(d => (d.get("teacherNos") || []).forEach(t => (stuOf[d.id] || []).forEach(s => link(String(t), s))));
-  sch.docs.forEach(d => { const t = d.get("teacherNo"), c = d.get("classId"); if (t && c && stuOf[c]) stuOf[c].forEach(s => link(String(t), s)); });
-  const sDone = new Set(se.docs.map(d => d.get("teacherNo") + "|" + d.get("studentNo")));
-  const tDone = new Set(te.docs.map(d => d.get("studentNo") + "|" + d.get("teacherNo")));
-  const tPend = {}; Object.entries(tStu).forEach(([t, ss]) => { const n = [...ss].filter(s => !sDone.has(t + "|" + s)).length; if (n) tPend[t] = n; });
-  const sPend = Object.keys(sTch).filter(s => [...sTch[s]].some(t => !tDone.has(s + "|" + t)));
-  const tDocs = (await tokens("aat", "no", Object.keys(tPend))).filter(d => d.get("role") === "teacher");
-  for (const d of tDocs) await push([d], l => ({ title: evtx(l, "t"), body: evtx(l, "tb", tPend[String(d.get("no"))]) }), "/app/", "aat-eval");
-  const sDocs = (await tokens("aat", "no", sPend)).filter(d => d.get("role") === "student");
-  if (sDocs.length) await push(sDocs, l => ({ title: evtx(l, "s"), body: evtx(l, "sb") }), "/app/", "aat-eval");
-
-  // Çocuk akademisi: öğretmen → çocuklarını, veli → çocuklarının öğretmenlerini
-  const [kc, ks, kids, ke, kte] = await Promise.all([db.collection("kidClasses").get(), db.collection("kidSchedule").get(), db.collection("kids").get(),
-    db.collection("kidEvals").where("wk", "==", wk).get(), db.collection("kidTeacherEvals").where("wk", "==", wk).get()]);
-  const kcls = kc.docs.filter(d => d.get("kind") && d.get("status") !== "closed");
-  const kStu = {}; kcls.forEach(d => { kStu[d.id] = (d.get("studentNos") || []).map(String); });
-  const kgOf = {}; kids.docs.forEach(d => { kgOf[String(d.get("no") || "")] = (d.get("guardianNos") || []).map(String); });
-  const ktK = {}, gT = {};   // öğretmen → çocuklar, veli → öğretmenler
-  const klink = (t, k) => { (ktK[t] = ktK[t] || new Set()).add(k); (kgOf[k] || []).forEach(g => (gT[g] = gT[g] || new Set()).add(t)); };
-  kcls.forEach(d => (d.get("teacherNos") || []).forEach(t => (kStu[d.id] || []).forEach(k => klink(String(t), k))));
-  ks.docs.forEach(d => { const t = d.get("teacherNo"), c = d.get("classId"); if (t && c && kStu[c]) kStu[c].forEach(k => klink(String(t), k)); });
-  const kDone = new Set(ke.docs.map(d => d.get("teacherNo") + "|" + d.get("kidNo")));
-  const gDone = new Set(kte.docs.map(d => d.get("guardianNo") + "|" + d.get("teacherNo")));
-  const ktPend = {}; Object.entries(ktK).forEach(([t, kk]) => { const n = [...kk].filter(k => !kDone.has(t + "|" + k)).length; if (n) ktPend[t] = n; });
-  const gPend = Object.keys(gT).filter(g => [...gT[g]].some(t => !gDone.has(g + "|" + t)));
-  const ktDocs = (await tokens("zarok", "no", Object.keys(ktPend))).filter(d => d.get("role") === "kidteacher");
-  for (const d of ktDocs) await push([d], l => ({ title: evtx(l, "t"), body: evtx(l, "tb", ktPend[String(d.get("no"))]) }), "/zarok/app/", "zarok-eval");
-  const gDocs = (await tokens("zarok", "no", gPend)).filter(d => d.get("role") === "guardian");
-  if (gDocs.length) await push(gDocs, l => ({ title: evtx(l, "s"), body: evtx(l, "sb") }), "/zarok/app/", "zarok-eval");
-});
+// (Cuma değerlendirme hatırlatması kaldırıldı: form yayınlanınca bildirim gider — pushEvalForm)
 
 // Değerlendirme formu yayınlanınca (oluşturulduğunda aktifse ya da duraklatılmışken yayına alınınca) değerlendirecek kişilere bildirim
 //  t2s → bölümün öğretmenleri · s2t → bölümün öğrencileri · t2k → çocuk akademisi öğretmenleri · g2t → bölümdeki çocukların velileri
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const EFTX = { ku: "📝 Forma nirxandinê", tr: "📝 Değerlendirme formu", en: "📝 Evaluation form" };
+const EFB = { ku: "{0} — ji kerema xwe dagire", tr: "{0} — lütfen doldurun", en: "{0} — please fill it in" };
+// Formun alanına bağlı değerlendirenler: alanın öğrencilerine (sınıf / ders programı üzerinden) ders veren öğretmenler — kendi bölümü farklı olsa da
+async function areaTeachers(area, all, kid) {
+  const db = admin.firestore();
+  const [cls, sch, ppl] = await Promise.all([db.collection(kid ? "kidClasses" : "classes").get(), db.collection(kid ? "kidSchedule" : "schedule").get(), db.collection(kid ? "kids" : "students").get()]);
+  const inArea = new Set(ppl.docs.filter(d => all || d.get("area") === area).map(d => String(d.get("no") || "")));
+  const clsHas = {}; cls.docs.forEach(d => { clsHas[d.id] = (d.get("studentNos") || []).some(n => inArea.has(String(n))); });
+  const out = new Set();
+  cls.docs.forEach(d => { if (clsHas[d.id] && d.get("status") !== "closed") (d.get("teacherNos") || []).forEach(t => out.add(String(t))); });
+  sch.docs.forEach(d => { const t = d.get("teacherNo"); if (!t) return; const c = d.get("classId"); if ((c && clsHas[c]) || (!c && (all || d.get("area") === area))) out.add(String(t)); });
+  return [...out];
+}
 exports.pushEvalForm = onDocumentWritten("evalForms/{id}", async (ev) => {
   const before = ev.data && ev.data.before && ev.data.before.exists ? ev.data.before.data() : null;
   const f = ev.data && ev.data.after && ev.data.after.exists ? ev.data.after.data() : null;
   if (!f || !f.active || (before && before.active)) return;
   const area = String(f.area || ""), all = area === "genel";
   let docs = [], app = "aat", link = "/app/";
-  if (f.direction === "t2s" || f.direction === "s2t") {
-    const role = f.direction === "t2s" ? "teacher" : "student";
-    docs = (all ? await tokens("aat", "role", role) : await tokens("aat", "area", area)).filter(d => d.get("role") === role);
+  const uniq = arr => { const m = new Map(); arr.forEach(d => m.set(d.id, d)); return [...m.values()]; };
+  if (f.direction === "t2s") {
+    const byArea = (all ? await tokens("aat", "role", "teacher") : await tokens("aat", "area", area)).filter(d => d.get("role") === "teacher");
+    const linked = (await tokens("aat", "no", await areaTeachers(area, all, false))).filter(d => d.get("role") === "teacher");
+    docs = uniq(byArea.concat(linked));
+  } else if (f.direction === "s2t") {
+    docs = (all ? await tokens("aat", "role", "student") : await tokens("aat", "area", area)).filter(d => d.get("role") === "student");
   } else if (f.direction === "t2k") {
     app = "zarok"; link = "/zarok/app/";
-    docs = (await tokens("zarok", "area", area)).filter(d => d.get("role") === "kidteacher");
+    const byArea = (await tokens("zarok", "area", area)).filter(d => d.get("role") === "kidteacher");
+    const linked = (await tokens("zarok", "no", await areaTeachers(area, false, true))).filter(d => d.get("role") === "kidteacher");
+    docs = uniq(byArea.concat(linked));
   } else if (f.direction === "g2t") {
     app = "zarok"; link = "/zarok/app/";
     const ks = await admin.firestore().collection("kids").where("area", "==", area).get();
@@ -337,5 +303,45 @@ exports.pushEvalForm = onDocumentWritten("evalForms/{id}", async (ev) => {
     docs = (await tokens("zarok", "no", g)).filter(d => d.get("role") === "guardian");
   }
   if (!docs.length) return;
-  await push(docs, l => ({ title: EFTX[l] || EFTX.ku, body: f.title || "" }), link, app + "-evalform");
+  await push(docs, l => ({ title: EFTX[l] || EFTX.ku, body: (EFB[l] || EFB.ku).replace("{0}", f.title || "") }), link, app + "-evalform");
+});
+
+// ── Aylık analiz bildirimi: her ayın 1'i 09:05 (İstanbul) — biten ayın risk özetini
+//    bölüm sorumlusuna (kendi alanı; genel sorumlu: genel dersler), yöneticiye (hepsi) ve Öğrenci İşleri'ne (yalnız devam) gönderir.
+//    Risk: devam < %70 (en az 2 kayıt), değerlendirme < 5/10, önceki aya göre devamda ≥ 15 puan düşüş. Ayrıntı uygulamada: Hişyarî.
+const MANTX = {
+  ku: { t: "📊 Analîza mehane · {0}", b: "{0} di xeterê de — li Hişyarî binêre" , st: "xwendekar", ls: "ders", tc: "mamoste" },
+  tr: { t: "📊 Aylık analiz · {0}", b: "{0} risk altında — Uyarılar'a bakın", st: "öğrenci", ls: "ders", tc: "öğretmen" },
+  en: { t: "📊 Monthly analysis · {0}", b: "{0} at risk — see Alerts", st: "students", ls: "lessons", tc: "teachers" }
+};
+const { istanbulYm, ymShift, ymEnd, monthlyRiskCounts, kidRiskCounts } = require("./risk");
+exports.monthlyAnalysis = onSchedule({ schedule: "5 9 1 * *", timeZone: "Europe/Istanbul" }, async () => {
+  const db = admin.firestore(); const M = ymShift(istanbulYm(), -1), from = ymShift(M, -1) + "-01", to = ymEnd(M);
+  const [st, sch, tc, at, se, te, er] = await Promise.all([db.collection("students").get(), db.collection("schedule").get(), db.collection("teachers").get(),
+    db.collection("attendance").where("date", ">=", from).where("date", "<=", to).get(),
+    db.collection("studentEvals").where("wk", ">=", M + "-01").where("wk", "<=", to).get(), db.collection("teacherEvals").where("wk", ">=", M + "-01").where("wk", "<=", to).get(),
+    db.collection("evalResponses").where("academy", "==", "aat").get()]);
+  const counts = monthlyRiskCounts({ students: st.docs.map(d => d.data()).filter(s => s.id != null), schedule: sch.docs.map(d => d.data()), teachers: tc.docs.map(d => d.data()),
+    att: at.docs.map(d => d.data()), sEvals: se.docs.map(d => d.data()), tEvals: te.docs.map(d => d.data()), efr: er.docs.map(d => d.data()), M });
+  // Çocuk Akademisi (alan adları ana akademiden farklı: solfej, drama, …)
+  const withId = q => q.docs.map(d => ({ ...d.data(), _id: d.id }));
+  const [kd, kc, ks, ka, lv, ke, kte, ker] = await Promise.all([db.collection("kids").get(), db.collection("kidClasses").get(), db.collection("kidSchedule").get(),
+    db.collection("kidAttendance").where("date", ">=", from).where("date", "<=", to).get(), db.collection("studentLeaves").where("kid", "==", true).get(),
+    db.collection("kidEvals").where("wk", ">=", M + "-01").where("wk", "<=", to).get(), db.collection("kidTeacherEvals").where("wk", ">=", M + "-01").where("wk", "<=", to).get(),
+    db.collection("evalResponses").where("academy", "==", "kid").get()]);
+  const todayIst = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul" }).format(new Date());
+  const kc2 = kidRiskCounts({ kids: withId(kd), cls: withId(kc), sched: withId(ks), att: ka.docs.map(d => d.data()), leaves: lv.docs.map(d => d.data()),
+    kEvals: ke.docs.map(d => d.data()), gEvals: kte.docs.map(d => d.data()), efr: ker.docs.map(d => d.data()), M, today: todayIst });
+  Object.entries(kc2).forEach(([a, c]) => { counts[a] = c; });
+  const [y, m] = M.split("-").map(Number);
+  const mName = l => new Intl.DateTimeFormat(l === "en" ? "en-GB" : "tr-TR", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, 15)));
+  const txt = (l, c, attOnly) => { const d = MANTX[l] || MANTX.ku; const p = attOnly ? "a" : ""; const parts = [["st", c[p + "st"]], ["ls", c[p + "ls"]], ["tc", c[p + "tc"]]].filter(x => x[1]).map(x => x[1] + " " + d[x[0]]);
+    return parts.length ? { title: d.t.replace("{0}", mName(l)), body: d.b.replace("{0}", parts.join(", ")) } : null; };
+  const sum = attOnly => Object.values(counts).reduce((a, c) => ({ st: a.st + c.st, ls: a.ls + c.ls, tc: a.tc + c.tc, ast: a.ast + c.ast, als: a.als + c.als, atc: a.atc + c.atc }), { st: 0, ls: 0, tc: 0, ast: 0, als: 0, atc: 0 });
+  const tot = sum();
+  const heads = await tokens("aat", "role", "head");
+  for (const d of heads) { const c = counts[String(d.get("area") || "")]; if (!c) continue; if (!txt("ku", c, false)) continue; await push([d], l => txt(l, c, false), "/app/", "aat-monthly"); }
+  const admins = await tokens("aat", "role", "admin"); if (admins.length && txt("ku", tot, false)) await push(admins, l => txt(l, tot, false), "/app/", "aat-monthly");
+  const regs = await tokens("aat", "role", "registrar"); if (regs.length && txt("ku", tot, true)) await push(regs, l => txt(l, tot, true), "/app/", "aat-monthly");
+  return { M, counts };
 });

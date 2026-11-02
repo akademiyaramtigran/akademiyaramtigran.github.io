@@ -96,7 +96,7 @@ async function routes(ctx) {
   ok('Sorumlu menüsünde anket yok', !hk.includes('surveys') && hk.includes('reports') && hk.includes('evalforms'), hk.join(','));
   await go(hp, 'reports');
   const ht = await rtabs(hp);
-  ok('Sorumlu rapor sekmeleri: Devam + Değerlendirme (anket yok)', ht.join(',') === 'devam,eval', ht.join(','));
+  ok('Sorumlu rapor sekmeleri: Devam + Değerlendirme + Genel analiz (anket yok)', ht.join(',') === 'devam,eval,analiz', ht.join(','));
   ok('Tiyatro sorumlusu: Rojîn genel ders dahil %50 (3/6), müzik öğrencisi yok', (await pct(hp, '20202601')) === '50%' && (await pct(hp, '20202603')) === null, await pct(hp, '20202601'));
   // Ortak "Giştî" sınıfı seçilince yalnız sorumlunun kendi öğrencileri
   const clsOpts = await hp.evaluate(() => { const s = [...document.querySelectorAll('select')].find(x => [...x.options].some(o => o.value === 'G1')); return s ? [...s.options].map(o => o.value) : []; });
@@ -136,7 +136,7 @@ async function routes(ctx) {
   ok('Öğrenci İşleri menüsünde Rapor var', rk.includes('reports'), rk.join(','));
   await go(rp, 'reports');
   const rt = await rtabs(rp);
-  ok('Öğrenci İşleri sekmeleri: Devam + Çocuk Akademisi; değerlendirme yok', rt.join(',') === 'devam,zarok', rt.join(','));
+  ok('Öğrenci İşleri sekmeleri: Devam + Genel analiz + Çocuk Akademisi; değerlendirme yok', rt.join(',') === 'devam,analiz,zarok', rt.join(','));
   ok('Öğrenci İşleri tüm bölümleri görür (tiyatro + müzik öğrencisi)', (await pct(rp, '20202601')) !== null && (await pct(rp, '20202603')) !== null);
   ok('Öğrenci İşleri devam ekranında değerlendirme özeti yok', !(await rp.evaluate(() => document.body.innerText)).includes('Mamoste → xwendekar'));
   await rp.context().close();

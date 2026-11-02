@@ -88,7 +88,8 @@ async function routes(ctx) {
   const badge = await hp.evaluate(() => { const e = document.querySelector('.sm-it[data-key="alerts"]'); return e ? e.innerText.replace(/\D+/g, ' ').trim() : null; });
   await hp.evaluate(() => document.querySelector('.sm-it[data-key="alerts"]').click()); await hp.waitForTimeout(2000);
   const k1 = await keys(hp);
-  ok('Sorumluda "Hişyarî" menüsü ve rozet (3 açık uyarı)', badge !== null && /\b3\b/.test(badge), badge);
+  // Rozet = açık uyarı sayısı (aylık analiz uyarıları da sayılır; tarih geçen aya düşerse eklenir); ders/değerlendirme uyarıları 3
+  ok('Sorumluda "Hişyarî" menüsü ve rozet (açık uyarı sayısı; ders/değerlendirme uyarıları 3)', badge !== null && new RegExp('\\b' + k1.length + '\\b').test(badge) && k1.filter(k => !k.startsWith('man_')).length === 3, badge + ' · ' + JSON.stringify(k1));
   ok('Rojîn: Şano 1 dersinde 3 devamsızlık uyarısı', k1.includes('abs_20202601_L1'), JSON.stringify(k1));
   ok('Baran uyarıya düşmez (2 gelmedi; izinli ve geç sayılmaz)', !k1.some(k => k.startsWith('abs_20202602')));
   ok('Başka bölüm (müzik) öğrencisi sorumlunun uyarılarında yok', !k1.some(k => k.includes('20202603')));

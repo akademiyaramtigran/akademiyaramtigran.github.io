@@ -6,7 +6,7 @@ Sistem (mobil uygulama + ana sayfa) artık **4 dil** destekler:
 |---|---|---|
 | `ku` | Kurmancî | Ana dil — akademisyen **düzeltme** raporu açık |
 | `zza` | Zazakî (Kirmanckî) | Akademisyen **çeviri** raporu açık; boş satırlar Kurmancî görünür |
-| `tr` | Türkçe | Tamamlandı (raporun 1429 satırının hepsinde Türkçe karşılık var) |
+| `tr` | Türkçe | Tamamlandı (raporun 1903 satırının hepsinde Türkçe karşılık var) |
 
 Dil seçimi her yerde tam isimli açılır menüdür (Kurmancî · Zazakî · Türkçe). İngilizce
 seçenek kaldırıldı; daha önce İngilizce seçmiş kullanıcılar otomatik Kurmancî'ye döner.
@@ -17,7 +17,7 @@ Zazakî kodu uluslararası standart **`zza`** (ISO 639-3).
 - **Kurmancî düzeltme raporu:** https://konservatuaraaramtigran.org/dil-raporu.html
 - **Zazakî çeviri raporu:** https://konservatuaraaramtigran.org/dil-raporu-zazaki.html
 
-Her rapor **1429 satır**dır ve koddan otomatik çıkarılmıştır (hiçbir ekran
+Her rapor **1903 satır**dır ve koddan otomatik çıkarılmıştır (hiçbir ekran
 atlanmaz): yönetim uygulamasındaki tüm metinler (`K` · `KF` · `Z` · `W` çağrıları ve
 gün/ders/mevsim/etiket gibi listeler dahil) + konservatuvar ana sayfası (video oynatıcı dahil) +
 sanat alanı adları + **Çocuk Akademisi** (Öğrenci İşleri/Basın yönetimi, veli/öğretmen
