@@ -103,14 +103,55 @@ const { ref, uploadString, uploadBytes, getBytes } = require('firebase/storage')
   await t('Öğrenci kendi telefonunu düzenler', updateDoc(doc(student, 'students/S1'), { phone: '555' }), true);
   await t('Öğrenci kendi ALANINI değiştiremez', updateDoc(doc(student, 'students/S1'), { area: 'muzik' }), false);
   await t('Öğrenci program okur', getDocs(collection(student, 'schedule')), true);
-  await t('Öğrenci KENDİ yoklamasını yazar (QR)', setDoc(doc(student, 'attendance/s1_x'), { sessionId: 's1', studentNo: '10202601' }), true);
-  await t('Öğrenci BAŞKASI adına yoklama yazamaz', setDoc(doc(student, 'attendance/s1_y'), { sessionId: 's1', studentNo: '10202602' }), false);
-  await t('Öğrenci yoklama SİLEMEZ', deleteDoc(doc(student, 'attendance/s1_x')), false);
+  // QR yoklama: oturum açık + süresi dolmamış + dönen kod geçerli olmalı; ders/tarih oturumla aynı
+  const now = Date.now();
+  await env.withSecurityRulesDisabled(async c => {
+    const db = c.firestore();
+    await setDoc(doc(db, 'qrSessions/s1'), { lessonId: 'L1', lessonDate: '2026-11-02', openedAtMs: now, expiresAt: now + 3600000, active: true });
+    await setDoc(doc(db, 'qrCodes/s1'), { codes: ['ABC123'] });
+    await setDoc(doc(db, 'qrSessions/s2'), { lessonId: 'L1', lessonDate: '2026-11-02', openedAtMs: now, expiresAt: now + 3600000, active: false });
+    await setDoc(doc(db, 'qrCodes/s2'), { codes: ['ABC123'] });
+    await setDoc(doc(db, 'qrSessions/s3'), { lessonId: 'L1', lessonDate: '2026-11-02', openedAtMs: now - 7200000, expiresAt: now - 60000, active: true });
+    await setDoc(doc(db, 'qrCodes/s3'), { codes: ['ABC123'] });
+    await setDoc(doc(db, 'qrSessions/s4'), { lessonId: 'L1', lessonDate: '2026-11-02', openedAtMs: now - 1800000, expiresAt: now + 3600000, active: true });
+    await setDoc(doc(db, 'qrCodes/s4'), { codes: ['ABC123'] });
+    await setDoc(doc(db, 'attendance/s0_S2'), { sessionId: 's0', studentNo: '10202602', studentId: 'S2' });
+    await setDoc(doc(db, 'attendance/L1-2026-11-02'), { lessonId: 'L1', date: '2026-11-02', records: { S2: 'on' } });
+  });
+  const ci = (sid, o = {}) => ({ sessionId: sid, studentId: 'S1', studentName: 'X', studentNo: '10202601', qrLessonId: 'L1', qrDate: '2026-11-02',
+    time: 't', late: false, teacherName: 'M', lessonName: 'D', area: 'sinema', code: 'ABC123', ...o });
+  await t('Öğrenci KENDİ yoklamasını yazar (QR, geçerli kod)', setDoc(doc(student, 'attendance/s1_S1'), ci('s1')), true);
+  await t('Öğrenci aynı QR\'ı tekrar okutabilir', setDoc(doc(student, 'attendance/s1_S1'), ci('s1'), { merge: true }), true);
+  await t('QR: YANLIŞ kodla yoklama verilemez (eve gönderilen fotoğraf)', setDoc(doc(student, 'attendance/s1_S1b'), ci('s1', { code: 'ZZZ999' })), false);
+  await t('QR: kapalı oturuma yoklama verilemez', setDoc(doc(student, 'attendance/s2_S1'), ci('s2')), false);
+  await t('QR: süresi dolmuş oturuma yoklama verilemez', setDoc(doc(student, 'attendance/s3_S1'), ci('s3')), false);
+  await t('QR: olmayan oturuma yoklama verilemez', setDoc(doc(student, 'attendance/s9_S1'), ci('s9')), false);
+  await t('QR: belge kimliği oturumla eşleşmeli', setDoc(doc(student, 'attendance/s4_S1'), ci('s1')), false);
+  await t('QR: başka derse/tarihe yazamaz', setDoc(doc(student, 'attendance/s1_S1c'), ci('s1', { qrLessonId: 'L2' })), false);
+  await t('QR: 30. dakikada "zamanında" yazamaz', setDoc(doc(student, 'attendance/s4_S1'), ci('s4')), false);
+  await t('QR: 30. dakikada "geç" yazar', setDoc(doc(student, 'attendance/s4_S1'), ci('s4', { late: true })), true);
+  await t('QR: fazladan alan (records) eklenemez', setDoc(doc(student, 'attendance/s1_S1d'), ci('s1', { records: { S1: 'on' } })), false);
+  await t('Öğrenci BAŞKASI adına yoklama yazamaz', setDoc(doc(student, 'attendance/s1_S2'), ci('s1', { studentNo: '10202602', studentId: 'S2' })), false);
+  await t('Öğrenci DERS yoklama belgesi (records) YAZAMAZ', setDoc(doc(student, 'attendance/L1-2026-11-03'), { lessonId: 'L1', date: '2026-11-03', records: { S1: 'on' } }), false);
+  await t('Öğrenci ders yoklamasını DEĞİŞTİREMEZ', updateDoc(doc(student, 'attendance/L1-2026-11-02'), { records: { S1: 'on', S2: 'off' } }), false);
+  await t('Öğrenci yoklama SİLEMEZ', deleteDoc(doc(student, 'attendance/s1_S1')), false);
+  await t('Öğrenci KENDİ QR kaydını okur', getDoc(doc(student, 'attendance/s1_S1')), true);
+  await t('Öğrenci BAŞKASININ yoklamasını OKUYAMAZ', getDoc(doc(student, 'attendance/s0_S2')), false);
+  await t('Öğrenci ders yoklama belgesini OKUYAMAZ', getDoc(doc(student, 'attendance/L1-2026-11-02')), false);
+  await t('Öğrenci tüm yoklamayı OKUYAMAZ', getDocs(collection(student, 'attendance')), false);
+  await t('Öğrenci geçerli QR kodlarını OKUYAMAZ', getDoc(doc(student, 'qrCodes/s1')), false);
+  await t('Öğrenci QR kodu YAZAMAZ', setDoc(doc(student, 'qrCodes/s1'), { codes: ['X'] }), false);
+  await t('Öğretmen QR kodlarını yazar', setDoc(doc(teacher, 'qrCodes/s5'), { codes: ['Q1'] }), true);
+  await t('Öğretmen yoklamayı okur', getDoc(doc(teacher, 'attendance/s0_S2')), true);
   // Bir telefon, bir derste tek öğrenci: cihaz kaydını ilk yazan sahiplenir
   const student2 = as('10202602@ogrenci.aat');
   await t('Öğrenci derste telefonunu sahiplenir', setDoc(doc(student, 'attendance/s1_d_DEV1'), { sessionId: 's1', studentNo: '10202601', deviceClaim: true }, { merge: true }), true);
   await t('Aynı öğrenci aynı telefondan tekrar okutabilir', setDoc(doc(student, 'attendance/s1_d_DEV1'), { sessionId: 's1', studentNo: '10202601', deviceClaim: true }, { merge: true }), true);
   await t('Başka öğrenci AYNI telefonla aynı derse yoklama veremez', setDoc(doc(student2, 'attendance/s1_d_DEV1'), { sessionId: 's1', studentNo: '10202602', deviceClaim: true }, { merge: true }), false);
+  await t('Kapalı oturumda telefon sahiplenilemez', setDoc(doc(student, 'attendance/s2_d_DEV1'), { sessionId: 's2', studentNo: '10202601', deviceClaim: true }), false);
+  await t('Öğrenci KENDİ öğrenci kaydını SİLEMEZ', deleteDoc(doc(student, 'students/S1')), false);
+  await t('Öğrenci rapor arşivini OKUYAMAZ', getDoc(doc(student, 'config/reportArchive')), false);
+  await t('Öğretmen rapor arşivini okur', getDoc(doc(teacher, 'config/reportArchive')), true);
   await t('Öğrenci program YAZAMAZ', addDoc(collection(student, 'schedule'), { x: 1 }), false);
   await t('Öğrenci roller YAZAMAZ', setDoc(doc(student, 'roles/uid-10202601@ogrenci.aat'), { role: 'teacher' }), false);
   // Zarok (veli)
@@ -299,7 +340,7 @@ const { ref, uploadString, uploadBytes, getBytes } = require('firebase/storage')
   await t('Çocuk sınıfı: öğrenci işleri çocuğun sınıfını değiştirir', updateDoc(doc(cReg, 'kids/K1'), { classLevel: 2 }), true);
   // Sınıf paylaşımları (duyuru/ödev/belge)
   const cT2 = as('11202601@ogretmen.aat'), cT3 = as('21202601@ogretmen.aat'), cS = as('10202601@ogrenci.aat'), cV = as('92026001@veli.aat'), cKT = as('72026001@zmamoste.aat'), cR = as('98202601@ogretmen.aat');
-  const post = (no, cid, x) => ({ classId: cid, area: 'muzik', level: 1, type: 'odev', title: 'Erk', body: '', due: '', files: [], teacherNo: no, teacherName: 'M', createdAt: new Date(), ...(x || {}) });
+  const post = (no, cid, x) => ({ classId: cid, area: 'muzik', level: 1, type: 'odev', title: 'Erk', body: '', due: '', files: [], teacherNo: no, teacherName: 'M', createdAt: new Date(), priv: !!(x && 'studentNos' in x), ...(x || {}) });
   await t('Paylaşım: sınıf öğretmeni KENDİ sınıfına ödev gönderir', setDoc(doc(cT2, 'classPosts/P1'), post('11202601', 'muzik_1')), true);
   await t('Paylaşım: öğretmen BAŞKA sınıfa gönderemez', setDoc(doc(cT3, 'classPosts/P2'), post('21202601', 'muzik_1')), false);
   await t('Paylaşım: öğretmen başkası adına gönderemez', setDoc(doc(cT3, 'classPosts/P3'), post('11202601', 'muzik_1')), false);
@@ -309,6 +350,12 @@ const { ref, uploadString, uploadBytes, getBytes } = require('firebase/storage')
   await t('Paylaşım: studentNos liste değilse reddedilir', setDoc(doc(cT2, 'classPosts/P8'), post('11202601', 'muzik_1', { studentNos: '10202601' })), false);
   await t('Paylaşım: boş studentNos reddedilir', setDoc(doc(cT2, 'classPosts/P9'), post('11202601', 'muzik_1', { studentNos: [] })), false);
   await t('Paylaşım: öğrenci okur', getDoc(doc(cS, 'classPosts/P1')), true);
+  await t('Paylaşım: seçilen öğrenci kendine gönderileni okur', getDoc(doc(cS, 'classPosts/P7')), true);
+  await t('Paylaşım: SEÇİLMEYEN öğrenci özel paylaşımı OKUYAMAZ', getDoc(doc(as('10202602@ogrenci.aat'), 'classPosts/P7')), false);
+  await t('Paylaşım: priv işareti yanlışsa reddedilir', setDoc(doc(cT2, 'classPosts/P10'), post('11202601', 'muzik_1', { studentNos: ['10202601'], priv: false })), false);
+  await t('Paylaşım: öğrenci sınıf geneli sorgusu (priv==false)', getDocs(query(collection(cS, 'classPosts'), where('classId', 'in', ['muzik_1']), where('priv', '==', false))), true);
+  await t('Paylaşım: öğrenci kendine gelenleri sorgular', getDocs(query(collection(cS, 'classPosts'), where('studentNos', 'array-contains', '10202601'))), true);
+  await t('Paylaşım: öğrenci TÜM paylaşımları sorgulayamaz', getDocs(collection(cS, 'classPosts')), false);
   await t('Paylaşım: öğrenci YAZAMAZ', setDoc(doc(cS, 'classPosts/P6'), post('10202601', 'muzik_1')), false);
   await t('Paylaşım: başka öğretmen SİLEMEZ', deleteDoc(doc(cT3, 'classPosts/P1')), false);
   await t('Paylaşım: veli akademi paylaşımlarını OKUYAMAZ', getDoc(doc(cV, 'classPosts/P1')), false);
@@ -362,6 +409,7 @@ const { ref, uploadString, uploadBytes, getBytes } = require('firebase/storage')
     await t('Form: çocuk sorumlusu kendi dersine form açar', setDoc(doc(fKH, 'evalForms/K1'), form({ academy: 'kid', direction: 'g2t', area: 'drama', ownerNo: '96202603' })), true);
     await setDoc(doc(fKH, 'evalForms/K2'), form({ academy: 'kid', direction: 't2k', area: 'drama', ownerNo: '96202603' }));
     await t('Form: öğrenci formları okur', getDoc(doc(fS, 'evalForms/F1')), true);
+    await t('Form: sahte (dizinde olmayan) hesap formları OKUYAMAZ', getDoc(doc(as('5555@ogrenci.aat'), 'evalForms/F1')), false);
     const resp = (fid, per, rater, target, dir, x) => ({ formId: fid, period: per, raterNo: rater, raterRole: 'r', targetNo: target, targetName: 'N', area: 'tiyatro', classId: '',
       academy: 'aat', direction: dir, answers: { q1: 8 }, score10: 8, at: new Date(), ...(x || {}) });
     await t('Cevap: öğretmen öğrenciyi değerlendirir (t2s)', setDoc(doc(fT, 'evalResponses/F1_2026-11-02_11202601_10202601'), resp('F1', '2026-11-02', '11202601', '10202601', 't2s')), true);
@@ -509,33 +557,17 @@ const { ref, uploadString, uploadBytes, getBytes } = require('firebase/storage')
       await t(nm + ': ' + c + ' YAZAMAZ (anket kapalı)', setDoc(doc(db0, c + '/X1'), { title: 'x', surveyId: 'x', no: '1', answers: {} }), false);
       await t(nm + ': ' + c + ' OKUYAMAZ (anket kapalı)', getDocs(collection(db0, c)), false);
     }
-  // ── Haftalık değerlendirmeler ──
+  // ── Eski haftalık değerlendirme (ana akademi) kapalı: yalnız sorumlunun formları ──
   {
-    const tch = as('11202601@ogretmen.aat'), stu = as('10202601@ogrenci.aat'), stu2 = as('10202602@ogrenci.aat'), hd = as('96202601@ogretmen.aat'), adm = as('1000@ogretmen.aat'), oth = as('21202601@ogretmen.aat');
+    const tch = as('11202601@ogretmen.aat'), stu = as('10202601@ogrenci.aat'), hd = as('96202601@ogretmen.aat'), adm = as('1000@ogretmen.aat');
     const W = '2026-10-26';
-    const se = x => ({ wk: W, teacherNo: '11202601', teacherName: 'M', studentNo: '10202601', studentName: 'X', area: 'sinema', c: { p: 4, g: 3, h: 5, b: 4 }, note: 'baş', ...(x || {}) });
-    const te = x => ({ wk: W, studentNo: '10202601', teacherNo: '11202601', teacherName: 'M', area: 'sinema', c: { e: 5, h: 4, r: 5, f: 4 }, note: '', ...(x || {}) });
-    await t('Değ: öğretmen öğrenciyi değerlendirir', setDoc(doc(tch, 'studentEvals/' + W + '_11202601_10202601'), se()), true);
-    await t('Değ: öğretmen değerlendirmesini düzeltir', setDoc(doc(tch, 'studentEvals/' + W + '_11202601_10202601'), se({ c: { p: 5, g: 5, h: 5, b: 5 } })), true);
-    await t('Değ: başka öğretmen adına değerlendiremez', setDoc(doc(oth, 'studentEvals/' + W + '_11202601_10202602'), se({ studentNo: '10202602' })), false);
-    await t('Değ: belge kimliği uydurulamaz', setDoc(doc(tch, 'studentEvals/X_11202601_10202601'), se()), false);
-    await t('Değ: puan 1–5 dışı reddedilir', setDoc(doc(tch, 'studentEvals/' + W + '_11202601_10202602'), se({ studentNo: '10202602', c: { p: 9, g: 3, h: 5, b: 4 } })), false);
-    await t('Değ: eksik ölçüt reddedilir', setDoc(doc(tch, 'studentEvals/' + W + '_11202601_10202602'), se({ studentNo: '10202602', c: { p: 3, g: 3, h: 5 } })), false);
-    await t('Değ: öğrenci kendi değerlendirmesini OKUYAMAZ', getDoc(doc(stu, 'studentEvals/' + W + '_11202601_10202601')), false);
-    await t('Değ: öğrenci öğretmen adına yazamaz', setDoc(doc(stu, 'studentEvals/' + W + '_10202601_10202601'), se({ teacherNo: '10202601' })), false);
-    await t('Değ: öğretmen kendi yazdığını okur', getDocs(query(collection(tch, 'studentEvals'), where('teacherNo', '==', '11202601'))), true);
-    await t('Değ: öğretmen tüm değerlendirmeleri okuyamaz', getDocs(collection(tch, 'studentEvals')), false);
-    await t('Değ: sorumlu okur', getDocs(collection(hd, 'studentEvals')), true);
-    await t('Değ: yönetici okur', getDocs(collection(adm, 'studentEvals')), true);
-    await t('Değ: öğrenci öğretmeni değerlendirir', setDoc(doc(stu, 'teacherEvals/' + W + '_10202601_11202601'), te()), true);
-    await t('Değ: öğrenci başka öğrenci adına değerlendiremez', setDoc(doc(stu, 'teacherEvals/' + W + '_10202602_11202601'), te({ studentNo: '10202602' })), false);
-    await t('Değ: öğrenci adı eklenemez (isimsiz)', setDoc(doc(stu, 'teacherEvals/' + W + '_10202601_11202601'), te({ studentName: 'X' })), false);
-    await t('Değ: öğretmen kendi hakkındakini OKUYAMAZ', getDoc(doc(tch, 'teacherEvals/' + W + '_10202601_11202601')), false);
-    await t('Değ: öğretmen sorguyla da okuyamaz', getDocs(query(collection(tch, 'teacherEvals'), where('teacherNo', '==', '11202601'))), false);
-    await t('Değ: öğrenci kendi gönderdiğini okur', getDocs(query(collection(stu, 'teacherEvals'), where('studentNo', '==', '10202601'))), true);
-    await t('Değ: başka öğrenci okuyamaz', getDoc(doc(stu2, 'teacherEvals/' + W + '_10202601_11202601')), false);
-    await t('Değ: sorumlu öğretmen değerlendirmelerini okur', getDocs(collection(hd, 'teacherEvals')), true);
-    await t('Değ: öğretmen öğrenci adına yazamaz', setDoc(doc(tch, 'teacherEvals/' + W + '_10202601_11202601'), te()), false);
+    const se = { wk: W, teacherNo: '11202601', teacherName: 'M', studentNo: '10202601', studentName: 'X', area: 'sinema', c: { p: 4, g: 3, h: 5, b: 4 }, note: '' };
+    const te = { wk: W, studentNo: '10202601', teacherNo: '11202601', teacherName: 'M', area: 'sinema', c: { e: 5, h: 4, r: 5, f: 4 }, note: '' };
+    await t('Eski değ: öğretmen haftalık değerlendirme YAZAMAZ', setDoc(doc(tch, 'studentEvals/' + W + '_11202601_10202601'), se), false);
+    await t('Eski değ: öğrenci haftalık öğretmen değerlendirmesi YAZAMAZ', setDoc(doc(stu, 'teacherEvals/' + W + '_10202601_11202601'), te), false);
+    await t('Eski değ: yönetici de YAZAMAZ', setDoc(doc(adm, 'studentEvals/X'), se), false);
+    await t('Eski değ: sorumlu OKUYAMAZ', getDocs(collection(hd, 'studentEvals')), false);
+    await t('Eski değ: yönetici okur (temizlik)', getDocs(collection(adm, 'teacherEvals')), true);
   }
   // ── Çocuk akademisi haftalık değerlendirmeleri ──
   {

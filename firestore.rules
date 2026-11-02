@@ -135,7 +135,7 @@ service cloud.firestore {
       allow create: if isRegistrar() || isTeacherLvl();
       allow update: if isRegistrar()
                     || (ownsStudentDoc(resource.data) && noUnchanged() && notGrantingAdmin() && selfEditOk());
-      allow delete: if isRegistrar() || ownsStudentDoc(resource.data);
+      allow delete: if isRegistrar();   // öğrenci kendi kaydını silemez (silme talebi yönetime gider)
     }
 
     // ── Üyelik dizini — yalnızca personel yazar; kişi kendi kaydını okuyabilir ──
@@ -247,9 +247,12 @@ service cloud.firestore {
         && (!('studentNos' in request.resource.data)
             || (request.resource.data.studentNos is list && request.resource.data.studentNos.size() >= 1 && request.resource.data.studentNos.size() <= 60));
     }
+    // Öğrenci: sınıf geneli paylaşım (priv == false) ya da kendisine gönderilen (studentNos içinde)
     match /classPosts/{id} {
-      allow read: if member();
-      allow create: if isRegistrar() || (staffW() && classPostOk('classes', 'schedule'));
+      allow read: if isStaff()
+        || (isStudent() && (resource.data.get('priv', true) == false || prefix() in resource.data.get('studentNos', [])));
+      allow create: if (isRegistrar() || (staffW() && classPostOk('classes', 'schedule')))
+        && request.resource.data.get('priv', false) == ('studentNos' in request.resource.data);
       allow update: if isRegistrar();
       allow delete: if isRegistrar() || (isStaff() && resource.data.teacherNo == prefix());
     }
@@ -272,7 +275,10 @@ service cloud.firestore {
     match /studentStats/{id}      { allow read: if isStaff(); allow write: if staffW(); }
     match /teacherLessonLogs/{id} { allow read: if isStaff(); allow write: if staffW(); }
     match /qrSessions/{id}        { allow read: if member(); allow write: if staffW(); }
-    match /config/{id}            { allow read: if member(); allow write: if isRegistrar(); }
+    // Dönen QR kodları ayrı belgede: öğrenci OKUYAMAZ (uzaktan okutma olmasın); doğrulamayı kural yapar
+    match /qrCodes/{id}           { allow read, write: if staffW(); }
+    match /config/{id}            { allow read: if member() && id != 'reportArchive'; allow write: if isRegistrar(); }
+    match /config/reportArchive   { allow read, write: if isStaff(); }
     match /admins/{id}            { allow read: if isStaff(); allow write: if isAdmin(); }
 
     // ── Roller — personel her rolü yazabilir (kullanıcı oluşturma için);
@@ -328,12 +334,38 @@ service cloud.firestore {
         || (request.resource.data.kid == false && aatHead() && (headGeneral() || request.resource.data.area == headArea())));
       allow delete: if isAdmin() || (headLvl() && resource.data.byNo == prefix());
     }
+    // Öğrenci QR okutması: yalnız KENDİ adına, açık ve süresi dolmamış bir oturuma, belge kimliği oturumla başlar;
+    // ders yoklamasına (records) / ders kaydına DOKUNAMAZ. Ekrandaki dönen kod (son ~90 sn) kural tarafından doğrulanır,
+    // "geç" işareti oturumun başlangıcına göre (±1 dk tolerans), ders/tarih oturumla aynı olmalı.
+    function qrSess(sid) { return get(/databases/$(database)/documents/qrSessions/$(sid)).data; }
+    function qrCodeOk(sid, c) {
+      return (exists(/databases/$(database)/documents/qrCodes/$(sid)) && c in get(/databases/$(database)/documents/qrCodes/$(sid)).data.get('codes', []))
+        || (c != '' && c in qrSess(sid).get('codes', []))                   // eski sürüm öğretmen uygulaması (geçiş)
+        || (c == '' && request.time < timestamp.date(2026, 11, 17));       // eski sürüm öğrenci uygulaması: 1 haftalık geçiş
+    }
+    function qrLateOk(sid, l) {
+      // "zamanında" yalnız dersin açılışından sonraki ilk 16 dk (1 dk saat payı); "geç" her zaman yazılabilir
+      return l == true || (l == false && request.time.toMillis() - qrSess(sid).get('openedAtMs', 0) < 960000);
+    }
+    function stuQrOk(id) {
+      let d = request.resource.data;
+      let sid = d.get('sessionId', '');
+      return isStudent() && sid is string && sid != '' && id.split('_')[0] == sid
+        && string(d.get('studentNo', '')) == prefix()
+        && (resource == null || string(resource.data.get('studentNo', '')) == prefix())
+        && exists(/databases/$(database)/documents/qrSessions/$(sid))
+        && qrSess(sid).get('active', false) == true && qrSess(sid).get('expiresAt', 0) > request.time.toMillis()
+        && (d.get('deviceClaim', false) == true
+            ? d.keys().hasOnly(['sessionId', 'studentNo', 'deviceClaim', 'time'])
+            : (d.keys().hasOnly(['sessionId', 'lessonName', 'area', 'studentId', 'studentName', 'studentNo', 'qrLessonId', 'qrDate', 'time', 'late', 'teacherName', 'code'])
+               && qrCodeOk(sid, d.get('code', ''))
+               && qrLateOk(sid, d.get('late', false))
+               && (!('qrLessonId' in d) || (d.qrLessonId == qrSess(sid).get('lessonId', '') && d.get('qrDate', '') == qrSess(sid).get('lessonDate', '')))));
+    }
     match /attendance/{id} {
-      allow read: if member();
-      allow create, update: if staffW() || headAbsenceOk() || headGuestAttOk(id)
-        || (isStudent()
-            && string(request.resource.data.get('studentNo', '')) == prefix()
-            && (resource == null || string(resource.data.get('studentNo', '')) == prefix()));
+      // Öğrenci yalnız KENDİ QR okutma kaydını okur (başkalarının yoklaması kişisel veridir)
+      allow read: if isStaff() || (isStudent() && string(resource.data.get('studentNo', '')) == prefix());
+      allow create, update: if staffW() || headAbsenceOk() || headGuestAttOk(id) || stuQrOk(id);
       allow delete: if staffW();
     }
     // Mesajlar: personel hepsini okur/yazar. Öğrenci yalnızca KENDİNE gelen özel mesajı
@@ -382,10 +414,7 @@ service cloud.firestore {
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']));
       allow delete: if staffW();
     }
-    // ── Haftalık değerlendirmeler ──
-    //  Puanlar 1–5 (4 ölçüt), not ≤ 1000. Sonuçları yalnızca yönetici ve bölüm sorumluları okur.
-    //  studentEvals: öğretmen → öğrenci. Öğretmen yalnızca KENDİ yazdığını okur/düzeltir; öğrenci hiç okuyamaz.
-    //  teacherEvals: öğrenci → öğretmen (isimsiz raporlanır). Öğrenci yalnızca kendi gönderdiğini okur; öğretmen hiç okuyamaz.
+    // ── Haftalık değerlendirme biçimi (Çocuk Akademisi): puanlar 1–5 (4 ölçüt), not ≤ 1000 ──
     function sc5(v) { return v is int && v >= 1 && v <= 5; }
     function evalOk(d, keys) {
       return d.c is map && d.c.keys().hasOnly(keys) && d.c.keys().hasAll(keys)
@@ -407,7 +436,7 @@ service cloud.firestore {
         && d.period in ['weekly', 'monthly', 'once'] && d.active is bool;
     }
     match /evalForms/{id} {
-      allow read: if authed();
+      allow read: if member() || isGuardian() || kidStaff();
       allow create: if formShapeOk(request.resource.data) && (isAdmin() || formOwnerOk(request.resource.data));
       allow update: if formShapeOk(request.resource.data) && (isAdmin() || (formOwnerOk(resource.data) && formOwnerOk(request.resource.data)));
       allow delete: if isAdmin() || formOwnerOk(resource.data);
@@ -443,25 +472,10 @@ service cloud.firestore {
         && request.resource.data.count is int && request.resource.data.count >= 1;
       allow delete: if isAdmin();
     }
-    match /studentEvals/{id} {
-      allow read: if isAdmin() || headLvl() || (staffW() && resource.data.teacherNo == prefix());
-      allow create, update: if staffW() && !isRegistrar()
-        && request.resource.data.teacherNo == prefix()
-        && id == request.resource.data.wk + '_' + prefix() + '_' + request.resource.data.studentNo
-        && evalOk(request.resource.data, ['p', 'g', 'h', 'b'])
-        && (resource == null || resource.data.teacherNo == prefix());
-      allow delete: if isAdmin();
-    }
-    match /teacherEvals/{id} {
-      allow read: if isAdmin() || headLvl() || (isStudent() && resource.data.studentNo == prefix());
-      allow create, update: if isStudent()
-        && request.resource.data.studentNo == prefix()
-        && id == request.resource.data.wk + '_' + prefix() + '_' + request.resource.data.teacherNo
-        && evalOk(request.resource.data, ['e', 'h', 'r', 'f'])
-        && !('studentName' in request.resource.data)
-        && (resource == null || resource.data.studentNo == prefix());
-      allow delete: if isAdmin();
-    }
+    // Eski haftalık değerlendirme (ana akademi) KALDIRILDI: değerlendirme yalnız sorumlunun formlarıyla (evalResponses).
+    // Kalan eski veriler temizlik iş akışıyla silinir; kimse yazamaz, yalnız yönetici okur/siler.
+    match /studentEvals/{id} { allow read, delete: if isAdmin(); allow create, update: if false; }
+    match /teacherEvals/{id} { allow read, delete: if isAdmin(); allow create, update: if false; }
     // Cihaz kaydı: doküman kimliği = kullanıcı no; herkes yalnızca kendi cihazını
     match /devices/{no} {
       allow read: if isStaff() || (member() && prefix() == no);

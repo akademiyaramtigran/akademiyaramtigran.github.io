@@ -83,18 +83,11 @@ function evalWeek(d) { const x = d ? new Date(d) : new Date(); const y = new Dat
   const tp = await login(await mk(), '50202601', 'Tea12345');
   const tk = await keysOf(tp);
   ok('Öğretmen kartları: Duyuru, Sınıfım, Öğrenci Değerlendirmesi (anket yok)', ['announce', 'myclass', 'seval'].every(k => tk.split(',').includes(k)) && !tk.split(',').includes('surveys') && !tk.split(',').includes('messages') && !tk.split(',').includes('evaluation'), tk);
-  ok('Ana ekranda haftalık değerlendirme hatırlatması (2 öğrenci)', (await tp.locator('[data-ev-reminder]').count()) === 1 && (await tp.locator('[data-ev-reminder]').innerText()).includes('2 / 2'), await tp.locator('[data-ev-reminder]').innerText().catch(() => ''));
+  ok('Ana ekranda haftalık değerlendirme hatırlatması YOK (sorumlu form göndermedi)', (await tp.locator('[data-ev-reminder]').count()) === 0);
   ok('Öğretmen ana ekranında devam yüzdesi / risk yok', !/Di Xeterê de|Navgîna Amadebûnê/.test(await txt(tp)));
-  // 2) Öğrenci değerlendirmesi
+  // 2) Değerlendirme kartı: haftalık değerlendirme yok; sorumlu form gönderene kadar boş
   await goA(tp, 'seval'); await tp.waitForTimeout(1200);
-  await tp.click('[data-ev-student="20202601"] button'); await tp.waitForTimeout(400);
-  for (const k of ['p4', 'g3', 'h5', 'b4']) await tp.click('[data-ev-score="' + k + '"]');
-  await tp.locator('[data-ev-student="20202601"] textarea').fill('Pir xebatkar');
-  await tp.click('[data-ev-save]'); await tp.waitForTimeout(2500);
-  const ev = await get('studentEvals/' + WK + '_50202601_20202601');
-  const evf = ev.fields || {};
-  ok('Değerlendirme kaydedildi (4 ölçüt + not)', !!evf.c && evf.c.mapValue.fields.p.integerValue === '4' && evf.note.stringValue === 'Pir xebatkar', JSON.stringify(evf).slice(0, 160));
-  ok('İlerleme 1 / 2', (await tp.locator('[data-ev-progress]').innerText()).includes('1 / 2'));
+  ok('Öğretmen Değerlendirme kartı: form yokken "değerlendirme yok" mesajı, haftalık ölçütler yok', (await tp.locator('[data-eval-none]').count()) === 1 && (await tp.locator('[data-ev-score]').count()) === 0);
   // 3) Duyuru: yalnız kendi sınıfına, dosyasız
   await goA(tp, 'announce'); await tp.waitForTimeout(800);
   await tp.locator('[role=tab]', { hasText: 'Bişîne' }).first().click(); await tp.waitForTimeout(400);
@@ -116,19 +109,14 @@ function evalWeek(d) { const x = d ? new Date(d) : new Date(); const y = new Dat
 
   // 5) Öğrenci: sınıf duyurusu Duyurular'da; öğretmen değerlendirmesi
   const sp = await login(await mk(430), '20202601', 'Stu12345', 'Xwendekar');
-  ok('Öğrenci ana ekranında öğretmen değerlendirme hatırlatması', (await sp.locator('[data-ev-reminder]').count()) === 1);
+  ok('Öğrenci ana ekranında haftalık değerlendirme hatırlatması YOK', (await sp.locator('[data-ev-reminder]').count()) === 0);
   await goA(sp, 'announce'); await sp.waitForTimeout(1500);
   ok('Öğrenci: sınıf duyurusu Duyurular kartında', (await txt(sp)).includes('Prova Înê'));
   await goA(sp, 'myclass'); await sp.waitForTimeout(1200);
   ok('Öğrenci: Sınıfım kartında duyuru tekrar etmiyor', !(await txt(sp)).includes('Prova Înê'));
   await goA(sp, 'teval'); await sp.waitForTimeout(1200);
-  ok('Öğrenci: öğretmeni listede', (await sp.locator('[data-tev-teacher="50202601"]').count()) === 1);
-  await sp.click('[data-tev-teacher="50202601"] button'); await sp.waitForTimeout(300);
-  for (const k of ['e5', 'h4', 'r5', 'f4']) await sp.click('[data-ev-score="' + k + '"]');
-  await sp.locator('[data-tev-teacher="50202601"] textarea').fill('Ders xweş e');
-  await sp.click('[data-tev-save]'); await sp.waitForTimeout(2500);
-  const te = (await get('teacherEvals/' + WK + '_20202601_50202601')).fields || {};
-  ok('Öğretmen değerlendirmesi kaydedildi (isimsiz)', !!te.c && te.c.mapValue.fields.e.integerValue === '5' && !te.studentName, JSON.stringify(te).slice(0, 140));
+  ok('Öğrenci Değerlendirme kartı: haftalık öğretmen değerlendirmesi yok (sorumlu formu bekler)', (await sp.locator('[data-eval-none]').count()) === 1 && (await sp.locator('[data-tev-teacher]').count()) === 0);
+  ok('Öğrenci ana ekranında değerlendirme hatırlatması yok', await (async () => { await goA(sp, 'home'); await sp.waitForTimeout(600); const n = await sp.locator('[data-ev-reminder]').count(); await goA(sp, 'teval'); await sp.waitForTimeout(400); return n === 0; })());
   ok('Öğrenci ekranında değerlendirme/rapor sonucu yok', !/%|Navgîn/.test(await sp.evaluate(() => document.querySelector('.scroll-area') ? document.querySelector('.scroll-area').innerText : '')));
   const sp3 = await login(await mk(430), '20202603', 'Stu12345', 'Xwendekar');
   await goA(sp3, 'announce'); await sp3.waitForTimeout(1500);
@@ -137,6 +125,9 @@ function evalWeek(d) { const x = d ? new Date(d) : new Date(); const y = new Dat
   await goA(sp, 'schedule'); await sp.waitForTimeout(1000);
   const sch = await txt(sp);
   ok('Program: bu haftanın günleri tarihli, bugünkü dersler listede (boş ekran yok)', (await sp.locator('[data-sched-day]').count()) >= 1 && (await sp.locator('[data-sched-lesson]').count()) >= 3);
+  const schDays = await sp.evaluate(() => [...document.querySelectorAll('[data-sched-day]')].map(e => e.getAttribute('data-sched-day')));
+  const tdy = await sp.evaluate(() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); });
+  ok('Program: öğrenci yalnız bugün ve sonraki dersleri görür (geçmiş gün yok)', schDays.length >= 1 && schDays.every(d => d >= tdy) && schDays[0] === tdy, schDays.join(','));
   ok('Tek günlük ana ders programda, "ek ders" / "atölye" rozeti yalnız gerçekten öyle olan derste', sch.includes('Şano Yekroj') && sch.includes('Atolyeya Dengan') && (await sp.locator('[data-extra-badge]').count()) === 2 && sch.includes('Atolye') && !sch.includes('🎨'));
   // 5c) Öğrenci öğretmenine doğrudan mesaj yazar → öğretmen gelen kutusunda, yanıtlayabilir
   await goA(sp, 'messages'); await sp.waitForTimeout(800);
@@ -156,12 +147,12 @@ function evalWeek(d) { const x = d ? new Date(d) : new Date(); const y = new Dat
   const hp = await login(await mk(), '96202611', 'Head1234');
   await goA(hp, 'reports'); await hp.waitForTimeout(1200);
   await hp.evaluate(() => document.querySelector('[data-rtab="eval"]').click()); await hp.waitForTimeout(1500);
-  ok('Sorumlu: Değerlendirme → öğrenciler: öğrenci satırı', (await hp.locator('[data-eval-row="20202601"]').count()) === 1);
+  ok('Sorumlu: Değerlendirme sekmesi açılır; form yanıtı olmadan satır yok (eski haftalık veri gösterilmez)', (await hp.locator('[data-eval-row="20202601"]').count()) === 0);
   await hp.evaluate(() => [...document.querySelectorAll('[data-ev-who] button')][1].click()); await hp.waitForTimeout(1500);
   const tr = await hp.locator('[data-eval-row="50202601"]').count();
   await hp.click('[data-eval-row="50202601"] button').catch(() => {}); await hp.waitForTimeout(500);
   const trT = await hp.evaluate(() => (document.querySelector('[data-eval-combined="teacher"]') || {}).innerText || '');
-  ok('Sorumlu: öğretmen değerlendirmesi (isimsiz: öğrenci adı yok)', tr === 1 && trT.includes('Ders xweş e') && !trT.includes('Rojîn'), trT.slice(0, 200).replace(/\n/g, ' / '));
+  ok('Sorumlu: öğretmen değerlendirmesinde eski haftalık veri yok', tr === 0 && !trT.includes('Rojîn'), trT.slice(0, 200).replace(/\n/g, ' / '));
 
   // 6b) Sorumlu: misafir öğretmenli dersin yoklamasını alır
   await goA(hp, 'gatt'); await hp.waitForTimeout(1200);
@@ -180,7 +171,7 @@ function evalWeek(d) { const x = d ? new Date(d) : new Date(); const y = new Dat
   await ap.click('[data-rep-student="20202601"]'); await ap.waitForTimeout(2500);
   const ch = await ap.evaluate(() => { const c = document.querySelector('[data-week-chart]'); return c ? c.innerText : ''; });
   const det = await ap.evaluate(() => (document.querySelector('[data-student-report]') || {}).innerText || '');
-  ok('Öğrenci ayrıntısı: haftalık grafik gerçek yoklamadan (%100 bir hafta)', ch.includes('100%') && det.includes('Şano Bingeh') && det.includes('Pir xebatkar'), ch.replace(/\n/g, ' '));
+  ok('Öğrenci ayrıntısı: haftalık grafik gerçek yoklamadan (%100 bir hafta)', ch.includes('100%') && det.includes('Şano Bingeh'), ch.replace(/\n/g, ' '));
 
   // 8) Öğrenci İşleri: rapor var ama değerlendirme sekmesi yok
   const rp = await login(await mk(), '98202601', 'Reg12345');
