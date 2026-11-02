@@ -79,18 +79,25 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   const hp = await login('96000001', 'Head1234');
   await go(hp, 'evalforms'); await hp.waitForTimeout(1000);
   await hp.click('[data-new-form]'); await hp.waitForTimeout(500);
+  ok('Yeni form boş başlar (hazır soru yok)', (await hp.locator('[data-ef-qtext]').count()) === 0);
   await hp.fill('[data-ef-title]', 'Nirxandina Şanoyê');
+  await hp.click('[data-ef-add="score"]'); await hp.waitForTimeout(100); await hp.locator('[data-ef-qtext]').last().fill('Beşdarî');
+  await hp.click('[data-ef-add="score"]'); await hp.waitForTimeout(100); await hp.locator('[data-ef-qtext]').last().fill('Pêşketin');
+  await hp.click('[data-ef-add="score"]'); await hp.waitForTimeout(100); await hp.locator('[data-ef-qtext]').last().fill('Hevkarî');
+  await hp.click('[data-ef-add="score"]'); await hp.waitForTimeout(100); await hp.locator('[data-ef-qtext]').last().fill('Berpirsiyarî');
   await hp.click('[data-ef-add="text"]'); await hp.waitForTimeout(100);
   await hp.locator('[data-ef-qtext]').last().fill('Xala xurt a xwendekar?');
   await hp.click('[data-ef-publish]'); await hp.waitForTimeout(2000);
   await hp.click('[data-new-form]'); await hp.waitForTimeout(500);
   await hp.fill('[data-ef-title]', 'Nêrîna xwendekaran');
   await hp.click('[data-ef-dir="s2t"]'); await hp.click('[data-ef-period="monthly"]'); await hp.waitForTimeout(200);
+  await hp.click('[data-ef-add="score"]'); await hp.waitForTimeout(100); await hp.locator('[data-ef-qtext]').last().fill('Ravekirin');
+  await hp.click('[data-ef-add="score"]'); await hp.waitForTimeout(100); await hp.locator('[data-ef-qtext]').last().fill('Rêz');
   await hp.click('[data-ef-publish]'); await hp.waitForTimeout(2000);
   const forms = await list('evalForms');
   const F1 = forms.find(d => d.fields.title.stringValue === 'Nirxandina Şanoyê'), F2 = forms.find(d => d.fields.title.stringValue === 'Nêrîna xwendekaran');
-  ok('Form 1: öğretmen→öğrenci, haftalık, 4 puan + 2 yazılı, bölüm Tiyatro, yayında', !!F1 && F1.fields.direction.stringValue === 't2s' && F1.fields.period.stringValue === 'weekly'
-    && F1.fields.questions.arrayValue.values.length === 6 && F1.fields.area.stringValue === 'tiyatro' && F1.fields.active.booleanValue === true);
+  ok('Form 1: öğretmen→öğrenci, haftalık, 4 puan + 1 yazılı, bölüm Tiyatro, yayında', !!F1 && F1.fields.direction.stringValue === 't2s' && F1.fields.period.stringValue === 'weekly'
+    && F1.fields.questions.arrayValue.values.length === 5 && F1.fields.area.stringValue === 'tiyatro' && F1.fields.active.booleanValue === true);
   ok('Form 2: öğrenci→öğretmen, aylık', !!F2 && F2.fields.direction.stringValue === 's2t' && F2.fields.period.stringValue === 'monthly');
 
   // 2) Öğretmen: Rojîn 3/10, Baran 9/10
@@ -133,6 +140,8 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await kp.click('[data-new-form]'); await kp.waitForTimeout(500);
   await kp.fill('[data-ef-title]', 'Nêrîna dêûbavan');
   await kp.click('[data-ef-dir="g2t"]'); await kp.click('[data-ef-period="once"]'); await kp.waitForTimeout(200);
+  await kp.click('[data-ef-add="score"]'); await kp.waitForTimeout(100); await kp.locator('[data-ef-qtext]').last().fill('Têkilî');
+  await kp.click('[data-ef-add="score"]'); await kp.waitForTimeout(100); await kp.locator('[data-ef-qtext]').last().fill('Ders');
   await kp.click('[data-ef-publish]'); await kp.waitForTimeout(2000);
   const KF = (await list('evalForms')).find(d => d.fields.title.stringValue === 'Nêrîna dêûbavan');
   ok('Çocuk formu: veli→öğretmen, bir kez, Drama', !!KF && KF.fields.academy.stringValue === 'kid' && KF.fields.direction.stringValue === 'g2t' && KF.fields.area.stringValue === 'drama');

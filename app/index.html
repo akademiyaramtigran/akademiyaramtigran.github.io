@@ -14731,8 +14731,6 @@ function efPeriodText(form,per,lang){ if(form.period==="weekly") return evalWeek
 function efScore10(form,answers){ const v=(form.questions||[]).filter(q=>q.type==="score").map(q=>Number(answers[q.id])).filter(x=>x>=1&&x<=10);
   return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length*10)/10:null; }
 const newEfQ=(type="score",text="")=>({id:"q"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),text,type,required:type==="score"});
-function efTemplate(dir,lang){ const C=dir==="t2s"||dir==="t2k"?SEVAL_C:dir==="g2t"?KTEVAL_C:TEVAL_C;
-  return [...C.map(c=>newEfQ("score",evalTx(c,lang))),{...newEfQ("text",lang==="en"?"Comment":K("Nîşe / ramana te")),required:false}]; }
 function useEvalForms(field,value,enabled=true){ return useEvalDocs("evalForms",field,value,enabled); }
 
 // 1–10 puan seçimi
@@ -14827,7 +14825,7 @@ function EvalFormsPanel({user,academy,area,teachers,lang,toast}){
   const myNo=String(user.no||"");
   const forms=useEvalForms("ownerNo",myNo).slice().sort((a,b)=>String(b.createdAtIso||"").localeCompare(String(a.createdAtIso||"")));
   const [view,setView]=useState("list"); const [edit,setEdit]=useState(null); const [res,setRes]=useState(null);
-  const blank=()=>({title:"",direction:EF_DIRS[academy][0][0],period:"weekly",questions:efTemplate(EF_DIRS[academy][0][0],lang)});
+  const blank=()=>({title:"",direction:EF_DIRS[academy][0][0],period:"weekly",questions:[]});
   async function save(f,active){
     const qs=(f.questions||[]).map(q=>({...q,text:String(q.text||"").trim().slice(0,300)})).filter(q=>q.text);
     if(!f.title.trim()){ toast("⚠ "+W2("Sernavê formê binivîse","Enter a form title")); return; }
@@ -14881,7 +14879,6 @@ function EvalFormStudio({initial,academy,lang,onSave,onCancel}){
     </div>
     <div style={card}>
       <div style={h}>④ {W2("Pirs","Questions")} ({f.questions.length})</div>
-      <button onClick={()=>{ if(!f.questions.length||window.confirm(W2("Pirsên heyî dê bên guhertin?","Replace the current questions?"))) setF(x=>({...x,questions:efTemplate(x.direction,lang)})); }} style={{...ib,marginBottom:10}}>📋 {W2("Pîvanên standard","Standard criteria")}</button>
       {f.questions.map((q,i)=>(<div key={q.id} data-ef-q={i} style={{border:"1px solid var(--border2)",borderRadius:12,padding:12,marginBottom:10,background:"var(--bg2)"}}>
         <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",marginBottom:8}}>
           <span style={{fontWeight:800,color:"var(--text)",fontSize:13}}>{i+1}.</span>
