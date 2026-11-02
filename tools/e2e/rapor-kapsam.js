@@ -51,6 +51,11 @@ async function routes(ctx) {
   await put('students/S3', { no: '20202603', name: 'Jîyan Roj', area: 'muzik', fireId: 'S3', id: 103 });
   await put('classes/A1', { kind: 'area', name: '1. Sînif', area: 'tiyatro', studentNos: ['20202601', '20202602'] });
   await put('classes/G1', { kind: 'general', name: 'Giştî', area: 'genel', studentNos: ['20202601', '20202603'] });
+  await put('classes/M1', { kind: 'area', name: '1. Sînif', area: 'muzik', studentNos: ['20202603'] });
+  // Ortak (genel) derste verilen değerlendirmeler: Rojîn (tiyatro) ve Jîyan (müzik)
+  const putEv = (id, o) => fetch(`${FS}/studentEvals/${id}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: Object.fromEntries(Object.entries(o).map(([k, v]) => [k, typeof v === 'object' ? { mapValue: { fields: Object.fromEntries(Object.entries(v).map(([a, b]) => [a, { integerValue: String(b) }])) } } : { stringValue: v }])) }) });
+  await putEv('EG1', { wk: day(9), teacherNo: '50202601', teacherName: 'Mamoste Şano', studentNo: '20202601', studentName: 'Rojîn Aram', area: 'genel', classId: 'G1', note: '', c: { p: 4, g: 4, h: 4, b: 4 } });
+  await putEv('EG2', { wk: day(9), teacherNo: '50202601', teacherName: 'Mamoste Şano', studentNo: '20202603', studentName: 'Jîyan Roj', area: 'genel', classId: 'G1', note: '', c: { p: 2, g: 2, h: 2, b: 2 } });
   // Şano (tiyatro hocası) genel derse de giriyor
   await put('schedule/L1', { id: 11, fireId: 'L1', classId: 'A1', area: 'tiyatro', name: 'Şano 1', lessonType: 'main', day: 'Dûşem', start: '09:00', end: '10:00', teacherNo: '50202601' });
   await put('schedule/L3', { id: 13, fireId: 'L3', classId: 'G1', area: 'genel', name: 'Dîroka Hunerê', lessonType: 'main', day: 'Çarşem', start: '09:00', end: '10:00', teacherNo: '50202601' });
@@ -91,8 +96,20 @@ async function routes(ctx) {
   ok('Sorumlu menüsünde anket yok', !hk.includes('surveys') && hk.includes('reports') && hk.includes('evalforms'), hk.join(','));
   await go(hp, 'reports');
   const ht = await rtabs(hp);
-  ok('Sorumlu rapor sekmeleri: anket yok, değerlendirmeler var', !ht.includes('anket') && ht.includes('seval') && ht.includes('teval'), ht.join(','));
+  ok('Sorumlu rapor sekmeleri: Devam + Değerlendirme (anket yok)', ht.join(',') === 'devam,eval', ht.join(','));
   ok('Tiyatro sorumlusu: Rojîn genel ders dahil %50 (3/6), müzik öğrencisi yok', (await pct(hp, '20202601')) === '50%' && (await pct(hp, '20202603')) === null, await pct(hp, '20202601'));
+  // Ortak "Giştî" sınıfı seçilince yalnız sorumlunun kendi öğrencileri
+  const clsOpts = await hp.evaluate(() => { const s = [...document.querySelectorAll('select')].find(x => [...x.options].some(o => o.value === 'G1')); return s ? [...s.options].map(o => o.value) : []; });
+  ok('Sorumlunun sınıf listesi: kendi sınıfı + Giştî; başka bölümün sınıfı yok', clsOpts.includes('A1') && clsOpts.includes('G1') && !clsOpts.includes('M1'), JSON.stringify(clsOpts));
+  await hp.evaluate(() => { const s = [...document.querySelectorAll('select')].find(x => [...x.options].some(o => o.value === 'G1')); const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; set.call(s, 'G1'); s.dispatchEvent(new Event('change', { bubbles: true })); });
+  await hp.waitForTimeout(800);
+  ok('Giştî seçili: yalnız kendi öğrencisi (Rojîn); müzik öğrencisi ve sınıfta olmayan Baran yok', (await pct(hp, '20202601')) !== null && (await pct(hp, '20202603')) === null && (await pct(hp, '20202602')) === null);
+  await hp.evaluate(() => [...document.querySelectorAll('[data-rep-group] button')][2].click()); await hp.waitForTimeout(800);
+  const g1 = await hp.evaluate(() => (document.querySelector('[data-rep-grow="G1"]') || {}).innerText || '');
+  ok('Sınıfa göre: Giştî satırında yalnız 1 öğrenci (kendi öğrencisi)', /\b1 xwendekar/.test(g1), g1.replace(/\n/g, ' '));
+  await hp.evaluate(() => document.querySelector('[data-rtab="eval"]').click()); await hp.waitForTimeout(1500);
+  const evRows = await hp.evaluate(() => [...document.querySelectorAll('[data-eval-row]')].map(e => e.dataset.evalRow));
+  ok('Değerlendirme: ortak derste verilen puanlardan yalnız kendi öğrencisi (Rojîn), müzik öğrencisi (Jîyan) yok', evRows.includes('20202601') && !evRows.includes('20202603'), JSON.stringify(evRows));
   await go(hp, 'alerts');
   const ha = await alerts(hp);
   ok('Tiyatro sorumlusu uyarısı: Rojîn Şano 1; genel dersteki Jîyan yok', ha.includes('abs_20202601_11') && !ha.some(k => k.includes('20202603')), ha.join(','));
@@ -105,6 +122,9 @@ async function routes(ctx) {
   ok('Genel sorumlu: devam yalnız genel dersten (Rojîn %100, Jîyan %0; bölüm dersi sayılmaz)', (await pct(gp, '20202601')) === '100%' && (await pct(gp, '20202603')) === '0%', (await pct(gp, '20202601')) + ' / ' + (await pct(gp, '20202603')));
   const gOpts = await gp.evaluate(() => [...document.querySelector('[data-rep-teacher]').options].map(o => o.value));
   ok('Genel sorumlu: genel derse giren başka bölüm öğretmeni (Şano) listede, müzik hocası yok', gOpts.includes('50202601') && !gOpts.includes('50202603'), JSON.stringify(gOpts));
+  await gp.evaluate(() => document.querySelector('[data-rtab="eval"]').click()); await gp.waitForTimeout(1500);
+  const gEv = await gp.evaluate(() => [...document.querySelectorAll('[data-eval-row]')].map(e => e.dataset.evalRow).sort());
+  ok('Genel sorumlu: genel dersin değerlendirmelerinde tüm genel sınıf öğrencileri (Rojîn + Jîyan)', gEv.includes('20202601') && gEv.includes('20202603'), JSON.stringify(gEv));
   await go(gp, 'alerts');
   const ga = await alerts(gp);
   ok('Genel sorumlu uyarısı: yalnız genel ders (Jîyan · Dîroka Hunerê); bölüm dersi uyarısı yok', ga.includes('abs_20202603_13') && !ga.includes('abs_20202601_11'), ga.join(','));
@@ -116,10 +136,9 @@ async function routes(ctx) {
   ok('Öğrenci İşleri menüsünde Rapor var', rk.includes('reports'), rk.join(','));
   await go(rp, 'reports');
   const rt = await rtabs(rp);
-  ok('Öğrenci İşleri sekmeleri: devam, tarih aralığı, öğretmen devamı, izin, çocuk akademisi; değerlendirme/anket yok', ['liste', 'nirxandin', 'mamoste', 'izin', 'zarok'].every(k => rt.includes(k)) && !rt.some(k => ['seval', 'teval', 'kseval', 'kteval', 'anket'].includes(k)), rt.join(','));
+  ok('Öğrenci İşleri sekmeleri: Devam + Çocuk Akademisi; değerlendirme yok', rt.join(',') === 'devam,zarok', rt.join(','));
   ok('Öğrenci İşleri tüm bölümleri görür (tiyatro + müzik öğrencisi)', (await pct(rp, '20202601')) !== null && (await pct(rp, '20202603')) !== null);
-  await rp.evaluate(() => document.querySelector('[data-rtab="nirxandin"]').click()); await rp.waitForTimeout(1200);
-  ok('Tarih aralığı raporunda değerlendirme özeti yok', !(await rp.evaluate(() => document.body.innerText)).includes('Mamoste → xwendekar'));
+  ok('Öğrenci İşleri devam ekranında değerlendirme özeti yok', !(await rp.evaluate(() => document.body.innerText)).includes('Mamoste → xwendekar'));
   await rp.context().close();
 
   // 4) Öğretmen ve öğrenci: anket menüsü yok

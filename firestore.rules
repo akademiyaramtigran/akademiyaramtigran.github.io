@@ -424,8 +424,9 @@ service cloud.firestore {
         && request.resource.data.raterNo == prefix()
         && id == request.resource.data.formId + '_' + request.resource.data.period + '_' + prefix() + '_' + request.resource.data.targetNo
         && (resource == null || resource.data.raterNo == prefix())
-        && request.resource.data.keys().hasOnly(['formId', 'period', 'raterNo', 'raterRole', 'targetNo', 'targetName', 'area', 'classId', 'academy', 'direction', 'answers', 'score10', 'at'])
+        && request.resource.data.keys().hasOnly(['formId', 'period', 'raterNo', 'raterRole', 'targetNo', 'targetName', 'area', 'classId', 'academy', 'direction', 'answers', 'notes', 'score10', 'at'])
         && request.resource.data.answers is map && request.resource.data.answers.size() <= 30
+        && (!('notes' in request.resource.data) || (request.resource.data.notes is map && request.resource.data.notes.size() <= 30))
         && (request.resource.data.score10 == null || (request.resource.data.score10 is number && request.resource.data.score10 >= 1 && request.resource.data.score10 <= 10))
         && exists(/databases/$(database)/documents/evalForms/$(request.resource.data.formId))
         && evForm(request.resource.data.formId).active == true

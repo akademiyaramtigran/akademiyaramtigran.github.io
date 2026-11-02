@@ -49,6 +49,9 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
     await put('idx_students/' + no, { no }); await put('students/S' + i, { no, name, area: 'tiyatro', fireId: 'S' + i, id: 100 + i }); await signUp(no + '@ogrenci.aat', 'Stu12345');
   }
   await put('classes/A1', { kind: 'area', name: '1. Sînif', area: 'tiyatro', studentNos: ['20202601', '20202602'], teacherNos: ['50202601'], teacherNames: ['Mamoste Şano'] });
+  // Ortak Giştî sınıfı: Şano buna da giriyor; içinde müzik öğrencisi de var
+  await put('students/S9', { no: '20202609', name: 'Jîyan Roj', area: 'muzik', fireId: 'S9', id: 109 });
+  await put('classes/GG', { kind: 'general', name: 'Giştî', area: 'genel', studentNos: ['20202601', '20202609'], teacherNos: ['50202601'], teacherNames: ['Mamoste Şano'] });
   // Çocuk akademisi
   await put('idx_staff/96202602', { no: '96202602', lvl: 'head', area: 'drama' });
   await put('teachers/TH2', { id: 'TH2', no: '96202602', name: 'Berpirsa Dramayê', isHead: true, area: 'drama' });
@@ -104,24 +107,33 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   const tp = await login('50202601', 'Tea12345', 'Mamoste', 430);
   await go(tp, 'seval'); await tp.waitForTimeout(1500);
   ok('Öğretmen: form ekranı (eski 4 pîvan yerine)', (await tp.locator('[data-ef-fill]').count()) === 1 && (await txt(tp)).includes('Nirxandina Şanoyê'));
-  await clk(tp, '[data-ef-target="20202601"] button'); await tp.waitForTimeout(400);
-  const nq = await scoreAll(tp, 3); await tp.locator('[data-ef-text]').last().fill('Dengê wê baş e'); await clk(tp, '[data-ef-save]'); await tp.waitForTimeout(1800);
-  await clk(tp, '[data-ef-target="20202602"] button'); await tp.waitForTimeout(400);
-  await scoreAll(tp, 9); await clk(tp, '[data-ef-save]'); await tp.waitForTimeout(1800);
+  // Soru soru (varsayılan): her sorunun altında öğrenci listesi; kişiye puan + not
+  ok('Soru soru görünüm: her soruda iki öğrenci', (await tp.locator('[data-ef-grid]').count()) === 1 && (await tp.locator('[data-ef-gcell$="_20202601"]').count()) === 5 && (await tp.locator('[data-ef-gcell$="_20202602"]').count()) === 5);
+  ok('Tiyatro formunda Giştî öğretmeninin müzik öğrencisi listelenmez (yalnız formun alanı)', (await tp.locator('[data-ef-gcell$="_20202609"]').count()) === 0);
+  const nq = await tp.evaluate(() => { const qs = [...document.querySelectorAll('[data-ef-gq]')].map(e => e.dataset.efGq); let n = 0;
+    qs.forEach(q => { const a = document.querySelector('[data-ef-score="' + q + '_20202601_3"]'), b = document.querySelector('[data-ef-score="' + q + '_20202602_9"]'); if (a && b) { a.click(); b.click(); n++; } }); return n; });
+  await tp.waitForTimeout(300);
+  const Q1 = await tp.evaluate(() => document.querySelector('[data-ef-gq]').dataset.efGq);
+  await tp.locator('[data-ef-gnote="' + Q1 + '_20202601"]').fill('Ders tê de beşdar nabe');
+  await tp.locator('[data-ef-gtext$="_20202601"]').fill('Dengê wê baş e');
+  await clk(tp, '[data-ef-gsave]'); await tp.waitForTimeout(2500);
   const R = await list('evalResponses');
   const r1 = R.find(d => d.fields.targetNo.stringValue === '20202601'), r2 = R.find(d => d.fields.targetNo.stringValue === '20202602');
-  ok('Öğretmen cevapları kaydedildi (Rojîn 3.0, Baran 9.0, yazılı cevap)', nq === 4 && !!r1 && Number(r1.fields.score10.doubleValue ?? r1.fields.score10.integerValue) === 3 && !!r2 && JSON.stringify(r1.fields.answers).includes('Dengê wê baş e'),
+  ok('Öğretmen cevapları tek seferde kaydedildi (Rojîn 3.0, Baran 9.0, yazılı cevap)', nq === 4 && !!r1 && Number(r1.fields.score10.doubleValue ?? r1.fields.score10.integerValue) === 3 && !!r2 && Number(r2.fields.score10.doubleValue ?? r2.fields.score10.integerValue) === 9 && JSON.stringify(r1.fields.answers).includes('Dengê wê baş e'),
     r1 ? JSON.stringify(r1.fields.score10) : '');
+  ok('Kişiye göre not kaydedildi (soru 1, Rojîn)', !!r1 && JSON.stringify(r1.fields.notes || {}).includes('Ders tê de beşdar nabe'), r1 ? JSON.stringify(r1.fields.notes) : '');
   await tp.context().close();
 
   // 3) Öğrenci: öğretmeni değerlendirir (aylık, isimsiz)
   const sp = await login('20202601', 'Stu12345', 'Xwendekar', 430);
   await go(sp, 'teval'); await sp.waitForTimeout(1500);
   ok('Öğrenci: öğretmen değerlendirme formu', (await sp.locator('[data-ef-fill]').count()) === 1 && (await txt(sp)).includes('Nêrîna xwendekaran'));
+  // Kişi kişi görünüm de çalışır (öğretmen başına puan + not)
+  await sp.evaluate(() => [...document.querySelectorAll('[data-ef-mode] button')][1].click()); await sp.waitForTimeout(300);
   await clk(sp, '[data-ef-target="50202601"] button'); await sp.waitForTimeout(400);
-  await scoreAll(sp, 8); await clk(sp, '[data-ef-save]'); await sp.waitForTimeout(1800);
+  await scoreAll(sp, 8); await sp.locator('[data-ef-note]').first().fill('Baş rave dike'); await clk(sp, '[data-ef-save]'); await sp.waitForTimeout(1800);
   const r3 = (await list('evalResponses')).find(d => d.fields.direction.stringValue === 's2t');
-  ok('Öğrenci cevabı aylık döneme kaydedildi', !!r3 && /^\d{4}-\d{2}$/.test(r3.fields.period.stringValue) && r3.fields.targetNo.stringValue === '50202601');
+  ok('Öğrenci cevabı aylık döneme kaydedildi (not ile)', !!r3 && /^\d{4}-\d{2}$/.test(r3.fields.period.stringValue) && r3.fields.targetNo.stringValue === '50202601' && JSON.stringify(r3.fields.notes || {}).includes('Baş rave dike'));
   await sp.context().close();
 
   // 4) Sorumlu: sonuçlar + uyarı
@@ -129,6 +141,15 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await hp.click('[data-ef-results="' + F1.name.split('/').pop() + '"]'); await hp.waitForTimeout(1500);
   const t4 = await txt(hp);
   ok('Sonuçlar: soru ortalamaları (6.0) ve kişi bazında (Rojîn 3.0, Baran 9.0)', t4.includes('6.0') && t4.includes('3.0') && t4.includes('9.0') && t4.includes('Dengê wê baş e'));
+  await hp.click('[data-ef-qavg="' + Q1 + '"]'); await hp.waitForTimeout(400);
+  const qp = await hp.evaluate(q => (document.querySelector('[data-ef-qper="' + q + '"]') || {}).innerText || '', Q1);
+  ok('Sonuç: soruya tıklayınca kişi kişi puan ve not (Rojîn 3 · not, Baran 9)', qp.includes('Rojîn') && qp.includes('Ders tê de beşdar nabe') && qp.includes('Baran') && /\b3\b/.test(qp) && /\b9\b/.test(qp), qp.replace(/\n/g, ' / '));
+  // Rapor → Değerlendirme: eski + yeni tek ekranda, notlarıyla
+  await go(hp, 'reports'); await hp.waitForTimeout(1500);
+  await hp.evaluate(() => document.querySelector('[data-rtab="eval"]').click()); await hp.waitForTimeout(1500);
+  await hp.click('[data-eval-row="20202601"] button'); await hp.waitForTimeout(400);
+  const rd = await hp.evaluate(() => (document.querySelector('[data-eval-detail="20202601"]') || {}).innerText || '');
+  ok('Rapor → Değerlendirme: öğrencinin soru puanları ve öğretmen notu', rd.includes('Beşdarî') && rd.includes('Ders tê de beşdar nabe') && rd.includes('Mamoste'), rd.replace(/\n/g, ' / ').slice(0, 300));
   await go(hp, 'alerts'); await hp.waitForTimeout(1500);
   const ak = await hp.evaluate(() => [...document.querySelectorAll('[data-alert]')].map(e => e.dataset.alert));
   ok('Form cevabı 5/10 altı → uyarı (Rojîn), 9/10 uyarısız', ak.includes('efr_' + r1.name.split('/').pop()) && !ak.includes('efr_' + r2.name.split('/').pop()), JSON.stringify(ak));
@@ -150,7 +171,9 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await vp.click('.roles button:nth-child(1)'); await vp.fill('#l-no', G); await vp.fill('#l-pw', 'Veli12345'); await vp.click('.login .btn');
   await vp.waitForSelector('.top', { timeout: 20000 }); await vp.waitForTimeout(1500);
   await goZ(vp, 'teval'); await vp.waitForTimeout(1200);
-  ok('Veli: form ekranı (öğretmen listede)', (await vp.locator('[data-ef-target="' + KT + '"]').count()) === 1, (await txt(vp)).slice(0, 200));
+  ok('Veli: soru soru görünüm varsayılan (öğretmen her soruda)', (await vp.locator('[data-ef-grid]').count()) === 1 && (await vp.locator('[data-ef-gcell$="_' + KT + '"]').count()) === 2);
+  await vp.evaluate(() => [...document.querySelectorAll('[data-ef-mode] button')][1].click()); await vp.waitForTimeout(400);
+  ok('Veli: kişi kişi görünümde öğretmen listede', (await vp.locator('[data-ef-target="' + KT + '"]').count()) === 1, (await txt(vp)).slice(0, 200));
   await vp.evaluate(KT => document.querySelector('[data-ef-target="' + KT + '"] button').click(), KT); await vp.waitForTimeout(400);
   await scoreAll(vp, 4); await vp.evaluate(() => document.querySelector('[data-ef-save]').click()); await vp.waitForTimeout(2000);
   const kr = (await list('evalResponses')).find(d => d.fields.direction.stringValue === 'g2t');
