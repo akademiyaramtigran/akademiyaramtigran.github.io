@@ -2324,6 +2324,26 @@ async function rebuildAttStats(students){
     try{ localStorage.setItem(day,"1"); }catch(_){}
   }catch(e){ console.warn("[attStats]",e); }
 }
+// QR okutmaları ayrı belgelerde durur (attendance/{oturum}_{öğrenci}). Öğretmenin telefonu yeniden açılmış ya da
+// okutma henüz ulaşmamış olsa bile yoklama kaydedilirken bunlar veritabanından okunur: QR okutan öğrenci "yok" yazılmaz.
+async function qrCheckinsFor(lessonId, teacherId, date){
+  const F=window.__FB, out={}; if(!F||!F.isConfigured()||lessonId==null||!date) return out;
+  const add=v=>{ if(!v||v.studentId==null||v.deviceClaim) return; const k=String(v.studentId); if(out[k]!=="on") out[k]=v.late?"late":"on"; };
+  try{ const sn=await F.getDocs(F.query(F.collection(F.db,"attendance"),F.where("qrLessonId","==",String(lessonId)),F.where("qrDate","==",date)));
+    sn.docs.forEach(d=>add(d.data())); }catch(e){ console.warn("[qrCheckins]",e&&e.code); }
+  // Eski okutmalar (ders/tarih alanı yok): oturum kimliği "AAT-<öğretmen>-<ders>-…" ile başlar, tarih okutma anından
+  if(teacherId!=null) try{ const pre="AAT-"+teacherId+"-"+lessonId+"-";
+    const sn=await F.getDocs(F.query(F.collection(F.db,"attendance"),F.where("sessionId",">=",pre),F.where("sessionId","<",pre+"\uf8ff")));
+    sn.docs.forEach(d=>{ const v=d.data(); if(v&&v.time&&ymdLocal(new Date(v.time))===date) add(v); }); }catch(e){ console.warn("[qrCheckins]",e&&e.code); }
+  return out;
+}
+// Kayıttaki "yok" (ya da boş) işaretlerini QR okutmasıyla düzeltir; izinli ve geldi/geç işaretlerine dokunmaz
+async function qrMergeRecords(lessonId, teacherId, date, records){
+  const qr=await qrCheckinsFor(lessonId, teacherId, date);
+  // Listede "yok"/boş olan ya da hiç olmayan (misafir, genel derse gelen) QR okutmuş öğrenci "geldi/geç" yazılır
+  Object.entries(qr).forEach(([k,q])=>{ const v=records[k]; if(v!=="on"&&v!=="late"&&v!=="leave") records[k]=q; });
+  return records;
+}
 async function fbSaveAttendance(lessonId, teacherId, date, records){
 
   if(!window.__FB||!window.__FB.isConfigured()) {
@@ -2335,6 +2355,7 @@ async function fbSaveAttendance(lessonId, teacherId, date, records){
     return null;
   }
   try{
+    await qrMergeRecords(lessonId, teacherId, date, records);   // records yerinde güncellenir (çağıran da görür)
     const ref = window.__FB.doc(window.__FB.db, "attendance", `${lessonId}-${date}`);
     await window.__FB.setDoc(ref, {lessonId,teacherId:teacherId==null?null:teacherId,date,records,updatedAt:window.__FB.serverTimestamp()},{merge:true});
     return ref.id;
@@ -15609,8 +15630,8 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     const ms=Date.now(), FB=window.__FB;
     let records={};
     if(activeQRSession&&String(activeQRSession.lessonId)===String(ls.id)){
-      closeLessonQR();
-      await new Promise(r=>setTimeout(r,300));
+      await closeLessonQR();
+      await new Promise(r=>setTimeout(r,250));
       records={...attRef.current};
     }else{
       attRoster.forEach(s=>{ records[s.id]=attRef.current[s.id]||"off"; });
@@ -15637,6 +15658,8 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
       try{ const v=JSON.parse(localStorage.getItem("aat-att-"+attLessonId+"-"+attDay)||"null"); if(v&&v.records) setAttendance(p=>({...v.records,...p})); }catch(_){}
       return;
     }
+    qrCheckinsFor(attLessonId, teacher.id, attDay).then(qr=>{ if(alive&&Object.keys(qr).length)
+      setAttendance(p=>{ const n={...p}; Object.entries(qr).forEach(([k,v])=>{ if(n[k]!=="on"&&n[k]!=="late"&&n[k]!=="leave") n[k]=v; }); return n; }); });
     FB.getDoc(FB.doc(FB.db,"attendance",attLessonId+"-"+attDay)).then(snap=>{
       if(!alive||!snap.exists()) return; const r=snap.data().records, st=snap.data().startedAt;
       if(r) setAttendance(p=>({...r,...p}));
@@ -15727,7 +15750,8 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
       const left=endAt.getTime()-Date.now(); if(left>5*60000) ttl=left; }
     const session = openQRSession(sessionId, lessonName, teacher.name, sessionArea, ttl, null, lessonId, teacher.id, startMs);
     // Ek ders tarihini session'a ekle
-    if(lessonDate && window._aat_qr_session) window._aat_qr_session._lessonDate = lessonDate;
+    if(lessonDate && window._aat_qr_session){ window._aat_qr_session._lessonDate = lessonDate;
+      try{ if(window.__FB&&window.__FB.isConfigured()) window.__FB.setDoc(window.__FB.doc(window.__FB.db,"qrSessions",sessionId),{lessonDate},{merge:true}).catch(()=>{}); }catch(_){} }
     setQrToken(sessionId);
     setActiveQRSession(session);
     if(lesson && lesson.id && todayLessons.some(l=>String(l.id)===String(lesson.id))) setAttLsId(lesson.id);
@@ -15768,6 +15792,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
         // Yeni oturum dokümanı — öğrenciler yeni QR'ı doğrulayabilsin
         window.__FB.setDoc(window.__FB.doc(window.__FB.db,"qrSessions",newId),{
           sessionId:newId, lessonName:s.lessonName, teacherName:s.teacherName, area:s.area,
+          lessonId:s.lessonId==null?null:String(s.lessonId), lessonDate:s._lessonDate||s.lessonDate||ymdLocal(new Date()),
           openedAt: window.__FB.serverTimestamp(), openedAtMs: s.openedAtMs||s.openedAt, expiresAt: s.expiresAt, active:true
         });
         // Eski QR'ı geçersiz kıl
@@ -15782,7 +15807,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
 
   // QR otomatik açılmaz — öğretmen panelde manuel olarak başlatır
 
-  function closeLessonQR(){
+  async function closeLessonQR(){
     const checkins = getSessionCheckins();
     const session  = window._aat_qr_session;
     // Ek ders için doğru tarihi kullan, yoksa bugün
@@ -15805,15 +15830,15 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
       records[s.id] = checkins[s.id] ? (checkins[s.id].late ? "late" : "on") : (m==="on"||m==="late") ? m : "off";
     });
     onLeaveNow.forEach(s=>{ records[s.id]="leave"; });   // izinli: devamsızlık sayılmaz
-    fbSaveAttendance(lessonId, teacher.id, dateStr, records);
+    setActiveQRSession(null);
+    setQrToken(null);
+    await fbSaveAttendance(lessonId, teacher.id, dateStr, records);   // veritabanındaki QR okutmaları da eklenir
     if(String(lessonId)===String(attLessonRef.current)) setAttendance(p=>({...p,...records}));
 
     // 3. Öğrenci istatistiklerini güncelle (ders başına bir kez)
     const presentCount = roster.filter(s=>records[s.id]!=="off").length;
     applyAttStats(lessonId, dateStr, roster, records);
 
-    setActiveQRSession(null);
-    setQrToken(null);
     const total = roster.length;
     toast("✅ " + (session?.lessonName||"Ders") + " — " + presentCount + "/" + total + " " + (lang==="en"?"checked in":K("kete dersê")));
   }
@@ -18431,6 +18456,7 @@ function openQRSession(sessionId, lessonName, teacherName, area, expiresInMs=600
         openedAtMs: session.openedAtMs,
         expiresAt: Date.now() + expiresInMs,
         teacherLocation: teacherLocation||null,
+        lessonId: lessonId==null?null:String(lessonId), lessonDate: ymdLocal(new Date()),
         active: true
       });
     }
@@ -18486,6 +18512,7 @@ function checkinToSession(qrContent, student){
         window.__FB.doc(window.__FB.db, "attendance", s.sessionId + "_" + student.id),
         { sessionId: s.sessionId, lessonName: s.lessonName, area: s.area,
           studentId: student.id, studentName: student.name, studentNo: student.no,
+          ...(s.lessonId!=null?{qrLessonId:String(s.lessonId),qrDate:s._lessonDate||s.lessonDate||ymdLocal(new Date())}:{}),
           time: new Date().toISOString(), late: isLate, teacherName: s.teacherName },
         {merge:true}
       );
