@@ -34,7 +34,7 @@ function appStrings() {
     const [n, p] = stack.pop();
     if (!n || typeof n.type !== 'string') continue;
     parent.set(n, p);
-    if (n.type === 'CallExpression' && n.callee.type === 'Identifier' && (n.callee.name === 'K' || n.callee.name === 'KF' || n.callee.name === 'Z' || n.callee.name === 'W')
+    if (n.type === 'CallExpression' && n.callee.type === 'Identifier' && (n.callee.name === 'K' || n.callee.name === 'KF' || n.callee.name === 'Z' || n.callee.name === 'W' || n.callee.name === 'W2')
       && n.arguments[0] && n.arguments[0].type === 'StringLiteral') calls.push(n);
     for (const k of Object.keys(n)) {
       if (k === 'loc' || k === 'extra' || /Comments$/.test(k)) continue;
@@ -68,7 +68,7 @@ function appStrings() {
     const ku = n.arguments[0].value;
     let en = '', tkey = '';
     const p = parent.get(n);
-    if (n.callee.name === 'Z' || n.callee.name === 'W') en = lit(n.arguments[1]);   // Z/W("kurmancî","english")
+    if (n.callee.name === 'Z' || n.callee.name === 'W' || n.callee.name === 'W2') en = lit(n.arguments[1]);   // Z/W("kurmancî","english")
     if (p && p.type === 'ConditionalExpression' && p.alternate === n) en = lit(p.consequent);
     const ret = p && p.type === 'ReturnStatement' ? p : null, blk = ret && parent.get(ret), meth = blk && parent.get(blk);
     if (meth && meth.type === 'ObjectMethod') {
