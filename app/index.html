@@ -10192,8 +10192,8 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
         {section==="qad"&&(
           <>
             <SectionHeader>🎭 {(t&&t.areas)||"Qadên Hunerê"}</SectionHeader>
-            <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>{lang==="en"?"Open a field to register students and teachers. The lesson schedule is prepared by the department heads; here you can view it.":K("Qadekê veke: xwendekar û mamoste tescîl bike. Bernameya dersan berpirsên beşan amade dikin; li vir tu dikarî bibînî.")}</div>
-            <AdminScheduleTab termsOnly schedule={schedule||[]} teachers={teachers||[]} students={students||[]} lang={lang} t={t||T.ku} toast={toast} onDataChange={onDataChange}/>
+            <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>{lang==="en"?"Open a field to register students and teachers. The overall lesson schedule of all departments is built here: add lessons, set times, assign teachers. Department heads can also edit their own department.":K("Qadekê veke: xwendekar û mamoste tescîl bike. Bernameya giştî ya dersan a hemû beşan li vir tê amadekirin: ders zêde bike, saetan diyar bike, mamosteyan erk bike. Berpirsên beşan jî dikarin beşa xwe biguherînin.")}</div>
+            <AdminScheduleTab mode="full" byName={user&&user.name||""} schedule={schedule||[]} teachers={teachers||[]} students={students||[]} lang={lang} t={t||T.ku} toast={toast} onDataChange={onDataChange}/>
             {(()=>{
               const genelArea = AREA_MAP["genel"];
               const genelCnt = (students||[]).filter(st=>!st.isAdmin).length;
@@ -10361,7 +10361,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
       </div>
 
       {activeArea&&(
-        <AreaDetailModal areaKey={activeArea} students={students||[]} teachers={teachers||[]} schedule={schedule||[]} onClose={()=>setActiveArea(null)} t={t||T.ku} lang={lang} toast={toast} onDataChange={onDataChange} schedMode="view"/>
+        <AreaDetailModal areaKey={activeArea} students={students||[]} teachers={teachers||[]} schedule={schedule||[]} onClose={()=>setActiveArea(null)} t={t||T.ku} lang={lang} toast={toast} onDataChange={onDataChange} schedMode="full"/>
       )}
       {regCreds&&(
         <Sheet open={true} onClose={()=>setRegCreds(null)} title={L("regDone")}>
