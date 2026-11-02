@@ -1447,7 +1447,10 @@ window.AAT_TX={"ku":{},"zza":{},"tr":{"Ev hefte: {0} ders":"Bu hafta: {0} ders",
 "Mehane":"Aylık",
 "Nirxandin (1–10)":"Değerlendirme (1–10)",
 "Di vê heyamê de agahî tune.":"Bu dönemde veri yok.",
-"Karne (PDF)":"Karne (PDF)"}};
+"Karne (PDF)":"Karne (PDF)",
+"puan li gorî meha berê":"puan (önceki aya göre)",
+"Analîza mehane":"Aylık analiz",
+"Her meh jî analîza meha borî: amadebûn di bin %70 de, nirxandin di bin 5/10 de an li gorî meha berê 15 puan an zêdetir daketin.":"Ayrıca her ay geçen ayın analizinden: devam %70'in altında, değerlendirme 5/10'un altında ya da önceki aya göre 15 puan ve üzeri düşüş."}};
 window.AAT_SITE={"ku":{},"zza":{}};
 window.AAT_SITE_AREA={"ku":{},"zza":{}};
 window.AAT_ZAROK={"ku":{},"zza":{}};

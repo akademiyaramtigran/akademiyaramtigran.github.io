@@ -386,6 +386,9 @@ const { ref, uploadString, uploadBytes, getBytes } = require('firebase/storage')
   await t('Uyarı: sorumlu başkası adına işaretleyemez', setDoc(doc(head, 'alertAcks/abs_2_L1'), ackD('11202601')), false);
   await t('Uyarı: yönetici işaretler', setDoc(doc(admin, 'alertAcks/abs_3_L1'), ackD('1000')), true);
   await t('Uyarı: öğretmen işaretleyemez', setDoc(doc(teacher, 'alertAcks/abs_4_L1'), ackD('11202601')), false);
+  await t('Uyarı: öğrenci işleri kendi adıyla işaretler', setDoc(doc(as('98202601@ogretmen.aat'), 'alertAcks/man_st_101_2026-10'), ackD('98202601')), true);
+  await t('Uyarı: öğrenci işleri başkası adına işaretleyemez', setDoc(doc(as('98202601@ogretmen.aat'), 'alertAcks/man_st_102_2026-10'), ackD('1000')), false);
+  await t('Uyarı: öğrenci işleri işaretleri okur', getDoc(doc(as('98202601@ogretmen.aat'), 'alertAcks/man_st_101_2026-10')), true);
   await t('Uyarı: öğretmen işaretleri okuyamaz', getDoc(doc(teacher, 'alertAcks/abs_1_L1')), false);
   await t('Uyarı: öğrenci okuyamaz', getDoc(doc(student, 'alertAcks/abs_1_L1')), false);
   await t('Uyarı: fazladan alan reddedilir', setDoc(doc(head, 'alertAcks/abs_5_L1'), ackD('96202601', { x: 1 })), false);

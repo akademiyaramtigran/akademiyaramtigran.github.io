@@ -339,3 +339,67 @@ exports.pushEvalForm = onDocumentWritten("evalForms/{id}", async (ev) => {
   if (!docs.length) return;
   await push(docs, l => ({ title: EFTX[l] || EFTX.ku, body: f.title || "" }), link, app + "-evalform");
 });
+
+// ── Aylık analiz bildirimi: her ayın 1'i 09:05 (İstanbul) — biten ayın risk özetini
+//    bölüm sorumlusuna (kendi alanı; genel sorumlu: genel dersler), yöneticiye (hepsi) ve Öğrenci İşleri'ne (yalnız devam) gönderir.
+//    Risk: devam < %70 (en az 2 kayıt), değerlendirme < 5/10, önceki aya göre devamda ≥ 15 puan düşüş. Ayrıntı uygulamada: Hişyarî.
+const MANTX = {
+  ku: { t: "📊 Analîza mehane · {0}", b: "{0} di xeterê de — li Hişyarî binêre" , st: "xwendekar", ls: "ders", tc: "mamoste" },
+  tr: { t: "📊 Aylık analiz · {0}", b: "{0} risk altında — Uyarılar'a bakın", st: "öğrenci", ls: "ders", tc: "öğretmen" },
+  en: { t: "📊 Monthly analysis · {0}", b: "{0} at risk — see Alerts", st: "students", ls: "lessons", tc: "teachers" }
+};
+function istanbulYm() {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit" }).formatToParts(new Date()).map(x => [x.type, x.value]));
+  return p.year + "-" + p.month;
+}
+const ymShift = (ym, k) => { const [y, m] = ym.split("-").map(Number); const d = new Date(Date.UTC(y, m - 1 + k, 1)); return d.getUTCFullYear() + "-" + String(d.getUTCMonth() + 1).padStart(2, "0"); };
+const ymEnd = ym => { const [y, m] = ym.split("-").map(Number); return ym + "-" + String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, "0"); };
+// Saf hesap (test edilebilir): ay M için alan bazında risk sayıları
+function monthlyRiskCounts({ students, schedule, teachers, att, sEvals, tEvals, efr, M }) {
+  const P = ymShift(M, -1), mF = M + "-01", mT = ymEnd(M), pF = P + "-01", pT = ymEnd(P);
+  const lsById = new Map(schedule.map(l => [String(l.id), l])), stById = new Map(students.map(s => [String(s.id), s])), stByNo = new Map(students.map(s => [String(s.no), s]));
+  const tcByNo = new Map(teachers.map(t => [String(t.no), t]));
+  const agg = (f, t, onlyGenel) => { const A = { st: new Map(), ls: new Map(), tc: new Map() };
+    const inc = (m, k, v) => { if (!k) return; const x = m.get(k) || { on: 0, late: 0, off: 0 }; if (x[v] != null) x[v]++; m.set(k, x); };
+    att.forEach(d => { if (!d.date || d.date < f || d.date > t || d.teacherAbsent || !d.records) return; const l = lsById.get(String(d.lessonId)) || {};
+      if (onlyGenel && l.area !== "genel") return;
+      Object.entries(d.records).forEach(([sid, v]) => { if (!stById.has(String(sid))) return; inc(A.st, String(sid), v); inc(A.ls, String(d.lessonId), v); inc(A.tc, String(l.teacherNo || ""), v); }); });
+    return A; };
+  const pct = x => { if (!x) return null; const n = x.on + x.late + x.off; return n >= 2 ? Math.round((x.on + x.late) / n * 100) : null; };
+  const ev = { st: new Map(), tc: new Map() }; const add = (m, k, sc) => { if (!k || sc == null || isNaN(sc)) return; const x = m.get(k) || []; x.push(sc); m.set(k, x); };
+  const s10 = c => { const v = Object.values(c || {}).map(Number).filter(x => x >= 1 && x <= 5); return v.length ? v.reduce((a, b) => a + b, 0) / v.length * 2 : null; };
+  sEvals.forEach(d => { const w = String(d.wk || ""); if (w >= mF && w <= mT) { const s = stByNo.get(String(d.studentNo)); if (s) add(ev.st, String(s.id), s10(d.c)); } });
+  tEvals.forEach(d => { const w = String(d.wk || ""); if (w >= mF && w <= mT) add(ev.tc, String(d.teacherNo), s10(d.c)); });
+  efr.forEach(r => { const p = String(r.period || ""); const dt = /^\d{4}-\d{2}-\d{2}$/.test(p) ? p : /^\d{4}-\d{2}$/.test(p) ? p + "-01" : ""; if (!dt || dt < mF || dt > mT || r.score10 == null) return;
+    if (r.direction === "t2s") { const s = stByNo.get(String(r.targetNo)); if (s) add(ev.st, String(s.id), Number(r.score10)); } else if (r.direction === "s2t") add(ev.tc, String(r.targetNo), Number(r.score10)); });
+  const avg = a => a && a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+  const risky = (a, pa, e, withEv) => { const at = pct(a), pat = pct(pa); return (at != null && at < 70) || (at != null && pat != null && pat - at >= 15) || (withEv && e != null && e < 5); };
+  const C = agg(mF, mT, false), Pv = agg(pF, pT, false), CG = agg(mF, mT, true), PG = agg(pF, pT, true);
+  const counts = {}; const bump = (ar, k, attOnly) => { if (!ar) return; const x = counts[ar] = counts[ar] || { st: 0, ls: 0, tc: 0, ast: 0, als: 0, atc: 0 }; x[k]++; if (attOnly) x["a" + k]++; };
+  C.st.forEach((a, id) => { const s = stById.get(id); if (!s) return; if (risky(a, Pv.st.get(id), avg(ev.st.get(id)), true)) bump(s.area, "st", risky(a, Pv.st.get(id), null, false)); });
+  CG.st.forEach((a, id) => { if (risky(a, PG.st.get(id), null, false)) bump("genel", "st", true); });
+  C.ls.forEach((a, id) => { const l = lsById.get(id); if (l && risky(a, Pv.ls.get(id), null, false)) bump(l.area, "ls", true); });
+  C.tc.forEach((a, no) => { const t = tcByNo.get(no); if (!t) return; if (risky(a, Pv.tc.get(no), avg(ev.tc.get(no)), true)) bump(t.area, "tc", risky(a, Pv.tc.get(no), null, false)); });
+  return counts;
+}
+exports.monthlyRiskCounts = monthlyRiskCounts;
+exports.monthlyAnalysis = onSchedule({ schedule: "5 9 1 * *", timeZone: "Europe/Istanbul" }, async () => {
+  const db = admin.firestore(); const M = ymShift(istanbulYm(), -1), from = ymShift(M, -1) + "-01", to = ymEnd(M);
+  const [st, sch, tc, at, se, te, er] = await Promise.all([db.collection("students").get(), db.collection("schedule").get(), db.collection("teachers").get(),
+    db.collection("attendance").where("date", ">=", from).where("date", "<=", to).get(),
+    db.collection("studentEvals").where("wk", ">=", M + "-01").where("wk", "<=", to).get(), db.collection("teacherEvals").where("wk", ">=", M + "-01").where("wk", "<=", to).get(),
+    db.collection("evalResponses").where("academy", "==", "aat").get()]);
+  const counts = monthlyRiskCounts({ students: st.docs.map(d => d.data()).filter(s => s.id != null), schedule: sch.docs.map(d => d.data()), teachers: tc.docs.map(d => d.data()),
+    att: at.docs.map(d => d.data()), sEvals: se.docs.map(d => d.data()), tEvals: te.docs.map(d => d.data()), efr: er.docs.map(d => d.data()), M });
+  const [y, m] = M.split("-").map(Number);
+  const mName = l => new Intl.DateTimeFormat(l === "en" ? "en-GB" : "tr-TR", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, 15)));
+  const txt = (l, c, attOnly) => { const d = MANTX[l] || MANTX.ku; const p = attOnly ? "a" : ""; const parts = [["st", c[p + "st"]], ["ls", c[p + "ls"]], ["tc", c[p + "tc"]]].filter(x => x[1]).map(x => x[1] + " " + d[x[0]]);
+    return parts.length ? { title: d.t.replace("{0}", mName(l)), body: d.b.replace("{0}", parts.join(", ")) } : null; };
+  const sum = attOnly => Object.values(counts).reduce((a, c) => ({ st: a.st + c.st, ls: a.ls + c.ls, tc: a.tc + c.tc, ast: a.ast + c.ast, als: a.als + c.als, atc: a.atc + c.atc }), { st: 0, ls: 0, tc: 0, ast: 0, als: 0, atc: 0 });
+  const tot = sum();
+  const heads = await tokens("aat", "role", "head");
+  for (const d of heads) { const c = counts[String(d.get("area") || "")]; if (!c) continue; if (!txt("ku", c, false)) continue; await push([d], l => txt(l, c, false), "/app/", "aat-monthly"); }
+  const admins = await tokens("aat", "role", "admin"); if (admins.length && txt("ku", tot, false)) await push(admins, l => txt(l, tot, false), "/app/", "aat-monthly");
+  const regs = await tokens("aat", "role", "registrar"); if (regs.length && txt("ku", tot, true)) await push(regs, l => txt(l, tot, true), "/app/", "aat-monthly");
+  return { M, counts };
+});

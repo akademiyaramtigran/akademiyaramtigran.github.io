@@ -10035,12 +10035,17 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
   // ── Bölümler: serledan | qad (kayıt + program + dönem) | sinif | anket | rapor | zarok ──
   const [section,setSection]=useState("serledan");
   const [menuOpen,setMenuOpen]=useState(isPhoneNow);
+  // Uyarılar: Öğrenci İşleri yalnız DEVAM uyarılarını görür (değerlendirme puanları yönetici + sorumlularda)
+  const regARaw=useAlerts({students:students||[],teachers:teachers||[],schedule:schedule||[],area:null,lang,noEvals:true});
+  const regKRaw=useKidAlerts({area:null});
+  const regAlerts=useAlertAcks([...regARaw,...regKRaw.filter(x=>x.kind==="kabs")]);
   const regTabs=[
     {key:"serledan",icon:"📋",label:lang==="en"?"Applications":K("Serlêdan")},
     {key:"qad",icon:"🎭",label:lang==="en"?"Art Fields · Registration · Schedule":K("Qad · Tescîl · Bername")},
     {key:"sinif",icon:"🏫",label:lang==="en"?"Classes & Workshops":K("Sinif û Atolye")},
     {key:"zarok",icon:"🎼",label:lang==="en"?"Children's Academy":K("Akademiya Zarokan")},
     {key:"reports",icon:"📊",label:lang==="en"?"Reports":K("Rapor")},
+    {key:"alerts",icon:"🔔",label:lang==="en"?"Alerts":K("Hişyarî"),badge:regAlerts.open},
   ];
   const [activeArea,setActiveArea]=useState(null);
   const [cfg,setCfg]=useState({open:false,startDate:"",endDate:"",note:""});
@@ -10298,6 +10303,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
         )}
 
         {section==="zarok"&&<ZarokAdminPanel lang={lang} toast={toast} user={user}/>}
+        {section==="alerts"&&<AlertCenter data={regAlerts} user={user} lang={lang} toast={toast} noEvals/>}
         {section==="reports"&&<AdminReportCenter registrar students={students||[]} teachers={teachers||[]} schedule={schedule||[]} lang={lang} t={t} toast={toast} byName={user.name}/>}
         {section==="sinif"&&<AcademyClassBoard students={students||[]} teachers={teachers||[]} schedule={schedule||[]} lang={lang} t={t||T.ku} toast={toast} onDataChange={onDataChange}/>}
         {section!=="serledan"?null:(<>
@@ -11534,16 +11540,60 @@ function efAlerts(rs,inArea,teacherName){
       teacher:(r.direction==="t2s"||r.direction==="t2k")?(teacherName(r.raterNo)||""):"",note:tx}); });
   return out;
 }
-function useAlerts({students,teachers,schedule,area,lang,scope}){
+// Aylık analiz uyarısı: biten ayın Genel Analizi — devam < %70, değerlendirme < 5/10, önceki aya göre devamda ≥15 puan düşüş
+const MAN_ATT=70, MAN_EV=5, MAN_DROP=15, MAN_MIN=2;
+function monthlyAlerts({att,sEv,tEv,efR,students,teachers,schedule,clsDocs,area,scope,noEvals,lang}){
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const M=anMonthShift(ymdLocal(new Date()).slice(0,7),-1), P=anMonthShift(M,-1);
+  const [mF,mT]=anMonthRange(M), [pF,pT]=anMonthRange(P);
+  const GEN=area==="genel"&&!!scope, ALL=!area;
+  const stById=new Map((students||[]).map(x=>[String(x.id),x])), stByNo=new Map((students||[]).map(x=>[String(x.no),x]));
+  const lsById=new Map((schedule||[]).map(l=>[String(l.id),l]));
+  const tcByNo=new Map((teachers||[]).map(t=>[String(t.no),t]));
+  const lessonOk=l=>ALL||(GEN?scope.lessonIds.has(String(l.id)):l.area===area);
+  const teachOk=no=>{ if(ALL) return true; if(GEN) return scope.teacherNos.has(no); const t=tcByNo.get(no);
+    return (t&&t.area===area)||(schedule||[]).some(l=>String(l.teacherNo)===no&&l.area===area); };
+  const clsOk=c=>c&&(ALL||(GEN?c.kind==="general":(c.kind==="area"&&c.area===area)||c.kind==="general"));
+  const agg=(f,t)=>{ const A={st:new Map(),ls:new Map(),cl:new Map(),tc:new Map()}, E={st:new Map(),tc:new Map()};
+    const inc=(m,k,v)=>{ if(!k) return; const x=m.get(k)||{on:0,late:0,off:0}; if(x[v]!=null) x[v]++; m.set(k,x); };
+    att.forEach(d=>{ if(!d.date||d.date<f||d.date>t||d.teacherAbsent||!d.records) return; if(GEN&&!scope.lessonIds.has(String(d.lessonId))) return;
+      const l=lsById.get(String(d.lessonId))||{}; const cid=l.classId||d.classId||"";
+      Object.entries(d.records).forEach(([sid,v])=>{ if(!stById.has(String(sid))) return; inc(A.st,String(sid),v); inc(A.ls,String(d.lessonId),v); inc(A.cl,cid,v); inc(A.tc,String(l.teacherNo||""),v); }); });
+    const add=(m,k,sc)=>{ if(!k||sc==null||isNaN(sc)) return; const x=m.get(k)||[]; x.push(sc); m.set(k,x); };
+    if(!noEvals){
+      sEv.forEach(d=>{ const dt=String(d.wk||""); if(dt<f||dt>t) return; const st=stByNo.get(String(d.studentNo)); if(st&&(!GEN||scope.teacherNos.has(String(d.teacherNo)))) add(E.st,String(st.id),evalScore10(d.c)); });
+      tEv.forEach(d=>{ const dt=String(d.wk||""); if(dt>=f&&dt<=t) add(E.tc,String(d.teacherNo),evalScore10(d.c)); });
+      efR.forEach(r=>{ const dt=efRespDate(r); if(!dt||dt<f||dt>t||r.score10==null) return;
+        if(r.direction==="t2s"){ const st=stByNo.get(String(r.targetNo)); if(st&&(!GEN||scope.teacherNos.has(String(r.raterNo)))) add(E.st,String(st.id),Number(r.score10)); }
+        else if(r.direction==="s2t") add(E.tc,String(r.targetNo),Number(r.score10)); }); }
+    return {A,E}; };
+  const C=agg(mF,mT), Pv=agg(pF,pT);
+  const pct=x=>{ if(!x) return null; const n=x.on+x.late+x.off; return n>=MAN_MIN?Math.round((x.on+x.late)/n*100):null; };
+  const avg=a=>a&&a.length?Math.round(a.reduce((p,q)=>p+q,0)/a.length*10)/10:null;
+  const out=[];
+  const check=(sub,id,name,whoNo,ar,a,pa,ev)=>{ const r=[]; const at=pct(a), pat=pct(pa);
+    if(at!=null&&at<MAN_ATT) r.push({t:"att",v:at});
+    if(!noEvals&&ev!=null&&ev<MAN_EV) r.push({t:"ev",v:ev});
+    if(at!=null&&pat!=null&&pat-at>=MAN_DROP) r.push({t:"drop",v:at-pat});
+    if(!r.length) return;
+    out.push({key:"man_"+sub+"_"+id+"_"+M,kind:"man",sub,count:1,last:mT,month:M,area:ar||"",who:name,whoNo,reasons:r,att:at,ev,pAtt:pat}); };
+  C.A.st.forEach((a,id)=>{ const x=stById.get(id); if(x) check("st",id,x.name,x.no,x.area,a,Pv.A.st.get(id),avg(C.E.st.get(id))); });
+  C.A.tc.forEach((a,no)=>{ if(!no||!teachOk(no)) return; const t=tcByNo.get(no); check("tc",no,(t&&t.name)||no,"",(t&&t.area)||"",a,Pv.A.tc.get(no),avg(C.E.tc.get(no))); });
+  C.A.ls.forEach((a,id)=>{ const l=lsById.get(id); if(!l||!lessonOk(l)) return; check("ls",id,l.name||id,"",l.area||"",a,Pv.A.ls.get(id),null); });
+  C.A.cl.forEach((a,id)=>{ const c=(clsDocs||[]).find(x=>x.id===id); if(!clsOk(c)) return; check("cl",id,classLabel(c,lang),"",c.area||"",a,Pv.A.cl.get(id),null); });
+  return out;
+}
+function useAlerts({students,teachers,schedule,area,lang,scope,noEvals}){
   const F=window.__FB; const live=!!(F&&F.isConfigured());
+  const clsDocsA=useClassDocs("classes");
   const ALL=!area, GEN=area==="genel"&&!!scope; // genel sorumlu: yalnız genel dersler ve öğretmenleri
   const from=eduYearStart();
   const [att,setAtt]=useState([]);
   useEffect(()=>{ if(!live) return; let u=()=>{};
     try{ u=F.onSnapshot(F.query(F.collection(F.db,"attendance"),F.where("date",">=",from)),sn=>setAtt(sn.docs.map(d=>({...d.data(),_id:d.id}))),()=>{}); }catch(_){}
     return ()=>{ try{u();}catch(_){} }; },[live,from]);
-  const sEv=useEvalDocs("studentEvals",null,null,live), tEv=useEvalDocs("teacherEvals",null,null,live);
-  const efR=useEvalDocs("evalResponses","academy","aat",live);
+  const sEv=useEvalDocs("studentEvals",null,null,live&&!noEvals), tEv=useEvalDocs("teacherEvals",null,null,live&&!noEvals);
+  const efR=useEvalDocs("evalResponses","academy","aat",live&&!noEvals);
   const inArea=a=>ALL||a===area;
   const stById=new Map((students||[]).map(st=>[String(st.id),st])), stByNo=new Map((students||[]).map(st=>[String(st.no),st]));
   const lsById=new Map((schedule||[]).map(l=>[String(l.id),l]));
@@ -11566,6 +11616,10 @@ function useAlerts({students,teachers,schedule,area,lang,scope}){
     const ar=d.area||(tc&&tc.area)||""; if(GEN?!scope.teacherNos.has(String(d.teacherNo)):(!inArea(ar)&&!(tc&&inArea(tc.area)))) return;
     list.push({key:"tev_"+d.fireId,kind:"tev",count:1,score:sc,last:String(d.wk),area:ar,who:d.teacherName||(tc&&tc.name)||d.teacherNo,whoNo:d.teacherNo,note:d.note||""}); });
   list.push(...efAlerts(efR,inArea,no=>((teachers||[]).find(t2=>String(t2.no)===String(no))||{}).name));
+  // Aylık analiz (biten ay)
+  // Öğrenci İşleri (noEvals): yalnız devam
+  const att2=att; 
+  list.push(...monthlyAlerts({att:att2,sEv,tEv,efR,students,teachers,schedule,clsDocs:clsDocsA,area,scope,noEvals,lang}));
   return list;
 }
 // Çocuk akademisi uyarıları: yoklama günlük "in" (geldi) kaydıdır → ders günü = o gün dersin sınıfından/alanından en az bir
@@ -11624,7 +11678,7 @@ function useAlertAcks(list){
     .sort((a,b)=>String(b.last).localeCompare(String(a.last)));
   return {list:out,open:out.filter(x=>!x.ack).length};
 }
-function AlertCenter({data,user,lang,toast}){
+function AlertCenter({data,user,lang,toast,noEvals}){
   const F=window.__FB; const W2=(ku,en)=>lang==="en"?en:K(ku);
   const [st,setSt]=useState("open"); const [kf,setKf]=useState("all"); const [noteFor,setNoteFor]=useState(null); const [note,setNote]=useState("");
   const grp=k=>k.replace(/^k(?=abs|sev|tev)/,"");   // çocuk akademisi türleri (kabs/ksev/ktev) aynı grupta
@@ -11634,16 +11688,18 @@ function AlertCenter({data,user,lang,toast}){
     try{ await F.setDoc(F.doc(F.db,"alertAcks",x.key),{key:x.key,kind:x.kind,count:x.count,note:note.trim().slice(0,500),by:user.name||"",byNo:String(user.no||""),at:F.serverTimestamp()});
       toast("✓ "+W2("Hate nîşankirin","Marked")); setNoteFor(null); setNote(""); }catch(e){ toast("❌ "+((e&&e.code)||e)); }
   }
-  const kindLb={abs:W2("Bêamadebûn","Absence"),sev:W2("Nirxandina xwendekar","Student evaluation"),tev:W2("Nirxandina mamoste","Teacher evaluation"),
+  const manSub={st:W2("Xwendekar","Student"),tc:W2("Mamoste","Teacher"),ls:W2("Ders","Lesson"),cl:W2("Sinif","Class")};
+  const manWhy=r=>r.t==="att"?W2("Amadebûn","Attendance")+" %"+r.v:r.t==="ev"?W2("Nirxandin","Evaluation")+" "+r.v.toFixed(1)+"/10":"📉 "+r.v+" "+W2("puan li gorî meha berê","points vs last month");
+  const kindLb={man:W2("Analîza mehane","Monthly analysis"),abs:W2("Bêamadebûn","Absence"),sev:W2("Nirxandina xwendekar","Student evaluation"),tev:W2("Nirxandina mamoste","Teacher evaluation"),
     kabs:W2("Zarok · bêamadebûn","Child · absence"),ksev:W2("Nirxandina zarok","Child evaluation"),ktev:W2("Zarok · nirxandina mamoste","Child · teacher evaluation")};
-  const kindIc={abs:"att",sev:"star",tev:"user",kabs:"kid",ksev:"kid",ktev:"user"};
+  const kindIc={man:"chart",abs:"att",sev:"star",tev:"user",kabs:"kid",ksev:"kid",ktev:"user"};
   const aLbl=a=>{ const z=typeof ZAROK_AREA_NAMES!=="undefined"&&ZAROK_AREA_NAMES[a]; return z?(lang==="en"?z[1]:K(z[0])):areaName(a,lang); };
   return(<div data-alert-center="1">
     <Note style={{marginBottom:12}} icon="bell">{W2("Hişyarî bixweber çêdibin: di dersekê de "+ALERT_ABS+" caran û zêdetir nehatin (destûr û dereng nayên hesibandin), an nirxandineke di bin 5/10 de. Sal ji 1ê Îlonê dest pê dike.",
-      "Alerts are created automatically: "+ALERT_ABS+" or more absences in one lesson (leave and late don't count), or an evaluation below 5/10. The year starts on 1 September.")}</Note>
+      "Alerts are created automatically: "+ALERT_ABS+" or more absences in one lesson (leave and late don't count), or an evaluation below 5/10. The year starts on 1 September.")}{" "}{W2("Her meh jî analîza meha borî: amadebûn di bin %70 de, nirxandin di bin 5/10 de an li gorî meha berê 15 puan an zêdetir daketin.","Each month also from last month's analysis: attendance below 70%, evaluation below 5/10, or a drop of 15+ points from the previous month.")}</Note>
     <div style={{marginBottom:10}}><Seg value={st} onChange={setSt} items={[["open",W2("Vekirî","Open")+" ("+data.open+")","bell"],["done",W2("Pê re mijûl bûn","Handled"),"check"]]}/></div>
     <div className="c-chips" style={{marginBottom:12}}>
-      {[["all",W2("Hemû","All")],["abs",kindLb.abs+(n("abs")?" ("+n("abs")+")":"")],["sev",kindLb.sev+(n("sev")?" ("+n("sev")+")":"")],["tev",kindLb.tev+(n("tev")?" ("+n("tev")+")":"")]].map(([k,lb])=>
+      {[["all",W2("Hemû","All")],["man",kindLb.man+(n("man")?" ("+n("man")+")":"")],["abs",kindLb.abs+(n("abs")?" ("+n("abs")+")":"")],...(noEvals?[]:[["sev",kindLb.sev+(n("sev")?" ("+n("sev")+")":"")],["tev",kindLb.tev+(n("tev")?" ("+n("tev")+")":"")]])].map(([k,lb])=>
         <button key={k} type="button" data-alert-kind={k} className={"c-chip"+(kf===k?" on":"")} onClick={()=>setKf(k)}>{lb}</button>)}
     </div>
     {L.length===0&&<EmptyState icon="bell" text={st==="open"?W2("Hişyariya vekirî tune.","No open alerts."):W2("Tiştek nehatiye nîşankirin.","Nothing handled yet.")}/>}
@@ -11651,13 +11707,18 @@ function AlertCenter({data,user,lang,toast}){
     {L.map(x=>(<div key={x.key} data-alert={x.key} className="card" style={{display:"flex",gap:12,alignItems:"flex-start"}}>
       <span className="c-av"><Ico n={kindIc[x.kind]} size={18}/></span>
       <div style={{flex:1,minWidth:0}}>
-        <div style={{fontSize:15,fontWeight:700,color:"var(--text)"}}>{x.who} <span style={{fontSize:12,color:"var(--text2)",fontWeight:500}}>{grp(x.kind)==="tev"?"":"#"+x.whoNo}{x.area?" · "+aLbl(x.area):""}</span></div>
+        <div style={{fontSize:15,fontWeight:700,color:"var(--text)"}}>{x.who} <span style={{fontSize:12,color:"var(--text2)",fontWeight:500}}>{grp(x.kind)==="tev"||!x.whoNo?"":"#"+x.whoNo}{x.area?" · "+aLbl(x.area):""}</span></div>
+        {x.kind==="man"?<div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}}>
+          <span className="c-tag">{kindLb.man} · {manSub[x.sub]}</span>
+          <span className="c-tag">{anMonthLabel(x.month)}</span>
+          {x.reasons.map((r,i)=><span key={i} data-man-why={r.t} className="c-tag gold">{manWhy(r)}</span>)}
+        </div>:
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}}>
           <span className="c-tag">{kindLb[x.kind]}</span>
           {grp(x.kind)==="abs"&&<span className="c-tag gold">{x.lesson} · {x.count} {W2("caran nehat","absences")}</span>}
           {grp(x.kind)!=="abs"&&<span className="c-tag gold">{x.score.toFixed(1)} / 10</span>}
           {grp(x.kind)!=="abs"&&<span className="c-tag">{x.perLabel?(/^\d{4}-\d{2}-\d{2}$/.test(x.perLabel)?evalWeekLabel(x.perLabel):/^\d{4}-\d{2}$/.test(x.perLabel)?(calMonths()[+x.perLabel.slice(5)-1]+" "+x.perLabel.slice(0,4)):W2("Carekê","Once")):evalWeekLabel(x.last)}</span>}
-        </div>
+        </div>}
         {grp(x.kind)==="abs"&&<div style={{fontSize:12.5,color:"var(--text2)",marginTop:6}}>{x.teacher?"👩‍🏫 "+x.teacher+" · ":""}{x.dates.map(fmtDateTx).join(", ")}</div>}
         {grp(x.kind)==="sev"&&<div style={{fontSize:12.5,color:"var(--text2)",marginTop:6}}>👩‍🏫 {x.teacher}{x.note?" — “"+x.note+"”":""}</div>}
         {grp(x.kind)==="tev"&&<div style={{fontSize:12.5,color:"var(--text2)",marginTop:6}}>{x.kind==="ktev"?W2("Dêûbavek (bê nav)","A parent (anonymous)"):W2("Xwendekarekî (bê nav)","A student (anonymous)")}{x.note?" — “"+x.note+"”":""}</div>}

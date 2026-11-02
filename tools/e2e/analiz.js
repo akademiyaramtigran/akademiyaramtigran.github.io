@@ -50,6 +50,8 @@ async function routes(ctx) {
   await putAtt('c1', cur1, { '101': 'off', '102': 'on', '103': 'on' }); await putAtt('c2', today, { '101': 'off', '102': 'on', '103': 'on' });
   const putEv = (id, o) => fetch(`${FS}/studentEvals/${id}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: Object.fromEntries(Object.entries(o).map(([k, v]) => [k, typeof v === 'object' ? { mapValue: { fields: Object.fromEntries(Object.entries(v).map(([a, b]) => [a, { integerValue: String(b) }])) } } : { stringValue: v }])) }) });
   await putEv('EP', { wk: prev5, teacherNo: '50202601', teacherName: 'Mamoste Şano', studentNo: '20202601', studentName: 'Rojîn Aram', area: 'tiyatro', note: '', c: { p: 4, g: 4, h: 4, b: 4 } });
+  // Geçen ay Baran'a düşük puan (2/5 → 4/10): aylık uyarıda değerlendirme nedeni (Öğrenci İşleri görmez)
+  await putEv('EB', { wk: prev12, teacherNo: '50202601', teacherName: 'Mamoste Şano', studentNo: '20202602', studentName: 'Baran Şêx', area: 'tiyatro', note: '', c: { p: 2, g: 2, h: 2, b: 2 } });
   await putEv('EC', { wk: cur1, teacherNo: '50202601', teacherName: 'Mamoste Şano', studentNo: '20202601', studentName: 'Rojîn Aram', area: 'tiyatro', note: 'Ev meh pir kêm hat', c: { p: 2, g: 2, h: 2, b: 2 } });
 
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
@@ -100,6 +102,13 @@ async function routes(ctx) {
   await hp.evaluate(() => { const s = document.querySelector('[data-an-month]'); const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; set.call(s, s.options[1].value); s.dispatchEvent(new Event('change', { bubbles: true })); }); await hp.waitForTimeout(1000);
   const r1p = await row(hp, '101');
   ok('Geçen ay seçilince Rojîn %100, değerlendirme 8.0', !!r1p && r1p.includes('100%') && r1p.includes('8.0'), r1p);
+  // Aylık analiz uyarısı (biten ay = geçen ay): Baran devam %50 + değerlendirme 4.0; Rojîn (geçen ay %100) uyarısız
+  const PM = prev5.slice(0, 7);
+  await go(hp, 'alerts');
+  const ak = await hp.evaluate(() => [...document.querySelectorAll('[data-alert]')].map(e => e.dataset.alert));
+  const bw = await hp.evaluate(k => [...document.querySelectorAll('[data-alert="' + k + '"] [data-man-why]')].map(e => e.dataset.manWhy).sort().join(','), 'man_st_102_' + PM);
+  ok('Sorumlu: aylık analiz uyarısı — Baran (devam %50 + değerlendirme 4.0); Rojîn yok', ak.includes('man_st_102_' + PM) && !ak.includes('man_st_101_' + PM) && bw === 'att,ev', JSON.stringify(ak) + ' · ' + bw);
+  ok('Sorumlu: müzik öğrencisi için aylık uyarı yok', !ak.some(k => k.includes('_103_')));
   await hp.context().close();
 
   // Öğrenci İşleri: analiz var, değerlendirme sütunu yok
@@ -107,6 +116,13 @@ async function routes(ctx) {
   await go(rp, 'reports');
   await rp.evaluate(() => document.querySelector('[data-rtab="analiz"]').click()); await rp.waitForTimeout(2000);
   ok('Öğrenci İşleri: tüm bölümler (müzik öğrencisi de var), değerlendirme sütunu yok', (await row(rp, '103')) !== null && (await rp.locator('[data-an-ev]').count()) === 0);
+  await go(rp, 'alerts');
+  const rk = await rp.evaluate(() => [...document.querySelectorAll('[data-alert]')].map(e => e.dataset.alert));
+  const rw = await rp.evaluate(k => [...document.querySelectorAll('[data-alert="' + k + '"] [data-man-why]')].map(e => e.dataset.manWhy).join(','), 'man_st_102_' + prev5.slice(0, 7));
+  ok('Öğrenci İşleri: Uyarılar menüsü; aylık uyarıda yalnız devam nedeni (değerlendirme yok)', rk.includes('man_st_102_' + prev5.slice(0, 7)) && rw === 'att' && (await rp.locator('[data-alert-kind="sev"]').count()) === 0, JSON.stringify(rk) + ' · ' + rw);
+  await rp.click('[data-alert-ack="man_st_102_' + prev5.slice(0, 7) + '"]'); await rp.waitForTimeout(300);
+  await rp.evaluate(() => [...document.querySelectorAll('button')].filter(x => x.offsetParent && x.textContent.includes('Tomar bike')).pop().click()); await rp.waitForTimeout(1500);
+  ok('Öğrenci İşleri uyarıyı "ilgilenildi" işaretler', !(await rp.evaluate(() => [...document.querySelectorAll('[data-alert]')].map(e => e.dataset.alert))).includes('man_st_102_' + prev5.slice(0, 7)));
   await rp.context().close();
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);
