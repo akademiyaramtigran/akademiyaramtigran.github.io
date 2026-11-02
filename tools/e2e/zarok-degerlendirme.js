@@ -152,8 +152,7 @@ function evalWeek() { const x = new Date(); const y = new Date(x.getFullYear(), 
   await hp.click('[data-eval-row="72026001"] button').catch(() => {}); await hp.waitForTimeout(500);
   const rt = await hp.evaluate(() => (document.querySelector('[data-eval-report="kteacher"]') || {}).innerText || '');
   ok('Sorumlu: öğretmen değerlendirmesi (veli adı yok)', rt.includes('Zarokê me kêfxweş e') && !rt.includes('Veli Aram'), rt.slice(0, 160).replace(/\n/g, ' / '));
-  await hp.click('[data-khr="anket"]'); await hp.waitForTimeout(800);
-  ok('Sorumlu: anket sonuçları sekmesi', (await hp.locator('[data-khr="anket"]').count()) === 1);
+  ok('Sorumlu: anket sekmesi yok', (await hp.locator('[data-khr="anket"]').count()) === 0);
 
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);

@@ -1,7 +1,7 @@
 // Uçtan uca test — çalıştırma: tools/README.md → "E2E"
 // E2E: Öğretmen süzgeçli devam raporu — öğretmen seçilince devam yalnız o öğretmenin derslerinden hesaplanır,
 //      isteğe bağlı tek ders seçilir; başka bölümün öğretmeni ve genel ders de sorumlunun raporunda; tarih aralığı raporunda da aynı;
-//      değerlendirme raporları (eski + 1–10 formlar), anket sonuçları ve öğretmen devamı da öğretmene göre süzülür
+//      değerlendirme raporları (eski + 1–10 formlar) ve öğretmen devamı da öğretmene göre süzülür
 const { chromium } = require('playwright-core');
 const fs = require('fs');
 const FBV = require('firebase/package.json').version;
@@ -65,10 +65,6 @@ async function routes(ctx) {
   await putO('evalForms/F1', { title: 'Nirxandina Mamosteyan', academy: 'aat', direction: 's2t', area: 'tiyatro', period: 'once', questions: [{ id: 'q1', type: 'score', text: 'Ders' }], active: true, ownerNo: '96000001', ownerName: 'Berpirsa Şanoyê', createdAtIso: new Date().toISOString() });
   await putO('evalResponses/R1', { formId: 'F1', period: 'once', raterNo: '20202601', raterRole: 'student', targetNo: '50202601', targetName: 'Mamoste Şano', area: 'tiyatro', academy: 'aat', direction: 's2t', answers: { q1: 9 }, score10: 9 });
   await putO('evalResponses/R2', { formId: 'F1', period: 'once', raterNo: '20202601', raterRole: 'student', targetNo: '50202602', targetName: 'Mamoste Stran', area: 'tiyatro', academy: 'aat', direction: 's2t', answers: { q1: 3 }, score10: 3 });
-  // Anket: Rojîn 8, Baran 2 → hepsi 5.0; Dîroka Hunerê (yalnız Rojîn'in sınıfı) → 8.0
-  await putO('studentSurveys/SV1', { id: 'sv1', title: 'Ankêta Şanoyê', active: true, targetType: 'students', targetAreas: ['tiyatro'], ownerNo: '96000001', questions: [{ id: 'q1', type: 'rating', text: 'Ders çawa ye?' }] });
-  await putO('studentSurveyResponses/sv1_101', { surveyId: 'sv1', studentId: 101, studentNo: '20202601', studentName: '', studentArea: 'tiyatro', answers: { q1: 8 } });
-  await putO('studentSurveyResponses/sv1_102', { surveyId: 'sv1', studentId: 102, studentNo: '20202602', studentName: '', studentArea: 'tiyatro', answers: { q1: 2 } });
 
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
@@ -104,6 +100,14 @@ async function routes(ctx) {
   await sel('[data-rep-lesson]', '13');
   ok('Ders: Dîroka Hunerê (genel) → Rojîn %100, sınıfta olmayan Baran listede yok', (await pct('20202601')).startsWith('100') && !(await shown('20202602')), await pct('20202601'));
 
+  // Görünüm: derse / sınıfa / öğretmene göre
+  await sel('[data-rep-teacher]', 'all');
+  const grp = async k => { await p.evaluate(k => [...document.querySelectorAll('[data-rep-group] button')][k].click(), k); await p.waitForTimeout(700);
+    return p.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-rep-grow]')].map(e => [e.dataset.repGrow, e.querySelector('.c-pct').textContent.trim()]))); };
+  const gL = await grp(1), gC = await grp(2), gT = await grp(3); await grp(0);
+  ok('Derse göre: Şano 1 %50 (Rojîn 0/2 + Baran 2/2), Şan %50, Dîroka Hunerê %100 (yalnız bölüm öğrencisi)', gL['11'] === '50%' && gL['12'] === '50%' && gL['13'] === '100%' && !gL['14'], JSON.stringify(gL));
+  ok('Sınıfa göre: 1. Sînif %50, Giştî %100', gC['A1'] === '50%' && gC['G1'] === '100%', JSON.stringify(gC));
+  ok('Öğretmene göre: Şano %60 (3/5), Stran %50', gT['50202601'] === '60%' && gT['50202602'] === '50%', JSON.stringify(gT));
   // Tarih aralığı raporu
   await p.evaluate(() => [...document.querySelectorAll('button')].find(x => x.offsetParent && x.textContent.includes('Navbera tarîxan')).click());
   await p.waitForTimeout(1500);
@@ -125,13 +129,6 @@ async function routes(ctx) {
   await sel('[data-ev-teacher]', '50202602');
   const evSt = await txt('[data-eval-row="20202601"]');
   ok('Değerlendirme: tümü 3.0 (2 kayıt) → Stran seçili 1.0 (1 kayıt)', evAll.includes('3.0') && evSt.includes('1.0') && evSt.includes('1 '), evAll.replace(/\n/g, ' ') + ' / ' + evSt.replace(/\n/g, ' '));
-  // Anket sonuçları
-  await tabBtn('anket');
-  await p.click('[data-sv-open="SV1"]'); await p.waitForTimeout(500);
-  const svAll = await txt('[data-sv-results]');
-  await sel('[data-sv-tl] [data-rep-teacher]', '50202601'); await sel('[data-sv-tl] [data-rep-lesson]', '13');
-  const svT = await txt('[data-sv-results]');
-  ok('Anket: tümü 5.0/10 → Şano · Dîroka Hunerê seçili 8.0/10 (yalnız o dersin öğrencisi)', svAll.includes('5.0') && svT.includes('8.0'), svAll.replace(/\n/g, ' ') + ' / ' + svT.replace(/\n/g, ' '));
   // Öğretmen devamı
   await tabBtn('mamoste');
   const taOpts = await opts('[data-ta-teacher]');

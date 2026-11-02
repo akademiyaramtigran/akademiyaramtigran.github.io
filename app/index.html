@@ -7820,10 +7820,19 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
   const [tab,setTab]=useState("announce");
   const [msgs,setMsgs]=useState([]);
   const area=user.area||"";
-  const ALL=area==="genel"; // genel sorumlu: tüm bölümler
-  const aStudents=(students||[]).filter(s=>ALL||s.area===area);
-  const aTeachers=(teachers||[]).filter(tc=>(ALL||tc.area===area)&&!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&!tc.isHead);
-  const aSchedule=(schedule||[]).filter(l=>ALL||l.area===area);
+  // Her sorumlu yalnız KENDİ alanını görür (genel sorumlu: genel dersler + bu derslerin öğrencileri)
+  const ALL=false, GEN=area==="genel";
+  const hCls=useClassDocs("classes");
+  const aSchedule=(schedule||[]).filter(l=>l.area===area);
+  const aStudents=GEN?(()=>{ const ids=new Set(); aSchedule.forEach(l=>lessonRoster(l,students,hCls).forEach(x=>ids.add(String(x.id))));
+      hCls.filter(d=>d.kind==="general").forEach(d=>(students||[]).filter(x=>inClass(d,x.no)).forEach(x=>ids.add(String(x.id))));
+      return (students||[]).filter(x=>ids.has(String(x.id))); })()
+    :(students||[]).filter(s=>s.area===area);
+  // Öğretmenler: alanın öğretmenleri + alanın derslerine / sınıflarına atanmış BAŞKA bölüm öğretmenleri
+  const hTeachNos=new Set(aSchedule.map(l=>String(l.teacherNo||"")).filter(Boolean));
+  hCls.filter(d=>GEN?d.kind==="general":(d.kind==="area"&&d.area===area)).forEach(d=>(d.teacherNos||[]).forEach(n=>hTeachNos.add(String(n))));
+  const aTeachers=(teachers||[]).filter(tc=>(tc.area===area||hTeachNos.has(String(tc.no)))&&!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&!tc.isHead);
+  const hScope={lessonIds:new Set(aSchedule.map(l=>String(l.id))),teacherNos:new Set(aTeachers.map(tc=>String(tc.no)))};
   const myNo=String(user.no||"");
   useEffect(()=>{
     if(!window.__FB||!window.__FB.isConfigured()) return;
@@ -7832,10 +7841,10 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
     return ()=>unsub();
   },[]);
   const inbox=msgs.filter(m=>String(m.senderNo||"")!==myNo&&((m.toRole==="head"&&m.toArea===area)||m.recipientNo===myNo||m.recipientId==="h_"+myNo
-    ||m.recipientGroup==="allHeads"||(ALL&&m.recipientGroup==="genHead")));
+    ||m.recipientGroup==="allHeads"||(GEN&&m.recipientGroup==="genHead")));
   const sent=msgs.filter(m=>m.fromType==="head"&&String(m.senderNo||"")===myNo);
   const unread=inbox.filter(m=>!m.read).length;
-  const alertData=useAlertAcks(useAlerts({students:aStudents,teachers:teachers||[],schedule:schedule||[],area,lang}));
+  const alertData=useAlertAcks(useAlerts({students:aStudents,teachers:teachers||[],schedule:schedule||[],area,lang,scope:hScope}));
   const items=[
     {key:"announce",label:lang==="en"?"Announcements":K("Ragihandin")},
     {key:"messages",label:lang==="en"?"Messages":K("Peyam"),badge:unread},
@@ -7843,12 +7852,11 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
     {key:"schedule",label:lang==="en"?"Lesson schedule":K("Bernameya Dersan")},
     {key:"gatt",label:lang==="en"?"Guest-lesson attendance":K("Amadebûna dersên mêvan")},
     {key:"leaves",label:lang==="en"?"Student leave":K("Destûra Xwendekaran")},
-    {key:"surveys",label:lang==="en"?"Surveys":K("Ankêt")},
     {key:"evalforms",label:lang==="en"?"Evaluation forms":K("Formên nirxandinê")},
     {key:"reports",label:lang==="en"?"Reports":K("Rapor")},
     {key:"profile",label:t.profile||(lang==="en"?"Profile":K("Profîl"))},
   ];
-  const roleLabel=ALL?(lang==="en"?"General Head":K("Berpirsê Giştî")):(lang==="en"?"Department Head":K("Berpirsê Beşê"))+" · "+areaName(area,lang);
+  const roleLabel=GEN?(lang==="en"?"General Head":K("Berpirsê Giştî")):(lang==="en"?"Department Head":K("Berpirsê Beşê"))+" · "+areaName(area,lang);
   return(
     <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
       <SideMenu dock={["schedule","reports","messages","announce"]} open={menuOpen} onClose={()=>setMenuOpen(false)} onOpen={()=>setMenuOpen(true)} items={items} activeKey={tab} onSelect={setTab} user={user} roleLabel={roleLabel}
@@ -7860,10 +7868,9 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
         {tab==="alerts"&&<AlertCenter data={alertData} user={user} lang={lang} toast={toast}/>}
         {tab==="evalforms"&&<EvalFormsPanel user={user} academy="aat" area={area} teachers={teachers||[]} lang={lang} toast={toast}/>}
         {tab==="gatt"&&<HeadGuestAttendance user={user} students={aStudents} schedule={aSchedule} lang={lang} toast={toast}/>}
-        {tab==="leaves"&&<LeavesPanel user={user} students={aStudents.filter(s=>!s.isAdmin)} schedule={aSchedule} area={area} all={ALL} lang={lang} toast={toast}/>}
-        {tab==="schedule"&&<AdminScheduleTab mode="head" byName={user.name} fixedArea={ALL?null:area} schedule={aSchedule} teachers={teachers||[]} students={aStudents} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>}
-        {tab==="surveys"&&<HeadSurveysPanel user={user} students={aStudents} teachers={aTeachers} lang={lang} toast={toast}/>}
-        {tab==="reports"&&<AdminReportCenter students={aStudents} teachers={aTeachers} schedule={aSchedule} allSchedule={schedule||[]} allTeachers={teachers||[]} lang={lang} t={t} toast={toast} byName={user.name} headArea={area} headNo={myNo}/>}
+        {tab==="leaves"&&<LeavesPanel user={user} students={aStudents.filter(s=>!s.isAdmin)} schedule={aSchedule} area={area} all={false} stuScope={GEN?aStudents:null} lang={lang} toast={toast}/>}
+        {tab==="schedule"&&<AdminScheduleTab mode="head" byName={user.name} fixedArea={area} schedule={aSchedule} teachers={teachers||[]} students={aStudents} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>}
+        {tab==="reports"&&<AdminReportCenter students={aStudents} teachers={aTeachers} schedule={aSchedule} allSchedule={schedule||[]} allTeachers={teachers||[]} lang={lang} t={t} toast={toast} byName={user.name} headArea={area} headNo={myNo} headScope={hScope}/>}
         {tab==="profile"&&<StaffProfileView user={user} roleLabel={roleLabel} icon="🎓" lang={lang} t={t} toast={toast} onLogout={onLogout} onDataChange={onDataChange}/>}
       </div>
     </div>
@@ -7964,7 +7971,6 @@ function KidHeadPanel({user,t,lang,toast,onLogout,onSettings,onDataChange}){
     {key:"alerts",label:lang==="en"?"Alerts":K("Hişyarî"),badge:alertData.open},
     {key:"schedule",label:lang==="en"?"Lesson schedule":K("Bernameya Dersan")},
     {key:"leaves",label:lang==="en"?"Student leave":K("Destûra Xwendekaran")},
-    {key:"surveys",label:lang==="en"?"Surveys":K("Ankêt")},
     {key:"evalforms",label:lang==="en"?"Evaluation forms":K("Formên nirxandinê")},
     {key:"reports",label:lang==="en"?"Reports":K("Rapor")},
     {key:"profile",label:t.profile||(lang==="en"?"Profile":K("Profîl"))},
@@ -8045,7 +8051,6 @@ function KidHeadPanel({user,t,lang,toast,onLogout,onSettings,onDataChange}){
               <div style={{fontSize:12,color:"var(--text2)",marginTop:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{th.last.text}</div>
             </button>))}
           </div>))}
-        {tab==="surveys"&&<KidSurveysPanel lang={lang} toast={toast} lockArea={area} ownerNo={myNo}/>}
         {tab==="reports"&&<KidHeadReports lang={lang} toast={toast} area={area} byName={user.name}/>}
         {tab==="alerts"&&<AlertCenter data={alertData} user={user} lang={lang} toast={toast}/>}
         {tab==="evalforms"&&<EvalFormsPanel user={user} academy="kid" area={area} lang={lang} toast={toast}/>}
@@ -8743,7 +8748,7 @@ function useLeaves(enabled=true){
 //  lessonIds boşsa izin tüm gün içindir; doluysa yalnızca o derslerin yoklamasında geçerlidir.
 function leaveLessonOk(l,lessonId){ const ids=l.lessonIds||[]; return !ids.length||(lessonId!=null&&ids.map(String).includes(String(lessonId))); }
 function leaveOf(leaves,no,date,kid=false,lessonId=null){ return (leaves||[]).find(l=>!!l.kid===!!kid&&String(l.studentNo)===String(no)&&l.from<=date&&date<=l.to&&leaveLessonOk(l,lessonId))||null; }
-function LeavesPanel({user,students,schedule,area,all=false,kid=false,lang,toast,readOnly=false}){
+function LeavesPanel({user,students,schedule,area,all=false,kid=false,stuScope=null,lang,toast,readOnly=false}){
   const F=window.__FB;
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   const leaves=useLeaves(true);
@@ -8756,7 +8761,8 @@ function LeavesPanel({user,students,schedule,area,all=false,kid=false,lang,toast
   useEffect(()=>{ if(!kid||readOnly||!area||!F||!F.isConfigured()) return; let u=()=>{};
     try{ u=F.onSnapshot(F.query(F.collection(F.db,"kidSchedule"),F.where("area","==",area)),sn=>setKSched(sn.docs.map(d=>({...d.data(),id:d.id}))),()=>{}); }catch(_){}
     return ()=>{ try{u();}catch(_){} }; },[kid,readOnly,area]);
-  const mine=leaves.filter(l=>!!l.kid===!!kid&&(all||l.area===area)).sort((a,b)=>String(b.from).localeCompare(String(a.from)));
+  const scopeNos=stuScope?new Set(stuScope.map(x=>String(x.no))):null;
+  const mine=leaves.filter(l=>!!l.kid===!!kid&&(all||(scopeNos?scopeNos.has(String(l.studentNo)):l.area===area))).sort((a,b)=>String(b.from).localeCompare(String(a.from)));
   const studs=(students||[]).filter(s=>s&&s.no).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
   const stu=studs.find(x=>String(x.no)===String(f.no))||null;
   // Seçilen öğrencinin, seçilen günlerdeki dersleri (en çok 31 gün)
@@ -10007,6 +10013,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
     {key:"qad",icon:"🎭",label:lang==="en"?"Art Fields · Registration · Schedule":K("Qad · Tescîl · Bername")},
     {key:"sinif",icon:"🏫",label:lang==="en"?"Classes & Workshops":K("Sinif û Atolye")},
     {key:"zarok",icon:"🎼",label:lang==="en"?"Children's Academy":K("Akademiya Zarokan")},
+    {key:"reports",icon:"📊",label:lang==="en"?"Reports":K("Rapor")},
   ];
   const [activeArea,setActiveArea]=useState(null);
   const [cfg,setCfg]=useState({open:false,startDate:"",endDate:"",note:""});
@@ -10264,6 +10271,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
         )}
 
         {section==="zarok"&&<ZarokAdminPanel lang={lang} toast={toast} user={user}/>}
+        {section==="reports"&&<AdminReportCenter registrar students={students||[]} teachers={teachers||[]} schedule={schedule||[]} lang={lang} t={t} toast={toast} byName={user.name}/>}
         {section==="sinif"&&<AcademyClassBoard students={students||[]} teachers={teachers||[]} schedule={schedule||[]} lang={lang} t={t||T.ku} toast={toast} onDataChange={onDataChange}/>}
         {section!=="serledan"?null:(<>
 
@@ -11499,9 +11507,9 @@ function efAlerts(rs,inArea,teacherName){
       teacher:(r.direction==="t2s"||r.direction==="t2k")?(teacherName(r.raterNo)||""):"",note:tx}); });
   return out;
 }
-function useAlerts({students,teachers,schedule,area,lang}){
+function useAlerts({students,teachers,schedule,area,lang,scope}){
   const F=window.__FB; const live=!!(F&&F.isConfigured());
-  const ALL=!area||area==="genel";
+  const ALL=!area, GEN=area==="genel"&&!!scope; // genel sorumlu: yalnız genel dersler ve öğretmenleri
   const from=eduYearStart();
   const [att,setAtt]=useState([]);
   useEffect(()=>{ if(!live) return; let u=()=>{};
@@ -11518,17 +11526,17 @@ function useAlerts({students,teachers,schedule,area,lang}){
   att.forEach(d=>{ if(d.teacherAbsent||!d.records||!d.date) return;
     Object.entries(d.records).forEach(([sid,v])=>{ if(v!=="off") return; const k=sid+"|"+d.lessonId;
       const x=abs.get(k)||{sid,lid:String(d.lessonId),dates:[],name:d.lessonName||""}; x.dates.push(d.date); abs.set(k,x); }); });
-  abs.forEach(x=>{ if(x.dates.length<ALERT_ABS) return; const st=stById.get(x.sid); if(!st||!inArea(st.area)) return;
+  abs.forEach(x=>{ if(x.dates.length<ALERT_ABS) return; const st=stById.get(x.sid); if(!st||(GEN?!scope.lessonIds.has(x.lid):!inArea(st.area))) return;
     const ls=lsById.get(x.lid);
     list.push({key:"abs_"+st.no+"_"+x.lid,kind:"abs",count:x.dates.length,last:x.dates.sort().slice(-1)[0],dates:x.dates.sort(),area:st.area,
       who:st.name,whoNo:st.no,lesson:(ls&&ls.name)||x.name||x.lid,teacher:(ls&&ls.teacherName)||""}); });
   // Öğretmen → öğrenci değerlendirmesi < 5/10
   sEv.forEach(d=>{ const sc=evalScore10(d.c); if(sc==null||sc>=5||!d.wk) return; const st=stByNo.get(String(d.studentNo)); const ar=d.area||(st&&st.area)||"";
-    if(!inArea(ar)) return;
+    if(GEN?!scope.teacherNos.has(String(d.teacherNo)):!inArea(ar)) return;
     list.push({key:"sev_"+d.fireId,kind:"sev",count:1,score:sc,last:String(d.wk),area:ar,who:d.studentName||(st&&st.name)||d.studentNo,whoNo:d.studentNo,teacher:d.teacherName||"",note:d.note||""}); });
   // Öğrenci → öğretmen değerlendirmesi < 5/10 (isimsiz: öğrenci gösterilmez)
   tEv.forEach(d=>{ const sc=evalScore10(d.c); if(sc==null||sc>=5||!d.wk) return; const tc=(teachers||[]).find(t2=>String(t2.no)===String(d.teacherNo));
-    const ar=d.area||(tc&&tc.area)||""; if(!inArea(ar)&&!(tc&&inArea(tc.area))) return;
+    const ar=d.area||(tc&&tc.area)||""; if(GEN?!scope.teacherNos.has(String(d.teacherNo)):(!inArea(ar)&&!(tc&&inArea(tc.area)))) return;
     list.push({key:"tev_"+d.fireId,kind:"tev",count:1,score:sc,last:String(d.wk),area:ar,who:d.teacherName||(tc&&tc.name)||d.teacherNo,whoNo:d.teacherNo,note:d.note||""}); });
   list.push(...efAlerts(efR,inArea,no=>((teachers||[]).find(t2=>String(t2.no)===String(no))||{}).name));
   return list;
@@ -11640,7 +11648,7 @@ function AlertCenter({data,user,lang,toast}){
 }
 
 /* ─── ADMIN WEEKLY REPORT PANEL ──────────────────────────────────────────── */
-function AdminWeeklyReportPanel({students, teachers, schedule, allSchedule, allTeachers, lang, toast}) {
+function AdminWeeklyReportPanel({students, teachers, schedule, allSchedule, allTeachers, docScope, noEvals, lang, toast}) {
   // ── Tarih aralığı raporu: başlangıç–bitiş seç; dönem seçimi aralığı doldurur ──
   const terms=useTerms();
   const [rStart,setRStart]=useState(()=>{
@@ -11658,7 +11666,7 @@ function AdminWeeklyReportPanel({students, teachers, schedule, allSchedule, allT
   }
   const pickedTerm=(terms.list||[]).find(x=>x.id===pickedTermId);
   const periodKeys = weeksInRange(rStart,rEnd);
-  const tf=useTeacherLessonFilter({students,teachers,schedule,allSchedule,allTeachers,clsDocs});
+  const tf=useTeacherLessonFilter({students,teachers,schedule,allSchedule,allTeachers,clsDocs,docScope});
   const weekLabel = (pickedTerm?pickedTerm.label+" · ":"")+rStart+" → "+rEnd+(scopeF!=="all"?" · "+attScopeLabel(scopeF,lang):"")
     +(tf.teachObj?" · 👩‍🏫 "+tf.teachObj.name+(tf.lessonObj?" · "+tf.lessonObj.name:""):"");
   // ── Geçmişe dönük yoklama: attendance koleksiyonundaki gerçek kayıtlar ──
@@ -11674,7 +11682,7 @@ function AdminWeeklyReportPanel({students, teachers, schedule, allSchedule, allT
   const responses = loadSurveyResponses();
   const questions = loadSurveyQuestions();
   // Haftalık değerlendirmeler (öğretmen→öğrenci, öğrenci→öğretmen) — seçili aralık + alan
-  const sEvAll=useEvalDocs("studentEvals"), tEvAll=useEvalDocs("teacherEvals");
+  const sEvAll=useEvalDocs("studentEvals",null,null,!noEvals), tEvAll=useEvalDocs("teacherEvals",null,null,!noEvals);
   const evF=evalWeek(new Date(rStart+"T12:00:00")), evT=evalWeek(new Date(rEnd+"T12:00:00"));
   const evIn=d=>d.wk>=evF&&d.wk<=evT&&(selectedArea==="all"||d.area===selectedArea);
   const sEvR=sEvAll.filter(evIn), tEvR=tEvAll.filter(evIn);
@@ -11976,8 +11984,8 @@ tr:hover td{background:#f9fbff}
         )}
       </Card>
 
-      {/* Haftalık değerlendirme özeti (ayrıntı: Raporlar → Nirxandin sekmeleri) */}
-      <Card style={{marginBottom:14}}>
+      {/* Haftalık değerlendirme özeti (ayrıntı: Raporlar → Nirxandin sekmeleri) — Öğrenci İşleri görmez */}
+      {!noEvals&&<Card style={{marginBottom:14}}>
         <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:10}}>📝 {lang==="en"?"Weekly evaluations (1–5)":K("Nirxandinên heftane (1–5)")}</div>
         {[[lang==="en"?"Teacher → student":K("Mamoste → xwendekar"),sEvR.length,sCrit],[lang==="en"?"Student → teacher (anonymous)":K("Xwendekar → mamoste (bê nav)"),tEvR.length,tCrit]].map(([ttl,n,cr],k)=>(
           <div key={k} style={{marginBottom:10}}>
@@ -11988,7 +11996,7 @@ tr:hover td{background:#f9fbff}
                 <div style={{height:6,background:"var(--bg2)",borderRadius:3}}><div style={{height:"100%",width:((x.avg||0)/5*100)+"%",background:"#0f2f38",borderRadius:3}}/></div>
               </div>))}
           </div>))}
-      </Card>
+      </Card>}
 
       {/* PDF / Print buttons */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
@@ -12240,14 +12248,15 @@ function AdminSurveyResultsReport({lang,toast,byName,headArea,headNo,students,te
 
 /* ─── RAPOR MERKEZİ — lîste + heftane/demsalî raporlar tek çatıda ────────── */
 // Raporlar YALNIZCA yönetici ve bölüm sorumlusu içindir (öğretmen / öğrenci / öğrenci işleri görmez).
-function AdminReportCenter({students,teachers,schedule,allSchedule,allTeachers,lang,t,toast,byName,headArea,headNo}){
+function AdminReportCenter({students,teachers,schedule,allSchedule,allTeachers,lang,t,toast,byName,headArea,headNo,headScope,registrar}){
+  // Genel sorumlu: yoklama yalnız genel derslerden, değerlendirmeler yalnız bu derslerin öğretmenlerinden
+  const docScope=headArea==="genel"&&headScope?headScope.lessonIds:null, teachScope=headArea==="genel"&&headScope?headScope.teacherNos:null;
   const [rTab,setRTab]=useState("liste");
   const allTabs=[
     {key:"liste",icon:"📋",label:lang==="en"?"Attendance":K("Amadebûn")},
     {key:"nirxandin",icon:"📅",label:lang==="en"?"Date range":K("Navbera tarîxan")},
     {key:"seval",icon:"📝",label:lang==="en"?"Student evaluation":K("Nirxandina xwendekaran")},
     {key:"teval",icon:"⭐",label:lang==="en"?"Teacher evaluation":K("Nirxandina mamosteyan")},
-    {key:"anket",icon:"📊",label:lang==="en"?"Surveys":K("Ankêt")},
     {key:"mamoste",icon:"👨‍🏫",label:lang==="en"?"Teacher attendance":K("Amadebûna mamosteyan")},
     {key:"izin",icon:"🏷",label:lang==="en"?"Student leave":K("Destûra Xwendekaran")},
     {key:"zarok",icon:"🎼",label:lang==="en"?"Children's Academy":K("Akademiya Zarokan")},
@@ -12255,7 +12264,9 @@ function AdminReportCenter({students,teachers,schedule,allSchedule,allTeachers,l
     {key:"kteval",icon:"🎼",label:lang==="en"?"Children: teacher evaluation":K("Zarok: nirxandina mamosteyan")},
     {key:"arsiv",icon:"🗂",label:lang==="en"?"Archive":K("Arşîv")},
   ];
-  const tabs=headArea?allTabs.filter(x=>["liste","nirxandin","seval","teval","anket","mamoste","izin"].includes(x.key)):allTabs;
+  // Öğrenci İşleri: tüm bölümler, değerlendirme sonuçları HARİÇ (yalnız yönetici + sorumlular)
+  const tabs=headArea?allTabs.filter(x=>["liste","nirxandin","seval","teval","mamoste","izin"].includes(x.key))
+    :registrar?allTabs.filter(x=>["liste","nirxandin","mamoste","izin","zarok"].includes(x.key)):allTabs;
   return(
     <div>
       <div style={{display:"flex",gap:5,marginBottom:14,background:"var(--bg2)",padding:4,borderRadius:12,overflowX:"auto"}}>
@@ -12268,20 +12279,15 @@ function AdminReportCenter({students,teachers,schedule,allSchedule,allTeachers,l
           </button>
         ))}
       </div>
-      {rTab==="liste"&&<AdminReportsPanel students={students} teachers={teachers} schedule={schedule} allSchedule={allSchedule} allTeachers={allTeachers} lang={lang} t={t} toast={toast}/>}
-      {rTab==="nirxandin"&&<AdminWeeklyReportPanel students={students} teachers={teachers} schedule={schedule} allSchedule={allSchedule} allTeachers={allTeachers} lang={lang} toast={toast}/>}
-      {rTab==="seval"&&<EvalReport kind="student" students={students} teachers={teachers} allTeachers={allTeachers} lang={lang} toast={toast} headArea={headArea} byName={byName}/>}
-      {rTab==="teval"&&<EvalReport kind="teacher" students={students} teachers={teachers} allTeachers={allTeachers} lang={lang} toast={toast} headArea={headArea} byName={byName}/>}
-      {rTab==="anket"&&<>
-        <AdminSurveyResultsReport lang={lang} toast={toast} byName={byName} headArea={headArea} headNo={headNo} students={students} teachers={teachers} schedule={schedule} allSchedule={allSchedule} allTeachers={allTeachers}/>
-        {!headArea&&<><SectionHeader>🎼 {lang==="en"?"Children's Academy surveys":K("Ankêtên Akademiya Zarokan")}</SectionHeader>
-        <KidSurveysPanel lang={lang} toast={toast} readOnly={true}/></>}
-      </>}
+      {rTab==="liste"&&<AdminReportsPanel students={students} teachers={teachers} schedule={schedule} allSchedule={allSchedule} allTeachers={allTeachers} docScope={docScope} noEvals={!!registrar} lang={lang} t={t} toast={toast}/>}
+      {rTab==="nirxandin"&&<AdminWeeklyReportPanel students={students} teachers={teachers} schedule={schedule} allSchedule={allSchedule} allTeachers={allTeachers} docScope={docScope} noEvals={!!registrar} lang={lang} toast={toast}/>}
+      {rTab==="seval"&&<EvalReport kind="student" students={students} teachers={teachers} allTeachers={allTeachers} teachScope={teachScope} lang={lang} toast={toast} headArea={headArea} byName={byName}/>}
+      {rTab==="teval"&&<EvalReport kind="teacher" students={students} teachers={teachers} allTeachers={allTeachers} teachScope={teachScope} lang={lang} toast={toast} headArea={headArea} byName={byName}/>}
       {rTab==="zarok"&&<KidAcademyReport lang={lang} toast={toast}/>}
       {rTab==="kseval"&&<EvalReport kind="kid" lang={lang} toast={toast} byName={byName}/>}
       {rTab==="kteval"&&<EvalReport kind="kteacher" lang={lang} toast={toast} byName={byName}/>}
       {rTab==="izin"&&<>
-        <LeavesPanel readOnly students={[]} area={headArea||""} all={!headArea||headArea==="genel"} lang={lang} toast={toast}/>
+        <LeavesPanel readOnly students={[]} area={headArea||""} all={!headArea} stuScope={headArea==="genel"?students:null} lang={lang} toast={toast}/>
         {!headArea&&<><SectionHeader>🎼 {lang==="en"?"Children's Academy":K("Akademiya Zarokan")}</SectionHeader>
           <LeavesPanel readOnly kid students={[]} area="" all lang={lang} toast={toast}/></>}
       </>}
@@ -12397,7 +12403,7 @@ function TeacherAttendanceReport({teachers,schedule,allTeachers,lang,toast}){
 
 // Öğretmen süzgeci: öğretmen seçilince devam YALNIZ o öğretmenin derslerinin yoklamalarından hesaplanır
 // (isteğe bağlı tek ders). Öğrenci listesi = bu derslerin sınıf listeleri + bu derslerde kaydı olanlar.
-function useTeacherLessonFilter({students,teachers,schedule,allSchedule,allTeachers,clsDocs}){
+function useTeacherLessonFilter({students,teachers,schedule,allSchedule,allTeachers,clsDocs,docScope}){
   const SCH=allSchedule||schedule||[], TCH=allTeachers||teachers||[];
   const plain=t2=>t2&&t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate&&!t2.isHead;
   const stNos=new Set((students||[]).map(x=>String(x.no)));
@@ -12413,7 +12419,7 @@ function useTeacherLessonFilter({students,teachers,schedule,allSchedule,allTeach
   const selLessons=lessonF==="all"?tLessons:tLessons.filter(l=>String(l.id)===String(lessonF));
   const lessonIds=new Set(selLessons.map(l=>String(l.id)));
   const lessonMode=!!teachObj&&tLessons.length>0;
-  const docOk=d=>!lessonMode||lessonIds.has(String(d.lessonId));
+  const docOk=d=>(!docScope||docScope.has(String(d.lessonId)))&&(!lessonMode||lessonIds.has(String(d.lessonId)));
   const lessonObj=lessonF==="all"?null:tLessons.find(l=>String(l.id)===String(lessonF))||null;
   return {options,teachF,setTeachF,lessonF,setLessonF,teachObj,tLessons,selLessons,lessonIds,lessonMode,docOk,lessonObj};
 }
@@ -12430,7 +12436,7 @@ function TeacherLessonSelects({tf,lang,days}){
     </select>}
   </>);
 }
-function AdminReportsPanel({students,teachers,schedule,allSchedule,allTeachers,lang,t,toast}){
+function AdminReportsPanel({students,teachers,schedule,allSchedule,allTeachers,docScope,noEvals,lang,t,toast}){
   // Devam bilgisi DOĞRUDAN yoklama kayıtlarından (attendance) — kim alırsa alsın (öğretmen, sorumlu, QR) anında doğru.
   //  records:{öğrenciId:"on"|"late"|"off"|"leave"}; "ders yapılmadı" (teacherAbsent) kayıtları sayılmaz.
   const [attDocsR,setAttDocsR]=useState([]);
@@ -12441,7 +12447,7 @@ function AdminReportsPanel({students,teachers,schedule,allSchedule,allTeachers,l
     try{ u=F.onSnapshot(F.collection(F.db,"attendance"),sn=>setAttDocsR(sn.docs.map(d=>d.data())),()=>{}); }catch(_){}
     return ()=>{ try{u();}catch(_){} };
   },[]);
-  const tf=useTeacherLessonFilter({students,teachers,schedule,allSchedule,allTeachers,clsDocs});
+  const tf=useTeacherLessonFilter({students,teachers,schedule,allSchedule,allTeachers,clsDocs,docScope});
   const attMap=useMemo(()=>{
     const m={};
     attDocsR.forEach(d=>{ if(d.teacherAbsent||!d.records||!attScopeOk(d,scopeF,schedule,clsDocs)||!tf.docOk(d)) return;
@@ -12478,13 +12484,42 @@ function AdminReportsPanel({students,teachers,schedule,allSchedule,allTeachers,l
   const leaves=useLeaves(true);
   const leavesOf=s=>(leaves||[]).filter(l=>!l.kid&&String(l.studentNo)===String(s.no)).sort((a,b)=>String(a.from).localeCompare(String(b.from)));
   // Öğretmenlerin haftalık değerlendirmeleri (tam rapor sütunu) + öğrenci ayrıntısı
-  const sEvals=useEvalDocs("studentEvals");
+  const sEvals=useEvalDocs("studentEvals",null,null,!noEvals);
   const evOf=s=>{ const l=sEvals.filter(e=>String(e.studentNo)===String(s.no)); const v=l.map(e=>evalAvg(e.c)).filter(x=>x!=null);
     const last=l.slice().sort((a,b)=>String(b.wk).localeCompare(String(a.wk))).find(e=>e.note);
     return {n:l.length,avg:v.length?v.reduce((a,b)=>a+b,0)/v.length:null,note:last?last.note+" ("+(last.teacherName||"")+")":""}; };
   const [detail,setDetail]=useState(null);
   const [showAll,setShowAll]=useState(false);
   const leaveTxt=s=>leavesOf(s).map(l=>(l.reason||"")+" ("+fmtDateTx(l.from)+(l.to&&l.to!==l.from?" – "+fmtDateTx(l.to):"")+((l.lessonNames||[]).length?" · "+l.lessonNames.join(", "):"")+")").join("; ");
+  // ── Görünüm: öğrenciye / derse / sınıfa / öğretmene göre ──
+  const [groupBy,setGroupBy]=useState("student");
+  const SCH_ALL=allSchedule||schedule||[], TCH_ALL=allTeachers||teachers||[];
+  const groups=useMemo(()=>{
+    if(groupBy==="student") return [];
+    const stIds=new Set(filteredStudents.map(x=>String(x.id)));
+    const lsById=new Map(SCH_ALL.map(l=>[String(l.id),l]));
+    const g=new Map();
+    attDocsR.forEach(d=>{ if(d.teacherAbsent||!d.records||!attScopeOk(d,scopeF,schedule,clsDocs)||!tf.docOk(d)) return;
+      const ls=lsById.get(String(d.lessonId));
+      let key,name,sub="";
+      if(groupBy==="lesson"){ key=String(d.lessonId); name=(ls&&ls.name)||d.lessonName||key;
+        const tn=ls&&ls.teacherNo?((TCH_ALL.find(x=>String(x.no)===String(ls.teacherNo))||{}).name||ls.teacherName||""):(ls&&ls.guestTeacher)||"";
+        const cd=clsDocs.find(x=>x.id===((ls&&ls.classId)||d.classId)); sub=[tn,cd?classLabel(cd,lang):""].filter(Boolean).join(" · "); }
+      else if(groupBy==="class"){ const cid=(ls&&ls.classId)||d.classId||""; const cd=clsDocs.find(x=>x.id===cid); key=cid||"_"; name=cd?classLabel(cd,lang):(lang==="en"?"No class":K("Bê sinif")); }
+      else { const tno=String((ls&&ls.teacherNo)||""); const tt=TCH_ALL.find(x=>String(x.no)===tno); key=tno||"_"; name=tt?tt.name:(ls&&ls.guestTeacher)||(lang==="en"?"No teacher":K("Bê mamoste")); }
+      const x=g.get(key)||{key,name,sub,docs:0,lessons:new Set(),stu:new Set(),on:0,late:0,off:0,leave:0}; let any=false;
+      Object.entries(d.records).forEach(([sid,v])=>{ if(!stIds.has(String(sid))) return; any=true; x.stu.add(String(sid)); if(x[v]!=null) x[v]++; });
+      if(any){ x.docs++; x.lessons.add(String(d.lessonId)); g.set(key,x); } });
+    return [...g.values()].map(x=>{ const tot=x.on+x.late+x.off; return {...x,nStu:x.stu.size,nLs:x.lessons.size,pct:tot?Math.round((x.on+x.late)/tot*100):null}; })
+      .sort((a,b)=>(a.pct==null?101:a.pct)-(b.pct==null?101:b.pct)||String(a.name).localeCompare(String(b.name)));
+  },[groupBy,attDocsR,scopeF,schedule,clsDocs,tf.teachF,tf.lessonF,filteredStudents.length,SCH_ALL.length,lang]);
+  const groupLbl={lesson:lang==="en"?"Lesson":K("Ders"),class:lang==="en"?"Class":K("Sînif"),teacher:lang==="en"?"Teacher":K("Mamoste")};
+  function groupCSV(){
+    const W=(ku,en)=>lang==="en"?en:K(ku);
+    const out=[[groupLbl[groupBy],groupBy==="lesson"?W("Mamoste · Sînif","Teacher · Class"):"",W("Ders (car)","Sessions"),W("Xwendekar","Students"),W("Hat","Present"),W("Dereng","Late"),W("Nehat","Absent"),W("Destûr","Leave"),"%"]];
+    groups.forEach(x=>out.push([x.name,x.sub,x.docs,x.nStu,x.on,x.late,x.off,x.leave,x.pct==null?"":x.pct]));
+    downloadCSV("amadebun-"+groupBy+"-"+ymdLocal(new Date())+".csv",out); toast("⬇ CSV");
+  }
   const filterNote=[scopeF!=="all"?attScopeLabel(scopeF,lang):"",clsObj?"🏫 "+classLabel(clsObj,lang):"",teachObj?"👩‍🏫 "+teachObj.name+(tf.lessonObj?" · "+tf.lessonObj.name:tf.lessonMode?" · "+(lang==="en"?"their lessons only":K("tenê dersên wî/wê")):""):"",stuF!=="all"?"🎓 "+((students.find(s=>String(s.fireId||s.id)===String(stuF))||{}).name||""):""].filter(Boolean).join(" · ");
 
   const reportDate = lang==="en"?new Date().toLocaleDateString("en-GB",{year:"numeric",month:"long",day:"numeric"}):fmtDateTx(new Date().toISOString());
@@ -12595,6 +12630,7 @@ ${`<body>`}
     <div class="meta-item">📊 ${lang==="en"?"Report Type":K("Cureyê Rapor")}: <strong>${reportType==="attendance"?(lang==="en"?"Attendance":K("Amadebûn")):(lang==="en"?"Full Report":K("Rapor Tevahî"))}</strong></div>
   </div>
   <div class="content">
+    ${groupBy!=="student"&&groups.length?`<h3 style="font-size:14px;margin:0 0 8px">${H(groupLbl[groupBy])}</h3><table style="margin-bottom:22px"><thead><tr><th>${H(groupLbl[groupBy])}</th><th>${W("Ders (car)","Sessions")}</th><th>${W("Xwendekar","Students")}</th><th>${W("Nehat","Absent")}</th><th>${W("Dereng","Late")}</th><th>%</th></tr></thead><tbody>${groups.map(x=>`<tr><td><b>${H(x.name)}</b>${x.sub?`<div style="font-size:11px;color:#666">${H(x.sub)}</div>`:""}</td><td>${x.docs}</td><td>${x.nStu}</td><td>${x.off}</td><td>${x.late}</td><td><b>${x.pct==null?"—":x.pct+"%"}</b></td></tr>`).join("")}</tbody></table>`:""}
     <table>
       <thead>
         <tr>
@@ -12762,21 +12798,6 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
           ["full",lang==="en"?"Full report":K("Rapor Tevahî"),"report"]]}/>
       </div>
 
-      {/* Anket hedefi — yalnız anket türünde */}
-      {reportType==="survey"&&(
-        <Card style={{marginBottom:12}}>
-          <div className="c-h">{lang==="en"?"Survey Target":K("Armanca Ankêtê")}</div>
-          <Chips value={surveyTarget} onChange={setSurveyTarget} items={[
-            ["all_students",lang==="en"?"All Students":K("Hemû Xwendekar"),"users"],
-            ["all_teachers",lang==="en"?"All Teachers":K("Hemû Mamoste"),"user"],
-            ["area_students",lang==="en"?"Field Students":K("Xwendekarên Qadê"),"users"],
-            ["area_teachers",lang==="en"?"Field Teachers":K("Mamosteên Qadê"),"user"]]}/>
-          {(surveyTarget==="area_students"||surveyTarget==="area_teachers")&&(
-            <Note style={{marginTop:10}}>{lang==="en"?"Select a field below to filter by area":K("Li jêr qadekê hilbijêre da ku bi qadê veqetîne")}</Note>
-          )}
-        </Card>
-      )}
-
       {/* Süzgeçler: bölüm (çip satırı) + sınıf · öğretmen · öğrenci */}
       <Card style={{marginBottom:12}}>
         <div className="c-h" style={{display:"flex",alignItems:"center",gap:8}}><Ico n="settings" size={17}/>{lang==="en"?"Filters":K("Fîlter")}</div>
@@ -12812,6 +12833,29 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
           </div>;
         })()}
       </Card>
+
+      {/* Görünüm seçimi + gruplanmış tablo */}
+      <div data-rep-group="1" style={{marginBottom:10}}>
+        <Seg value={groupBy} onChange={setGroupBy} items={[
+          ["student",lang==="en"?"By student":K("Li gorî xwendekar"),"users"],
+          ["lesson",lang==="en"?"By lesson":K("Li gorî ders"),"cal"],
+          ["class",lang==="en"?"By class":K("Li gorî sinif"),"cls"],
+          ["teacher",lang==="en"?"By teacher":K("Li gorî mamoste"),"user"]]}/>
+      </div>
+      {groupBy!=="student"&&(
+      <Card style={{marginBottom:10}}>
+        <div className="c-h" style={{display:"flex",alignItems:"center",gap:8}}>{groupLbl[groupBy]} · {groups.length}
+          <button type="button" onClick={groupCSV} disabled={!groups.length} style={{marginLeft:"auto",padding:"6px 12px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12,cursor:"pointer"}}>⬇ CSV</button></div>
+        {groups.length===0&&<div style={{fontSize:12.5,color:"var(--text2)",textAlign:"center",padding:12}}>{lang==="en"?"No attendance records.":K("Tomarên amadebûnê tune.")}</div>}
+        {groups.map(x=>(
+          <div key={x.key} data-rep-grow={x.key} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 0",borderTop:"1px solid var(--border2)"}}>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:13.5,fontWeight:700,color:"var(--text)"}}>{x.name}</div>
+              <div style={{fontSize:11.5,color:"var(--text2)"}}>{x.sub?x.sub+" · ":""}{x.docs} {lang==="en"?"sessions":K("ders")} · {x.nStu} {lang==="en"?"students":K("xwendekar")} · ❌ {x.off}{x.late?" · ⏱ "+x.late:""}{x.leave?" · 🏷 "+x.leave:""}</div>
+            </div>
+            <b className="c-pct" style={{fontSize:16,color:x.pct==null?"var(--text2)":pctColor(x.pct)}}>{x.pct==null?"—":x.pct+"%"}</b>
+          </div>))}
+      </Card>)}
 
       {/* Summary Preview */}
       {reportType!=="survey"&&(
@@ -13570,13 +13614,12 @@ function KidHeadReports({lang,toast,area,byName}){
     background:on?"var(--surface)":"transparent",color:on?"var(--accent)":"var(--text2)",boxShadow:on?"0 1px 4px rgba(15,47,56,0.15)":"none"});
   return(<div>
     <div style={{display:"flex",gap:5,marginBottom:14,background:"var(--bg2)",padding:4,borderRadius:12,overflowX:"auto"}}>
-      {[["rep",W2("Zarok û amadebûn","Children & attendance")],["kseval",W2("Nirxandina zarokan","Student evaluation")],["kteval",W2("Nirxandina mamosteyan","Teacher evaluation")],["anket",W2("Ankêt","Surveys")]].map(([k,l])=>
+      {[["rep",W2("Zarok û amadebûn","Children & attendance")],["kseval",W2("Nirxandina zarokan","Student evaluation")],["kteval",W2("Nirxandina mamosteyan","Teacher evaluation")]].map(([k,l])=>
         <button key={k} data-khr={k} onClick={()=>setT(k)} style={tb(t===k)}>{l}</button>)}
     </div>
     {t==="rep"&&<KidAcademyReport lang={lang} toast={toast} lockArea={area}/>}
     {t==="kseval"&&<EvalReport kind="kid" lang={lang} toast={toast} headArea={area} byName={byName}/>}
     {t==="kteval"&&<EvalReport kind="kteacher" lang={lang} toast={toast} headArea={area} byName={byName}/>}
-    {t==="anket"&&<KidSurveysPanel lang={lang} toast={toast} lockArea={area} readOnly={true} areaOnly={area}/>}
   </div>);
 }
 // Yönetici: Çocuk Akademisi raporu
@@ -15109,7 +15152,7 @@ function EvalReminder({pending,total,onGo,lang,kind}){
 // ══ RAPOR: haftalık değerlendirmeler (yalnız yönetici + bölüm sorumlusu) ══
 //  kind="student": öğretmenlerin öğrencilere verdiği puanlar · kind="teacher": öğrencilerin öğretmenlere verdiği (isimsiz)
 function wkOfDate(ds){ const p=String(ds||"").split("-").map(Number); if(p.length<3||!p[0]) return ""; return evalWeek(new Date(p[0],p[1]-1,p[2])); }
-function EvalReport({kind,students,teachers,allTeachers,lang,toast,headArea,byName}){
+function EvalReport({kind,students,teachers,allTeachers,teachScope,lang,toast,headArea,byName}){
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   // student/teacher: ana akademi · kid/kteacher: çocuk akademisi (öğretmen → çocuk, veli → öğretmen)
   const isKid=kind==="kid"||kind==="kteacher";
@@ -15119,7 +15162,7 @@ function EvalReport({kind,students,teachers,allTeachers,lang,toast,headArea,byNa
   const SF=isS?(isKid?"kidNo":"studentNo"):"teacherNo", SN=isS?(isKid?"kidName":"studentName"):"teacherName", RF=isS?"teacherNo":(isKid?"guardianNo":"studentNo");
   const aLbl=a=>{ if(!isKid) return areaName(a,lang)||""; const z=ZAROK_AREA_NAMES[a]; return z?(lang==="en"?z[1]:K(z[0])):(a||""); };
   const clsDocs=useClassDocs("classes");
-  const lockArea=headArea&&headArea!=="genel"?headArea:"";
+  const lockArea=headArea&&!teachScope?headArea:""; // genel sorumlu: alan yerine öğretmen kapsamı (genel derslerin öğretmenleri)
   const [from,setFrom]=useState(()=>evalWeekShift(evalWeek(),-7));
   const [to,setTo]=useState(()=>ymdLocal(new Date()));
   const [area,setArea]=useState(lockArea||"all");
@@ -15131,11 +15174,12 @@ function EvalReport({kind,students,teachers,allTeachers,lang,toast,headArea,byNa
   const plainTeachers=(()=>{ const m=new Map();
     if(!isKid) (teachers||[]).filter(t2=>t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate&&!t2.isHead&&(!lockArea||t2.area===lockArea||t2.area==="genel")).forEach(t2=>m.set(String(t2.no),{no:String(t2.no),name:t2.name}));
     // Kayıtlardaki öğretmenler (ör. bölüm öğrencisine ders veren başka bölümün öğretmeni)
-    docs.filter(d=>d.teacherNo&&(!lockArea||d.area===lockArea)).forEach(d=>{ const k=String(d.teacherNo); if(!m.has(k)){ const tt=(allTeachers||[]).find(x=>String(x.no)===k); m.set(k,{no:k,name:(tt&&tt.name)||d.teacherName||k}); } });
+    docs.filter(d=>d.teacherNo&&(!lockArea||d.area===lockArea)&&(!teachScope||teachScope.has(String(d.teacherNo)))).forEach(d=>{ const k=String(d.teacherNo); if(!m.has(k)){ const tt=(allTeachers||[]).find(x=>String(x.no)===k); m.set(k,{no:k,name:(tt&&tt.name)||d.teacherName||k}); } });
     return [...m.values()]; })();
   const teachName=teachF==="all"?"":((plainTeachers.find(x=>String(x.no)===String(teachF))||{}).name||teachF);
   const clsObj=clsF==="all"?null:clsDocs.find(d=>d.id===clsF);
   const shown=docs.filter(d=>d.wk>=wFrom&&d.wk<=wTo
+    &&(!teachScope||teachScope.has(String(d.teacherNo)))
     &&(area==="all"||d.area===area)
     &&(teachF==="all"||String(d.teacherNo)===String(teachF))
     &&(!isS||isKid||!clsObj||inClass(clsObj,d.studentNo))
@@ -15427,15 +15471,6 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
 
 
 
-  // Anket aktif mi? — nav badge için
-  useEffect(()=>{
-
-    if(!window.__FB||!window.__FB.isConfigured()) return;
-    let unsub=()=>{};
-    try { unsub=window.__FB.onSurveyConfig(cfg=>setSurveyActive(cfg.active===true&&(cfg.targetAreas.length===0||cfg.targetAreas.includes(teacher.area)))); }
-    catch(e){}
-    return ()=>unsub();
-  },[teacher.area]);
 
   const a=AREA_MAP[teacher.area]||AREA_MAP["genel"]||{color:"#16a34a",bg:"rgba(22,163,74,0.08)",icon:"👨‍🏫",name:{ku:"",en:"",desc:{ku:"",en:""}}};
   const mySchedule = schedule.filter(s=>lessonForTeacher(s,teacher));
@@ -15846,7 +15881,6 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     {key:"students",icon:"🎓",label:lang==="en"?"My Students":K("Xwendekarên Min")},
     {key:"scanner",icon:"📷",label:t.qrScan},
     {key:"seval",icon:"📝",label:lang==="en"?"Student Evaluation":K("Nirxandina Xwendekaran"),badge:evPending},
-    {key:"surveys",icon:"📊",label:lang==="en"?"Surveys":K("Ankêt")},
     {key:"profile",icon:"👤",label:t.profile},
   ];
 
@@ -16121,9 +16155,6 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
         )}
         {(view==="seval"||view==="evaluation")&&(
           <TeacherStudentEval teacher={teacher} myStudents={myStudents} classGroups={myClassGroups} evals={myEvals} lang={lang} toast={toast} ef={tEf}/>
-        )}
-        {view==="surveys"&&(
-          <TeacherSurveyPanel teacher={teacher} schedule={mySchedule} lang={lang} t={t} toast={toast}/>
         )}
         {view==="scanner"&&(
           <div style={{paddingBottom:20}}>
@@ -17450,7 +17481,6 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
     {key:"messages",icon:"💬", label:lang==="en"?"Messages":K("Peyam"), badge:studentMsgUnread},
     {key:"schedule",icon:"📅", label:t.schedule},
     {key:"teval",   icon:"⭐", label:lang==="en"?"Teacher Evaluation":K("Nirxandina Mamosteyan"), badge:tevPending},
-    {key:"surveys", icon:"📊", label:lang==="en"?"Surveys":K("Ankêt")},
     {key:"feedback",icon:"💡", label:lang==="en"?"Feedback":K("Pêşniyar")},
     {key:"profile", icon:"👤", label:t.profile},
   ];
@@ -17887,9 +17917,6 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
 
         {/* ── ANKÊT (Student Surveys) ── */}
         {view==="teval"&&<StudentTeacherEval student={student} teachers={myTeachers} evals={myTEvals} lang={lang} toast={toast} ef={sEf}/>}
-        {view==="surveys"&&(
-          <StudentSurveyView student={student} a={a} lang={lang} toast={toast}/>
-        )}
 
         {/* ── PÊŞNİYAR / ŞİKAYET (Feedback) ── */}
         {view==="feedback"&&(
