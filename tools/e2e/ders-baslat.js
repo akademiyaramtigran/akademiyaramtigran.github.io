@@ -56,7 +56,6 @@ async function routes(ctx) {
   await put('students/S3', { no: '20202603', name: 'Dilan Roj', area: 'tiyatro', fireId: 'S3', id: 103 });
   await signUp('20202603@ogrenci.aat', 'Stu12345');
   // Eski "18 ders" formülünün bozduğu istatistik (ilk gün %6 devam, 17 devamsızlık)
-  await put('studentStats/101', { att: 6, absent: 17, attended: 1, totalLessons: 18, late: 0 });
   await put('classes/C1', { kind: 'area', area: 'tiyatro', name: '1. Sınıf', studentNos: ['20202601', '20202602', '20202603'], teacherNos: [] });
   await put('kidTeachers/72026001', { no: '72026001', name: 'Mamoste Drama', area: 'drama' });
 
@@ -208,17 +207,15 @@ async function routes(ctx) {
   await hp.waitForTimeout(1500);
   const ab = (await list('attendance')).filter(d => d.fields.teacherAbsent && d.fields.teacherAbsent.booleanValue);
   ok('"Ders yapılmadı" kaydı: neden + açıklama + işaretleyen', ab.length === 1 && ab[0].fields.absenceNote.stringValue === 'Mamoste nexweş bû' && ab[0].fields.absenceBy.stringValue === 'Berpirsa Şanoyê');
-  // 5) Devam istatistiği gerçek sayım: tek ders → 1 ders, 1 geldi, 0 devamsız, %100
-  const st3 = (await get('studentStats/103')).fields || {};
-  ok('Tek derste gelen öğrenci: 1 ders, 0 devamsız, %100', st3.totalLessons && st3.totalLessons.integerValue === '1' && st3.absent.integerValue === '0' && st3.att.integerValue === '100', JSON.stringify(st3).slice(0, 160));
+  // 5) Devam doğrudan yoklama belgesinden hesaplanır (ayrı istatistik tablosu yok)
+  ok('Ayrı istatistik tablosu (studentStats) yazılmaz', (await list('studentStats')).length === 0);
   const ap = await login(await mk(), '1000', 'Admin123'); await ap.waitForTimeout(4000);
-  const st1 = (await get('studentStats/101')).fields || {};
-  ok('Yönetici girişi bozuk istatistiği yoklamalardan yeniden hesaplar', st1.totalLessons.integerValue === '1' && st1.absent.integerValue === '0' && st1.att.integerValue === '100', JSON.stringify(st1).slice(0, 160));
-  const st2 = (await get('studentStats/102')).fields || {};
-  ok('İzinli öğrenci devamsız sayılmaz, izinli ders sayılır', (!st2.absent || st2.absent.integerValue === '0') && st2.leaves && st2.leaves.integerValue === '1', JSON.stringify(st2).slice(0, 160));
   await goA(ap, 'reports'); await ap.waitForTimeout(2500);
   const rl = await ap.evaluate(() => [...document.querySelectorAll('[data-rep-leave]')].map(e => e.textContent).join(' | '));
   ok('Devam raporunda izinli öğrenci + izin nedeni görünür', rl.includes('Nexweşî') && /1/.test(rl), rl);
+  const rp = no => ap.evaluate(no => { const r = document.querySelector('[data-rep-student="' + no + '"] .c-pct'); return r ? r.textContent.trim() : ''; }, no);
+  ok('Rapor yoklamadan: QR ile gelen öğrenci %100, ders yapılmadı işareti sayılmaz', (await rp('20202603')) === '100%' && (await rp('20202601')) === '100%', (await rp('20202603')) + ' / ' + (await rp('20202601')));
+  ok('İzinli öğrenci devamsız sayılmaz (ders sayısına girmez)', (await rp('20202602')) === '—' || (await rp('20202602')) === '', await rp('20202602'));
 
   // 6) Çocuk akademisi sorumlusu: kendi dersinin programını yazar
   const kp = await login(await mk(), '96202612', 'Head1234');

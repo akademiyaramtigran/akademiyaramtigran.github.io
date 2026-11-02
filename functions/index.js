@@ -345,3 +345,10 @@ exports.monthlyAnalysis = onSchedule({ schedule: "5 9 1 * *", timeZone: "Europe/
   const regs = await tokens("aat", "role", "registrar"); if (regs.length && txt("ku", tot, true)) await push(regs, l => txt(l, tot, true), "/app/", "aat-monthly");
   return { M, counts };
 });
+
+// ── Haftalık temizlik: Pazar 03:17 (İstanbul) — eski QR oturumları/kodları/okutmaları, eski ders ve kapı kayıtları ──
+const { weeklyCleanupRun } = require("./temizlik");
+exports.weeklyCleanup = onSchedule({ schedule: "17 3 * * 0", timeZone: "Europe/Istanbul" }, async () => {
+  const r = await weeklyCleanupRun(admin.firestore(), Date.now());
+  console.log("[weeklyCleanup]", JSON.stringify(r));
+});

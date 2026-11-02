@@ -505,6 +505,7 @@ const { ref, uploadString, uploadBytes, getBytes } = require('firebase/storage')
   await t('Öğretmen dersi başlatır (startedAt)', setDoc(doc(teacher, 'attendance/SM3-2026-10-26'), { lessonId: 'SM3', startedAt: Date.now() }, { merge: true }), true);
   await t('B.sorumlusu: öğrenci EKLEYEMEZ', addDoc(collection(head, 'students'), { no: '1', name: 'x' }), false);
   await t('B.sorumlusu: öğrenci istatistiği YAZAMAZ', setDoc(doc(head, 'studentStats/S1'), { x: 1 }), false);
+  await t('Eski istatistik tablosu: öğretmen de YAZAMAZ', setDoc(doc(teacher, 'studentStats/S1'), { att: 1 }), false);
   await t('B.sorumlusu: kendi bölümünü/yetkisini değiştiremez', updateDoc(doc(head, 'teachers/TH'), { area: 'muzik' }), false);
   await t('B.sorumlusu: kendini yönetici yapamaz', updateDoc(doc(head, 'teachers/TH'), { isAdmin: true }), false);
   await t('B.sorumlusu: dizine yazamaz', setDoc(doc(head, 'idx_staff/96202601'), { no: '96202601', lvl: 'admin' }), false);
