@@ -8601,7 +8601,7 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
   const lessonsOf=id=>(schedule||[]).filter(l=>l.classId===id);
   const delLs=l=>onDataChange("deleteSchedule",{id:l.id,fireId:l.fireId||null});
   const cfg={
-    lessonsReadOnly:true,   // haftalık dersleri bölüm sorumluları hazırlar; atölye dersi burada kalır
+    lessonsReadOnly:false,  // haftalık dersleri Öğrenci İşleri (sınıf kartından) ve bölüm sorumluları hazırlar
     coll:"classes",
     members:studs,
     teachers:(teachers||[]).filter(t2=>t2.no&&!t2.isGate&&!t2.isHead&&!t2.isPress&&!t2.isRegistrar),
@@ -10361,7 +10361,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
       </div>
 
       {activeArea&&(
-        <AreaDetailModal areaKey={activeArea} students={students||[]} teachers={teachers||[]} schedule={schedule||[]} onClose={()=>setActiveArea(null)} t={t||T.ku} lang={lang} toast={toast} onDataChange={onDataChange} schedMode="view"/>
+        <AreaDetailModal areaKey={activeArea} students={students||[]} teachers={teachers||[]} schedule={schedule||[]} onClose={()=>setActiveArea(null)} t={t||T.ku} lang={lang} toast={toast} onDataChange={onDataChange} schedMode="full"/>
       )}
       {regCreds&&(
         <Sheet open={true} onClose={()=>setRegCreds(null)} title={L("regDone")}>
