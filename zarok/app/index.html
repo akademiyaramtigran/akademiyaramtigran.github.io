@@ -427,8 +427,6 @@ async function onSignedIn(u) {
   listen(collection(FB.db, "kidSchedule"), v => { S.sched = v; });
   listen(collection(FB.db, "kidClasses"), v => { S.cls = v; notifyNewPosts(S.cposts); });
   listen(query(collection(FB.db, "kidClassPosts"), orderBy("createdAt", "desc"), limit(60)), v => { S.cposts = v; S.postsLoaded = true; notifyNewPosts(v); });
-  listen(query(collection(FB.db, "kidSurveys"), where("active", "==", true)), v => { S.ksv = v; });
-  listen(query(collection(FB.db, "kidSurveyResponses"), where("no", "==", no)), v => { S.kresp = v; });
   listen(query(collection(FB.db, "kidAnnouncements"), orderBy("createdAt", "desc"), limit(30)), v => { S.annsAll = v; S.anns = annsMine(v); });
   listen(query(collection(FB.db, "kidMessages"), where("guardianNo", "==", no)), v => { S.msgs = v.sort((a, b) => tsMs(a.createdAt) - tsMs(b.createdAt)); });
   listen(query(collection(FB.db, "kidTeacherEvals"), where("guardianNo", "==", no)), v => { S.gEvals = v; });
@@ -477,8 +475,6 @@ async function onTeacherSignedIn(u) {
   listen(collection(FB.db, "guardians"), v => { S.guards = v; });
   listen(collection(FB.db, "kidClasses"), v => { S.cls = v; });
   listen(query(collection(FB.db, "kidClassPosts"), where("teacherNo", "==", no)), v => { S.cposts = v.sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt)); });
-  listen(query(collection(FB.db, "kidSurveys"), where("active", "==", true)), v => { S.ksv = v; });
-  listen(query(collection(FB.db, "kidSurveyResponses"), where("no", "==", no)), v => { S.kresp = v; });
   listen(query(collection(FB.db, "kidAttendance"), where("date", "==", todayStr())), v => { S.att = v.sort((a, b) => (b.time || "").localeCompare(a.time || "")); });
   listen(collection(FB.db, "kidSchedule"), v => { S.sched = v; });
   // Bölüm sorumlusunun işlediği izinler: izinli çocuk o gün yoklama listesinde görünmez
@@ -702,11 +698,10 @@ function viewToday() {
     : h("div", { class: "status", style: "background:linear-gradient(135deg,#b8923f,#8a6a2a)" }, h("div", { class: "big" }, "🎼"), h("div", null, h("div", { class: "s1" }, k.name), h("div", { class: "s2" }, T("statusNone"))));
   const dow = new Date().getDay();
   const todays = S.sched.filter(s => isToday(s) && lessonForKid(s, k)).sort((a, b) => (a.start || "").localeCompare(b.start || ""));
-  const latest = S.anns[0], lastCp = kidPosts(k)[0], pend = survPending()[0];
+  const latest = S.anns[0], lastCp = kidPosts(k)[0];
   return h("div", null, status, evReminder("g"),
     h("div", { class: "card" }, h("div", { class: "h" }, "📅 " + T("todayLessons")),
       todays.length ? todays.map(lessonRow) : h("div", { class: "muted" }, T("noLessonsToday"))),
-    pend ? h("div", { class: "card", style: "cursor:pointer;border:2px solid #b8923f", onclick: () => { S.tab = "surv"; S.survOpen = pend.id; render(); } }, h("div", { class: "h" }, "📋 " + T("survPendingT")), h("div", { class: "muted" }, (pend.title || "") + " → " + T("survAnswer"))) : null,
     lastCp ? h("div", { class: "card", onclick: () => { S.tab = lastCp.type === "duyuru" ? "ann" : "cls"; render(); }, style: "cursor:pointer" }, h("div", { class: "h" }, (PT[lastCp.type] || "📢") + " " + ptLabel(lastCp.type) + " · " + (lastCp.title || "")), h("div", { class: "muted" }, "🏫 " + classTxt(k) + (lastCp.type === "odev" && lastCp.due ? " · ⏰ " + lastCp.due : ""))) : null,
     latest ? h("div", { class: "card", onclick: () => { S.tab = "ann"; render(); }, style: "cursor:pointer" }, h("div", { class: "h" }, "📢 " + latest.title), h("div", { class: "muted", style: "white-space:pre-wrap" }, (latest.body || "").slice(0, 160))) : null,
     h("div", { class: "card", style: "display:flex;gap:12px;align-items:center" },
@@ -1323,10 +1318,10 @@ function navItems() {
     ? [["home", "today", T("tabHome"), 0, "grpDers"], ["att", "att", T("tabAtt"), 0, "grpDers"], ["ann", "ann", T("tabAnn"), 0, "grpTekili"],
        ["myclass", "cls", T("myClassHub"), tUnread, "grpDers"], ["kids", "users", T("tabKids"), 0, "grpDers"], ["card", "card", T("tabCard"), 0, "grpDers"],
        ["seval", "star", T("tabSEval"), S.tab !== "seval" ? tEvPending() : 0, "grpRapor"],
-       ["eval", "star", T("tabSurv"), S.tab !== "eval" && survPending().length ? "•" : 0, "grpRapor"], ["profile", "user", T("tabProfile"), 0, "grpHesab"]]
+       ["profile", "user", T("tabProfile"), 0, "grpHesab"]]
     : [["today", "today", T("tabToday"), 0], ["sched", "cal", T("tabSched"), 0], ["att", "att", T("tabAtt"), 0],
        ["ann", "ann", T("tabAnn"), unreadAnn ? "•" : 0], ["cls", "cls", T("tabCls"), 0],
-       ["surv", "star", T("tabSurv"), S.tab !== "surv" && survPending().length ? "•" : 0], ["teval", "star", T("tabTEval"), S.tab !== "teval" ? gEvPending() : 0],
+       ["teval", "star", T("tabTEval"), S.tab !== "teval" ? gEvPending() : 0],
        ["msg", "msg", T("tabMsg"), S.tab !== "msg" ? unreadMsg : 0]];
 }
 const goTab = k => { S.tab = k; S.thread = null; S.pano = false; render(); window.scrollTo(0, 0); };
@@ -1509,8 +1504,8 @@ function render() {
         h("button", { class: "btn sm", style: "width:auto", onclick: async () => { S.notifAsked = true; const r = await Notification.requestPermission(); if (r === "granted") { toast(T("notifOn")); enablePush(); } render(); } }, "✓"),
         h("button", { class: "iconbtn", "aria-label": "✕", onclick: () => { S.notifAsked = true; render(); } }, "✕")));
     const views = S.mode === "teacher"
-      ? { home: viewTHome, att: viewTAtt, kids: viewTKids, ann: viewTAnn, msg: () => { S.tab = "myclass"; S.hubTab = "msg"; return viewTClass(); }, myclass: viewTClass, card: viewTCard, eval: viewTEval, seval: viewTSEval, profile: viewSettings }
-      : { today: viewToday, sched: viewSched, att: viewAtt, ann: viewAnn, cls: viewCls, surv: viewSurv, teval: viewGEval, msg: viewMsg };
+      ? { home: viewTHome, att: viewTAtt, kids: viewTKids, ann: viewTAnn, msg: () => { S.tab = "myclass"; S.hubTab = "msg"; return viewTClass(); }, myclass: viewTClass, card: viewTCard, seval: viewTSEval, profile: viewSettings }
+      : { today: viewToday, sched: viewSched, att: viewAtt, ann: viewAnn, cls: viewCls, teval: viewGEval, msg: viewMsg };
     out.push(h("main", null, S.pano && !isWide() ? viewPano() : (views[S.tab] || (S.mode === "teacher" ? viewTHome : viewToday))()));
     out.push(sideNav());
     if (S.sheet === "settings") out.push(...sheet(viewSettings()));

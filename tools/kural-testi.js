@@ -239,9 +239,6 @@ const { ref, uploadString, uploadBytes, getBytes } = require('firebase/storage')
   await t('Öğrenci YÖNETİCİ adına toplu mesaj gönderemez', addDoc(collection(student, 'messages'), { fromType: 'admin', senderId: 'admin', recipientGroup: 'allStudents', subject: 'Şifrenizi girin', body: 'x' }), false);
   await t('Öğrenci başka öğrencinin mesajını SİLEMEZ', deleteDoc(doc(student, 'messages/M3')), false);
   await t('Öğrenci kendi mesajını okundu işaretler', updateDoc(doc(student, 'messages/M2'), { read: true }), true);
-  await t('Öğrenci KENDİ anket yanıtını yazar', setDoc(doc(student, 'studentSurveyResponses/R1'), { studentNo: '10202601', answers: {} }), true);
-  await t('Öğrenci başkasının anket yanıtını OKUYAMAZ', getDoc(doc(student, 'studentSurveyResponses/R2')), false);
-  await t('Öğrenci başkası adına anket yanıtı YAZAMAZ', setDoc(doc(student, 'studentSurveyResponses/R3'), { studentNo: '10202602', answers: {} }), false);
   await t('Öğrenci başkasının cihaz kaydını DEĞİŞTİREMEZ', setDoc(doc(student, 'devices/10202602'), { no: 'x' }), false);
   await t('Öğrenci kendi cihaz kaydını yazar', setDoc(doc(student, 'devices/10202601'), { no: '10202601' }), true);
   await t('Öğrenci başkalarının istatistiklerini OKUYAMAZ', getDocs(collection(student, 'studentStats')), false);
@@ -465,18 +462,9 @@ const { ref, uploadString, uploadBytes, getBytes } = require('firebase/storage')
   await t('B.sorumlusu: başka bölüme yazılmış mesaja cevap veremez', addDoc(collection(head, 'messages'), rep({ replyTo: 'MH3', recipientNo: '10202602' })), false);
   await t('B.sorumlusu: uydurma mesaja "cevap" diye yazamaz', addDoc(collection(head, 'messages'), rep({ replyTo: 'YOK' })), false);
   await t('Öğrenci gönderen numarasını başkası gibi gösteremez', addDoc(collection(student, 'messages'), { fromType: 'student', senderId: 'S1', toRole: 'head', toArea: 'sinema', fromNo: '10202602', subject: 's', body: 'b' }), false);
-  // Anket: sorumlu kendi bölümüne
-  const hSv = x => ({ title: 'A', ownerNo: '96202601', targetType: 'area', targetAreas: ['tiyatro'], active: true, questions: [], ...(x || {}) });
-  await t('B.sorumlusu: kendi bölümüne anket açar', setDoc(doc(head, 'studentSurveys/HS1'), hSv()), true);
-  await t('B.sorumlusu: kendi anketini günceller', setDoc(doc(head, 'studentSurveys/HS1'), hSv({ active: false })), true);
-  await t('B.sorumlusu: BAŞKA bölüme anket açamaz', setDoc(doc(head, 'studentSurveys/HS2'), hSv({ targetAreas: ['muzik'] })), false);
-  await t('B.sorumlusu: herkese (hedefsiz) anket açamaz', setDoc(doc(head, 'studentSurveys/HS3'), hSv({ targetType: 'all', targetAreas: [] })), false);
-  await t('B.sorumlusu: başkası adına anket açamaz', setDoc(doc(head, 'studentSurveys/HS4'), hSv({ ownerNo: '1000' })), false);
-  await t('B.sorumlusu: kendi anketini siler', deleteDoc(doc(head, 'studentSurveys/HS1')), true);
   // Genel sorumlu
   const gen = as('96202602@ogretmen.aat');
   await t('Genel sorumlu: herkese duyuru gönderir', addDoc(collection(gen, 'announcements'), { title: 'G', senderRole: 'head', senderNo: '96202602', senderArea: 'genel', targets: ['all'] }), true);
-  await t('Genel sorumlu: tüm bölümlere anket açar', setDoc(doc(gen, 'studentSurveys/GS1'), { title: 'G', ownerNo: '96202602', targetType: 'all', targetAreas: [], active: true }), true);
   await t('Genel sorumlu: yoklama YAZAMAZ', addDoc(collection(gen, 'attendance'), { x: 1 }), false);
   await t('Genel sorumlu: öğrenciye (cevapsız) mesaj GÖNDEREMEZ', addDoc(collection(gen, 'messages'), { fromType: 'head', senderNo: '96202602', subject: 's', body: 'b', recipientGroup: null, recipientNo: '10202601' }), false);
   // Çocuk akademisi bölüm sorumlusu (Drama)
@@ -498,8 +486,6 @@ const { ref, uploadString, uploadBytes, getBytes } = require('firebase/storage')
   await t('Ç.sorumlu: veliye cevap yazar', addDoc(collection(kh, 'kidMessages'), { guardianNo: '92026001', guardianName: 'V', text: 'Silav', from: 'staff', by: 'x', byNo: '96202603', read: false }), true);
   await t('Ç.sorumlu: veli adına mesaj YAZAMAZ', addDoc(collection(kh, 'kidMessages'), { guardianNo: '92026001', text: 'x', from: 'guardian', byNo: '96202603' }), false);
   await t('Ç.sorumlu: olmayan veliye yazamaz', addDoc(collection(kh, 'kidMessages'), { guardianNo: '99999999', text: 'x', from: 'staff', by: 'x', byNo: '96202603', read: false }), false);
-  await t('Ç.sorumlu: kendi dersine anket açar', setDoc(doc(kh, 'kidSurveys/KS1'), { title: 'K', ownerNo: '96202603', targetType: 'guardians', targetAreas: ['drama'], active: true, questions: [] }), true);
-  await t('Ç.sorumlu: başka derse anket açamaz', setDoc(doc(kh, 'kidSurveys/KS2'), { title: 'K', ownerNo: '96202603', targetType: 'guardians', targetAreas: ['solfej'], active: true }), false);
   await t('Ç.sorumlu: çocuk yoklaması YAZAMAZ', addDoc(collection(kh, 'kidAttendance'), { kidId: 'K3', type: 'in' }), false);
   await t('Ç.sorumlu: çocuk kaydı DEĞİŞTİREMEZ', updateDoc(doc(kh, 'kids/K3'), { name: 'x' }), false);
   await t('Ç.sorumlu: ana akademiye duyuru gönderemez', addDoc(collection(kh, 'announcements'), { title: 'x', senderRole: 'head', senderNo: '96202603', senderArea: 'drama', targets: ['drama'] }), false);
@@ -512,30 +498,12 @@ const { ref, uploadString, uploadBytes, getBytes } = require('firebase/storage')
   await t('Öğrenci bölüm sorumluları listesini okur', getDoc(doc(student, 'config/heads')), true);
   await t('Öğrenci config/heads YAZAMAZ', setDoc(doc(student, 'config/heads'), { areas: {} }), false);
   const sgA = as('92026001@veli.aat'), sgB = as('92026002@veli.aat'), sgR = as('98202601@ogretmen.aat'), sgK = as('72026001@zmamoste.aat'), sgS = as('10202601@ogrenci.aat'), sgT = as('11202601@ogretmen.aat');
-  const resp = (sid, no, role, x) => ({ surveyId: sid, role, no, name: 'V', areas: ['drama'], answers: { q1: 5 }, submittedAt: '2026-10-04', ...(x || {}) });
-  await t('Ç.anket: öğrenci işleri veli anketi oluşturur', setDoc(doc(sgR, 'kidSurveys/S1'), { title: 'Razîbûn', active: true, targetType: 'guardians', targetAreas: [], questions: [] }), true);
-  await t('Ç.anket: öğrenci işleri öğretmen anketi oluşturur', setDoc(doc(sgR, 'kidSurveys/S3'), { title: 'Mamoste', active: true, targetType: 'kidteachers', targetAreas: ['drama'], questions: [] }), true);
-  await t('Ç.anket: kapalı anket', setDoc(doc(sgR, 'kidSurveys/S2'), { title: 'Reşnivîs', active: false, targetType: 'guardians', questions: [] }), true);
-  await t('Ç.anket: veli okur', getDoc(doc(sgA, 'kidSurveys/S1')), true);
-  await t('Ç.anket: veli anket YAZAMAZ', setDoc(doc(sgA, 'kidSurveys/S9'), { title: 'x', active: true }), false);
-  await t('Ç.anket: çocuk öğretmeni anket YAZAMAZ', setDoc(doc(sgK, 'kidSurveys/S9'), { title: 'x', active: true }), false);
-  await t('Ç.anket: yetişkin öğrenci okuyamaz', getDoc(doc(sgS, 'kidSurveys/S1')), false);
-  await t('Ç.yanıt: veli kendi adına yanıtlar', setDoc(doc(sgA, 'kidSurveyResponses/S1_92026001'), resp('S1', '92026001', 'guardian')), true);
-  await t('Ç.yanıt: veli yanıtını günceller', setDoc(doc(sgA, 'kidSurveyResponses/S1_92026001'), resp('S1', '92026001', 'guardian', { answers: { q1: 4 } })), true);
-  await t('Ç.yanıt: başka veli adına yanıtlanamaz', setDoc(doc(sgA, 'kidSurveyResponses/S1_92026002'), resp('S1', '92026002', 'guardian')), false);
-  await t('Ç.yanıt: belge kimliği uydurulamaz', setDoc(doc(sgA, 'kidSurveyResponses/X_92026001'), resp('S1', '92026001', 'guardian')), false);
-  await t('Ç.yanıt: kapalı ankete yanıt verilemez', setDoc(doc(sgA, 'kidSurveyResponses/S2_92026001'), resp('S2', '92026001', 'guardian')), false);
-  await t('Ç.yanıt: veli öğretmen anketine yanıt VEREMEZ', setDoc(doc(sgA, 'kidSurveyResponses/S3_92026001'), resp('S3', '92026001', 'guardian')), false);
-  await t('Ç.yanıt: veli kendini öğretmen gösteremez', setDoc(doc(sgA, 'kidSurveyResponses/S3_92026001'), resp('S3', '92026001', 'teacher')), false);
-  await t('Ç.yanıt: çocuk öğretmeni öğretmen anketini yanıtlar', setDoc(doc(sgK, 'kidSurveyResponses/S3_72026001'), resp('S3', '72026001', 'teacher')), true);
-  await t('Ç.yanıt: çocuk öğretmeni veli anketine yanıt VEREMEZ', setDoc(doc(sgK, 'kidSurveyResponses/S1_72026001'), resp('S1', '72026001', 'teacher')), false);
-  await t('Ç.yanıt: bağlı akademi öğretmeni öğretmen anketini yanıtlar', setDoc(doc(as('21202601@ogretmen.aat'), 'kidSurveyResponses/S3_21202601'), resp('S3', '21202601', 'teacher')), true);
-  await t('Ç.yanıt: bağlı OLMAYAN akademi öğretmeni yanıtlayamaz', setDoc(doc(sgT, 'kidSurveyResponses/S3_11202601'), resp('S3', '11202601', 'teacher')), false);
-  await t('Ç.yanıt: fazladan alan reddedilir', setDoc(doc(sgA, 'kidSurveyResponses/S1_92026001'), resp('S1', '92026001', 'guardian', { isAdmin: true })), false);
-  await t('Ç.yanıt: başka velinin yanıtını OKUYAMAZ', getDoc(doc(sgB, 'kidSurveyResponses/S1_92026001')), false);
-  await t('Ç.yanıt: kendi yanıtını okur', getDoc(doc(sgA, 'kidSurveyResponses/S1_92026001')), true);
-  await t('Ç.yanıt: öğrenci işleri sonuçları okur', getDocs(collection(sgR, 'kidSurveyResponses')), true);
-  await t('Ç.yanıt: çocuk öğretmeni tüm sonuçları okuyamaz', getDocs(collection(sgK, 'kidSurveyResponses')), false);
+  // Anketler kaldırıldı: hiçbir rol anket koleksiyonlarını okuyamaz/yazamaz
+  for (const [nm, db0] of [['Yönetici', admin], ['Öğrenci işleri', sgR], ['B.sorumlusu', head], ['Öğrenci', student], ['Veli', sgA], ['Ç.öğretmeni', sgK]])
+    for (const c of ['studentSurveys', 'studentSurveyResponses', 'surveyResponses', 'kidSurveys', 'kidSurveyResponses']) {
+      await t(nm + ': ' + c + ' YAZAMAZ (anket kapalı)', setDoc(doc(db0, c + '/X1'), { title: 'x', surveyId: 'x', no: '1', answers: {} }), false);
+      await t(nm + ': ' + c + ' OKUYAMAZ (anket kapalı)', getDocs(collection(db0, c)), false);
+    }
   // ── Haftalık değerlendirmeler ──
   {
     const tch = as('11202601@ogretmen.aat'), stu = as('10202601@ogrenci.aat'), stu2 = as('10202602@ogrenci.aat'), hd = as('96202601@ogretmen.aat'), adm = as('1000@ogretmen.aat'), oth = as('21202601@ogretmen.aat');

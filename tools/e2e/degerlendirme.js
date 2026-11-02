@@ -82,7 +82,7 @@ function evalWeek(d) { const x = d ? new Date(d) : new Date(); const y = new Dat
   // 1) Öğretmen: kartlar
   const tp = await login(await mk(), '50202601', 'Tea12345');
   const tk = await keysOf(tp);
-  ok('Öğretmen kartları: Duyuru, Sınıfım, Öğrenci Değerlendirmesi, Anket ayrı', ['announce', 'myclass', 'seval', 'surveys'].every(k => tk.split(',').includes(k)) && !tk.split(',').includes('messages') && !tk.split(',').includes('evaluation'), tk);
+  ok('Öğretmen kartları: Duyuru, Sınıfım, Öğrenci Değerlendirmesi (anket yok)', ['announce', 'myclass', 'seval'].every(k => tk.split(',').includes(k)) && !tk.split(',').includes('surveys') && !tk.split(',').includes('messages') && !tk.split(',').includes('evaluation'), tk);
   ok('Ana ekranda haftalık değerlendirme hatırlatması (2 öğrenci)', (await tp.locator('[data-ev-reminder]').count()) === 1 && (await tp.locator('[data-ev-reminder]').innerText()).includes('2 / 2'), await tp.locator('[data-ev-reminder]').innerText().catch(() => ''));
   ok('Öğretmen ana ekranında devam yüzdesi / risk yok', !/Di Xeterê de|Navgîna Amadebûnê/.test(await txt(tp)));
   // 2) Öğrenci değerlendirmesi
@@ -162,8 +162,6 @@ function evalWeek(d) { const x = d ? new Date(d) : new Date(); const y = new Dat
   await hp.click('[data-eval-row="50202601"] button').catch(() => {}); await hp.waitForTimeout(500);
   const trT = await hp.evaluate(() => (document.querySelector('[data-eval-report="teacher"]') || {}).innerText || '');
   ok('Sorumlu: öğretmen değerlendirmesi (isimsiz: öğrenci adı yok)', tr === 1 && trT.includes('Ders xweş e') && !trT.includes('Rojîn'), trT.slice(0, 200).replace(/\n/g, ' / '));
-  await btn(hp, 'Ankêt'); await hp.waitForTimeout(800);
-  ok('Sorumlu: anket raporu sekmesi', (await txt(hp)).includes('Ankêtên mamosteyan'));
 
   // 6b) Sorumlu: misafir öğretmenli dersin yoklamasını alır
   await goA(hp, 'gatt'); await hp.waitForTimeout(1200);

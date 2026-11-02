@@ -10,7 +10,7 @@ cd tools && npm install
 | `node dil-entegre.js rapor.json …` | Akademisyen rapor dosyalarını `app/lang-pack.js`'e işler |
 | `npm run kural-testi` | Firestore + Storage kuralları (Java 11+ gerekir) |
 | `npm run fonksiyon-testi` | Cloud Function `aatUser` (önce `cd ../functions && npm install`) |
-| `npm run e2e` | Uçtan uca: veli, öğrenci işleri, yönetim + basın + öğretmen, kart + kapı güvenliği, saldırı senaryoları, kardeş + sınıf sistemi + sınıf paylaşımları + rapor filtresi, anket stüdyosu + veli anketi, alan/genel sınıf + sınıf ders programı + atölye (yoklama, kapanış) + öğrenci/öğretmen görünürlüğü (sunucu fonksiyonu emülatörüyle; her test kendi temiz emülatöründe) |
+| `npm run e2e` | Uçtan uca: veli, öğrenci işleri, yönetim + basın + öğretmen, kart + kapı güvenliği, saldırı senaryoları, kardeş + sınıf sistemi + sınıf paylaşımları + rapor filtresi, rapor kapsamı (anketler kaldırıldı), alan/genel sınıf + sınıf ders programı + atölye (yoklama, kapanış) + öğrenci/öğretmen görünürlüğü (sunucu fonksiyonu emülatörüyle; her test kendi temiz emülatöründe) |
 | `node zarok-paketle.js zarok.aramtigran.org` | Zarok'u kendi alan adına taşımak için `dist-zarok/` üretir |
 
 ## E2E çalıştırma

@@ -83,7 +83,7 @@ async function routes(ctx) {
   // 2) Sorumlu girer: yalnızca Duyuru / Mesaj / Rapor
   const hp = await login(await mk(), hno, hpass);
   const keys = await hp.evaluate(() => [...document.querySelectorAll('.sm-it[data-key]')].map(e => e.dataset.key).join(','));
-  ok('Sorumlu paneli: duyuru, mesaj, ders programı, misafir ders yoklaması, izin, anket, rapor, profil, uyarılar', keys.split(',').sort().join(',') === 'alerts,announce,evalforms,gatt,leaves,messages,profile,reports,schedule,surveys', keys);
+  ok('Sorumlu paneli: duyuru, mesaj, ders programı, misafir ders yoklaması, izin, rapor, profil, uyarılar (anket yok)', keys.split(',').sort().join(',') === 'alerts,announce,evalforms,gatt,leaves,messages,profile,reports,schedule', keys);
   // Duyuru (kendi bölümüne kilitli) + belge
   const t0 = await txt(hp);
   ok('Duyuru hedefi kendi bölümüne kilitli', t0.includes('Kilkkirî') && t0.includes('Şano'));
@@ -97,7 +97,7 @@ async function routes(ctx) {
   // Rapor: yalnızca bölüm sekmeleri
   await goA(hp, 'reports'); await hp.waitForTimeout(1200);
   const t1 = await txt(hp);
-  ok('Rapor: bölüm sekmeleri (devam, değerlendirmeler, anket) var; çocuk akademisi / arşiv yok', t1.includes('Nirxandina xwendekaran') && t1.includes('Nirxandina mamosteyan') && !t1.includes('Akademiya Zarokan') && !/\bArşîv\b/.test(t1.split('Nirxandina xwendekaran')[1] || ''));
+  ok('Rapor: bölüm sekmeleri (devam, değerlendirmeler) var; çocuk akademisi / arşiv yok', t1.includes('Nirxandina xwendekaran') && t1.includes('Nirxandina mamosteyan') && !t1.includes('Akademiya Zarokan') && !/\bArşîv\b/.test(t1.split('Nirxandina xwendekaran')[1] || ''));
 
   // 3) Öğrenciler: tiyatro öğrencisi duyuruyu görür, müzik öğrencisi görmez; tiyatro öğrencisi sorumluya yazar
   const s1 = await login(await mk(430), '20202601', 'Stu12345', 'Xwendekar');

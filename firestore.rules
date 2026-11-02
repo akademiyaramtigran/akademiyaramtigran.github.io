@@ -265,17 +265,10 @@ service cloud.firestore {
       allow update: if (staffW() && !isTeacherLvl()) || (headLvl() && headAnnOk(resource.data) && headAnnOk(request.resource.data));
       allow delete: if (staffW() && !isTeacherLvl()) || (headLvl() && headAnnOk(resource.data));
     }
-    // Anket: bölüm sorumlusu KENDİ anketini, KENDİ bölümüne (genel sorumlu: her bölüme) açar
-    function headSurveyOk(d) {
-      return d.get('ownerNo', '') == prefix() && !kidHeadLvl()
-        && (headArea() == 'genel' || (d.get('targetType', '') in ['area', 'teachers_area'] && headTargetsOk(d.get('targetAreas', []))));
-    }
-    match /studentSurveys/{id} {
-      allow read: if member();
-      allow create: if staffW() || (headLvl() && headSurveyOk(request.resource.data));
-      allow update: if staffW() || (headLvl() && headSurveyOk(resource.data) && headSurveyOk(request.resource.data));
-      allow delete: if staffW() || (headLvl() && headSurveyOk(resource.data));
-    }
+    // Anketler kaldırıldı (yalnız değerlendirme formları kullanılıyor): okuma/yazma kapalı
+    match /studentSurveys/{id}         { allow read, write: if false; }
+    match /studentSurveyResponses/{id} { allow read, write: if false; }
+    match /surveyResponses/{id}        { allow read, write: if false; }
     match /studentStats/{id}      { allow read: if isStaff(); allow write: if staffW(); }
     match /teacherLessonLogs/{id} { allow read: if isStaff(); allow write: if staffW(); }
     match /qrSessions/{id}        { allow read: if member(); allow write: if staffW(); }
@@ -468,16 +461,6 @@ service cloud.firestore {
         && (resource == null || resource.data.studentNo == prefix());
       allow delete: if isAdmin();
     }
-    // Öğretmen haftalık anketleri: yalnızca personel
-    match /surveyResponses/{id} { allow read: if isStaff(); allow write: if staffW(); }
-    // Öğrenci anket yanıtları: öğrenci yalnızca KENDİ yanıtını (studentNo == kendi no) okur/yazar
-    match /studentSurveyResponses/{id} {
-      allow read: if isStaff() || (isStudent() && resource.data.get('studentNo', '') == prefix());
-      allow create, update: if staffW()
-        || (isStudent() && request.resource.data.get('studentNo', '') == prefix()
-            && (resource == null || resource.data.get('studentNo', '') == prefix()));
-      allow delete: if staffW();
-    }
     // Cihaz kaydı: doküman kimliği = kullanıcı no; herkes yalnızca kendi cihazını
     match /devices/{no} {
       allow read: if isStaff() || (member() && prefix() == no);
@@ -582,34 +565,9 @@ service cloud.firestore {
     }
     // Sınıflar (1., 2., …): çocuğun sınıfı kids.classLevel; sınıf öğretmeni burada (doc id = L<seviye>)
     match /kidClasses/{id}       { allow read: if kidRead() || isGuardian(); allow write: if isRegistrar(); }
-    // Çocuk Akademisi anketleri: öğrenci işleri/yönetici oluşturur (hedef: "guardians" veliler | "kidteachers" öğretmenler).
-    // Veli / çocuk öğretmeni yalnızca KENDİ adına ve kendisine yönelik aktif ankete BİR kez (güncelleyerek) yanıt verir.
-    function kidHeadSurveyOk(d) {
-      return kidHeadLvl() && d.get('ownerNo', '') == prefix() && headTargetsOk(d.get('targetAreas', []));
-    }
-    match /kidSurveys/{id} {
-      allow read: if kidRead() || isGuardian();
-      allow create: if isRegistrar() || kidHeadSurveyOk(request.resource.data);
-      allow update: if isRegistrar() || (kidHeadSurveyOk(resource.data) && kidHeadSurveyOk(request.resource.data));
-      allow delete: if isRegistrar() || kidHeadSurveyOk(resource.data);
-    }
-    function kidSurveyTarget(sid) { return get(/databases/$(database)/documents/kidSurveys/$(sid)).data; }
-    match /kidSurveyResponses/{id} {
-      allow read: if isRegistrar() || kidHeadLvl() || (authed() && resource.data.no == prefix());
-      allow create, update: if authed()
-        && id == request.resource.data.surveyId + '_' + prefix()
-        && request.resource.data.no == prefix()
-        && request.resource.data.keys().hasOnly(['surveyId','role','no','name','areas','answers','submittedAt'])
-        && request.resource.data.answers is map && request.resource.data.answers.size() <= 60
-        && (!('areas' in request.resource.data) || (request.resource.data.areas is list && request.resource.data.areas.size() <= 10))
-        && exists(/databases/$(database)/documents/kidSurveys/$(request.resource.data.surveyId))
-        && kidSurveyTarget(request.resource.data.surveyId).active == true
-        && ((request.resource.data.role == 'guardian' && isGuardian()
-              && kidSurveyTarget(request.resource.data.surveyId).targetType == 'guardians')
-            || (request.resource.data.role == 'teacher' && (isKidTeacher() || (isStaff() && exists(dbPath('idx_kidstaff'))))
-              && kidSurveyTarget(request.resource.data.surveyId).targetType == 'kidteachers'));
-      allow delete: if isRegistrar();
-    }
+    // Çocuk Akademisi anketleri kaldırıldı: okuma/yazma kapalı
+    match /kidSurveys/{id}         { allow read, write: if false; }
+    match /kidSurveyResponses/{id} { allow read, write: if false; }
     match /kidClassPosts/{id} {
       allow read: if kidRead() || isGuardian();
       allow create: if isRegistrar() || (kidStaff() && classPostOk('kidClasses', 'kidSchedule'));

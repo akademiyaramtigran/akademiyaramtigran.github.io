@@ -225,7 +225,7 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await tp.click('.roles button:nth-child(2)'); await tp.fill('#l-no', KT); await tp.fill('#l-pw', 'Kid12345'); await tp.click('.login .btn');
   await tp.waitForSelector('.top', { timeout: 20000 }); await tp.waitForTimeout(1500);
   const navT = await tp.evaluate(() => [...document.querySelectorAll('.pano-tile')].map(b => b.dataset.tab).join('|'));
-  ok('Çocuk öğretmeni Pano menüsü akademi öğretmeniyle aynı düzende', navT === 'home|att|ann|myclass|kids|card|seval|eval|profile', navT);
+  ok('Çocuk öğretmeni Pano menüsü akademi öğretmeniyle aynı düzende', navT === 'home|att|ann|myclass|kids|card|seval|profile', navT);
   await goZ(tp, 'att'); await tp.waitForTimeout(600);
   const t7 = await txt(tp);
   ok('Öğretmen yalnızca kendi sınıfının çocuklarını görür (aynı alan/başka çocuk yok)', t7.includes('Dilan Aram') && t7.includes('Zîlan Aram') && !t7.includes('Serhat Aram'));
