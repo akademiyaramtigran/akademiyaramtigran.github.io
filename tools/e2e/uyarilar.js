@@ -1,0 +1,129 @@
+// Uçtan uca test — çalıştırma: tools/README.md → "E2E"
+// E2E: Uyarı merkezi — bir derste ≥3 devamsızlık (izinli/geç sayılmaz) ve 5/10 altı değerlendirme (öğretmen→öğrenci, öğrenci→öğretmen isimsiz)
+//      bölüm sorumlusu yalnız kendi bölümünü, yönetici hepsini görür; "ilgilenildi" + not; yeni devamsızlıkta uyarı yeniden açılır
+const { chromium } = require('playwright-core');
+const fs = require('fs');
+const FBV = require('firebase/package.json').version;
+const P = 'aram2026-a9fd7';
+const NM = require('path').dirname(require.resolve('firebase/package.json')) + '/../';
+const FS = `http://127.0.0.1:8080/v1/projects/${P}/databases/(default)/documents`;
+const H = { 'Content-Type': 'application/json', 'Authorization': 'Bearer owner' };
+const val = v => v instanceof Date ? { timestampValue: v.toISOString() } : typeof v === 'number' ? { integerValue: String(v) } : Array.isArray(v) ? { arrayValue: { values: v.map(val) } } : typeof v === 'boolean' ? { booleanValue: v } : { stringValue: String(v) };
+const put = (path, obj) => fetch(`${FS}/${path}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, val(v)])) }) }).then(r => { if (!r.ok) throw new Error('seed ' + path + ' ' + r.status); });
+const list = col => fetch(`${FS}/${col}?pageSize=100`, { headers: H }).then(r => r.json()).then(j => j.documents || []);
+const signUp = (email, password) => fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=x', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, returnSecureToken: true }) }).then(r => r.json());
+const LOCAL = { 'react.production.min.js': 'react/umd/react.production.min.js', 'react-dom.production.min.js': 'react-dom/umd/react-dom.production.min.js', 'babel.min.js': '@babel/standalone/babel.min.js' };
+async function routes(ctx) {
+  await ctx.route(/^https?:\/\/(?!localhost|127\.0\.0\.1)/, route => {
+    const u = route.request().url();
+    const m = u.match(/gstatic\.com\/firebasejs\/([\d.]+)\/(firebase-[a-z-]+\.js)$/);
+    if (m) {
+      if (m[1] !== FBV) return route.fulfill({ contentType: 'application/javascript', body: `export * from "https://www.gstatic.com/firebasejs/${FBV}/${m[2]}";` });
+      return route.fulfill({ contentType: 'application/javascript', body: fs.readFileSync(NM + 'firebase/' + m[2]) });
+    }
+    const f = Object.keys(LOCAL).find(k => u.endsWith('/' + k));
+    if (f) return route.fulfill({ contentType: 'application/javascript', body: fs.readFileSync(NM + LOCAL[f]) });
+    return route.abort();
+  });
+}
+(async () => {
+  const pad = n => String(n).padStart(2, '0'), ymd = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  const day = k => { const d = new Date(); d.setDate(d.getDate() - k); return ymd(d); };
+  await put('idx_staff/1000', { no: '1000', lvl: 'admin' }); await put('teachers/TA', { no: '1000', name: 'Rêveber', isAdmin: true, area: 'genel' }); await signUp('1000@ogretmen.aat', 'Admin123');
+  await put('idx_staff/96000001', { no: '96000001', lvl: 'head', area: 'tiyatro' });
+  await put('teachers/H1', { id: 'H1', no: '96000001', name: 'Berpirsa Şanoyê', area: 'tiyatro', isHead: true });
+  await signUp('96000001@ogretmen.aat', 'Head1234');
+  await put('teachers/T50', { id: 'T50', no: '50202601', name: 'Mamoste Şano', area: 'tiyatro' });
+  await put('students/S1', { no: '20202601', name: 'Rojîn Aram', area: 'tiyatro', fireId: 'S1', id: 101 });
+  await put('students/S2', { no: '20202602', name: 'Baran Şêx', area: 'tiyatro', fireId: 'S2', id: 102 });
+  await put('students/S3', { no: '20202603', name: 'Jîyan Roj', area: 'muzik', fireId: 'S3', id: 103 });
+  await put('schedule/L1', { id: 'L1', fireId: 'L1', area: 'tiyatro', name: 'Şano 1', lessonType: 'main', day: 'Dûşem', start: '09:00', end: '10:00', teacherNo: '50202601', teacherName: 'Mamoste Şano' });
+  await put('schedule/LM', { id: 'LM', fireId: 'LM', area: 'muzik', name: 'Piyano', lessonType: 'main', day: 'Dûşem', start: '11:00', end: '12:00' });
+  const rec = o => ({ mapValue: { fields: Object.fromEntries(Object.entries(o).map(([k, v]) => [k, { stringValue: v }])) } });
+  const putAtt = (id, lid, date, r) => fetch(`${FS}/attendance/${id}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { lessonId: { stringValue: lid }, date: { stringValue: date }, records: rec(r) } }) });
+  // Rojîn: Şano 1'de 3 kez gelmedi; Baran: 2 gelmedi + 1 izinli + 1 geç → uyarı yok; Jîyan (müzik): 3 kez
+  await putAtt('L1-a', 'L1', day(21), { '101': 'off', '102': 'off', '103': 'on' });
+  await putAtt('L1-b', 'L1', day(14), { '101': 'off', '102': 'leave' });
+  await putAtt('L1-c', 'L1', day(7), { '101': 'off', '102': 'late' });
+  await putAtt('L1-d', 'L1', day(6), { '101': 'on', '102': 'off' });
+  for (const k of [20, 13, 6]) await putAtt('LM-' + k, 'LM', day(k), { '103': 'off' });
+  // Değerlendirmeler (1–5 → ×2): Rojîn 2 → 4/10 (uyarı), Baran 4 → 8/10 (yok); öğretmene 2 → 4/10 (uyarı, isimsiz)
+  const ev = (o) => ({ fields: Object.fromEntries(Object.entries(o).map(([k, v]) => [k, typeof v === 'object' ? { mapValue: { fields: Object.fromEntries(Object.entries(v).map(([a, b]) => [a, { integerValue: String(b) }])) } } : { stringValue: v }])) });
+  const putJ = (path, o) => fetch(`${FS}/${path}`, { method: 'PATCH', headers: H, body: JSON.stringify(ev(o)) });
+  const WK = day(10);
+  await putJ('studentEvals/E1', { wk: WK, teacherNo: '50202601', teacherName: 'Mamoste Şano', studentNo: '20202601', studentName: 'Rojîn Aram', area: 'tiyatro', note: 'Kêm beşdar dibe', c: { p: 2, g: 2, h: 2, b: 2 } });
+  await putJ('studentEvals/E2', { wk: WK, teacherNo: '50202601', teacherName: 'Mamoste Şano', studentNo: '20202602', studentName: 'Baran Şêx', area: 'tiyatro', note: '', c: { p: 4, g: 4, h: 4, b: 4 } });
+  await putJ('teacherEvals/T1', { wk: WK, studentNo: '20202602', teacherNo: '50202601', teacherName: 'Mamoste Şano', area: 'tiyatro', note: 'Ders zor', c: { e: 2, h: 2, r: 2, f: 2 } });
+
+
+  // Çocuk akademisi (Drama): KS1 haftalık ders; Dilan 3 ders gününde gelmedi (Azad geldi → ders yapıldı); düşük değerlendirmeler
+  const YR = String(new Date().getFullYear());
+  await put('idx_staff/96202602', { no: '96202602', lvl: 'head', area: 'drama' });
+  await put('teachers/TH2', { id: 'TH2', no: '96202602', name: 'Berpirsa Dramayê', isHead: true, area: 'drama' });
+  await signUp('96202602@ogretmen.aat', 'Head1234');
+  const K1 = '8' + YR + '501', K2 = '8' + YR + '502';
+  await put('kids/KD1', { no: K1, name: 'Dilan Aram', area: 'drama', guardianNos: ['9' + YR + '501'] });
+  await put('kids/KD2', { no: K2, name: 'Azad Şêx', area: 'drama', guardianNos: ['9' + YR + '502'] });
+  await put('kidClasses/KC', { kind: 'area', name: '1. Sînif', area: 'drama', studentNos: [K1, K2] });
+  const old = new Date(); old.setDate(old.getDate() - 30);
+  await put('kidSchedule/KS1', { title: 'Drama', day: new Date(day(7) + 'T12:00:00').getDay(), start: '10:00', end: '11:00', area: 'drama', classId: 'KC', teacher: 'Mamoste Berfîn', createdAt: old });
+  for (const k of [21, 14, 7]) await put('kidAttendance/A' + k, { kidId: 'KD2', kidNo: K2, kidName: 'Azad Şêx', type: 'in', date: day(k) });
+  await putJ('kidEvals/KE1', { wk: WK, teacherNo: '72026001', teacherName: 'Mamoste Berfîn', kidNo: K2, kidName: 'Azad Şêx', area: 'drama', note: '', c: { p: 1, g: 2, h: 2, b: 2 } });
+  await putJ('kidTeacherEvals/KT1', { wk: WK, guardianNo: '9' + YR + '501', teacherNo: '72026001', teacherName: 'Mamoste Berfîn', area: 'drama', note: '', c: { e: 2, h: 2, r: 2, f: 2 } });
+
+  const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
+  const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
+  const errs = [];
+  const mk = async () => { const c = await b.newContext({ viewport: { width: 1280, height: 900 } }); await routes(c);
+    await c.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} }); return c; };
+  const login = async (no, pw) => { const p = await (await mk()).newPage(); p.on('pageerror', e => errs.push(no + ': ' + e.message)); p.on('dialog', d => d.accept());
+    await p.goto('http://localhost:8765/app/?emu=1'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
+    await p.getByText('Mamoste', { exact: true }).first().click();
+    await p.locator('input.inp').first().fill(no); await p.locator('input[type=password]').first().fill(pw);
+    await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000); return p; };
+  const keys = p => p.evaluate(() => [...document.querySelectorAll('[data-alert]')].map(e => e.dataset.alert).sort());
+
+  // 1) Bölüm sorumlusu (Tiyatro)
+  const hp = await login('96000001', 'Head1234');
+  const badge = await hp.evaluate(() => { const e = document.querySelector('.sm-it[data-key="alerts"]'); return e ? e.innerText.replace(/\D+/g, ' ').trim() : null; });
+  await hp.evaluate(() => document.querySelector('.sm-it[data-key="alerts"]').click()); await hp.waitForTimeout(2000);
+  const k1 = await keys(hp);
+  ok('Sorumluda "Hişyarî" menüsü ve rozet (3 açık uyarı)', badge !== null && /\b3\b/.test(badge), badge);
+  ok('Rojîn: Şano 1 dersinde 3 devamsızlık uyarısı', k1.includes('abs_20202601_L1'), JSON.stringify(k1));
+  ok('Baran uyarıya düşmez (2 gelmedi; izinli ve geç sayılmaz)', !k1.some(k => k.startsWith('abs_20202602')));
+  ok('Başka bölüm (müzik) öğrencisi sorumlunun uyarılarında yok', !k1.some(k => k.includes('20202603')));
+  ok('5/10 altı öğrenci değerlendirmesi (Rojîn 4.0) uyarıda, 8/10 olan yok', k1.includes('sev_E1') && !k1.includes('sev_E2'));
+  const tevTxt = await hp.evaluate(() => (document.querySelector('[data-alert="tev_T1"]') || {}).innerText || '');
+  ok('Öğretmen değerlendirmesi uyarısı isimsiz (öğrenci adı yok)', tevTxt.includes('Mamoste Şano') && tevTxt.includes('4.0') && !tevTxt.includes('Baran'), tevTxt.replace(/\n/g, ' / '));
+  // İlgilenildi + not
+  await hp.click('[data-alert-ack="abs_20202601_L1"]'); await hp.waitForTimeout(300);
+  await hp.fill('[data-alert-note]', 'Veliyle görüşüldü');
+  await hp.evaluate(() => [...document.querySelectorAll('button')].filter(x => x.offsetParent && x.textContent.includes('Tomar bike')).pop().click()); await hp.waitForTimeout(2000);
+  const ack = await fetch(`${FS}/alertAcks/abs_20202601_L1`, { headers: H }).then(r => r.json());
+  ok('"İlgilenildi" kaydedildi (not + sayı 3)', ack.fields && ack.fields.note.stringValue === 'Veliyle görüşüldü' && ack.fields.count.integerValue === '3');
+  ok('İşaretlenen uyarı açıklardan çıktı', !(await keys(hp)).includes('abs_20202601_L1'));
+  // Yeni devamsızlık → yeniden açılır
+  await putAtt('L1-e', 'L1', day(1), { '101': 'off' }); await hp.waitForTimeout(2500);
+  ok('Yeni devamsızlıkta uyarı yeniden açıldı (3 → 4)', (await keys(hp)).includes('abs_20202601_L1') && (await hp.evaluate(() => document.querySelector('[data-alert="abs_20202601_L1"]').innerText)).includes('3 → 4'));
+  await hp.context().close();
+
+  // 1b) Çocuk akademisi sorumlusu (Drama)
+  const kp = await login('96202602', 'Head1234');
+  await kp.evaluate(() => document.querySelector('.sm-it[data-key="alerts"]').click()); await kp.waitForTimeout(2500);
+  const k3 = await keys(kp);
+  ok('Çocuk: Dilan Drama dersinde 3 gün gelmedi → uyarı; Azad uyarısız', k3.includes('kabs_' + K1 + '_KS1') && !k3.some(k => k.startsWith('kabs_' + K2)), JSON.stringify(k3));
+  ok('Çocuk: 5/10 altı değerlendirmeler (öğretmen→çocuk, veli→öğretmen) uyarıda', k3.includes('ksev_KE1') && k3.includes('ktev_KT1'));
+  ok('Çocuk sorumlusu ana akademi uyarılarını görmez', !k3.some(k => k.startsWith('abs_') || k.startsWith('sev_')));
+  const ktTxt = await kp.evaluate(() => (document.querySelector('[data-alert="ktev_KT1"]') || {}).innerText || '');
+  ok('Veli değerlendirmesi isimsiz', ktTxt.includes('Dêûbavek (bê nav)'), ktTxt.replace(/\n/g, ' / '));
+  await kp.context().close();
+
+  // 2) Yönetici: tüm bölümler
+  const ap = await login('1000', 'Admin123');
+  await ap.evaluate(() => document.querySelector('.sm-it[data-key="alerts"],.pano-tile[data-key="alerts"]').click()); await ap.waitForTimeout(2000);
+  const k2 = await keys(ap);
+  ok('Yönetici müzik öğrencisinin uyarısını da görür', k2.includes('abs_20202603_LM') && k2.includes('abs_20202601_L1'), JSON.stringify(k2));
+  ok('Yönetici çocuk akademisi uyarılarını da görür', k2.includes('kabs_' + K1 + '_KS1') && k2.includes('ksev_KE1'));
+  ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
+  console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);
+})().catch(e => { console.error('E2E HATA', e); process.exit(1); });

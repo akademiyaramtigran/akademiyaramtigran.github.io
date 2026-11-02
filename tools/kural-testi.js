@@ -349,6 +349,17 @@ const { ref, uploadString, uploadBytes, getBytes } = require('firebase/storage')
   // Çocuk Akademisi anketleri (veliler / çocuk öğretmenleri)
   // ── Bölüm sorumlusu: kendi bölümüne duyuru, personele mesaj, öğrenciye MESAJ YOK, raporları okur ──
   const head = as('96202601@ogretmen.aat');
+  // Uyarı merkezi: "ilgilenildi" işaretleri
+  const ackD = (byNo, x) => ({ key: 'abs_1_L1', kind: 'abs', count: 3, note: 'Veliyle görüşüldü', by: 'X', byNo, at: new Date(), ...(x || {}) });
+  await t('Uyarı: bölüm sorumlusu kendi adıyla işaretler', setDoc(doc(head, 'alertAcks/abs_1_L1'), ackD('96202601')), true);
+  await t('Uyarı: sorumlu başkası adına işaretleyemez', setDoc(doc(head, 'alertAcks/abs_2_L1'), ackD('11202601')), false);
+  await t('Uyarı: yönetici işaretler', setDoc(doc(admin, 'alertAcks/abs_3_L1'), ackD('1000')), true);
+  await t('Uyarı: öğretmen işaretleyemez', setDoc(doc(teacher, 'alertAcks/abs_4_L1'), ackD('11202601')), false);
+  await t('Uyarı: öğretmen işaretleri okuyamaz', getDoc(doc(teacher, 'alertAcks/abs_1_L1')), false);
+  await t('Uyarı: öğrenci okuyamaz', getDoc(doc(student, 'alertAcks/abs_1_L1')), false);
+  await t('Uyarı: fazladan alan reddedilir', setDoc(doc(head, 'alertAcks/abs_5_L1'), ackD('96202601', { x: 1 })), false);
+  await t('Uyarı: 500 karakterden uzun not reddedilir', setDoc(doc(head, 'alertAcks/abs_6_L1'), ackD('96202601', { note: 'a'.repeat(501) })), false);
+
   const hAnn = x => ({ title: 'Prova', msg: 'Şemî', senderRole: 'head', senderNo: '96202601', senderArea: 'tiyatro', targets: ['tiyatro'], ...(x || {}) });
   await t('B.sorumlusu: kendi bölümüne duyuru gönderir', addDoc(collection(head, 'announcements'), hAnn()), true);
   await t('B.sorumlusu: BAŞKA bölüme duyuru gönderemez', addDoc(collection(head, 'announcements'), hAnn({ targets: ['muzik'], senderArea: 'muzik' })), false);
