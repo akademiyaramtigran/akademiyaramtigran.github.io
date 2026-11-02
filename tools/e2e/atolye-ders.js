@@ -76,21 +76,16 @@ async function routes(ctx) {
   ok('Haftalık ders kaydedildi (atölye sınıfına bağlı, alan = tiyatro)', !!wk && wk.fields.classId.stringValue === 'W1' && wk.fields.area.stringValue === 'tiyatro' && wk.fields.lessonType.stringValue === 'main', wk ? JSON.stringify(Object.keys(wk.fields)) : (await p.evaluate(() => document.body.innerText)).slice(-300));
   const ws = docs.find(d => d.name.endsWith('/ws_W1'));
   ok('Atölyenin kendi günlük dersi yerinde', !!ws && ws.fields.lessonType.stringValue === 'extra');
-  // Rapor: ders türü filtresi (Hemû ders / Dersên beşê / Atolye)
+  // Rapor: "Dersên di raporê de" ve alan satırı sorumluda yok; atölye dersi öğretmen/ders seçimiyle süzülür
   await p.evaluate(() => document.querySelector('.sm-it[data-key="reports"]').click()); await p.waitForTimeout(2500);
   const pct = () => p.evaluate(() => { const r = document.querySelector('[data-rep-student="20202601"] .c-pct'); return r ? r.textContent.trim() : ''; });
-  const shown = no => p.evaluate(no => !!document.querySelector('[data-rep-student="' + no + '"]'), no);
-  const scope = lb => p.evaluate(lb => { const e = [...document.querySelectorAll('[data-att-scope] button')].find(x => x.textContent.includes(lb)); e.click(); }, lb);
-  ok('Raporda "Dersên di raporê de" filtresi var', (await p.locator('[data-att-scope]').count()) === 1);
+  ok('Raporda "Dersên di raporê de" satırı yok', (await p.locator('[data-att-scope]').count()) === 0);
+  ok('Sorumluda "Hemû Qadan" alan satırı yok', !(await p.evaluate(() => document.body.innerText)).includes('Hemû Qadan'));
   const pAll = await pct();
-  await scope('Atolye'); await p.waitForTimeout(600);
-  const pWs = await pct(), s2ws = await shown('20202602');
-  await scope('Dersên beşê'); await p.waitForTimeout(600);
-  const pDept = await pct(), s2d = await shown('20202602');
+  await p.evaluate(() => { const s = document.querySelector('[data-rep-teacher]'); const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; set.call(s, '50202601'); s.dispatchEvent(new Event('change', { bubbles: true })); }); await p.waitForTimeout(800);
+  const pWs = await pct();
   ok('Hemû ders: bölüm + atölye birlikte (%50)', pAll.startsWith('50'), pAll);
-  ok('Atolye: yalnız atölye yoklaması (%100), atölyede olmayan öğrenci listede yok', pWs.startsWith('100') && !s2ws, pWs);
-  ok('Dersên beşê: atölye hariç (%0), tüm bölüm öğrencileri listede', pDept.startsWith('0') && s2d, pDept);
-  ok('Etkin filtre etiketi görünür', (await p.evaluate(() => [...document.querySelectorAll('.c-ftag')].some(x => x.textContent.includes('Dersên beşê')))));
+  ok('Atölye öğretmeni seçilince yalnız atölye yoklaması (%100)', pWs.startsWith('100'), pWs);
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);
 })().catch(e => { console.error('E2E HATA', e); process.exit(1); });

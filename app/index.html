@@ -11669,7 +11669,7 @@ function AlertCenter({data,user,lang,toast}){
 }
 
 /* ─── ADMIN WEEKLY REPORT PANEL ──────────────────────────────────────────── */
-function AdminWeeklyReportPanel({students, teachers, schedule, allSchedule, allTeachers, docScope, noEvals, lang, toast}) {
+function AdminWeeklyReportPanel({students, teachers, schedule, allSchedule, allTeachers, docScope, noEvals, isHead, headArea, lang, toast}) {
   // ── Tarih aralığı raporu: başlangıç–bitiş seç; dönem seçimi aralığı doldurur ──
   const terms=useTerms();
   const [rStart,setRStart]=useState(()=>{
@@ -11772,7 +11772,7 @@ function AdminWeeklyReportPanel({students, teachers, schedule, allSchedule, allT
   const L = k=>lbl[k]?.[lang]||lbl[k]?.ku||k;
 
   function generateWeeklyPDF() {
-    const aLabel = selectedArea==="all" ? L("all") : areaName(selectedArea,lang);
+    const aLabel = headArea ? areaName(headArea,lang) : selectedArea==="all" ? L("all") : areaName(selectedArea,lang);
     const dateNow = lang==="en"?new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"long",year:"numeric"}):fmtDateTx(new Date().toISOString());
 
     // Survey per-lesson averages
@@ -11949,15 +11949,14 @@ tr:hover td{background:#f9fbff}
 
       {/* Filtreler */}
       <div style={{display:"grid",gridTemplateColumns:"1fr",gap:10,marginBottom:14}}>
-        <div>
+        {!isHead&&<div>
           <label style={{fontSize:11,color:"var(--text2)",fontWeight:600,display:"block",marginBottom:5}}>{L("area")}</label>
           <select style={{width:"100%",padding:"10px 12px",border:"1.5px solid var(--border2)",borderRadius:10,fontSize:13,fontFamily:"inherit",color:"var(--text)",background:"var(--surface)",outline:"none"}}
             value={selectedArea} onChange={e=>setSelectedArea(e.target.value)}>
             <option value="all">{L("all")}</option>
             {AREAS.map(a=><option key={a.key} value={a.key}>{a.icon} {areaName(a.key,lang)}</option>)}
           </select>
-        </div>
-        <AttScopeSeg value={scopeF} onChange={setScopeF} lang={lang}/>
+        </div>}
         <div data-rep-tl="1" style={{display:"grid",gap:8}}><TeacherLessonSelects tf={tf} lang={lang}/></div>
       </div>
 
@@ -12300,8 +12299,8 @@ function AdminReportCenter({students,teachers,schedule,allSchedule,allTeachers,l
           </button>
         ))}
       </div>
-      {rTab==="liste"&&<AdminReportsPanel students={students} teachers={teachers} schedule={schedule} allSchedule={allSchedule} allTeachers={allTeachers} docScope={docScope} noEvals={!!registrar} lang={lang} t={t} toast={toast}/>}
-      {rTab==="nirxandin"&&<AdminWeeklyReportPanel students={students} teachers={teachers} schedule={schedule} allSchedule={allSchedule} allTeachers={allTeachers} docScope={docScope} noEvals={!!registrar} lang={lang} toast={toast}/>}
+      {rTab==="liste"&&<AdminReportsPanel students={students} teachers={teachers} schedule={schedule} allSchedule={allSchedule} allTeachers={allTeachers} docScope={docScope} noEvals={!!registrar} isHead={!!headArea} headArea={headArea} lang={lang} t={t} toast={toast}/>}
+      {rTab==="nirxandin"&&<AdminWeeklyReportPanel students={students} teachers={teachers} schedule={schedule} allSchedule={allSchedule} allTeachers={allTeachers} docScope={docScope} noEvals={!!registrar} isHead={!!headArea} headArea={headArea} lang={lang} toast={toast}/>}
       {rTab==="seval"&&<EvalReport kind="student" students={students} teachers={teachers} allTeachers={allTeachers} teachScope={teachScope} lang={lang} toast={toast} headArea={headArea} byName={byName}/>}
       {rTab==="teval"&&<EvalReport kind="teacher" students={students} teachers={teachers} allTeachers={allTeachers} teachScope={teachScope} lang={lang} toast={toast} headArea={headArea} byName={byName}/>}
       {rTab==="zarok"&&<KidAcademyReport lang={lang} toast={toast}/>}
@@ -12457,7 +12456,7 @@ function TeacherLessonSelects({tf,lang,days}){
     </select>}
   </>);
 }
-function AdminReportsPanel({students,teachers,schedule,allSchedule,allTeachers,docScope,noEvals,lang,t,toast}){
+function AdminReportsPanel({students,teachers,schedule,allSchedule,allTeachers,docScope,noEvals,isHead,headArea,lang,t,toast}){
   // Devam bilgisi DOĞRUDAN yoklama kayıtlarından (attendance) — kim alırsa alsın (öğretmen, sorumlu, QR) anında doğru.
   //  records:{öğrenciId:"on"|"late"|"off"|"leave"}; "ders yapılmadı" (teacherAbsent) kayıtları sayılmaz.
   const [attDocsR,setAttDocsR]=useState([]);
@@ -12548,7 +12547,7 @@ function AdminReportsPanel({students,teachers,schedule,allSchedule,allTeachers,d
   function generateReportHTML(){
     const W=(ku,en)=>lang==="en"?en:K(ku);
     const H=x=>String(x==null?"":x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-    const areaLabel = (selectedArea==="all" ? (lang==="en"?"All Fields":K("Hemû Qadan")) : areaName(selectedArea,lang))+(filterNote?" · "+H(filterNote):"");
+    const areaLabel = (headArea ? areaName(headArea,lang) : selectedArea==="all" ? (lang==="en"?"All Fields":K("Hemû Qadan")) : areaName(selectedArea,lang))+(filterNote?" · "+H(filterNote):"");
 
     const rows = filteredStudents.map(s=>{
       const st = attSt(s.id);
@@ -12822,10 +12821,9 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
       {/* Süzgeçler: bölüm (çip satırı) + sınıf · öğretmen · öğrenci */}
       <Card style={{marginBottom:12}}>
         <div className="c-h" style={{display:"flex",alignItems:"center",gap:8}}><Ico n="settings" size={17}/>{lang==="en"?"Filters":K("Fîlter")}</div>
-        <AttScopeSeg value={scopeF} onChange={v=>{ setScopeF(v); const cd=clsDocs.find(d=>d.id===clsF); if(cd&&(v==="ws")!==(cd.kind==="workshop")&&v!=="all") setClsF("all"); }} lang={lang}/>
-        <Chips scroll value={selectedArea} onChange={setSelectedArea} items={[
+        {!isHead&&<Chips scroll value={selectedArea} onChange={setSelectedArea} items={[
           ["all",noEmo(lang==="en"?"🏫 All Fields":K("🏫 Hemû Qadan")),"grid"],
-          ...AREAS.map(a=>[a.key,areaName(a.key,lang),({muzik:"music",tiyatro:"mask",sinema:"film",resim:"palette",dans:"dance",edebiyat:"cls"})[a.key]||"grid"])]}/>
+          ...AREAS.map(a=>[a.key,areaName(a.key,lang),({muzik:"music",tiyatro:"mask",sinema:"film",resim:"palette",dans:"dance",edebiyat:"cls"})[a.key]||"grid"])]}/>}
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8}}>
           <select aria-label={lang==="en"?"Class":K("Sînif")} value={clsF} onChange={e=>setClsF(e.target.value)} style={selectStyle}>
             <option value="all">{lang==="en"?"All classes":K("Hemû sinif")}</option>
@@ -12882,7 +12880,7 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
       {reportType!=="survey"&&(
       <Card style={{marginBottom:10}}>
         <div className="c-h">
-          {selectedArea==="all"?(lang==="en"?"All Fields":K("Hemû Qadan")):areaName(selectedArea,lang)} {lang==="en"?"Summary":K("Kurte")}
+          {headArea?areaName(headArea,lang):selectedArea==="all"?(lang==="en"?"All Fields":K("Hemû Qadan")):areaName(selectedArea,lang)} {lang==="en"?"Summary":K("Kurte")}
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
           <div className="c-stat">
