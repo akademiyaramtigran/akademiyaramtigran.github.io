@@ -8297,6 +8297,12 @@ function classLabel(d,lang){
   return "🌐 "+classNameTx(d.name);
 }
 function inClass(d,no){ return !!d&&(d.studentNos||[]).map(String).includes(String(no)); }
+// Rapor süzgecindeki sınıflar: sorumluda yalnız kendi bölümünün sınıfları + ortak (genel) sınıflar + öğrencisi olan atölyeler.
+// Ortak sınıf (ör. Giştî) seçildiğinde de rapor yalnız sorumlunun kendi öğrencilerini kapsar (öğrenci listesi zaten bölüme göre).
+function reportClassOk(d,headArea,students){ if(!d||!d.kind) return false; if(!headArea) return true;
+  if(d.kind==="general") return true;
+  if(d.kind==="area") return headArea!=="genel"&&d.area===headArea;
+  return (students||[]).some(s=>inClass(d,s.no)); }
 // Sınıf hedefli anket: öğrenci (no) seçilen sınıflardan birinde mi?
 const inSvClasses=(sv,docs,no)=>(docs||[]).some(d=>(sv.targetClassIds||[]).includes(d.id)&&inClass(d,no));
 // Öğrencinin açık sınıfları (alan + genel + açık atölye)
@@ -12845,7 +12851,7 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8}}>
           <select aria-label={lang==="en"?"Class":K("Sînif")} value={clsF} onChange={e=>setClsF(e.target.value)} style={selectStyle}>
             <option value="all">{lang==="en"?"All classes":K("Hemû sinif")}</option>
-            {clsDocs.filter(d=>d.kind&&(selectedArea==="all"||d.area===selectedArea||d.area==="genel")&&(scopeF==="all"||(scopeF==="ws")===(d.kind==="workshop"))).sort((a,b)=>classLabel(a,lang).localeCompare(classLabel(b,lang))).map(d=><option key={d.id} value={d.id}>{classLabel(d,lang)}</option>)}
+            {clsDocs.filter(d=>d.kind&&reportClassOk(d,headArea,students)&&(selectedArea==="all"||d.area===selectedArea||d.area==="genel")&&(scopeF==="all"||(scopeF==="ws")===(d.kind==="workshop"))).sort((a,b)=>classLabel(a,lang).localeCompare(classLabel(b,lang))).map(d=><option key={d.id} value={d.id}>{classLabel(d,lang)}</option>)}
           </select>
           <TeacherLessonSelects tf={tf} lang={lang} days={t&&t.days}/>
           <input value={stuQ} onChange={e=>setStuQ(e.target.value)} placeholder={lang==="en"?"Student name/no":K("Nav/jimareya xwendekar")} style={inputStyle}/>
@@ -15415,7 +15421,9 @@ function EvalCombinedReport({who,students,teachers,allTeachers,lang,toast,headAr
   const clsObj=clsF==="all"?null:clsDocs.find(d=>d.id===clsF);
   // Sorumlu kapsamı: kendi alanının kaydı / öğrencisi / (öğretmen görünümünde) alanın öğretmen listesindeki öğretmen
   const myTeach=new Set((teachers||[]).map(t=>String(t.no)));
-  const inLock=e=>!lockArea||e.area===lockArea||(isS?(stuByNo.get(e.targetNo)&&stuByNo.get(e.targetNo).area===lockArea):myTeach.has(e.teacherNo));
+  const inLock=e=>{ if(!headArea) return true;
+    if(isS) return stuByNo.has(e.targetNo);   // sorumlu: yalnız kendi öğrencileri (ortak/genel derste verilen puan dahil)
+    return !lockArea||e.area===lockArea||myTeach.has(e.teacherNo); };
   const shown=entries.filter(e=>(!e.date||(e.date>=from&&e.date<=to))
     &&inLock(e)
     &&(!teachScope||teachScope.has(e.teacherNo))
@@ -15454,7 +15462,7 @@ function EvalCombinedReport({who,students,teachers,allTeachers,lang,toast,headAr
         </select>
         {isS&&<select aria-label="class" value={clsF} onChange={e=>setClsF(e.target.value)} style={sel}>
           <option value="all">{W2("Hemû sinif","All classes")}</option>
-          {clsDocs.filter(d=>d.kind&&(!lockArea||d.area===lockArea||d.kind==="workshop")).map(d=><option key={d.id} value={d.id}>{classLabel(d,lang)}</option>)}
+          {clsDocs.filter(d=>reportClassOk(d,headArea,students)).map(d=><option key={d.id} value={d.id}>{classLabel(d,lang)}</option>)}
         </select>}
         {isS&&<select aria-label="student" data-ev-student="1" value={stuF} onChange={e=>setStuF(e.target.value)} style={sel}>
           <option value="all">{W2("Hemû xwendekar","All students")}</option>
