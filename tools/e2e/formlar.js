@@ -49,6 +49,9 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
     await put('idx_students/' + no, { no }); await put('students/S' + i, { no, name, area: 'tiyatro', fireId: 'S' + i, id: 100 + i }); await signUp(no + '@ogrenci.aat', 'Stu12345');
   }
   await put('classes/A1', { kind: 'area', name: '1. Sînif', area: 'tiyatro', studentNos: ['20202601', '20202602'], teacherNos: ['50202601'], teacherNames: ['Mamoste Şano'] });
+  // Ortak Giştî sınıfı: Şano buna da giriyor; içinde müzik öğrencisi de var
+  await put('students/S9', { no: '20202609', name: 'Jîyan Roj', area: 'muzik', fireId: 'S9', id: 109 });
+  await put('classes/GG', { kind: 'general', name: 'Giştî', area: 'genel', studentNos: ['20202601', '20202609'], teacherNos: ['50202601'], teacherNames: ['Mamoste Şano'] });
   // Çocuk akademisi
   await put('idx_staff/96202602', { no: '96202602', lvl: 'head', area: 'drama' });
   await put('teachers/TH2', { id: 'TH2', no: '96202602', name: 'Berpirsa Dramayê', isHead: true, area: 'drama' });
@@ -106,6 +109,7 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   ok('Öğretmen: form ekranı (eski 4 pîvan yerine)', (await tp.locator('[data-ef-fill]').count()) === 1 && (await txt(tp)).includes('Nirxandina Şanoyê'));
   // Soru soru (varsayılan): her sorunun altında öğrenci listesi; kişiye puan + not
   ok('Soru soru görünüm: her soruda iki öğrenci', (await tp.locator('[data-ef-grid]').count()) === 1 && (await tp.locator('[data-ef-gcell$="_20202601"]').count()) === 5 && (await tp.locator('[data-ef-gcell$="_20202602"]').count()) === 5);
+  ok('Tiyatro formunda Giştî öğretmeninin müzik öğrencisi listelenmez (yalnız formun alanı)', (await tp.locator('[data-ef-gcell$="_20202609"]').count()) === 0);
   const nq = await tp.evaluate(() => { const qs = [...document.querySelectorAll('[data-ef-gq]')].map(e => e.dataset.efGq); let n = 0;
     qs.forEach(q => { const a = document.querySelector('[data-ef-score="' + q + '_20202601_3"]'), b = document.querySelector('[data-ef-score="' + q + '_20202602_9"]'); if (a && b) { a.click(); b.click(); n++; } }); return n; });
   await tp.waitForTimeout(300);
