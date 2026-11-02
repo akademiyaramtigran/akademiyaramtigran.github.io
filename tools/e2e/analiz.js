@@ -54,6 +54,16 @@ async function routes(ctx) {
   await putEv('EB', { wk: prev12, teacherNo: '50202601', teacherName: 'Mamoste Şano', studentNo: '20202602', studentName: 'Baran Şêx', area: 'tiyatro', note: '', c: { p: 2, g: 2, h: 2, b: 2 } });
   await putEv('EC', { wk: cur1, teacherNo: '50202601', teacherName: 'Mamoste Şano', studentNo: '20202601', studentName: 'Rojîn Aram', area: 'tiyatro', note: 'Ev meh pir kêm hat', c: { p: 2, g: 2, h: 2, b: 2 } });
 
+  // Çocuk Akademisi (Drama): geçen ay iki ders günü (prev5, prev12 aynı haftanın günü); Dilan hiç gelmedi, Azad geldi
+  const YR = String(now.getFullYear()), K1 = '8' + YR + '501', K2 = '8' + YR + '502';
+  await put('idx_staff/96202602', { no: '96202602', lvl: 'head', area: 'drama' });
+  await put('teachers/TH2', { id: 'TH2', no: '96202602', name: 'Berpirsa Dramayê', isHead: true, area: 'drama' });
+  await signUp('96202602@ogretmen.aat', 'Head1234');
+  await put('kids/KD1', { no: K1, name: 'Dilan Aram', area: 'drama', guardianNos: ['9' + YR + '501'] });
+  await put('kids/KD2', { no: K2, name: 'Azad Şêx', area: 'drama', guardianNos: ['9' + YR + '502'] });
+  await put('kidClasses/KC', { kind: 'area', name: '1. Sînif', area: 'drama', studentNos: [K1, K2] });
+  await put('kidSchedule/KS1', { title: 'Drama', day: new Date(prev5 + 'T12:00:00').getDay(), start: '10:00', end: '11:00', area: 'drama', classId: 'KC', teacher: 'Mamoste Berfîn', createdAt: new Date(now.getFullYear() - 1, 0, 1) });
+  for (const dt of [prev5, prev12]) await put('kidAttendance/A' + dt, { kidId: 'KD2', kidNo: K2, kidName: 'Azad Şêx', type: 'in', date: dt });
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
   const errs = [];
@@ -111,6 +121,20 @@ async function routes(ctx) {
   ok('Sorumlu: müzik öğrencisi için aylık uyarı yok', !ak.some(k => k.includes('_103_')));
   await hp.context().close();
 
+  // Çocuk sorumlusu: Genel analiz (geçen ay) + aylık uyarı
+  const kp = await login('96202602', 'Head1234');
+  await go(kp, 'reports');
+  await kp.evaluate(() => document.querySelector('[data-khr="kan"]').click()); await kp.waitForTimeout(2000);
+  await kp.evaluate(() => { const s = document.querySelector('[data-kan-month]'); const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; set.call(s, s.options[1].value); s.dispatchEvent(new Event('change', { bubbles: true })); }); await kp.waitForTimeout(1000);
+  const kr = await kp.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-kan-row]')].map(e => [e.dataset.kanRow, e.querySelector('button').innerText.replace(/\n/g, ' ')])));
+  ok('Çocuk analizi (geçen ay): Dilan 0/2 %0 ⚠, Azad 2/2 %100', (kr[K1] || '').includes('0%') && (kr[K1] || '').includes('⚠') && (kr[K2] || '').includes('100%'), JSON.stringify(kr));
+  await kp.click('[data-kan-row="' + K1 + '"] button'); await kp.waitForTimeout(500);
+  ok('Çocuk karnesi: 6 aylık grafik', (await kp.locator('[data-kan-card="' + K1 + '"] svg rect').count()) === 6);
+  await go(kp, 'alerts');
+  const kak = await kp.evaluate(() => [...document.querySelectorAll('[data-alert]')].map(e => e.dataset.alert));
+  ok('Çocuk sorumlusu: aylık analiz uyarısı (Dilan), Azad yok', kak.includes('kman_st_' + K1 + '_' + prev5.slice(0, 7)) && !kak.includes('kman_st_' + K2 + '_' + prev5.slice(0, 7)), JSON.stringify(kak));
+  await kp.context().close();
+
   // Öğrenci İşleri: analiz var, değerlendirme sütunu yok
   const rp = await login('98202601', 'Reg12345');
   await go(rp, 'reports');
@@ -122,6 +146,7 @@ async function routes(ctx) {
   ok('Öğrenci İşleri: Uyarılar menüsü; aylık uyarıda yalnız devam nedeni (değerlendirme yok)', rk.includes('man_st_102_' + prev5.slice(0, 7)) && rw === 'att' && (await rp.locator('[data-alert-kind="sev"]').count()) === 0, JSON.stringify(rk) + ' · ' + rw);
   await rp.click('[data-alert-ack="man_st_102_' + prev5.slice(0, 7) + '"]'); await rp.waitForTimeout(300);
   await rp.evaluate(() => [...document.querySelectorAll('button')].filter(x => x.offsetParent && x.textContent.includes('Tomar bike')).pop().click()); await rp.waitForTimeout(1500);
+  ok('Öğrenci İşleri: Çocuk Akademisi aylık devam uyarısı da görünür', rk.includes('kman_st_' + K1 + '_' + prev5.slice(0, 7)), JSON.stringify(rk));
   ok('Öğrenci İşleri uyarıyı "ilgilenildi" işaretler', !(await rp.evaluate(() => [...document.querySelectorAll('[data-alert]')].map(e => e.dataset.alert))).includes('man_st_102_' + prev5.slice(0, 7)));
   await rp.context().close();
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));

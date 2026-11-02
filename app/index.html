@@ -10037,8 +10037,8 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
   const [menuOpen,setMenuOpen]=useState(isPhoneNow);
   // Uyarılar: Öğrenci İşleri yalnız DEVAM uyarılarını görür (değerlendirme puanları yönetici + sorumlularda)
   const regARaw=useAlerts({students:students||[],teachers:teachers||[],schedule:schedule||[],area:null,lang,noEvals:true});
-  const regKRaw=useKidAlerts({area:null});
-  const regAlerts=useAlertAcks([...regARaw,...regKRaw.filter(x=>x.kind==="kabs")]);
+  const regKRaw=useKidAlerts({area:null,noEvals:true});
+  const regAlerts=useAlertAcks([...regARaw,...regKRaw.filter(x=>x.kind==="kabs"||x.kind==="kman")]);
   const regTabs=[
     {key:"serledan",icon:"📋",label:lang==="en"?"Applications":K("Serlêdan")},
     {key:"qad",icon:"🎭",label:lang==="en"?"Art Fields · Registration · Schedule":K("Qad · Tescîl · Bername")},
@@ -11622,10 +11622,60 @@ function useAlerts({students,teachers,schedule,area,lang,scope,noEvals}){
   list.push(...monthlyAlerts({att:att2,sEv,tEv,efR,students,teachers,schedule,clsDocs:clsDocsA,area,scope,noEvals,lang}));
   return list;
 }
+// ── Çocuk Akademisi ortak hesap: bir tarih aralığında ders günleri (o gün sınıftan en az bir çocuk geldiyse ders yapılmış sayılır),
+//    çocuk başına gelen / yapılan / izinli; ders ve öğretmen başına toplam. Değerlendirme: kidEvals (×2) + t2k formları (çocuk),
+//    kidTeacherEvals (×2) + g2t formları (öğretmen).
+function kidStats({kids,cls,sched,att,leaves,kEv,gEv,efR,from,to,area}){
+  const today=ymdLocal(new Date()); const end=to<today?to:today;
+  const came=new Set(); (att||[]).forEach(a=>{ if(a.type==="in"&&a.date>=from&&a.date<=end){ came.add(a.date+"|k"+(a.kidId||"")); came.add(a.date+"|n"+(a.kidNo||"")); } });
+  const cameK=(k,dt)=>came.has(dt+"|k"+k.fireId)||came.has(dt+"|n"+(k.no||""));
+  const K={kid:new Map(),lesson:new Map(),teacher:new Map()};
+  const bump=(m,k,f,x)=>{ const o=m.get(k)||{held:0,came:0,leave:0,...x}; o[f]++; m.set(k,o); return o; };
+  (sched||[]).forEach(L=>{
+    const c=L.classId?(cls||[]).find(x=>x.id===L.classId):null;
+    const roster=(kids||[]).filter(k=>c?inClass(c,k.no):(L.area&&k.area===L.area)); if(!roster.length) return;
+    const ar=L.area||(roster[0]&&roster[0].area)||""; if(area&&ar!==area&&!roster.some(k=>k.area===area)) return;
+    const st0=L.createdAt&&L.createdAt.toDate?ymdLocal(L.createdAt.toDate()):""; const start=[from,st0].sort().pop();
+    let dates=[];
+    if(L.date) dates=[L.date].filter(x=>x>=start&&x<=end);
+    else if(start<=end){ const dd=new Date(start+"T12:00:00"); while(dd.getDay()!==(+L.day||0)) dd.setDate(dd.getDate()+1); for(;ymdLocal(dd)<=end;dd.setDate(dd.getDate()+7)) dates.push(ymdLocal(dd)); }
+    dates=dates.filter(dt=>roster.some(k=>cameK(k,dt)));
+    const tk=String(L.teacherNo||L.teacher||"");
+    roster.forEach(k=>{ if(area&&k.area!==area) return;
+      dates.forEach(dt=>{ const lv=leaveOf(leaves,k.no,dt,true,L.fireId); const f=cameK(k,dt)?"came":lv?"leave":"held0";
+        const a=bump(K.kid,String(k.no),"held",{name:k.name,area:k.area}); const b=bump(K.lesson,L.fireId,"held",{name:L.title||"",area:ar,teacher:L.teacher||""}); const t=tk?bump(K.teacher,tk,"held",{name:L.teacher||tk,area:ar}):null;
+        if(f!=="held0"){ a[f]++; b[f]++; if(t) t[f]++; } }); });
+  });
+  const E={kid:new Map(),teacher:new Map()}; const add=(m,k,v)=>{ if(!k||v==null||isNaN(v)) return; const x=m.get(k)||[]; x.push(v); m.set(k,x); };
+  (kEv||[]).forEach(e=>{ const w=String(e.wk||""); if(w>=from&&w<=to&&(!area||e.area===area)) add(E.kid,String(e.kidNo),evalScore10(e.c)); });
+  (gEv||[]).forEach(e=>{ const w=String(e.wk||""); if(w>=from&&w<=to&&(!area||e.area===area)) add(E.teacher,String(e.teacherNo),evalScore10(e.c)); });
+  (efR||[]).forEach(r=>{ const dt=efRespDate(r); if(!dt||dt<from||dt>to||r.score10==null||(area&&r.area!==area)) return;
+    if(r.direction==="t2k") add(E.kid,String(r.targetNo),Number(r.score10)); else if(r.direction==="g2t") add(E.teacher,String(r.targetNo),Number(r.score10)); });
+  return {K,E};
+}
+const kidPct=x=>{ if(!x) return null; const n=x.held-x.leave; return n>=1?Math.round(x.came/n*100):null; };
+// Çocuk Akademisi aylık analiz uyarısı (biten ay): devam < %70 (en az 2 ders), değerlendirme < 5/10, önceki aya göre ≥15 puan düşüş
+function kidMonthlyAlerts({d,leaves,kEv,gEv,efR,area,noEvals}){
+  const M=anMonthShift(ymdLocal(new Date()).slice(0,7),-1), P=anMonthShift(M,-1);
+  const [mF,mT]=anMonthRange(M), [pF,pT]=anMonthRange(P);
+  const base={kids:d.kids,cls:d.cls,sched:d.sched,att:d.att,leaves,kEv:noEvals?[]:kEv,gEv:noEvals?[]:gEv,efR:noEvals?[]:efR,area};
+  const C=kidStats({...base,from:mF,to:mT}), Pv=kidStats({...base,from:pF,to:pT});
+  const avg=a=>a&&a.length?Math.round(a.reduce((p,q)=>p+q,0)/a.length*10)/10:null;
+  const out=[];
+  const check=(sub,id,x,px,ev)=>{ const at=x&&x.held-x.leave>=MAN_MIN?kidPct(x):null, pat=px&&px.held-px.leave>=MAN_MIN?kidPct(px):null; const r=[];
+    if(at!=null&&at<MAN_ATT) r.push({t:"att",v:at}); if(ev!=null&&ev<MAN_EV) r.push({t:"ev",v:ev}); if(at!=null&&pat!=null&&pat-at>=MAN_DROP) r.push({t:"drop",v:at-pat});
+    if(r.length) out.push({key:"kman_"+sub+"_"+id+"_"+M,kind:"kman",sub,count:1,last:mT,month:M,area:(x&&x.area)||"",who:(x&&x.name)||id,whoNo:sub==="st"?id:"",reasons:r}); };
+  const kidsByNo=new Map((d.kids||[]).map(k=>[String(k.no),k]));
+  const ids=new Set([...C.K.kid.keys(),...C.E.kid.keys()]);
+  ids.forEach(no=>{ const k=kidsByNo.get(no); if(!k||(area&&k.area!==area)) return; const x=C.K.kid.get(no)||{held:0,came:0,leave:0,name:k.name,area:k.area}; check("st",no,{...x,name:k.name,area:k.area},Pv.K.kid.get(no),avg(C.E.kid.get(no))); });
+  C.K.lesson.forEach((x,id)=>check("ls",id,x,Pv.K.lesson.get(id),null));
+  C.K.teacher.forEach((x,id)=>check("tc",id,x,Pv.K.teacher.get(id),avg(C.E.teacher.get(id))));
+  return out;
+}
 // Çocuk akademisi uyarıları: yoklama günlük "in" (geldi) kaydıdır → ders günü = o gün dersin sınıfından/alanından en az bir
 // çocuğun kaydı olan gün; sınıftaki/alandaki çocuklardan kaydı olmayan ve izinli olmayan "gelmedi" sayılır.
 // Değerlendirme: öğretmen → çocuk (kidEvals), veli → öğretmen (kidTeacherEvals, isimsiz); 1–5 puanlar ×2.
-function useKidAlerts({area,enabled=true}){
+function useKidAlerts({area,enabled=true,noEvals=false}){
   const F=window.__FB; const live=!!(enabled&&F&&F.isConfigured());
   const from=eduYearStart();
   const [d,setD]=useState({kids:[],cls:[],sched:[],att:[]});
@@ -11635,8 +11685,8 @@ function useKidAlerts({area,enabled=true}){
     L(F.query(F.collection(F.db,"kidAttendance"),F.where("date",">=",from)),"att");
     return ()=>subs.forEach(u=>{ try{u();}catch(_){} }); },[live,from]);
   const leaves=useLeaves(live);
-  const kEv=useEvalDocs("kidEvals",null,null,live), gEv=useEvalDocs("kidTeacherEvals",null,null,live);
-  const efR=useEvalDocs("evalResponses","academy","kid",live);
+  const kEv=useEvalDocs("kidEvals",null,null,live&&!noEvals), gEv=useEvalDocs("kidTeacherEvals",null,null,live&&!noEvals);
+  const efR=useEvalDocs("evalResponses","academy","kid",live&&!noEvals);
   const [kt,setKt]=useState([]);
   useEffect(()=>{ if(!live) return; let u=()=>{}; try{ u=F.onSnapshot(F.collection(F.db,"kidTeachers"),sn=>setKt(sn.docs.map(d=>d.data())),()=>{}); }catch(_){} return ()=>{ try{u();}catch(_){} }; },[live]);
   const list=[]; if(!live) return list;
@@ -11665,6 +11715,7 @@ function useKidAlerts({area,enabled=true}){
   gEv.forEach(e=>{ const sc=evalScore10(e.c); if(sc==null||sc>=5||!e.wk||!inA(e.area||"")) return;
     list.push({key:"ktev_"+e.fireId,kind:"ktev",count:1,score:sc,last:String(e.wk),area:e.area||"",who:e.teacherName||e.teacherNo,whoNo:e.teacherNo,note:e.note||""}); });
   list.push(...efAlerts(efR,a=>inA(a),no=>((kt.find(t2=>String(t2.no)===String(no)))||{}).name));
+  list.push(...kidMonthlyAlerts({d,leaves,kEv,gEv,efR,area,noEvals}));
   return list;
 }
 // Uyarı listesi + "ilgilenildi" durumları (ana akademi ve çocuk akademisi uyarıları birlikte)
@@ -11681,7 +11732,7 @@ function useAlertAcks(list){
 function AlertCenter({data,user,lang,toast,noEvals}){
   const F=window.__FB; const W2=(ku,en)=>lang==="en"?en:K(ku);
   const [st,setSt]=useState("open"); const [kf,setKf]=useState("all"); const [noteFor,setNoteFor]=useState(null); const [note,setNote]=useState("");
-  const grp=k=>k.replace(/^k(?=abs|sev|tev)/,"");   // çocuk akademisi türleri (kabs/ksev/ktev) aynı grupta
+  const grp=k=>k.replace(/^k(?=abs|sev|tev|man)/,"");   // çocuk akademisi türleri (kabs/ksev/ktev) aynı grupta
   const L=data.list.filter(x=>(st==="open"?!x.ack:!!x.ack)&&(kf==="all"||grp(x.kind)===kf));
   const n=k=>data.list.filter(x=>!x.ack&&grp(x.kind)===k).length;
   async function ack(x){
@@ -11708,8 +11759,8 @@ function AlertCenter({data,user,lang,toast,noEvals}){
       <span className="c-av"><Ico n={kindIc[x.kind]} size={18}/></span>
       <div style={{flex:1,minWidth:0}}>
         <div style={{fontSize:15,fontWeight:700,color:"var(--text)"}}>{x.who} <span style={{fontSize:12,color:"var(--text2)",fontWeight:500}}>{grp(x.kind)==="tev"||!x.whoNo?"":"#"+x.whoNo}{x.area?" · "+aLbl(x.area):""}</span></div>
-        {x.kind==="man"?<div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}}>
-          <span className="c-tag">{kindLb.man} · {manSub[x.sub]}</span>
+        {grp(x.kind)==="man"?<div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}}>
+          <span className="c-tag">{x.kind==="kman"?"🎼 ":""}{kindLb.man} · {x.kind==="kman"&&x.sub==="st"?W2("Zarok","Child"):manSub[x.sub]}</span>
           <span className="c-tag">{anMonthLabel(x.month)}</span>
           {x.reasons.map((r,i)=><span key={i} data-man-why={r.t} className="c-tag gold">{manWhy(r)}</span>)}
         </div>:
@@ -12371,8 +12422,9 @@ function AdminReportCenter({students,teachers,schedule,allSchedule,allTeachers,l
         <EvalCombinedReport key={evWho} who={evWho} students={students} teachers={teachers} allTeachers={allTeachers} teachScope={teachScope} headArea={headArea} lang={lang} toast={toast} byName={byName}/>
       </>}
       {rTab==="zarok"&&!headArea&&<>
-        {!registrar&&<div data-k-tab="1" style={{marginBottom:10}}><Seg value={kTab} onChange={setKTab} items={[["rep",W2("Zarok û amadebûn","Children & attendance"),"users"],["kseval",W2("Nirxandina zarokan","Child evaluation"),"star"],["kteval",W2("Nirxandina mamosteyan","Teacher evaluation"),"star"]]}/></div>}
-        {(registrar||kTab==="rep")&&<><KidAcademyReport lang={lang} toast={toast}/>
+        <div data-k-tab="1" style={{marginBottom:10}}><Seg value={kTab} onChange={setKTab} items={registrar?[["rep",W2("Zarok û amadebûn","Children & attendance"),"users"],["kan",W2("Analîza giştî","General analysis"),"chart"]]:[["rep",W2("Zarok û amadebûn","Children & attendance"),"users"],["kan",W2("Analîza giştî","General analysis"),"chart"],["kseval",W2("Nirxandina zarokan","Child evaluation"),"star"],["kteval",W2("Nirxandina mamosteyan","Teacher evaluation"),"star"]]}/></div>
+        {kTab==="kan"&&<KidAnalysis lang={lang} toast={toast} noEvals={!!registrar} byName={byName}/>}
+        {kTab==="rep"&&<><KidAcademyReport lang={lang} toast={toast}/>
           <details style={{marginTop:12}}><summary style={{cursor:"pointer",fontWeight:800,color:"var(--text)",padding:"10px 0"}}>🏷 {W2("Destûrên zarokan","Children's leave")}</summary>
             <LeavesPanel readOnly kid students={[]} area="" all lang={lang} toast={toast}/></details></>}
         {!registrar&&kTab==="kseval"&&<EvalReport kind="kid" lang={lang} toast={toast} byName={byName}/>}
@@ -13729,10 +13781,11 @@ function KidHeadReports({lang,toast,area,byName}){
     background:on?"var(--surface)":"transparent",color:on?"var(--accent)":"var(--text2)",boxShadow:on?"0 1px 4px rgba(15,47,56,0.15)":"none"});
   return(<div>
     <div style={{display:"flex",gap:5,marginBottom:14,background:"var(--bg2)",padding:4,borderRadius:12,overflowX:"auto"}}>
-      {[["rep",W2("Zarok û amadebûn","Children & attendance")],["kseval",W2("Nirxandina zarokan","Student evaluation")],["kteval",W2("Nirxandina mamosteyan","Teacher evaluation")]].map(([k,l])=>
+      {[["rep",W2("Zarok û amadebûn","Children & attendance")],["kan",W2("Analîza giştî","General analysis")],["kseval",W2("Nirxandina zarokan","Student evaluation")],["kteval",W2("Nirxandina mamosteyan","Teacher evaluation")]].map(([k,l])=>
         <button key={k} data-khr={k} onClick={()=>setT(k)} style={tb(t===k)}>{l}</button>)}
     </div>
     {t==="rep"&&<KidAcademyReport lang={lang} toast={toast} lockArea={area}/>}
+    {t==="kan"&&<KidAnalysis lang={lang} toast={toast} lockArea={area} byName={byName}/>}
     {t==="kseval"&&<EvalReport kind="kid" lang={lang} toast={toast} headArea={area} byName={byName}/>}
     {t==="kteval"&&<EvalReport kind="kteacher" lang={lang} toast={toast} headArea={area} byName={byName}/>}
   </div>);
@@ -15632,6 +15685,95 @@ ${d.notes.length?`<div style="font-size:12px;font-weight:700;margin-top:14px">${
         {det.notes.length>0&&<div style={{marginTop:8}}><div style={{fontSize:12,fontWeight:800,color:"var(--text)"}}>{W2("Nîşeyên dawî","Latest notes")}</div>
           {det.notes.map((n,i)=><div key={i} data-an-note="1" style={{fontSize:12,color:"var(--text2)",fontStyle:"italic",marginTop:3}}>{evalShortDate(n.date)}{n.by?" · 👩‍🏫 "+n.by:""}{n.sc!=null?" · "+n.sc:""} — “{n.note}”</div>)}</div>}
         <button data-an-cardpdf="1" onClick={()=>pdfCard(r)} style={{marginTop:10,width:"100%",padding:10,borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:13,cursor:"pointer"}}>📄 {W2("Karne (PDF)","Report card (PDF)")}</button>
+      </div>}
+    </div>))}
+  </div>);
+}
+
+// ── Çocuk Akademisi Genel Analiz: çocuk / ders / öğretmen karnesi (aylık), önceki ayla eğilim, 6 aylık grafik, PDF ──
+function anChartSVG(sr){ const W=320,H=120,bw=W/sr.length; let g='';
+  sr.forEach((x,i)=>{ const h=x.att==null?2:Math.max(2,x.att/100*(H-28)); const c=x.att==null?"#d0d5dd":x.att<70?"#d92d20":x.att<85?"#f79009":"#12b76a";
+    g+=`<rect x="${i*bw+8}" y="${H-18-h}" width="${bw-16}" height="${h}" rx="3" fill="${c}"/>`;
+    if(x.att!=null) g+=`<text x="${i*bw+bw/2}" y="${H-22-h}" font-size="9" text-anchor="middle" fill="#344054">${x.att}%</text>`;
+    g+=`<text x="${i*bw+bw/2}" y="${H-4}" font-size="9" text-anchor="middle" fill="#667085">${String(calMonths()[Number(x.m.slice(5))-1]||"").slice(0,3)}</text>`; });
+  const pts=sr.map((x,i)=>x.ev==null?null:[i*bw+bw/2,(H-18)-(x.ev/10)*(H-28)]).filter(Boolean);
+  if(pts.length>1) g+=`<polyline points="${pts.map(p=>p.join(",")).join(" ")}" fill="none" stroke="#0f2f38" stroke-width="2"/>`;
+  pts.forEach(p=>{ g+=`<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="#0f2f38"/>`; });
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:520px" xmlns="http://www.w3.org/2000/svg">${g}</svg>`; }
+function KidAnalysis({lang,toast,lockArea,noEvals,byName}){
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const F=window.__FB; const live=!!(F&&F.isConfigured());
+  const nowYm=ymdLocal(new Date()).slice(0,7); const from0=anMonthShift(nowYm,-12)+"-01";
+  const [d,setD]=useState({kids:[],cls:[],sched:[],att:[]});
+  useEffect(()=>{ if(!live) return; const subs=[];
+    const L=(q,k)=>{ try{ subs.push(F.onSnapshot(q,sn=>setD(x=>({...x,[k]:sn.docs.map(dd=>({...dd.data(),fireId:dd.id}))})),()=>{})); }catch(_){} };
+    L(F.collection(F.db,"kids"),"kids"); L(F.collection(F.db,"kidClasses"),"cls"); L(F.collection(F.db,"kidSchedule"),"sched");
+    L(F.query(F.collection(F.db,"kidAttendance"),F.where("date",">=",from0)),"att");
+    return ()=>subs.forEach(u=>{ try{u();}catch(_){} }); },[live,from0]);
+  const leaves=useLeaves(live);
+  const kEv=useEvalDocs("kidEvals",null,null,live&&!noEvals), gEv=useEvalDocs("kidTeacherEvals",null,null,live&&!noEvals);
+  const efR=useEvalDocs("evalResponses","academy","kid",live&&!noEvals);
+  const [ym,setYm]=useState(nowYm); const [who,setWho]=useState("kid"); const [areaF,setAreaF]=useState("all"); const [openK,setOpenK]=useState(null);
+  const area=lockArea||(areaF==="all"?"":areaF);
+  const base={kids:d.kids,cls:d.cls,sched:d.sched,att:d.att,leaves,kEv,gEv,efR,area};
+  const statsOf=m=>{ const [f,t]=anMonthRange(m); return kidStats({...base,from:f,to:t}); };
+  const cur=useMemo(()=>statsOf(ym),[d,leaves,kEv,gEv,efR,ym,area]);
+  const prev=useMemo(()=>statsOf(anMonthShift(ym,-1)),[d,leaves,kEv,gEv,efR,ym,area]);
+  const avg=a=>a&&a.length?Math.round(a.reduce((p,q)=>p+q,0)/a.length*10)/10:null;
+  const mapK={kid:"kid",lesson:"lesson",teacher:"teacher"}[who];
+  const evOf=(S,k)=>who==="kid"?avg(S.E.kid.get(k)):who==="teacher"?avg(S.E.teacher.get(k)):null;
+  const rows=[...cur.K[mapK].entries()].map(([k,x])=>{ const att=kidPct(x), pAtt=kidPct(prev.K[mapK].get(k)), ev=noEvals?null:evOf(cur,k), pEv=noEvals?null:evOf(prev,k);
+      return {k,name:x.name||k,sub:who==="lesson"?(x.teacher||""):"",x,att,ev,tA:anTrend(att,pAtt,5),tE:anTrend(ev,pEv,0.5),risk:(att!=null&&att<70)||(ev!=null&&ev<5)}; })
+    .sort((a,b)=>(b.risk-a.risk)||((a.att==null?101:a.att)-(b.att==null?101:b.att))||String(a.name).localeCompare(String(b.name)));
+  const sumAtt=rows.length?Math.round(rows.filter(r=>r.att!=null).reduce((p,r)=>p+r.att,0)/Math.max(1,rows.filter(r=>r.att!=null).length)):null;
+  const risk=rows.filter(r=>r.risk).length;
+  const col=v=>v==null?"var(--text2)":v<70?"#b42318":v<85?"#b45309":"#15803d";
+  const colE=v=>v==null?"var(--text2)":v<5?"#b42318":v<7?"#b45309":"#15803d";
+  const whoLbl={kid:W2("Zarok","Child"),lesson:W2("Ders","Lesson"),teacher:W2("Mamoste","Teacher")};
+  const series=k=>{ const out=[]; for(let i=5;i>=0;i--){ const m=anMonthShift(ym,-i); const S=statsOf(m); out.push({m,att:kidPct(S.K[mapK].get(k)),ev:noEvals?null:evOf(S,k)}); } return out; };
+  const aLbl=a=>{ const z=ZAROK_AREA_NAMES[a]; return z?(lang==="en"?z[1]:K(z[0])):(a||""); };
+  const H=x=>String(x==null?"":x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const tr=t=>t.ic+(t.d!=null?" "+(t.d>0?"+":"")+(Math.round(t.d*10)/10):"");
+  const head=ttl=>`<!DOCTYPE html><html lang="${lang}"><head><meta charset="UTF-8"/><title>${H(ttl)}</title><style>body{font-family:-apple-system,Segoe UI,sans-serif;margin:0;color:#1a1a1a}.h{background:#0f2f38;color:#fff;padding:22px 28px}.c{padding:18px 28px}table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}th{background:#0f2f38;color:#fff;padding:7px;text-align:left;font-size:11px}td{padding:6px 7px;border-bottom:1px solid #eee}.r{color:#b42318;font-weight:700}.np{margin:16px 28px}@media print{.np{display:none}}</style></head><body>
+<div class="h"><div style="font-size:11px;opacity:.7">🎼 ${H(W2("Akademiya Zarokan","Children's Academy"))} · ${H(BRAND())}</div><div style="font-size:21px;font-weight:800;margin-top:4px">${H(ttl)}</div><div style="font-size:12px;opacity:.8;margin-top:4px">${H(anMonthLabel(ym))}${area?" · "+H(aLbl(area)):""}</div></div>`;
+  const btn=`<div class="np"><button onclick="window.print()" style="padding:10px 18px;background:#0f2f38;color:#fff;border:none;border-radius:8px;font-weight:700">📄 PDF / ${H(W2("Çap bike","Print"))}</button></div></body></html>`;
+  function pdfList(){ const ttl=W2("Analîza Giştî","General Analysis")+" · "+whoLbl[who];
+    openPrintHTML(head(ttl)+`<div class="c"><table><thead><tr><th>${H(whoLbl[who])}</th><th>${H(W2("Amadebûn","Attendance"))}</th><th></th><th>${H(W2("Ders","Lessons"))}</th><th>${H(W2("Hat","Came"))}</th><th>${H(W2("Destûr","Leave"))}</th>${noEvals?"":`<th>${H(W2("Nirxandin","Evaluation"))}</th><th></th>`}</tr></thead><tbody>${rows.map(r=>`<tr><td><b>${H(r.name)}</b></td><td class="${r.att!=null&&r.att<70?"r":""}">${r.att==null?"—":r.att+"%"}</td><td>${tr(r.tA)}</td><td>${r.x.held}</td><td>${r.x.came}</td><td>${r.x.leave}</td>${noEvals?"":`<td>${r.ev==null?"—":r.ev.toFixed(1)}</td><td>${tr(r.tE)}</td>`}</tr>`).join("")}</tbody></table></div>`+btn);
+    logReportArchive({type:"analiz",label:ttl+" · "+anMonthLabel(ym),by:byName||""}); }
+  function pdfCard(r){ const ttl=W2("Karne","Report card")+" · "+r.name;
+    openPrintHTML(head(ttl)+`<div class="c"><p style="font-size:13px"><b>${H(W2("Amadebûn","Attendance"))}:</b> ${r.att==null?"—":r.att+"%"} ${tr(r.tA)} · ${r.x.came}/${r.x.held}${noEvals?"":` · <b>${H(W2("Nirxandin","Evaluation"))}:</b> ${r.ev==null?"—":r.ev.toFixed(1)+"/10"} ${tr(r.tE)}`}</p>
+<div style="font-size:12px;font-weight:700;margin-top:10px">${H(W2("6 mehên dawî — stûn: amadebûn %, xet: nirxandin","Last 6 months — bars: attendance %, line: evaluation"))}</div>${anChartSVG(series(r.k))}</div>`+btn);
+    logReportArchive({type:"analiz",label:ttl+" · "+anMonthLabel(ym),by:byName||""}); }
+  const months=[]; for(let i=0;i<12;i++) months.push(anMonthShift(nowYm,-i));
+  return(<div data-kid-analysis="1">
+    <div style={{fontSize:12,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>{W2("Karne li gorî heyamê: amadebûn û nirxandin (1–10), bi heyama berê re tê berhevdan (📈 baştir · ➖ wek hev · 📉 kêmtir).","Report cards for the period: attendance and evaluation (1–10), compared with the previous period (📈 better · ➖ same · 📉 worse).")}</div>
+    <Card style={{marginBottom:10}}>
+      <div style={{display:"grid",gridTemplateColumns:lockArea?"1fr":"1fr 1fr",gap:8}}>
+        <select aria-label="month" data-kan-month="1" value={ym} onChange={e=>setYm(e.target.value)} style={selectStyle}>{months.map(m=><option key={m} value={m}>{anMonthLabel(m)}</option>)}</select>
+        {!lockArea&&<select aria-label="area" value={areaF} onChange={e=>setAreaF(e.target.value)} style={selectStyle}><option value="all">{W2("Hemû ders","All lessons")}</option>{ZAROK_AREAS.map(a=><option key={a} value={a}>{aLbl(a)}</option>)}</select>}
+      </div>
+      <div data-kan-who="1" style={{marginTop:10}}><Seg value={who} onChange={v=>{setWho(v);setOpenK(null);}} items={[["kid",whoLbl.kid,"users"],["lesson",whoLbl.lesson,"cal"],["teacher",whoLbl.teacher,"user"]]}/></div>
+    </Card>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+      <div className="c-stat"><div className="c-stat-v" style={{color:col(sumAtt)}}>{sumAtt==null?"—":sumAtt+"%"}</div><div className="c-stat-l">{W2("Amadebûn","Attendance")}</div></div>
+      <div className="c-stat"><div className="c-stat-v" style={{color:risk?"var(--red)":"var(--text)"}}>{risk}</div><div className="c-stat-l">{W2("Di xeterê de","At risk")}</div></div>
+    </div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+      <div style={{fontSize:12.5,fontWeight:800,color:"var(--text)"}}>{anMonthLabel(ym)} · {rows.length} {whoLbl[who]}</div>
+      <button data-kan-pdf="1" onClick={pdfList} disabled={!rows.length} style={{padding:"7px 12px",borderRadius:9,border:"none",background:"#0f2f38",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer"}}>📄 PDF</button>
+    </div>
+    {rows.length===0&&<Card><div style={{fontSize:13,color:"var(--text2)",textAlign:"center",padding:14}}>{W2("Di vê heyamê de agahî tune.","No data in this period.")}</div></Card>}
+    {rows.map(r=>(<div key={r.k} data-kan-row={r.k} style={{background:"var(--surface)",border:"1px solid "+(r.risk?"rgba(180,35,24,.35)":"var(--border2)"),borderRadius:12,marginBottom:8}}>
+      <button onClick={()=>setOpenK(openK===r.k?null:r.k)} style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"none",border:"none",cursor:"pointer",textAlign:"left",color:"var(--text)"}}>
+        <span style={{flex:1,minWidth:0}}><span style={{display:"block",fontSize:13.5,fontWeight:700}}>{r.risk?"⚠ ":""}{r.name}</span>
+          <span style={{fontSize:11.5,color:"var(--text2)"}}>{r.sub?r.sub+" · ":""}{r.x.came}/{r.x.held} {W2("ders","lessons")}{r.x.leave?" · 🏷 "+r.x.leave:""}</span></span>
+        <span style={{textAlign:"right"}}><b style={{fontSize:15,color:col(r.att)}}>{r.att==null?"—":r.att+"%"}</b> <span>{r.tA.ic}</span></span>
+        {!noEvals&&who!=="lesson"&&<span data-kan-ev={r.k} style={{textAlign:"right",minWidth:62}}><b style={{fontSize:15,color:colE(r.ev)}}>{r.ev==null?"—":r.ev.toFixed(1)}</b> <span>{r.tE.ic}</span></span>}
+      </button>
+      {openK===r.k&&<div data-kan-card={r.k} style={{padding:"0 12px 12px"}}>
+        <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:4}}>{W2("6 mehên dawî — stûn: amadebûn %, xet: nirxandin","Last 6 months — bars: attendance %, line: evaluation")}</div>
+        <div dangerouslySetInnerHTML={{__html:anChartSVG(series(r.k))}}/>
+        <button data-kan-cardpdf="1" onClick={()=>pdfCard(r)} style={{marginTop:10,width:"100%",padding:10,borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:13,cursor:"pointer"}}>📄 {W2("Karne (PDF)","Report card (PDF)")}</button>
       </div>}
     </div>))}
   </div>);
