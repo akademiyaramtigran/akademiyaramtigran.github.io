@@ -110,12 +110,15 @@ async function routes(ctx) {
   ok('Öğretmene göre: Şano %60 (3/5), Stran %50', gT['50202601'] === '60%' && gT['50202602'] === '50%', JSON.stringify(gT));
   // Tarih aralığı (ayrı sekme yok; Devam ekranında): "Ev meh" yalnız bu ayın yoklamaları
   ok('Rapor sekmeleri sade: Devam + Değerlendirme', (await p.evaluate(() => [...document.querySelectorAll('[data-rtab]')].map(e => e.dataset.rtab).join(','))) === 'devam,eval');
-  const thisMonth = new Date().toISOString().slice(0, 7);
-  const recs = [[14, 'off'], [7, 'off'], [13, 'on'], [6, 'on'], [12, 'on']].filter(([k]) => day(k).slice(0, 7) === thisMonth);
-  const expM = recs.length ? Math.round(recs.filter(r => r[1] === 'on').length / recs.length * 100) + '%' : null;
-  await p.evaluate(() => [...document.querySelectorAll('[data-rep-range] button')][1].click()); await p.waitForTimeout(800);
-  const pm = await pct('20202601');
-  ok('Tarih: "Ev meh" seçilince yalnız bu ayın dersleri', expM ? pm === expM : (pm === '' || pm === '0%' || pm === '—' || !(await shown('20202601')) || true), pm + ' beklenen ' + expM);
+  // Bu ay / geçen ay: beklenen yüzde test verisinin tarihlerinden hesaplanır (en az biri veri içerir)
+  const ym = d => d.slice(0, 7), nowD = new Date(), lastM = ymd(new Date(nowD.getFullYear(), nowD.getMonth() - 1, 1)).slice(0, 7), thisM = ymd(nowD).slice(0, 7);
+  const R5 = [[14, 'off'], [7, 'off'], [13, 'on'], [6, 'on'], [12, 'on']];
+  const expOf = m => { const r = R5.filter(([k]) => ym(day(k)) === m); return r.length ? Math.round(r.filter(x => x[1] === 'on').length / r.length * 100) + '%' : null; };
+  const chip = async i => { await p.evaluate(i => [...document.querySelectorAll('[data-rep-range] button')][i].click(), i); await p.waitForTimeout(800); return pct('20202601'); };
+  const pThis = await chip(1), pLast = await chip(2);
+  const eThis = expOf(thisM), eLast = expOf(lastM);
+  ok('Tarih: "Ev meh" / "Meha borî" yalnız o ayın derslerini sayar', (eThis || eLast) && (!eThis || pThis === eThis) && (!eLast || pLast === eLast) && (eThis || pThis !== '60%') && (eLast || pLast !== '60%'),
+    'bu ay ' + pThis + ' (beklenen ' + eThis + ') · geçen ay ' + pLast + ' (beklenen ' + eLast + ')');
   await p.evaluate(() => [...document.querySelectorAll('[data-rep-range] button')][0].click()); await p.waitForTimeout(800);
   ok('Tarih: "Hemû" → yine %60', (await pct('20202601')) === '60%', await pct('20202601'));
   // Öğretmene göre görünümde öğretmenin kendi devamı (eski ayrı sekme)

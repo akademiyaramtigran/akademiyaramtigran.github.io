@@ -167,9 +167,9 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await vp.click('.roles button:nth-child(1)'); await vp.fill('#l-no', G); await vp.fill('#l-pw', 'Veli12345'); await vp.click('.login .btn');
   await vp.waitForSelector('.top', { timeout: 20000 }); await vp.waitForTimeout(1500);
   await goZ(vp, 'teval'); await vp.waitForTimeout(1200);
-  ok('Veli: form ekranı (öğretmen listede)', (await vp.locator('[data-ef-target="' + KT + '"]').count()) === 1, (await txt(vp)).slice(0, 200));
-  ok('Veli: soru soru görünüm varsayılan', (await vp.locator('[data-ef-grid]').count()) === 1);
+  ok('Veli: soru soru görünüm varsayılan (öğretmen her soruda)', (await vp.locator('[data-ef-grid]').count()) === 1 && (await vp.locator('[data-ef-gcell$="_' + KT + '"]').count()) === 2);
   await vp.evaluate(() => [...document.querySelectorAll('[data-ef-mode] button')][1].click()); await vp.waitForTimeout(400);
+  ok('Veli: kişi kişi görünümde öğretmen listede', (await vp.locator('[data-ef-target="' + KT + '"]').count()) === 1, (await txt(vp)).slice(0, 200));
   await vp.evaluate(KT => document.querySelector('[data-ef-target="' + KT + '"] button').click(), KT); await vp.waitForTimeout(400);
   await scoreAll(vp, 4); await vp.evaluate(() => document.querySelector('[data-ef-save]').click()); await vp.waitForTimeout(2000);
   const kr = (await list('evalResponses')).find(d => d.fields.direction.stringValue === 'g2t');
