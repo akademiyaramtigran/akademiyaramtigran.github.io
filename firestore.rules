@@ -400,6 +400,15 @@ service cloud.firestore {
         && d.wk is string && d.wk.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
         && d.get('note', '') is string && d.get('note', '').size() <= 1000;
     }
+    // Uyarı merkezi: "ilgilenildi" işaretleri (yönetici + bölüm sorumlusu); belge kimliği = uyarı anahtarı
+    match /alertAcks/{id} {
+      allow read: if isAdmin() || headLvl();
+      allow create, update: if (isAdmin() || (headLvl() && request.resource.data.byNo == prefix()))
+        && request.resource.data.keys().hasOnly(['key', 'kind', 'count', 'note', 'by', 'byNo', 'at'])
+        && request.resource.data.note is string && request.resource.data.note.size() <= 500
+        && request.resource.data.count is int && request.resource.data.count >= 1;
+      allow delete: if isAdmin();
+    }
     match /studentEvals/{id} {
       allow read: if isAdmin() || headLvl() || (staffW() && resource.data.teacherNo == prefix());
       allow create, update: if staffW() && !isRegistrar()
