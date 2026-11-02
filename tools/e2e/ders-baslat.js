@@ -174,6 +174,7 @@ async function routes(ctx) {
   await sp.getByText('Têkeve', { exact: true }).last().click(); await sp.waitForTimeout(9000);
   const qa = (await list('attendance')).filter(d => d.fields.sessionId && d.fields.sessionId.stringValue === SID && d.fields.studentNo && d.fields.studentNo.stringValue === '20202603' && !d.fields.deviceClaim);
   ok('Kamerayla okutulan QR (adres) → giriş sonrası yoklama kendiliğinden verildi', qa.length === 1, (await sp.evaluate(() => document.body.innerText)).slice(0, 200).replace(/\n/g, ' / '));
+  ok('Okutma belgesinde ders + tarih var (öğretmen kaydında veritabanından okunur)', qa.length === 1 && qa[0].fields.qrLessonId && qa[0].fields.qrLessonId.stringValue === String(LID) && qa[0].fields.qrDate && qa[0].fields.qrDate.stringValue === today, qa.length ? JSON.stringify(qa[0].fields.qrLessonId) + ' ' + JSON.stringify(qa[0].fields.qrDate) : '');
   // Süresi geçmiş / sahte kodla okutma reddedilir
   const sp2 = await (await mk(430)).newPage(); sp2.on('dialog', d => d.accept());
   await sp2.goto('http://localhost:8765/app/?emu=1&qr=' + encodeURIComponent('AAT|' + SID + '|ZZZZZZ')); await sp2.waitForSelector('text=Têkeve', { timeout: 60000 });
@@ -183,14 +184,19 @@ async function routes(ctx) {
   const bad = (await list('attendance')).filter(d => d.fields.sessionId && d.fields.sessionId.stringValue === SID && d.fields.studentNo && d.fields.studentNo.stringValue === '20202601' && !d.fields.deviceClaim);
   ok('Geçersiz (eski) QR koduyla yoklama verilemez', bad.length === 0 && (await sp2.evaluate(() => document.body.innerText)).includes('QR guherî'));
   // Dersi bitir: QR kapanır, yoklama kaydedilir (QR ile giren öğrenci dahil), bitiş anı yazılır
-  // Öğretmen QR penceresini kapatır (okutanlar yoklamaya işlenir), sonra "Dersi bitir"
-  await tp.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.offsetParent && /Bigire|✕/.test(x.textContent)).pop(); b && b.click(); }); await tp.waitForTimeout(2000);
+  // Öğretmenin uygulaması ders sırasında YENİDEN AÇILIR (bellekteki QR oturumu kaybolur), sonra "Dersi bitir":
+  // QR okutan öğrenci veritabanından okunur, "yok" yazılmaz
+  await tp.goto('http://localhost:8765/app/?emu=1'); await tp.waitForTimeout(6000);
+  if (await tp.getByText('Têkeve', { exact: true }).count()) {   // oturum kalıcı değilse yeniden giriş
+    await tp.getByText('Mamoste', { exact: true }).first().click();
+    await tp.locator('input.inp').first().fill('50202601'); await tp.locator('input[type=password]').first().fill('Tea12345');
+    await tp.getByText('Têkeve', { exact: true }).last().click(); await tp.waitForTimeout(7000); }
   await goA(tp, 'attendance'); await tp.waitForTimeout(1200);
   await tp.click('[data-att-lesson="' + LID + '"]'); await tp.waitForTimeout(1500);
   await tp.click('[data-end-lesson]'); await tp.waitForTimeout(3500);
   const ae = await get('attendance/' + LID + '-' + today);
   const recs = JSON.stringify(ae.fields && ae.fields.records || {});
-  ok('Dersi bitir: bitiş anı + yoklama kaydı (QR ile giren öğrenci var)', !!(ae.fields && ae.fields.endedAt) && recs.includes('"103"') && (await tp.locator('[data-lesson-ended]').count()) === 1, recs);
+  ok('Uygulama yeniden açılsa da Dersi bitir: QR ile giren öğrenci "geldi" (yok yazılmadı)', !!(ae.fields && ae.fields.endedAt) && /"103":\{"stringValue":"(on|late)"\}/.test(recs) && (await tp.locator('[data-lesson-ended]').count()) === 1, recs);
   // 4) Sorumlu: "ders yapılmadı" işaretler (neden + açıklama) → yönetici raporu
   await goA(hp, 'announce'); await hp.waitForTimeout(500); await goA(hp, 'schedule'); await hp.waitForTimeout(1500);
   // "Ders yapılmadı": yoklaması alınmış dersi değil, ayrı haftalık dersi (Şano Dereng) işaretle
