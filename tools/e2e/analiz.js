@@ -48,7 +48,12 @@ async function routes(ctx) {
   // Geçen ay: Rojîn %100, Baran %50 · Bu ay: Rojîn %0 (📉, risk), Baran %100 (📈); müzik öğrencisi sayılmaz
   await putAtt('p1', prev5, { '101': 'on', '102': 'off' }); await putAtt('p2', prev12, { '101': 'on', '102': 'on' });
   await putAtt('c1', cur1, { '101': 'off', '102': 'on', '103': 'on' }); await putAtt('c2', today, { '101': 'off', '102': 'on', '103': 'on' });
-  const putEv = (id, o) => fetch(`${FS}/studentEvals/${id}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: Object.fromEntries(Object.entries(o).map(([k, v]) => [k, typeof v === 'object' ? { mapValue: { fields: Object.fromEntries(Object.entries(v).map(([a, b]) => [a, { integerValue: String(b) }])) } } : { stringValue: v }])) }) });
+  const putEv = (id, o) => { const v = Object.values(o.c || {}); const sc = v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length * 2 * 10) / 10 : null;
+    // Eski haftalık değerlendirme kaldırıldı: aynı puan sorumlunun formu (öğretmen → öğrenci) yanıtı olarak yazılır
+    const f = { formId: { stringValue: 'FT2S' }, period: { stringValue: o.wk }, raterNo: { stringValue: o.teacherNo }, raterRole: { stringValue: 'teacher' }, targetNo: { stringValue: o.studentNo }, targetName: { stringValue: o.studentName || '' },
+      area: { stringValue: o.area || '' }, classId: { stringValue: o.classId || '' }, academy: { stringValue: 'aat' }, direction: { stringValue: 't2s' }, answers: { mapValue: { fields: { q1: { doubleValue: sc } } } },
+      notes: { mapValue: { fields: o.note ? { q1: { stringValue: o.note } } : {} } }, score10: { doubleValue: sc } };
+    return fetch(`${FS}/evalResponses/${id}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: f }) }); };
   await putEv('EP', { wk: prev5, teacherNo: '50202601', teacherName: 'Mamoste Şano', studentNo: '20202601', studentName: 'Rojîn Aram', area: 'tiyatro', note: '', c: { p: 4, g: 4, h: 4, b: 4 } });
   // Geçen ay Baran'a düşük puan (2/5 → 4/10): aylık uyarıda değerlendirme nedeni (Öğrenci İşleri görmez)
   await putEv('EB', { wk: prev12, teacherNo: '50202601', teacherName: 'Mamoste Şano', studentNo: '20202602', studentName: 'Baran Şêx', area: 'tiyatro', note: '', c: { p: 2, g: 2, h: 2, b: 2 } });

@@ -1450,7 +1450,12 @@ window.AAT_TX={"ku":{},"zza":{},"tr":{"Ev hefte: {0} ders":"Bu hafta: {0} ders",
 "Karne (PDF)":"Karne (PDF)",
 "xal li gorî meha berê":"puan (önceki aya göre)",
 "Analîza mehane":"Aylık analiz",
-"Her meh jî analîza meha borî: amadebûn di bin %70 de, nirxandin di bin 5/10 de an li gorî meha berê 15 xal an zêdetir daketin.":"Ayrıca her ay geçen ayın analizinden: devam %70'in altında, değerlendirme 5/10'un altında ya da önceki aya göre 15 puan ve üzeri düşüş."}};
+"Her meh jî analîza meha borî: amadebûn di bin %70 de, nirxandin di bin 5/10 de an li gorî meha berê 15 xal an zêdetir daketin.":"Ayrıca her ay geçen ayın analizinden: devam %70'in altında, değerlendirme 5/10'un altında ya da önceki aya göre 15 puan ve üzeri düşüş.",
+"Nehat tomarkirin — girêdanê kontrol bike û dîsa bixwîne":"Kaydedilemedi — bağlantıyı kontrol edip yeniden okut",
+"7 rojên bê: {0} ders":"Önümüzdeki 7 gün: {0} ders",
+"Dersên bê tune.":"Yaklaşan ders yok.",
+"Niha nirxandin tune. Dema berpirsê beşê formekê bişîne, li vir xuya dibe.":"Şu an değerlendirme yok. Bölüm sorumlusu form gönderdiğinde burada görünür.",
+"Pîvan 1–10 (formên berpirsê beşê).":"Ölçek 1–10 (bölüm sorumlusu formları)."}};
 window.AAT_SITE={"ku":{},"zza":{}};
 window.AAT_SITE_AREA={"ku":{},"zza":{}};
 window.AAT_ZAROK={"ku":{},"zza":{}};

@@ -1,0 +1,44 @@
+# Ana akademinin ESKİ haftalık değerlendirme verilerini siler (öğretmen → öğrenci: studentEvals,
+# öğrenci → öğretmen: teacherEvals). Sorumluların değerlendirme formları ve yanıtları (evalForms, evalResponses)
+# ve Çocuk Akademisi verileri SİLİNMEZ.
+# Elle çalıştırılır: GitHub → Actions → "Eski haftalık değerlendirmeleri sil" → Run workflow → onay kutusuna SİL yazın.
+name: Eski haftalık değerlendirmeleri sil
+
+on:
+  workflow_dispatch:
+    inputs:
+      onay:
+        description: "Onay: büyük harflerle SİL yazın (geri alınamaz)"
+        required: true
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-deploy
+  cancel-in-progress: false
+
+jobs:
+  sil:
+    if: ${{ inputs.onay == 'SİL' || inputs.onay == 'SIL' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Eski değerlendirme koleksiyonlarını sil
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then echo "::error::FIREBASE_SERVICE_ACCOUNT sırrı yok"; exit 1; fi
+          KEY="$RUNNER_TEMP/sa.json"; printf '%s' "$SA" > "$KEY"
+          export GOOGLE_APPLICATION_CREDENTIALS="$KEY"
+          for c in studentEvals teacherEvals; do
+            echo "🗑 $c"
+            npx --yes firebase-tools@13 firestore:delete "$c" --recursive --force --project aram2026-a9fd7 \
+              || echo "::warning::$c silinemedi (boş olabilir)"
+          done
+          rm -f "$KEY"
+          echo "✅ Eski haftalık değerlendirmeler silindi"

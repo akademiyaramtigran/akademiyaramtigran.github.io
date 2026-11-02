@@ -51,9 +51,12 @@ async function routes(ctx) {
   const ev = (o) => ({ fields: Object.fromEntries(Object.entries(o).map(([k, v]) => [k, typeof v === 'object' ? { mapValue: { fields: Object.fromEntries(Object.entries(v).map(([a, b]) => [a, { integerValue: String(b) }])) } } : { stringValue: v }])) });
   const putJ = (path, o) => fetch(`${FS}/${path}`, { method: 'PATCH', headers: H, body: JSON.stringify(ev(o)) });
   const WK = day(10);
-  await putJ('studentEvals/E1', { wk: WK, teacherNo: '50202601', teacherName: 'Mamoste Şano', studentNo: '20202601', studentName: 'Rojîn Aram', area: 'tiyatro', note: 'Kêm beşdar dibe', c: { p: 2, g: 2, h: 2, b: 2 } });
-  await putJ('studentEvals/E2', { wk: WK, teacherNo: '50202601', teacherName: 'Mamoste Şano', studentNo: '20202602', studentName: 'Baran Şêx', area: 'tiyatro', note: '', c: { p: 4, g: 4, h: 4, b: 4 } });
-  await putJ('teacherEvals/T1', { wk: WK, studentNo: '20202602', teacherNo: '50202601', teacherName: 'Mamoste Şano', area: 'tiyatro', note: 'Ders zor', c: { e: 2, h: 2, r: 2, f: 2 } });
+  // Sorumlunun formu (öğretmen → öğrenci / öğrenci → öğretmen) yanıtları — eski haftalık değerlendirme kaldırıldı
+  const enc = v => typeof v === 'number' ? (Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v }) : typeof v === 'object' ? { mapValue: { fields: Object.fromEntries(Object.entries(v).map(([k, x]) => [k, enc(x)])) } } : { stringValue: String(v) };
+  const efr = (id, o) => { const { note, ...r } = o; return fetch(`${FS}/evalResponses/${id}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: enc({ formId: 'FU', period: WK, academy: 'aat', answers: { q1: o.score10, ...(note ? { q2: note } : {}) }, ...r }).mapValue.fields }) }); };
+  await efr('E1', { raterNo: '50202601', raterRole: 'teacher', targetNo: '20202601', targetName: 'Rojîn Aram', area: 'tiyatro', direction: 't2s', score10: 4, note: 'Kêm beşdar dibe' });
+  await efr('E2', { raterNo: '50202601', raterRole: 'teacher', targetNo: '20202602', targetName: 'Baran Şêx', area: 'tiyatro', direction: 't2s', score10: 8 });
+  await efr('T1', { raterNo: '20202602', raterRole: 'student', targetNo: '50202601', targetName: 'Mamoste Şano', area: 'tiyatro', direction: 's2t', score10: 4, note: 'Ders zor' });
 
 
   // Çocuk akademisi (Drama): KS1 haftalık ders; Dilan 3 ders gününde gelmedi (Azad geldi → ders yapıldı); düşük değerlendirmeler
@@ -93,8 +96,8 @@ async function routes(ctx) {
   ok('Rojîn: Şano 1 dersinde 3 devamsızlık uyarısı', k1.includes('abs_20202601_L1'), JSON.stringify(k1));
   ok('Baran uyarıya düşmez (2 gelmedi; izinli ve geç sayılmaz)', !k1.some(k => k.startsWith('abs_20202602')));
   ok('Başka bölüm (müzik) öğrencisi sorumlunun uyarılarında yok', !k1.some(k => k.includes('20202603')));
-  ok('5/10 altı öğrenci değerlendirmesi (Rojîn 4.0) uyarıda, 8/10 olan yok', k1.includes('sev_E1') && !k1.includes('sev_E2'));
-  const tevTxt = await hp.evaluate(() => (document.querySelector('[data-alert="tev_T1"]') || {}).innerText || '');
+  ok('5/10 altı öğrenci değerlendirmesi (Rojîn 4.0) uyarıda, 8/10 olan yok', k1.includes('efr_E1') && !k1.includes('efr_E2'));
+  const tevTxt = await hp.evaluate(() => (document.querySelector('[data-alert="efr_T1"]') || {}).innerText || '');
   ok('Öğretmen değerlendirmesi uyarısı isimsiz (öğrenci adı yok)', tevTxt.includes('Mamoste Şano') && tevTxt.includes('4.0') && !tevTxt.includes('Baran'), tevTxt.replace(/\n/g, ' / '));
   // İlgilenildi + not
   await hp.click('[data-alert-ack="abs_20202601_L1"]'); await hp.waitForTimeout(300);
@@ -114,7 +117,7 @@ async function routes(ctx) {
   const k3 = await keys(kp);
   ok('Çocuk: Dilan Drama dersinde 3 gün gelmedi → uyarı; Azad uyarısız', k3.includes('kabs_' + K1 + '_KS1') && !k3.some(k => k.startsWith('kabs_' + K2)), JSON.stringify(k3));
   ok('Çocuk: 5/10 altı değerlendirmeler (öğretmen→çocuk, veli→öğretmen) uyarıda', k3.includes('ksev_KE1') && k3.includes('ktev_KT1'));
-  ok('Çocuk sorumlusu ana akademi uyarılarını görmez', !k3.some(k => k.startsWith('abs_') || k.startsWith('sev_')));
+  ok('Çocuk sorumlusu ana akademi uyarılarını görmez', !k3.some(k => k.startsWith('abs_') || k.startsWith('sev_') || k === 'efr_E1' || k === 'efr_T1'));
   const ktTxt = await kp.evaluate(() => (document.querySelector('[data-alert="ktev_KT1"]') || {}).innerText || '');
   ok('Veli değerlendirmesi isimsiz', ktTxt.includes('Dêûbavek (bê nav)'), ktTxt.replace(/\n/g, ' / '));
   await kp.context().close();

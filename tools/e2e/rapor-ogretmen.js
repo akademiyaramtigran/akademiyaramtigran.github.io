@@ -58,9 +58,10 @@ async function routes(ctx) {
   // Genel değer kodlayıcı (iç içe nesne/dizi)
   const enc = v => v === null ? { nullValue: null } : typeof v === 'number' ? (Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v }) : typeof v === 'boolean' ? { booleanValue: v } : Array.isArray(v) ? { arrayValue: { values: v.map(enc) } } : typeof v === 'object' ? { mapValue: { fields: Object.fromEntries(Object.entries(v).map(([k, x]) => [k, enc(x)])) } } : { stringValue: String(v) };
   const putO = (path, o) => fetch(`${FS}/${path}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: enc(o).mapValue.fields }) }).then(r => { if (!r.ok) throw new Error('seed ' + path + ' ' + r.status); });
-  // Eski haftalık değerlendirme: iki öğretmen Rojîn'i değerlendirdi
-  await putO('studentEvals/E1', { wk: day(10), teacherNo: '50202601', teacherName: 'Mamoste Şano', studentNo: '20202601', studentName: 'Rojîn Aram', area: 'tiyatro', note: '', c: { p: 5, g: 5, h: 5, b: 5 } });
-  await putO('studentEvals/E2', { wk: day(10), teacherNo: '50202602', teacherName: 'Mamoste Stran', studentNo: '20202601', studentName: 'Rojîn Aram', area: 'tiyatro', note: '', c: { p: 1, g: 1, h: 1, b: 1 } });
+  // Sorumlunun formu (öğretmen → öğrenci): iki öğretmen Rojîn'i değerlendirdi (10 ve 2)
+  await putO('evalForms/FT', { title: 'Nirxandina Xwendekaran', academy: 'aat', direction: 't2s', area: 'tiyatro', period: 'once', questions: [{ id: 'q1', type: 'score', text: 'Beşdarî' }], active: true, ownerNo: '96000001', ownerName: 'Berpirsa Şanoyê', createdAtIso: new Date().toISOString() });
+  await putO('evalResponses/E1', { formId: 'FT', period: day(10), raterNo: '50202601', raterRole: 'teacher', targetNo: '20202601', targetName: 'Rojîn Aram', area: 'tiyatro', academy: 'aat', direction: 't2s', answers: { q1: 10 }, score10: 10 });
+  await putO('evalResponses/E2', { formId: 'FT', period: day(10), raterNo: '50202602', raterRole: 'teacher', targetNo: '20202601', targetName: 'Rojîn Aram', area: 'tiyatro', academy: 'aat', direction: 't2s', answers: { q1: 2 }, score10: 2 });
   // 1–10 form (öğrenci → öğretmen): Şano 9, Stran 3
   await putO('evalForms/F1', { title: 'Nirxandina Mamosteyan', academy: 'aat', direction: 's2t', area: 'tiyatro', period: 'once', questions: [{ id: 'q1', type: 'score', text: 'Ders' }], active: true, ownerNo: '96000001', ownerName: 'Berpirsa Şanoyê', createdAtIso: new Date().toISOString() });
   await putO('evalResponses/R1', { formId: 'F1', period: 'once', raterNo: '20202601', raterRole: 'student', targetNo: '50202601', targetName: 'Mamoste Şano', area: 'tiyatro', academy: 'aat', direction: 's2t', answers: { q1: 9 }, score10: 9 });

@@ -53,7 +53,12 @@ async function routes(ctx) {
   await put('classes/G1', { kind: 'general', name: 'Giştî', area: 'genel', studentNos: ['20202601', '20202603'] });
   await put('classes/M1', { kind: 'area', name: '1. Sînif', area: 'muzik', studentNos: ['20202603'] });
   // Ortak (genel) derste verilen değerlendirmeler: Rojîn (tiyatro) ve Jîyan (müzik)
-  const putEv = (id, o) => fetch(`${FS}/studentEvals/${id}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: Object.fromEntries(Object.entries(o).map(([k, v]) => [k, typeof v === 'object' ? { mapValue: { fields: Object.fromEntries(Object.entries(v).map(([a, b]) => [a, { integerValue: String(b) }])) } } : { stringValue: v }])) }) });
+  const putEv = (id, o) => { const v = Object.values(o.c || {}); const sc = v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length * 2 * 10) / 10 : null;
+    // Eski haftalık değerlendirme kaldırıldı: aynı puan sorumlunun formu (öğretmen → öğrenci) yanıtı olarak yazılır
+    const f = { formId: { stringValue: 'FT2S' }, period: { stringValue: o.wk }, raterNo: { stringValue: o.teacherNo }, raterRole: { stringValue: 'teacher' }, targetNo: { stringValue: o.studentNo }, targetName: { stringValue: o.studentName || '' },
+      area: { stringValue: o.area || '' }, classId: { stringValue: o.classId || '' }, academy: { stringValue: 'aat' }, direction: { stringValue: 't2s' }, answers: { mapValue: { fields: { q1: { doubleValue: sc } } } },
+      notes: { mapValue: { fields: o.note ? { q1: { stringValue: o.note } } : {} } }, score10: { doubleValue: sc } };
+    return fetch(`${FS}/evalResponses/${id}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: f }) }); };
   await putEv('EG1', { wk: day(9), teacherNo: '50202601', teacherName: 'Mamoste Şano', studentNo: '20202601', studentName: 'Rojîn Aram', area: 'genel', classId: 'G1', note: '', c: { p: 4, g: 4, h: 4, b: 4 } });
   await putEv('EG2', { wk: day(9), teacherNo: '50202601', teacherName: 'Mamoste Şano', studentNo: '20202603', studentName: 'Jîyan Roj', area: 'genel', classId: 'G1', note: '', c: { p: 2, g: 2, h: 2, b: 2 } });
   // Şano (tiyatro hocası) genel derse de giriyor
