@@ -280,7 +280,8 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await ap.locator('input[placeholder="Sernav"]').fill('Gama Do major');
   await ap.locator('textarea[placeholder^="Nivîs"]').fill('Her roj 15 deqe');
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAIAAAACUFjqAAAAEklEQVR4nGP4z8CAB+GTG8HSALfKY52fTcuYAAAAAElFTkSuQmCC', 'base64');
-  await ap.setInputFiles('input[type=file][accept="image/*,application/pdf"]', { name: 'nota.png', mimeType: 'image/png', buffer: png }); await ap.waitForTimeout(800);
+  await ap.setInputFiles('input[type=file][accept^="image/*,audio/*"]', { name: 'nota.png', mimeType: 'image/png', buffer: png }); await ap.waitForTimeout(800);
+  await ap.waitForFunction(() => !document.querySelector('[data-att-busy]'), null, { timeout: 30000 }).catch(() => {});
   await ap.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.includes('📤 Bişîne')).click()); await ap.waitForTimeout(2000);
   const cps = await list('classPosts');
   ok('Akademi öğretmeni kendi sınıfına ödev + dosya gönderir', cps.some(d => d.fields.title.stringValue === 'Gama Do major' && d.fields.classId.stringValue === M1id && JSON.stringify(d.fields.files).includes('nota.png')));
