@@ -349,6 +349,38 @@ const { ref, uploadString, uploadBytes, getBytes } = require('firebase/storage')
   // Çocuk Akademisi anketleri (veliler / çocuk öğretmenleri)
   // ── Bölüm sorumlusu: kendi bölümüne duyuru, personele mesaj, öğrenciye MESAJ YOK, raporları okur ──
   const head = as('96202601@ogretmen.aat');
+  // Değerlendirme formları + cevaplar
+  {
+    const fH = as('96202601@ogretmen.aat'), fKH = as('96202603@ogretmen.aat'), fT = as('11202601@ogretmen.aat'), fS = as('10202601@ogrenci.aat'),
+      fV = as('92026001@veli.aat'), fKT = as('72026001@zmamoste.aat');
+    const form = (x) => ({ title: 'Heftane', academy: 'aat', direction: 't2s', area: 'tiyatro', period: 'weekly', active: true, ownerNo: '96202601',
+      questions: [{ id: 'q1', text: 'Beşdarî', type: 'score', required: true }], ...(x || {}) });
+    await t('Form: sorumlu kendi bölümüne form açar', setDoc(doc(fH, 'evalForms/F1'), form()), true);
+    await t('Form: sorumlu öğrenci→öğretmen formu açar', setDoc(doc(fH, 'evalForms/F2'), form({ direction: 's2t' })), true);
+    await t('Form: sorumlu BAŞKA bölüme form açamaz', setDoc(doc(fH, 'evalForms/F3'), form({ area: 'muzik' })), false);
+    await t('Form: sorumlu başkası adına açamaz', setDoc(doc(fH, 'evalForms/F4'), form({ ownerNo: '1000' })), false);
+    await t('Form: ana sorumlu çocuk formu açamaz', setDoc(doc(fH, 'evalForms/F5'), form({ academy: 'kid', direction: 't2k' })), false);
+    await t('Form: sorusuz form reddedilir', setDoc(doc(fH, 'evalForms/F6'), form({ questions: [] })), false);
+    await t('Form: öğretmen form AÇAMAZ', setDoc(doc(fT, 'evalForms/F7'), form({ ownerNo: '11202601' })), false);
+    await t('Form: çocuk sorumlusu kendi dersine form açar', setDoc(doc(fKH, 'evalForms/K1'), form({ academy: 'kid', direction: 'g2t', area: 'drama', ownerNo: '96202603' })), true);
+    await setDoc(doc(fKH, 'evalForms/K2'), form({ academy: 'kid', direction: 't2k', area: 'drama', ownerNo: '96202603' }));
+    await t('Form: öğrenci formları okur', getDoc(doc(fS, 'evalForms/F1')), true);
+    const resp = (fid, per, rater, target, dir, x) => ({ formId: fid, period: per, raterNo: rater, raterRole: 'r', targetNo: target, targetName: 'N', area: 'tiyatro', classId: '',
+      academy: 'aat', direction: dir, answers: { q1: 8 }, score10: 8, at: new Date(), ...(x || {}) });
+    await t('Cevap: öğretmen öğrenciyi değerlendirir (t2s)', setDoc(doc(fT, 'evalResponses/F1_2026-11-02_11202601_10202601'), resp('F1', '2026-11-02', '11202601', '10202601', 't2s')), true);
+    await t('Cevap: öğrenci t2s formunu dolduramaz', setDoc(doc(fS, 'evalResponses/F1_2026-11-02_10202601_11202601'), resp('F1', '2026-11-02', '10202601', '11202601', 't2s')), false);
+    await t('Cevap: öğrenci öğretmeni değerlendirir (s2t)', setDoc(doc(fS, 'evalResponses/F2_2026-11-02_10202601_11202601'), resp('F2', '2026-11-02', '10202601', '11202601', 's2t')), true);
+    await t('Cevap: başkası adına yazılamaz', setDoc(doc(fT, 'evalResponses/F1_2026-11-02_10202601_x'), resp('F1', '2026-11-02', '10202601', 'x', 't2s')), false);
+    await t('Cevap: belge kimliği uymazsa reddedilir', setDoc(doc(fT, 'evalResponses/X1'), resp('F1', '2026-11-02', '11202601', '10202601', 't2s')), false);
+    await t('Cevap: 10 üstü puan reddedilir', setDoc(doc(fT, 'evalResponses/F1_2026-11-03_11202601_10202601'), resp('F1', '2026-11-03', '11202601', '10202601', 't2s', { score10: 11 })), false);
+    await t('Cevap: yön formla uyuşmazsa reddedilir', setDoc(doc(fT, 'evalResponses/F1_2026-11-04_11202601_10202601'), resp('F1', '2026-11-04', '11202601', '10202601', 's2t')), false);
+    await t('Cevap: veli çocuk öğretmenini değerlendirir (g2t)', setDoc(doc(fV, 'evalResponses/K1_2026-11-02_92026001_72026001'), resp('K1', '2026-11-02', '92026001', '72026001', 'g2t', { academy: 'kid' })), true);
+    await t('Cevap: çocuk öğretmeni çocuğu değerlendirir (t2k)', setDoc(doc(fKT, 'evalResponses/K2_2026-11-02_72026001_k1'), resp('K2', '2026-11-02', '72026001', 'k1', 't2k', { academy: 'kid' })), true);
+    await t('Cevap: öğretmen başkasının cevabını okuyamaz', getDoc(doc(fT, 'evalResponses/F2_2026-11-02_10202601_11202601')), false);
+    await t('Cevap: sorumlu cevapları okur', getDoc(doc(fH, 'evalResponses/F2_2026-11-02_10202601_11202601')), true);
+    await updateDoc(doc(fH, 'evalForms/F1'), { active: false });
+    await t('Cevap: duraklatılan forma yazılamaz', setDoc(doc(fT, 'evalResponses/F1_2026-11-09_11202601_10202601'), resp('F1', '2026-11-09', '11202601', '10202601', 't2s')), false);
+  }
   // Uyarı merkezi: "ilgilenildi" işaretleri
   const ackD = (byNo, x) => ({ key: 'abs_1_L1', kind: 'abs', count: 3, note: 'Veliyle görüşüldü', by: 'X', byNo, at: new Date(), ...(x || {}) });
   await t('Uyarı: bölüm sorumlusu kendi adıyla işaretler', setDoc(doc(head, 'alertAcks/abs_1_L1'), ackD('96202601')), true);
