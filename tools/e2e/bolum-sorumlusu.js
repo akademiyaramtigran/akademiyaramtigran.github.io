@@ -83,7 +83,7 @@ async function routes(ctx) {
   // 2) Sorumlu girer: yalnızca Duyuru / Mesaj / Rapor
   const hp = await login(await mk(), hno, hpass);
   const keys = await hp.evaluate(() => [...document.querySelectorAll('.sm-it[data-key]')].map(e => e.dataset.key).join(','));
-  ok('Sorumlu paneli: duyuru, mesaj, ders programı, misafir ders yoklaması, izin, anket, rapor, profil, uyarılar', keys.split(',').sort().join(',') === 'alerts,announce,gatt,leaves,messages,profile,reports,schedule,surveys', keys);
+  ok('Sorumlu paneli: duyuru, mesaj, ders programı, misafir ders yoklaması, izin, anket, rapor, profil, uyarılar', keys.split(',').sort().join(',') === 'alerts,announce,evalforms,gatt,leaves,messages,profile,reports,schedule,surveys', keys);
   // Duyuru (kendi bölümüne kilitli) + belge
   const t0 = await txt(hp);
   ok('Duyuru hedefi kendi bölümüne kilitli', t0.includes('Kilkkirî') && t0.includes('Şano'));
@@ -133,7 +133,9 @@ async function routes(ctx) {
   await hp.selectOption('[data-head-to]', { label: 'Mamoste Şano' });
   await hp.fill('#hm-subject', 'Lîsteya kostûman'); await hp.fill('#hm-body', 'Pel li pêvekê ye');
   await hp.setInputFiles('input[type=file]', { name: 'kostum.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 x') });
-  await hp.waitForTimeout(400); await btn(hp, 'Bişîne'); await hp.waitForTimeout(2000);
+  // Ek dosya deposuna yüklenir: yükleme bitene kadar bekle (bu sırada gönderim engellenir)
+  await hp.waitForFunction(() => !document.querySelector('[data-att-busy]') && document.body.innerText.includes('kostum.pdf'), null, { timeout: 30000 }).catch(() => {});
+  await btn(hp, 'Bişîne'); await hp.waitForTimeout(2000);
   const hm = (await list('messages')).filter(d => d.fields.subject && d.fields.subject.stringValue === 'Lîsteya kostûman');
   ok('Sorumlunun belgeli mesajı öğretmene kaydedildi', hm.length === 1 && hm[0].fields.recipientNo.stringValue === '50202601' && JSON.stringify(hm[0].fields.attachments).includes('kostum.pdf'));
   const tp = await login(await mk(), '50202601', 'Tea12345');

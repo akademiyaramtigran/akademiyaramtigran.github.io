@@ -86,22 +86,21 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   { const p = hp;
   await btn(p, 'Ankêta nû'); await p.waitForTimeout(600);
   const s1 = await txt(p);
-  ok('Anket Stüdyosu açılır (şablon, hedef, soru türleri)', /bi şablonê dest pê bike/i.test(s1) && /kî dê bersiv bide/i.test(s1) && s1.includes('Çend bijare'));
+  ok('Anket Stüdyosu açılır (şablon, hedef; yeni sorular yalnız 1–10 ve yazılı)', /bi şablonê dest pê bike/i.test(s1) && /kî dê bersiv bide/i.test(s1) && s1.includes('Pûan 1–10') && !s1.includes('Çend bijare'));
   await btn(p, 'Razîbûna dersê'); await p.waitForTimeout(400);
   const qn = await p.locator('input[placeholder="Pirsê binivîse"]').count();
   ok('Şablon 5 soruyu doldurur', qn === 5, qn + ' soru');
   await shot(p, 'studyo.png');
-  // Bir çoklu seçim sorusu ekle
-  await btn(p, '☑️ Çend bijare'); await p.waitForTimeout(200);
-  await p.locator('input[placeholder="Pirsê binivîse"]').last().fill('Kîjan amûr?');
-  await p.locator('input[placeholder="Bijare 1"]').last().fill('Tembûr'); await p.locator('input[placeholder="Bijare 2"]').last().fill('Def');
+  // Bir 1–10 puan sorusu ekle
+  await btn(p, 'Pûan 1–10'); await p.waitForTimeout(200);
+  await p.locator('input[placeholder="Pirsê binivîse"]').last().fill('Amûr çawa bûn?');
   await btn(p, '👁 Pêşdîtin'); await p.waitForTimeout(300);
-  ok('Önizleme açılır', (await txt(p)).includes('PÊŞDÎTIN') && (await txt(p)).includes('Kîjan amûr?'));
+  ok('Önizleme açılır', (await txt(p)).includes('PÊŞDÎTIN') && (await txt(p)).includes('Amûr çawa bûn?'));
   await btn(p, 'Vegere sererastkirinê'); await p.waitForTimeout(300);
   await btn(p, '🚀 Biweşîne'); await p.waitForTimeout(2000);
   const svs = await list('studentSurveys');
   const sv = svs.find(d => d.fields.title && d.fields.title.stringValue === 'Razîbûna dersê');
-  ok('Anket yayınlandı (6 soru, likert + çoklu)', sv && sv.fields.active.booleanValue === true && sv.fields.questions.arrayValue.values.length === 6 && JSON.stringify(sv.fields.questions).includes('"multi"'));
+  ok('Anket yayınlandı (6 soru, yalnız 1–10 ve yazılı)', sv && sv.fields.active.booleanValue === true && sv.fields.questions.arrayValue.values.length === 6 && JSON.stringify(sv.fields.questions).includes('"rating"') && !/"(likert|multi|choice|yesno)"/.test(JSON.stringify(sv.fields.questions)));
   ok('Anket sorumlunun bölümüne kilitli (Müzik, sahibi sorumlu)', sv && sv.fields.ownerNo.stringValue === '96202601' && JSON.stringify(sv.fields.targetAreas).includes('muzik') && !JSON.stringify(sv.fields.targetAreas).includes('sinema'));
   }
 
@@ -112,16 +111,12 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await btn(sp, 'Ankêtê Bişîne'); await sp.waitForTimeout(500);
   const t0 = await sp.locator('[role=status], .toast, [aria-live]').allInnerTexts().catch(() => []);
   ok('Boş gönderim engellenir', !(await list('studentSurveyResponses')).length);
-  await sp.evaluate(() => { [...document.querySelectorAll('button')].filter(b => b.textContent.trim() === '4Razî me').forEach(b => b.click()); });
-  await sp.waitForTimeout(200);
-  await sp.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.trim() === '8'); b[b.length - 1].click(); });
-  await sp.waitForTimeout(200);
-  for (const o of ['Tembûr', 'Def']) { await sp.evaluate(o => [...document.querySelectorAll('button')].find(b => b.textContent.trim().endsWith(o)).click(), o); await sp.waitForTimeout(150); }
-  await sp.waitForTimeout(200);
+  const n8 = await sp.evaluate(() => { const bs = [...document.querySelectorAll('button')].filter(b => b.offsetParent && b.textContent.trim() === '8'); bs.forEach(b => b.click()); return bs.length; });
+  await sp.waitForTimeout(300);
   await btn(sp, 'Ankêtê Bişîne'); await sp.waitForTimeout(2000);
   const rs = await list('studentSurveyResponses');
   const r0 = rs[0] && JSON.stringify(rs[0].fields.answers);
-  ok('Öğrenci yanıtı kaydedildi (likert 4, puan 8, çoklu 2 seçim)', rs.length === 1 && /"integerValue":"4"/.test(r0) && /"integerValue":"8"/.test(r0) && r0.includes('Tembûr') && r0.includes('Def'), rs.length + ' yanıt');
+  ok('Öğrenci yanıtı kaydedildi (bütün puan soruları 8/10)', rs.length === 1 && (r0.match(/"integerValue":"8"/g) || []).length === n8 && n8 >= 5, rs.length + ' yanıt, ' + n8 + ' puan');
 
   // 3) Sonuçlar: sorumlunun kendi panelinde + yönetimin raporunda
   await hp.bringToFront(); await hp.waitForTimeout(1500);
@@ -135,12 +130,12 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await hp.evaluate(() => { const b = document.querySelector('[data-sv-open]'); b && b.click(); }); await hp.waitForTimeout(600);
   ok('Anket raporu: ekranda sonuç özeti', (await hp.locator('[data-sv-results]').count()) === 1 && (await hp.locator('[data-sv-results]').innerText()).length > 20);
   await shot(hp, 'sonuc.png');
-  ok('Sonuçlar: ortalama, dağılım ve katılım', r3.includes('Beşdarî') && r3.includes('100%') && r3.includes('Tembûr'));
+  ok('Sonuçlar: ortalama, dağılım ve katılım', r3.includes('Beşdarî') && r3.includes('100%') && r3.includes('Amûr çawa bûn?'));
 
   // 4) Çocuk Akademisi veli anketi — Drama bölüm sorumlusu açar
   let kid = '';
   const kp = await login(await mk(), '96202602', 'Head1234');
-  ok('Çocuk akademisi sorumlusu paneli: duyuru, mesaj, program, izin, anket, rapor, profil, uyarılar', (await kp.evaluate(() => [...document.querySelectorAll('.sm-it[data-key]')].map(e => e.dataset.key).sort().join(','))) === 'alerts,announce,leaves,messages,profile,reports,schedule,surveys');
+  ok('Çocuk akademisi sorumlusu paneli: duyuru, mesaj, program, izin, anket, rapor, profil, uyarılar', (await kp.evaluate(() => [...document.querySelectorAll('.sm-it[data-key]')].map(e => e.dataset.key).sort().join(','))) === 'alerts,announce,evalforms,leaves,messages,profile,reports,schedule,surveys');
   await kp.evaluate(() => document.querySelector('.sm-it[data-key="surveys"]').click()); await kp.waitForTimeout(1200);
   { const p = kp;
   await btn(p, 'Ankêta nû (dêûbav'); await p.waitForTimeout(500);
@@ -169,13 +164,12 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await vp.waitForSelector('.top', { timeout: 20000 }); await goZ(vp, 'today'); await vp.waitForSelector('.status', { timeout: 20000 }); await vp.waitForTimeout(1500);
   ok('Veli: Bugün ekranında bekleyen anket', (await txt(vp)).includes('Ankêtek li benda bersiva we ye'));
   await vp.evaluate(() => [...document.querySelectorAll('.card')].find(c => c.textContent.includes('Ankêtek li benda')).click()); await vp.waitForTimeout(600);
-  await vp.evaluate(() => [...document.querySelectorAll('.chipb')].filter(b => b.textContent.trim().endsWith('5 · Gelek razî me')).forEach(b => b.click()));
+  await vp.evaluate(async () => { for (let i = 0; i < 12; i++) { const b = [...document.querySelectorAll('.chipb')].filter(x => x.textContent.trim() === '9' && !x.classList.contains('on'))[0]; if (!b) break; b.click(); await new Promise(r => setTimeout(r, 120)); } });
   await vp.waitForTimeout(200);
-  await vp.evaluate(() => [...document.querySelectorAll('.chipb')].find(b => b.textContent.includes('👍')).click()); await vp.waitForTimeout(200);
   await shot(vp, 'veli-anket.png');
   await vp.evaluate(() => [...document.querySelectorAll('button.btn')].find(b => b.textContent.includes('Bişîne')).click()); await vp.waitForTimeout(2000);
   const kr = await list('kidSurveyResponses');
-  ok('Veli yanıtı kaydedildi (aile adına, alan bilgisiyle)', kr.length === 1 && kr[0].name.endsWith('/' + kid + '_' + G) && kr[0].fields.role.stringValue === 'guardian' && JSON.stringify(kr[0].fields.areas).includes('drama') && JSON.stringify(kr[0].fields.answers).includes('"yes"'));
+  ok('Veli yanıtı kaydedildi (aile adına, alan bilgisiyle)', kr.length === 1 && kr[0].name.endsWith('/' + kid + '_' + G) && kr[0].fields.role.stringValue === 'guardian' && JSON.stringify(kr[0].fields.areas).includes('drama') && JSON.stringify(kr[0].fields.answers).includes('"integerValue":"9"'));
   ok('Veli öğretmen anketini görmez', !(await txt(vp)).includes('Nêrîna mamosteyên zarokan'));
   // Çocuk öğretmeni yanıtlar
   const tc = await mk(390); const tp = await tc.newPage(); tp.on('pageerror', e => errs.push('kidteacher: ' + e.message));
@@ -186,7 +180,7 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   const t5 = await txt(tp);
   ok('Çocuk öğretmeni kendi anketini görür, veli anketini görmez', t5.includes('Nêrîna mamosteyên zarokan') && !t5.includes('Razîbûna dêûbavan'));
   await tp.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Bersiv bide').click()); await tp.waitForTimeout(500);
-  for (let i = 0; i < 3; i++) { await tp.evaluate(i => { const bs = [...document.querySelectorAll('.chipb')].filter(b => b.textContent.trim().endsWith('4 · Razî me')); bs[i].click(); }, i); await tp.waitForTimeout(150); }
+  await tp.evaluate(async () => { for (let i = 0; i < 12; i++) { const b = [...document.querySelectorAll('.chipb')].filter(x => x.textContent.trim() === '7' && !x.classList.contains('on'))[0]; if (!b) break; b.click(); await new Promise(r => setTimeout(r, 120)); } });
   await tp.evaluate(() => [...document.querySelectorAll('button.btn')].find(b => b.textContent.includes('Bişîne')).click()); await tp.waitForTimeout(2000);
   const kr2 = (await list('kidSurveyResponses')).find(d => d.fields.role && d.fields.role.stringValue === 'teacher');
   ok('Çocuk öğretmeni yanıtı kaydedildi', !!kr2 && kr2.name.endsWith('_' + KT));

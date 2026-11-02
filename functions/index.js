@@ -313,3 +313,29 @@ exports.evalReminder = onSchedule({ schedule: "0 15 * * 5", timeZone: "Europe/Is
   const gDocs = (await tokens("zarok", "no", gPend)).filter(d => d.get("role") === "guardian");
   if (gDocs.length) await push(gDocs, l => ({ title: evtx(l, "s"), body: evtx(l, "sb") }), "/zarok/app/", "zarok-eval");
 });
+
+// Değerlendirme formu yayınlanınca (oluşturulduğunda aktifse ya da duraklatılmışken yayına alınınca) değerlendirecek kişilere bildirim
+//  t2s → bölümün öğretmenleri · s2t → bölümün öğrencileri · t2k → çocuk akademisi öğretmenleri · g2t → bölümdeki çocukların velileri
+const { onDocumentWritten } = require("firebase-functions/v2/firestore");
+const EFTX = { ku: "📝 Forma nirxandinê", tr: "📝 Değerlendirme formu", en: "📝 Evaluation form" };
+exports.pushEvalForm = onDocumentWritten("evalForms/{id}", async (ev) => {
+  const before = ev.data && ev.data.before && ev.data.before.exists ? ev.data.before.data() : null;
+  const f = ev.data && ev.data.after && ev.data.after.exists ? ev.data.after.data() : null;
+  if (!f || !f.active || (before && before.active)) return;
+  const area = String(f.area || ""), all = area === "genel";
+  let docs = [], app = "aat", link = "/app/";
+  if (f.direction === "t2s" || f.direction === "s2t") {
+    const role = f.direction === "t2s" ? "teacher" : "student";
+    docs = (all ? await tokens("aat", "role", role) : await tokens("aat", "area", area)).filter(d => d.get("role") === role);
+  } else if (f.direction === "t2k") {
+    app = "zarok"; link = "/zarok/app/";
+    docs = (await tokens("zarok", "area", area)).filter(d => d.get("role") === "kidteacher");
+  } else if (f.direction === "g2t") {
+    app = "zarok"; link = "/zarok/app/";
+    const ks = await admin.firestore().collection("kids").where("area", "==", area).get();
+    const g = [...new Set(ks.docs.flatMap(d => (d.get("guardianNos") || []).map(String)))];
+    docs = (await tokens("zarok", "no", g)).filter(d => d.get("role") === "guardian");
+  }
+  if (!docs.length) return;
+  await push(docs, l => ({ title: EFTX[l] || EFTX.ku, body: f.title || "" }), link, app + "-evalform");
+});
