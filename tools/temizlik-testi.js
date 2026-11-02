@@ -1,0 +1,42 @@
+// Haftalık temizlik testi (Firestore emülatörü). Çalıştırma:
+//   firebase emulators:exec --only firestore --project aram2026-test "NODE_PATH=functions/node_modules node tools/temizlik-testi.js"
+process.env.FIRESTORE_EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080';
+const admin = require('firebase-admin');
+const { weeklyCleanupRun } = require('../functions/temizlik');
+admin.initializeApp({ projectId: 'aram2026-test' });
+const db = admin.firestore();
+(async () => {
+  const now = Date.UTC(2026, 10, 2, 12), DAY = 86400000, iso = ms => new Date(ms).toISOString(), ymd = ms => iso(ms).slice(0, 10);
+  const set = (p, o) => db.doc(p).set(o);
+  await set('qrSessions/OLD', { expiresAt: now - 20 * DAY, active: false });
+  await set('qrCodes/OLD', { codes: ['A'] });
+  await set('qrSessions/NEW', { expiresAt: now - 2 * DAY, active: false });
+  await set('qrCodes/NEW', { codes: ['B'] });
+  await set('attendance/OLD_S1', { sessionId: 'OLD', studentId: 'S1', time: iso(now - 200 * DAY) });
+  await set('attendance/OLD_d_DEV', { sessionId: 'OLD', deviceClaim: true, time: iso(now - 200 * DAY) });
+  await set('attendance/NEW_S1', { sessionId: 'NEW', studentId: 'S1', time: iso(now - 10 * DAY) });
+  await set('attendance/L1-2026-01-05', { lessonId: 'L1', date: '2026-01-05', records: { S1: 'on' }, time: iso(now - 300 * DAY) });
+  await set('attendance/L2-2025-01-05', { lessonId: 'L2', date: '2025-01-05', records: { S1: 'off' } });
+  await set('teacherLessonLogs/A', { date: ymd(now - 400 * DAY) });
+  await set('teacherLessonLogs/B', { date: ymd(now - 30 * DAY) });
+  await set('gateLog/A', { date: ymd(now - 200 * DAY) });
+  await set('gateLog/B', { date: ymd(now - 5 * DAY) });
+  await set('studentStats/101', { att: 50 });
+  await set('evalResponses/R1', { formId: 'F', score10: 5 });
+  const r = await weeklyCleanupRun(db, now);
+  const ex = async p => (await db.doc(p).get()).exists;
+  const res = [];
+  const t = (n, c) => res.push((c ? '✅ ' : '❌ ') + n);
+  t('Eski QR oturumu + kodları silindi', !(await ex('qrSessions/OLD')) && !(await ex('qrCodes/OLD')));
+  t('Yeni QR oturumu + kodları kaldı', (await ex('qrSessions/NEW')) && (await ex('qrCodes/NEW')));
+  t('180 günden eski QR okutma + cihaz belgesi silindi', !(await ex('attendance/OLD_S1')) && !(await ex('attendance/OLD_d_DEV')));
+  t('Yeni QR okutma kaldı', await ex('attendance/NEW_S1'));
+  t('Ders yoklama belgeleri (records) SİLİNMEDİ (eski olsa da)', (await ex('attendance/L1-2026-01-05')) && (await ex('attendance/L2-2025-01-05')));
+  t('1 yıldan eski ders kaydı silindi, yenisi kaldı', !(await ex('teacherLessonLogs/A')) && (await ex('teacherLessonLogs/B')));
+  t('180 günden eski kapı kaydı silindi, yenisi kaldı', !(await ex('gateLog/A')) && (await ex('gateLog/B')));
+  t('Eski istatistik tablosu silindi', !(await ex('studentStats/101')));
+  t('Değerlendirme yanıtı SİLİNMEDİ', await ex('evalResponses/R1'));
+  t('Sayım doğru', r.qrSessions === 1 && r.qrCheckins === 2 && r.lessonLogs === 1 && r.gateLog === 1 && r.studentStats === 1);
+  console.log(res.join('\n')); console.log(JSON.stringify(r));
+  process.exit(res.some(x => x.startsWith('❌')) ? 1 : 0);
+})().catch(e => { console.error(e); process.exit(1); });

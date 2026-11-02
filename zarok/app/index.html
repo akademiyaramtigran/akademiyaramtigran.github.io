@@ -607,55 +607,6 @@ async function readFiles(list) {
   }
   return out;
 }
-// ── Veli anketleri ──
-// Hedef: veli anketi ("guardians") → çocuklarının alanı (+ varsa seçilen sınıflar) · öğretmen anketi ("kidteachers") → öğretmenin alanı (boş = hepsi)
-const isTeacherMode = () => S.mode === "teacher";
-const myAreas = () => isTeacherMode() ? [(S.teacher && S.teacher.area) || ""].filter(Boolean) : [...new Set(S.kids.map(k => k.area).filter(Boolean))];
-const survFor = () => S.ksv.filter(sv => !(sv.endDate && sv.endDate < todayStr())
-  && (isTeacherMode() ? sv.targetType === "kidteachers" : sv.targetType !== "kidteachers")
-  && (!(sv.targetAreas || []).length || (isTeacherMode() && !(S.teacher && S.teacher.area)) || (sv.targetAreas || []).some(a => myAreas().includes(a)))
-  // Sınıf hedefli veli anketi: yalnızca çocuğu seçilen sınıflarda (alan sınıfı / atölye) olan veliler
-  && (isTeacherMode() || !(sv.targetClassIds || []).length || S.kids.some(k => classesOf(k).some(c => sv.targetClassIds.includes(c.id)))));
-const survResp = sv => S.kresp.find(r => r.surveyId === sv.id);
-const survPending = () => survFor().filter(sv => !survResp(sv));
-function survInput(q, A) {
-  const v = A[q.id], set = x => { A[q.id] = x; render(); };
-  const opt = (on, lb, fn, sq) => h("button", { class: "chipb" + (on ? " on" : ""), style: "display:flex;align-items:center;gap:8px;width:100%;justify-content:flex-start;white-space:normal;text-align:left;margin-bottom:6px", onclick: fn }, sq ? (on ? "☑" : "☐") : (on ? "●" : "○"), lb);
-  if (q.type === "likert") return h("div", null, [1, 2, 3, 4, 5].map(n => opt(v === n, n + " · " + T("lk" + n), () => set(n))));
-  if (q.type === "rating") return h("div", null, h("div", { style: "display:grid;grid-template-columns:repeat(5,1fr);gap:6px" }, [1,2,3,4,5,6,7,8,9,10].map(n => h("button", { class: "chipb" + (v === n ? " on" : ""), style: "justify-content:center;padding:8px 0", onclick: () => set(n) }, String(n)))),
-    h("div", { class: "muted", style: "display:flex;justify-content:space-between;font-size:12px;margin-top:4px" }, h("span", null, "1 · " + T("rtPoor")), h("span", null, "10 · " + T("rtGood"))));
-  if (q.type === "yesno") return h("div", { style: "display:grid;grid-template-columns:1fr 1fr;gap:8px" }, [["yes", "👍 " + T("yes")], ["no", "👎 " + T("no")]].map(([k, lb]) => h("button", { class: "chipb" + (v === k ? " on" : ""), style: "justify-content:center", onclick: () => set(k) }, lb)));
-  if (q.type === "choice") return h("div", null, (q.choices || []).map(c => opt(v === c, c, () => set(c))));
-  if (q.type === "multi") { const arr = Array.isArray(v) ? v : []; return h("div", null, (q.choices || []).map(c => { const on = arr.includes(c); return opt(on, c, () => set(on ? arr.filter(x => x !== c) : [...arr, c]), true); }), h("div", { class: "muted", style: "font-size:12px" }, T("multiHint"))); }
-  const ta = h("textarea", { class: "in", rows: 3, maxlength: 1500, placeholder: T("textPh"), oninput: e => { A[q.id] = e.target.value; } }); ta.value = v || ""; return ta;
-}
-function viewSurvey(sv) {
-  const prev = survResp(sv);
-  const A = S.survAns[sv.id] || (S.survAns[sv.id] = { ...((prev && prev.answers) || {}) });
-  const send = async () => {
-    const miss = (sv.questions || []).map((q, i) => { const x = A[q.id]; return q.required && (x == null || x === "" || (Array.isArray(x) && !x.length)) ? i + 1 : 0; }).filter(Boolean);
-    if (miss.length) { toast("⚠ " + T("survReq") + ": " + miss.join(", ")); return; }
-    const { doc, setDoc } = FB.fs;
-    try {
-      const me = isTeacherMode() ? S.teacher : S.guardian;
-      await setDoc(doc(FB.db, "kidSurveyResponses", sv.id + "_" + me.no), { surveyId: sv.id, role: isTeacherMode() ? "teacher" : "guardian", no: me.no, name: sv.anonymous ? "" : (me.name || ""), areas: myAreas(), answers: A, submittedAt: new Date().toISOString() });
-      S.survOpen = null; toast("✅ " + T("survThanks")); vib(); render();
-    } catch (e) { toast("❌ " + (e.code || e.message)); }
-  };
-  return h("div", null,
-    h("button", { class: "btn sm", style: "width:auto;margin-bottom:10px", onclick: () => { S.survOpen = null; render(); } }, "← " + T("back")),
-    h("div", { class: "card", style: "background:linear-gradient(135deg,#0f2f38,#2c6b74);color:#fff" }, h("div", { style: "font-size:12px;opacity:.85;font-weight:700" }, "📋 " + T("survey") + (sv.anonymous ? " · 🕶 " + T("survAnon") : "") + (sv.endDate ? " · ⏰ " + T("survUntil") + " " + sv.endDate : "")),
-      h("div", { class: "h", style: "color:#fff;margin-top:4px" }, sv.title || ""), sv.desc ? h("div", { style: "white-space:pre-wrap;opacity:.9" }, sv.desc) : null),
-    (sv.questions || []).map((q, i) => h("div", { class: "card" }, h("div", { class: "h" }, (i + 1) + ". " + (q.text || ""), q.required ? h("span", { style: "color:#c0392b" }, " *") : null), survInput(q, A))),
-    h("button", { class: "btn", onclick: send }, "📤 " + T("survSend")));
-}
-function survCards() {
-  const all = survFor(); if (!all.length) return null;
-  return h("div", null, all.map(sv => { const done = !!survResp(sv);
-    return h("div", { class: "card", style: "display:flex;gap:10px;align-items:center;border:" + (done ? "1px solid var(--line)" : "2px solid #b8923f") },
-      h("div", { style: "flex:1;min-width:0" }, h("b", null, "📋 " + (sv.title || "")), h("div", { class: "muted", style: "font-size:13px" }, (done ? "✅ " + T("survDone") : "⏳ " + T("survPendingT")) + (sv.endDate ? " · ⏰ " + sv.endDate : ""))),
-      h("button", { class: "btn sm" + (done ? "" : " coral"), style: "width:auto;white-space:nowrap", onclick: () => { S.survOpen = sv.id; render(); } }, done ? T("survEdit") : T("survAnswer"))); }));
-}
 // Öğretmenin sınıfları (sınıf öğretmeni olduğu, kapanmamış)
 const myClasses = () => { const me = S.teacher && S.teacher.no; return S.cls.filter(c => c.status !== "closed" && (c.teacherNos || []).map(String).includes(String(me)))
   .map(c => c.kind ? c : { ...c, name: T("classLbl", +c.level || +String(c.id).slice(1)) }).sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))); };
@@ -1049,10 +1000,6 @@ function viewTCard() {
     recent.length ? h("div", { class: "card" }, h("div", { class: "h" }, "🕘 " + T("attToday")),
       recent.map(r => h("div", { class: "row" }, h("span", null, (r.type === "in" ? "🟢 " : "🏠 "), h("b", null, r.kidName || "")), h("span", { class: "muted" }, timeOf(r.time))))) : null);
 }
-function viewTEval() {
-  if (S.survOpen) { const sv = S.ksv.find(x => x.id === S.survOpen); if (sv) return viewSurvey(sv); S.survOpen = null; }
-  return survCards() || h("div", { class: "card center muted" }, T("noSurvey"));
-}
 function viewTAnn() {
   const lv = myClassList(), D = S.annDraft;
   const ti = h("input", { class: "in", id: "t-ann-t", maxlength: 140, placeholder: T("annTitlePh"), value: S.drafts.at || "", oninput: e => S.drafts.at = e.target.value });
@@ -1310,10 +1257,6 @@ function viewCls() {
   const k = curKid(); if (!k) return h("div", { class: "card center muted" }, T("noKids"));
   const cp = kidPosts(k).filter(p => p.type !== "duyuru");
   return h("div", null, h("div", { class: "h" }, "🏫 " + T("classPosts") + (classTxt(k) ? " · " + classTxt(k) : "")), cp.length ? cp.map(p => postCard(p)) : h("div", { class: "card center muted" }, T("noAnn")));
-}
-function viewSurv() {
-  if (S.survOpen) { const sv = S.ksv.find(x => x.id === S.survOpen); if (sv) return viewSurvey(sv); S.survOpen = null; }
-  return survCards() || h("div", { class: "card center muted" }, T("noSurvey"));
 }
 
 // ── Gezinme: telefonda Pano (kare kartlar), geniş ekranda gruplu yan menü ──
