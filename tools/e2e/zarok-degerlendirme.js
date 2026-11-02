@@ -71,7 +71,7 @@ function evalWeek() { const x = new Date(); const y = new Date(x.getFullYear(), 
   // 1) Çocuk öğretmeni: kartlar, hatırlatma, değerlendirme
   const tp = await zlogin('t', '72026001', 'Kid12345');
   const navT = await tp.evaluate(() => [...document.querySelectorAll('.pano-tile[data-tab]')].map(x => x.dataset.tab).join('|'));
-  ok('Öğretmen kartları: Duyuru, Sınıfım (ödev+mesaj), Öğrenci değerlendirmesi, Anket', navT === 'home|att|ann|myclass|kids|card|seval|eval|profile', navT);
+  ok('Öğretmen kartları: Duyuru, Sınıfım (ödev+mesaj), Öğrenci değerlendirmesi (anket yok)', navT === 'home|att|ann|myclass|kids|card|seval|profile', navT);
   await goZ(tp, 'home'); await tp.waitForTimeout(500);
   ok('Ana ekranda haftalık değerlendirme hatırlatması', (await tp.locator('[data-ev-reminder]').count()) === 1);
   await goZ(tp, 'seval'); await tp.waitForTimeout(600);
@@ -102,7 +102,7 @@ function evalWeek() { const x = new Date(); const y = new Date(x.getFullYear(), 
   // 4) Veli: sınıf duyurusu Duyurular'da, ödev kartında değil; öğretmeni isimsiz değerlendirir
   const vp = await zlogin('g', '92026001', 'Vel12345');
   const navG = await vp.evaluate(() => [...document.querySelectorAll('.pano-tile[data-tab]')].map(x => x.dataset.tab).join('|'));
-  ok('Veli kartları: Duyuru, Ödev & Belge, Anket, Öğretmen değerlendirmesi', navG === 'today|sched|att|ann|cls|surv|teval|msg', navG);
+  ok('Veli kartları: Duyuru, Ödev & Belge, Öğretmen değerlendirmesi (anket yok)', navG === 'today|sched|att|ann|cls|teval|msg', navG);
   await goZ(vp, 'today'); await vp.waitForTimeout(500);
   ok('Veli ana ekranında değerlendirme hatırlatması', (await vp.locator('[data-ev-reminder]').count()) === 1);
   await goZ(vp, 'ann'); await vp.waitForTimeout(800);
