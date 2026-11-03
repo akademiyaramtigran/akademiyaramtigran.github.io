@@ -36,12 +36,15 @@ th{background:var(--soft)}
   <h1>Kişisel Verilerin Korunması Aydınlatma Metni</h1>
   <p class="sub">6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) madde 10 uyarınca · Son güncelleme: <span class="ph">[GG.AA.YYYY]</span></p>
 
-  <div class="box" lang="ku">
+  <div class="box" lang="ku" id="ku-ozet">
     <b>Bi Kurmancî, bi kurtî:</b> Konservatuara Aram Tîgran daneyên te yên kesane (nav, têlefon, e-peyam,
     roja jidayikbûnê, belgeyên serlêdanê, amadebûn û nirxandin) tenê ji bo tomarkirin, perwerde û
     ragihandinê bikar tîne. Daneyên te nayên firotin û bi aliyên sêyem re ji bo reklamê nayên parvekirin.
     Tu dikarî her dem daxwaza dîtin, rastkirin an jêbirina daneyên xwe bikî.
+    <br><i>Metnê qanûnî yê fermî li jêr bi Tirkî ye.</i>
   </div>
+  <script>/* Kürtçe özet yalnız Kürtçe (Kurmancî / Kirmanckî) seçen ziyaretçiye; yasal metin her dilde Türkçe */
+  (function(){ try{ var l=localStorage.getItem('aat-site-lang')||localStorage.getItem('aat-lang')||''; if(l&&l!=='ku'&&l!=='zza'){ var e=document.getElementById('ku-ozet'); if(e) e.style.display='none'; } }catch(_){} })();</script>
 
   <p><b>Not:</b> <span class="ph">[köşeli parantez]</span> içindeki alanlar kurum bilgileriyle doldurulmalıdır.
   Yayından önce bir hukukçuya kontrol ettirilmesi önerilir.</p>
@@ -55,9 +58,9 @@ th{background:var(--soft)}
   <div class="tbl"><table>
     <tr><th>Kişi grubu</th><th>Veri kategorileri</th></tr>
     <tr><td>Başvuru sahipleri</td><td>Ad-soyad, doğum tarihi, telefon, e-posta, ilgi alanı, not, başvuru belgeleri</td></tr>
-    <tr><td>Öğrenciler</td><td>Kimlik ve iletişim bilgileri, fotoğraf, öğrenci numarası, alan/sınıf, burs durumu, devam (QR, kart veya öğretmenin elle girdiği yoklama) kayıtları, kartla bina giriş kayıtları, anket yanıtları, öğretmenlerin haftalık değerlendirmeleri (katılım, gelişim, hazırlık, davranış puanları ve öğretmen notu), öğrencinin öğretmenlerine verdiği haftalık değerlendirmeler (raporlarda isimsiz gösterilir), izin kayıtları ve izin nedeni, mesajlar, giriş yapılan cihaz bilgisi, bildirim izni verilmişse cihaz bildirim anahtarı</td></tr>
-    <tr><td>Öğretmen ve personel</td><td>Kimlik ve iletişim bilgileri, fotoğraf, görev bilgisi, ders ve yoklama kayıtları, derse katılım (ders yapılmadı) kayıtları, öğrencilerin derslere verdiği isimsiz haftalık değerlendirmeler, anket yanıtları, bildirim izni verilmişse cihaz bildirim anahtarı</td></tr>
-    <tr><td>Çocuk Akademisi (Aram Tigran Konservatuvarı çocuk ve gençlik bölümü) — veliler ve öğrenciler</td><td>Veli kimlik/iletişim bilgileri; çocuğun adı, doğum tarihi, alanı, sınıfı, devam (yaka kartı veya elle yoklama) kayıtları, öğretmenlerin haftalık değerlendirmeleri ve ödevler; velinin öğretmenlere verdiği haftalık değerlendirmeler (raporlarda isimsiz gösterilir); bildirim izni verilmişse cihaz bildirim anahtarı; veli tarafından verilmişse sağlık notu (özel nitelikli veri) ve teslim alabilecek kişiler</td></tr>
+    <tr><td>Öğrenciler</td><td>Kimlik ve iletişim bilgileri, fotoğraf, öğrenci numarası, alan/sınıf, burs durumu, devam (QR, kart veya öğretmenin elle girdiği yoklama) kayıtları, kartla bina giriş kayıtları, bölüm sorumlusunun değerlendirme formlarına verilen yanıtlar (öğretmenin öğrenciye verdiği puan ve not; öğrencinin öğretmenlerine verdiği değerlendirmeler raporlarda isimsiz gösterilir), izin kayıtları ve izin nedeni, mesajlar, giriş yapılan cihaz bilgisi, bildirim izni verilmişse cihaz bildirim anahtarı</td></tr>
+    <tr><td>Öğretmen ve personel</td><td>Kimlik ve iletişim bilgileri, fotoğraf, görev bilgisi, ders ve yoklama kayıtları, derse katılım (ders yapılmadı) kayıtları, öğrencilerin değerlendirme formlarıyla verdiği isimsiz değerlendirmeler, bildirim izni verilmişse cihaz bildirim anahtarı</td></tr>
+    <tr><td>Çocuk Akademisi (Aram Tigran Konservatuvarı çocuk ve gençlik bölümü) — veliler ve öğrenciler</td><td>Veli kimlik/iletişim bilgileri; çocuğun adı, doğum tarihi, alanı, sınıfı, devam (yaka kartı veya elle yoklama) kayıtları, öğretmenlerin değerlendirme formu yanıtları ve ödevler; velinin değerlendirme formlarıyla öğretmenlere verdiği değerlendirmeler (raporlarda isimsiz gösterilir); bildirim izni verilmişse cihaz bildirim anahtarı; veli tarafından verilmişse sağlık notu (özel nitelikli veri) ve teslim alabilecek kişiler</td></tr>
     <tr><td>Site ziyaretçileri</td><td>Tarayıcıda saklanan dil/tema tercihleri; güvenlik için teknik bağlantı bilgileri (IP adresi, tarayıcı türü) — bot koruması ve barındırma hizmeti tarafından işlenir. Reklam veya izleme çerezi kullanılmaz.</td></tr>
   </table></div>
 
@@ -65,7 +68,7 @@ th{background:var(--soft)}
   <ul>
     <li>Kayıt başvurusunun değerlendirilmesi ve öğrenci kaydı — <i>sözleşmenin kurulması (m.5/2-c)</i></li>
     <li>Eğitim faaliyetlerinin yürütülmesi, ders programı, devam takibi, değerlendirme — <i>sözleşmenin ifası (m.5/2-c), meşru menfaat (m.5/2-f)</i></li>
-    <li>Haftalık öğrenci ve ders değerlendirmeleri ile eğitim kalitesinin izlenmesi — <i>meşru menfaat (m.5/2-f)</i>. Değerlendirme sonuçlarını yalnızca yönetim ve ilgili bölüm sorumlusu görür; öğrenci kendisi hakkındaki, öğretmen de kendisi hakkındaki değerlendirme sonuçlarını görmez. Öğrencilerin öğretmenlere verdiği değerlendirmeler raporlarda isimsiz gösterilir.</li>
+    <li>Bölüm sorumlusunun hazırladığı değerlendirme formları ile eğitim kalitesinin izlenmesi — <i>meşru menfaat (m.5/2-f)</i>. Değerlendirme sonuçlarını yalnızca yönetim ve ilgili bölüm sorumlusu görür; öğrenci kendisi hakkındaki, öğretmen de kendisi hakkındaki değerlendirme sonuçlarını görmez. Öğrencilerin ve velilerin öğretmenlere verdiği değerlendirmeler raporlarda isimsiz gösterilir.</li>
     <li>İzin kaydı — <i>sözleşmenin ifası</i>. İzin nedenine yalnızca gerekli olduğu kadar (ör. “hastalık”) yer verilir; tanı veya sağlık ayrıntısı yazılmaz.</li>
     <li>Duyuru ve bilgilendirme, giriş bilgilerinin iletilmesi — <i>sözleşmenin ifası</i></li>
     <li>Sistem güvenliği (giriş kayıtları, cihaz doğrulama) — <i>meşru menfaat, hukuki yükümlülük (m.5/2-ç)</i></li>
