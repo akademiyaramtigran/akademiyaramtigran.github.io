@@ -1,6 +1,6 @@
-# Ana akademinin ESKİ haftalık değerlendirme verilerini siler (öğretmen → öğrenci: studentEvals,
-# öğrenci → öğretmen: teacherEvals). Sorumluların değerlendirme formları ve yanıtları (evalForms, evalResponses)
-# ve Çocuk Akademisi verileri SİLİNMEZ.
+# ESKİ haftalık değerlendirme verilerini siler — ana akademi (öğretmen → öğrenci: studentEvals,
+# öğrenci → öğretmen: teacherEvals) ve Çocuk Akademisi (öğretmen → çocuk: kidEvals, veli → öğretmen: kidTeacherEvals).
+# Sorumluların değerlendirme formları ve yanıtları (evalForms, evalResponses) SİLİNMEZ.
 # Elle çalıştırılır: GitHub → Actions → "Eski haftalık değerlendirmeleri sil" → Run workflow → onay kutusuna SİL yazın.
 name: Eski haftalık değerlendirmeleri sil
 
@@ -35,7 +35,7 @@ jobs:
           if [ -z "$SA" ]; then echo "::error::FIREBASE_SERVICE_ACCOUNT sırrı yok"; exit 1; fi
           KEY="$RUNNER_TEMP/sa.json"; printf '%s' "$SA" > "$KEY"
           export GOOGLE_APPLICATION_CREDENTIALS="$KEY"
-          for c in studentEvals teacherEvals; do
+          for c in studentEvals teacherEvals kidEvals kidTeacherEvals; do
             echo "🗑 $c"
             npx --yes firebase-tools@13 firestore:delete "$c" --recursive --force --project aram2026-a9fd7 \
               || echo "::warning::$c silinemedi (boş olabilir)"

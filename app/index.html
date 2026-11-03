@@ -11275,17 +11275,7 @@ function pctBg(v)    { return "#ffffff"; }
    "İlgilenildi" + not: alertAcks/{anahtar}; devamsızlık sayısı artarsa uyarı yeniden açılır. */
 const ALERT_ABS=3;
 function eduYearStart(d=new Date()){ const y=d.getMonth()>=8?d.getFullYear():d.getFullYear()-1; return y+"-09-01"; }
-const evalScore10=c=>{ const a=evalAvg(c); return a==null?null:Math.round(a*2*10)/10; };
 // Form cevapları (Aşama 2): puan ortalaması 10 üzerinden 5'in altı → uyarı (yön: t2s/s2t ana · t2k/g2t çocuk)
-function efAlerts(rs,inArea,teacherName){
-  const out=[]; const K2={t2s:"sev",s2t:"tev",t2k:"ksev",g2t:"ktev"};
-  rs.forEach(r=>{ if(r.score10==null||r.score10>=5||!K2[r.direction]) return; if(!inArea(r.area||"")) return;
-    const at=r.at&&r.at.toDate?ymdLocal(r.at.toDate()):(/^\d{4}-\d{2}-\d{2}$/.test(r.period)?r.period:"");
-    const tx=Object.values(r.answers||{}).filter(v=>typeof v==="string").join(" · ");
-    out.push({key:"efr_"+r.fireId,kind:K2[r.direction],count:1,score:r.score10,last:at,perLabel:r.period,area:r.area||"",who:r.targetName||r.targetNo,whoNo:r.targetNo,
-      teacher:(r.direction==="t2s"||r.direction==="t2k")?(teacherName(r.raterNo)||""):"",note:tx}); });
-  return out;
-}
 // Aylık analiz uyarısı: biten ayın Genel Analizi — devam < %70, değerlendirme < 5/10, önceki aya göre devamda ≥15 puan düşüş
 const MAN_ATT=70, MAN_EV=5, MAN_DROP=15, MAN_MIN=2;
 function monthlyAlerts({att,sEv,tEv,efR,students,teachers,schedule,clsDocs,area,scope,noEvals,lang}){
@@ -11351,7 +11341,6 @@ function useAlerts({students,teachers,schedule,area,lang,scope,noEvals}){
     const ls=lsById.get(x.lid);
     list.push({key:"abs_"+st.no+"_"+x.lid,kind:"abs",count:x.dates.length,last:x.dates.sort().slice(-1)[0],dates:x.dates.sort(),area:st.area,
       who:st.name,whoNo:st.no,lesson:(ls&&ls.name)||x.name||x.lid,teacher:(ls&&ls.teacherName)||""}); });
-  list.push(...efAlerts(efR,inArea,no=>((teachers||[]).find(t2=>String(t2.no)===String(no))||{}).name));
   // Aylık analiz (biten ay)
   // Öğrenci İşleri (noEvals): yalnız devam
   const att2=att; 
@@ -11359,9 +11348,8 @@ function useAlerts({students,teachers,schedule,area,lang,scope,noEvals}){
   return list;
 }
 // ── Çocuk Akademisi ortak hesap: bir tarih aralığında ders günleri (o gün sınıftan en az bir çocuk geldiyse ders yapılmış sayılır),
-//    çocuk başına gelen / yapılan / izinli; ders ve öğretmen başına toplam. Değerlendirme: kidEvals (×2) + t2k formları (çocuk),
-//    kidTeacherEvals (×2) + g2t formları (öğretmen).
-function kidStats({kids,cls,sched,att,leaves,kEv,gEv,efR,from,to,area}){
+//    çocuk başına gelen / yapılan / izinli; ders ve öğretmen başına toplam. Değerlendirme: sorumlunun formları — t2k (çocuk), g2t (öğretmen).
+function kidStats({kids,cls,sched,att,leaves,efR,from,to,area}){
   const today=ymdLocal(new Date()); const end=to<today?to:today;
   const came=new Set(); (att||[]).forEach(a=>{ if(a.type==="in"&&a.date>=from&&a.date<=end){ came.add(a.date+"|k"+(a.kidId||"")); came.add(a.date+"|n"+(a.kidNo||"")); } });
   const cameK=(k,dt)=>came.has(dt+"|k"+k.fireId)||came.has(dt+"|n"+(k.no||""));
@@ -11383,18 +11371,16 @@ function kidStats({kids,cls,sched,att,leaves,kEv,gEv,efR,from,to,area}){
         if(f!=="held0"){ a[f]++; b[f]++; if(t) t[f]++; } }); });
   });
   const E={kid:new Map(),teacher:new Map()}; const add=(m,k,v)=>{ if(!k||v==null||isNaN(v)) return; const x=m.get(k)||[]; x.push(v); m.set(k,x); };
-  (kEv||[]).forEach(e=>{ const w=String(e.wk||""); if(w>=from&&w<=to&&(!area||e.area===area)) add(E.kid,String(e.kidNo),evalScore10(e.c)); });
-  (gEv||[]).forEach(e=>{ const w=String(e.wk||""); if(w>=from&&w<=to&&(!area||e.area===area)) add(E.teacher,String(e.teacherNo),evalScore10(e.c)); });
   (efR||[]).forEach(r=>{ const dt=efRespDate(r); if(!dt||dt<from||dt>to||r.score10==null||(area&&r.area!==area)) return;
     if(r.direction==="t2k") add(E.kid,String(r.targetNo),Number(r.score10)); else if(r.direction==="g2t") add(E.teacher,String(r.targetNo),Number(r.score10)); });
   return {K,E};
 }
 const kidPct=x=>{ if(!x) return null; const n=x.held-x.leave; return n>=1?Math.round(x.came/n*100):null; };
 // Çocuk Akademisi aylık analiz uyarısı (biten ay): devam < %70 (en az 2 ders), değerlendirme < 5/10, önceki aya göre ≥15 puan düşüş
-function kidMonthlyAlerts({d,leaves,kEv,gEv,efR,area,noEvals}){
+function kidMonthlyAlerts({d,leaves,efR,area,noEvals}){
   const M=anMonthShift(ymdLocal(new Date()).slice(0,7),-1), P=anMonthShift(M,-1);
   const [mF,mT]=anMonthRange(M), [pF,pT]=anMonthRange(P);
-  const base={kids:d.kids,cls:d.cls,sched:d.sched,att:d.att,leaves,kEv:noEvals?[]:kEv,gEv:noEvals?[]:gEv,efR:noEvals?[]:efR,area};
+  const base={kids:d.kids,cls:d.cls,sched:d.sched,att:d.att,leaves,efR:noEvals?[]:efR,area};
   const C=kidStats({...base,from:mF,to:mT}), Pv=kidStats({...base,from:pF,to:pT});
   const avg=a=>a&&a.length?Math.round(a.reduce((p,q)=>p+q,0)/a.length*10)/10:null;
   const out=[];
@@ -11410,7 +11396,7 @@ function kidMonthlyAlerts({d,leaves,kEv,gEv,efR,area,noEvals}){
 }
 // Çocuk akademisi uyarıları: yoklama günlük "in" (geldi) kaydıdır → ders günü = o gün dersin sınıfından/alanından en az bir
 // çocuğun kaydı olan gün; sınıftaki/alandaki çocuklardan kaydı olmayan ve izinli olmayan "gelmedi" sayılır.
-// Değerlendirme: öğretmen → çocuk (kidEvals), veli → öğretmen (kidTeacherEvals, isimsiz); 1–5 puanlar ×2.
+// Değerlendirme: sorumlunun formları (öğretmen → çocuk, veli → öğretmen isimsiz), 1–10.
 function useKidAlerts({area,enabled=true,noEvals=false}){
   const F=window.__FB; const live=!!(enabled&&F&&F.isConfigured());
   const from=eduYearStart();
@@ -11421,7 +11407,6 @@ function useKidAlerts({area,enabled=true,noEvals=false}){
     L(F.query(F.collection(F.db,"kidAttendance"),F.where("date",">=",from)),"att");
     return ()=>subs.forEach(u=>{ try{u();}catch(_){} }); },[live,from]);
   const leaves=useLeaves(live);
-  const kEv=useEvalDocs("kidEvals",null,null,live&&!noEvals), gEv=useEvalDocs("kidTeacherEvals",null,null,live&&!noEvals);
   const efR=useEvalDocs("evalResponses","academy","kid",live&&!noEvals);
   const [kt,setKt]=useState([]);
   useEffect(()=>{ if(!live) return; let u=()=>{}; try{ u=F.onSnapshot(F.collection(F.db,"kidTeachers"),sn=>setKt(sn.docs.map(d=>d.data())),()=>{}); }catch(_){} return ()=>{ try{u();}catch(_){} }; },[live]);
@@ -11446,12 +11431,7 @@ function useKidAlerts({area,enabled=true,noEvals=false}){
       if(miss.length>=ALERT_ABS) list.push({key:"kabs_"+k.no+"_"+L.fireId,kind:"kabs",count:miss.length,last:miss[miss.length-1],dates:miss,area:k.area,
         who:k.name,whoNo:k.no,lesson:L.title||"",teacher:L.teacher||""}); });
   });
-  kEv.forEach(e=>{ const sc=evalScore10(e.c); if(sc==null||sc>=5||!e.wk||!inA(e.area||"")) return;
-    list.push({key:"ksev_"+e.fireId,kind:"ksev",count:1,score:sc,last:String(e.wk),area:e.area||"",who:e.kidName||e.kidNo,whoNo:e.kidNo,teacher:e.teacherName||"",note:e.note||""}); });
-  gEv.forEach(e=>{ const sc=evalScore10(e.c); if(sc==null||sc>=5||!e.wk||!inA(e.area||"")) return;
-    list.push({key:"ktev_"+e.fireId,kind:"ktev",count:1,score:sc,last:String(e.wk),area:e.area||"",who:e.teacherName||e.teacherNo,whoNo:e.teacherNo,note:e.note||""}); });
-  list.push(...efAlerts(efR,a=>inA(a),no=>((kt.find(t2=>String(t2.no)===String(no)))||{}).name));
-  list.push(...kidMonthlyAlerts({d,leaves,kEv,gEv,efR,area,noEvals}));
+  list.push(...kidMonthlyAlerts({d,leaves,efR,area,noEvals}));
   return list;
 }
 // Uyarı listesi + "ilgilenildi" durumları (ana akademi ve çocuk akademisi uyarıları birlikte)
@@ -11482,11 +11462,11 @@ function AlertCenter({data,user,lang,toast,noEvals}){
   const kindIc={man:"chart",abs:"att",sev:"star",tev:"user",kabs:"kid",ksev:"kid",ktev:"user"};
   const aLbl=a=>{ const z=typeof ZAROK_AREA_NAMES!=="undefined"&&ZAROK_AREA_NAMES[a]; return z?(lang==="en"?z[1]:K(z[0])):areaName(a,lang); };
   return(<div data-alert-center="1">
-    <Note style={{marginBottom:12}} icon="bell">{W2("Hişyarî bixweber çêdibin: di dersekê de "+ALERT_ABS+" caran û zêdetir nehatin (destûr û dereng nayên hesibandin), an nirxandineke di bin 5/10 de. Sal ji 1ê Îlonê dest pê dike.",
-      "Alerts are created automatically: "+ALERT_ABS+" or more absences in one lesson (leave and late don't count), or an evaluation below 5/10. The year starts on 1 September.")}{" "}{W2("Her meh jî analîza meha borî: amadebûn di bin %70 de, nirxandin di bin 5/10 de an li gorî meha berê 15 xal an zêdetir daketin.","Each month also from last month's analysis: attendance below 70%, evaluation below 5/10, or a drop of 15+ points from the previous month.")}</Note>
+    <Note style={{marginBottom:12}} icon="bell">{W2("Hişyarî bixweber çêdibin: di dersekê de "+ALERT_ABS+" caran û zêdetir nehatin (destûr û dereng nayên hesibandin). Sal ji 1ê Îlonê dest pê dike.",
+      "Alerts are created automatically: "+ALERT_ABS+" or more absences in one lesson (leave and late don't count). The year starts on 1 September.")}{" "}{W2("Her meh jî analîza meha borî: amadebûn di bin %70 de, nirxandin di bin 5/10 de an li gorî meha berê 15 xal an zêdetir daketin.","Each month also from last month's analysis: attendance below 70%, evaluation below 5/10, or a drop of 15+ points from the previous month.")}</Note>
     <div style={{marginBottom:10}}><Seg value={st} onChange={setSt} items={[["open",W2("Vekirî","Open")+" ("+data.open+")","bell"],["done",W2("Pê re mijûl bûn","Handled"),"check"]]}/></div>
     <div className="c-chips" style={{marginBottom:12}}>
-      {[["all",W2("Hemû","All")],["man",kindLb.man+(n("man")?" ("+n("man")+")":"")],["abs",kindLb.abs+(n("abs")?" ("+n("abs")+")":"")],...(noEvals?[]:[["sev",kindLb.sev+(n("sev")?" ("+n("sev")+")":"")],["tev",kindLb.tev+(n("tev")?" ("+n("tev")+")":"")]])].map(([k,lb])=>
+      {[["all",W2("Hemû","All")],["man",kindLb.man+(n("man")?" ("+n("man")+")":"")],["abs",kindLb.abs+(n("abs")?" ("+n("abs")+")":"")]].map(([k,lb])=>
         <button key={k} type="button" data-alert-kind={k} className={"c-chip"+(kf===k?" on":"")} onClick={()=>setKf(k)}>{lb}</button>)}
     </div>
     {L.length===0&&<EmptyState icon="bell" text={st==="open"?W2("Hişyariya vekirî tune.","No open alerts."):W2("Tiştek nehatiye nîşankirin.","Nothing handled yet.")}/>}
@@ -11626,8 +11606,8 @@ function AdminReportCenter({students,teachers,schedule,allSchedule,allTeachers,l
         {kTab==="rep"&&<><KidAcademyReport lang={lang} toast={toast}/>
           <details style={{marginTop:12}}><summary style={{cursor:"pointer",fontWeight:800,color:"var(--text)",padding:"10px 0"}}>🏷 {W2("Destûrên zarokan","Children's leave")}</summary>
             <LeavesPanel readOnly kid students={[]} area="" all lang={lang} toast={toast}/></details></>}
-        {!registrar&&kTab==="kseval"&&<EvalReport kind="kid" lang={lang} toast={toast} byName={byName}/>}
-        {!registrar&&kTab==="kteval"&&<EvalReport kind="kteacher" lang={lang} toast={toast} byName={byName}/>}
+        {!registrar&&kTab==="kseval"&&<KidEvalReport who="kid" lang={lang} toast={toast} byName={byName}/>}
+        {!registrar&&kTab==="kteval"&&<KidEvalReport who="kteacher" lang={lang} toast={toast} byName={byName}/>}
       </>}
       {rTab==="analiz"&&<GeneralAnalysis students={students} teachers={teachers} schedule={schedule} allSchedule={allSchedule} allTeachers={allTeachers} docScope={docScope} teachScope={teachScope} headArea={headArea} noEvals={!!registrar} lang={lang} toast={toast} byName={byName}/>}
       {rTab==="arsiv"&&<ReportArchiveTab lang={lang}/>}
@@ -12330,8 +12310,8 @@ function KidHeadReports({lang,toast,area,byName}){
     </div>
     {t==="rep"&&<KidAcademyReport lang={lang} toast={toast} lockArea={area}/>}
     {t==="kan"&&<KidAnalysis lang={lang} toast={toast} lockArea={area} byName={byName}/>}
-    {t==="kseval"&&<EvalReport kind="kid" lang={lang} toast={toast} headArea={area} byName={byName}/>}
-    {t==="kteval"&&<EvalReport kind="kteacher" lang={lang} toast={toast} headArea={area} byName={byName}/>}
+    {t==="kseval"&&<KidEvalReport who="kid" lang={lang} toast={toast} headArea={area} byName={byName}/>}
+    {t==="kteval"&&<KidEvalReport who="kteacher" lang={lang} toast={toast} headArea={area} byName={byName}/>}
   </div>);
 }
 // Yönetici: Çocuk Akademisi raporu
@@ -12576,9 +12556,6 @@ function TeacherAnnounceView({teacher, anns, setAnns, classGroups, lang, toast})
 //   • Hafta anahtarı = haftanın Pazartesi tarihi (YYYY-AA-GG, yerel saat).
 // ══════════════════════════════════════════════════════════════════════
 const SEVAL_C=[["p","Beşdarî û eleqe","Participation & interest"],["g","Pêşketin","Progress"],["h","Amadekarî û erk","Preparation & homework"],["b","Tevger û hevkarî","Behaviour & cooperation"]];
-const TEVAL_C=[["e","Ravekirina dersê","Clarity of teaching"],["h","Amadekariya mamoste","Teacher's preparation"],["r","Rêz û têkilî","Respect & communication"],["f","Bikêrhatina dersê","Usefulness of the lesson"]];
-// Çocuk akademisi: velinin öğretmene verdiği değerlendirme ölçütleri
-const KTEVAL_C=[["e","Têkiliya bi zarokê re","Rapport with the child"],["h","Pêşketina zarokê","Child's progress"],["r","Ragihandina bi malbatê re","Communication with the family"],["f","Rêz û hawîrdora ewle","Respect & a safe environment"]];
 function ymdLocal(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function evalWeek(d){ const x=d?new Date(d):new Date(); const y=new Date(x.getFullYear(),x.getMonth(),x.getDate()); y.setDate(y.getDate()-((y.getDay()+6)%7)); return ymdLocal(y); }
 function evalWeekShift(wk,n){ const p=String(wk).split("-").map(Number); const d=new Date(p[0],p[1]-1,p[2]); d.setDate(d.getDate()+7*n); return ymdLocal(d); }
@@ -12941,130 +12918,6 @@ function EvalReminder({pending,total,onGo,lang,kind}){
 // ══ RAPOR: haftalık değerlendirmeler (yalnız yönetici + bölüm sorumlusu) ══
 //  kind="student": öğretmenlerin öğrencilere verdiği puanlar · kind="teacher": öğrencilerin öğretmenlere verdiği (isimsiz)
 function wkOfDate(ds){ const p=String(ds||"").split("-").map(Number); if(p.length<3||!p[0]) return ""; return evalWeek(new Date(p[0],p[1]-1,p[2])); }
-function EvalReport({kind,students,teachers,allTeachers,teachScope,lang,toast,headArea,byName}){
-  const W2=(ku,en)=>lang==="en"?en:K(ku);
-  // student/teacher: ana akademi · kid/kteacher: çocuk akademisi (öğretmen → çocuk, veli → öğretmen)
-  const isKid=kind==="kid"||kind==="kteacher";
-  const isS=kind==="student"||kind==="kid";
-  const C=isS?SEVAL_C:(isKid?KTEVAL_C:TEVAL_C);
-  const docs=useEvalDocs({student:"studentEvals",teacher:"teacherEvals",kid:"kidEvals",kteacher:"kidTeacherEvals"}[kind]);
-  const SF=isS?(isKid?"kidNo":"studentNo"):"teacherNo", SN=isS?(isKid?"kidName":"studentName"):"teacherName", RF=isS?"teacherNo":(isKid?"guardianNo":"studentNo");
-  const aLbl=a=>{ if(!isKid) return areaName(a,lang)||""; const z=ZAROK_AREA_NAMES[a]; return z?(lang==="en"?z[1]:K(z[0])):(a||""); };
-  const clsDocs=useClassDocs("classes");
-  const lockArea=headArea&&!teachScope?headArea:""; // genel sorumlu: alan yerine öğretmen kapsamı (genel derslerin öğretmenleri)
-  const [from,setFrom]=useState(()=>evalWeekShift(evalWeek(),-7));
-  const [to,setTo]=useState(()=>ymdLocal(new Date()));
-  const [area,setArea]=useState(lockArea||"all");
-  const [teachF,setTeachF]=useState("all");
-  const [clsF,setClsF]=useState("all");
-  const [stuF,setStuF]=useState("all");
-  const [openK,setOpenK]=useState(null);
-  const wFrom=evalWeek(new Date(from+"T12:00:00")), wTo=evalWeek(new Date(to+"T12:00:00"));
-  const plainTeachers=(()=>{ const m=new Map();
-    if(!isKid) (teachers||[]).filter(t2=>t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate&&!t2.isHead&&(!lockArea||t2.area===lockArea||t2.area==="genel")).forEach(t2=>m.set(String(t2.no),{no:String(t2.no),name:t2.name}));
-    // Kayıtlardaki öğretmenler (ör. bölüm öğrencisine ders veren başka bölümün öğretmeni)
-    docs.filter(d=>d.teacherNo&&(!lockArea||d.area===lockArea)&&(!teachScope||teachScope.has(String(d.teacherNo)))).forEach(d=>{ const k=String(d.teacherNo); if(!m.has(k)){ const tt=(allTeachers||[]).find(x=>String(x.no)===k); m.set(k,{no:k,name:(tt&&tt.name)||d.teacherName||k}); } });
-    return [...m.values()]; })();
-  const teachName=teachF==="all"?"":((plainTeachers.find(x=>String(x.no)===String(teachF))||{}).name||teachF);
-  const clsObj=clsF==="all"?null:clsDocs.find(d=>d.id===clsF);
-  const shown=docs.filter(d=>d.wk>=wFrom&&d.wk<=wTo
-    &&(!teachScope||teachScope.has(String(d.teacherNo)))
-    &&(area==="all"||d.area===area)
-    &&(teachF==="all"||String(d.teacherNo)===String(teachF))
-    &&(!isS||isKid||!clsObj||inClass(clsObj,d.studentNo))
-    &&(!isS||isKid||stuF==="all"||String(d.studentNo)===String(stuF)));
-  const groups={};
-  shown.forEach(d=>{ const k=String(d[SF]);
-    const g=groups[k]||(groups[k]={k,name:d[SN]||k,area:d.area,n:0,sum:{},cnt:{},rows:[],raters:new Set()});
-    g.n++; g.rows.push(d); g.raters.add(String(d[RF]));
-    C.forEach(c=>{ const v=Number(d.c&&d.c[c[0]]); if(v>=1&&v<=5){ g.sum[c[0]]=(g.sum[c[0]]||0)+v; g.cnt[c[0]]=(g.cnt[c[0]]||0)+1; } }); });
-  const rows=Object.values(groups).map(g=>{ const av={}; C.forEach(c=>{ av[c[0]]=g.cnt[c[0]]?g.sum[c[0]]/g.cnt[c[0]]:null; });
-    const vs=Object.values(av).filter(v=>v!=null); return {...g,av,all:vs.length?vs.reduce((a,b)=>a+b,0)/vs.length:null,rows:g.rows.sort((a,b)=>String(b.wk).localeCompare(String(a.wk)))}; })
-    .sort((a,b)=>(a.name||"").localeCompare(b.name||""));
-  const allAvg=rows.length?rows.reduce((a,r)=>a+(r.all||0),0)/rows.length:null;
-  const low=rows.filter(r=>r.all!=null&&r.all<2.5).length;
-  const f1=v=>v==null?"—":v.toFixed(1);
-  const col=v=>v==null?"var(--text2)":v>=4?"#1a7a4a":v>=3?"#c07800":"#c0392b";
-  const title=isKid?(isS?W2("Akademiya Zarokan · Nirxandina zarokan (mamoste → zarok)","Children's Academy · Student evaluation (teacher → child)"):W2("Akademiya Zarokan · Nirxandina mamosteyan (dêûbav → mamoste)","Children's Academy · Teacher evaluation (parent → teacher)"))
-    :isS?W2("Nirxandina Xwendekaran (mamoste → xwendekar)","Student Evaluation (teacher → student)"):W2("Nirxandina Mamosteyan (xwendekar → mamoste)","Teacher Evaluation (student → teacher)");
-  function csv(){
-    const head=[W2("Hefte","Week"),isS?(isKid?W2("Zarok","Child"):W2("Xwendekar","Student")):W2("Mamoste","Teacher"),W2("Qad","Field"),isS?W2("Mamoste","Teacher"):"",...C.map(c=>evalTx(c,lang)),W2("Navgîn","Average"),W2("Nîşe","Note")].filter((x,i)=>isS||i!==3);
-    const out=[head];
-    rows.forEach(r=>r.rows.forEach(d=>{ const line=[d.wk,r.name,aLbl(d.area),isS?(d.teacherName||""):null,...C.map(c=>(d.c&&d.c[c[0]])||""),f1(evalAvg(d.c)),d.note||""]; out.push(isS?line:line.filter((x,i)=>i!==3)); }));
-    downloadCSV(((isKid?"zarok-":"")+(isS?"nirxandina-xwendekaran-":"nirxandina-mamosteyan-"))+wFrom+"_"+wTo+".csv",out);
-    logReportArchive({type:"csv",label:"CSV · "+title,by:byName||""}); toast("⬇ CSV");
-  }
-  function html(){
-    const H=x=>String(x==null?"":x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-    const body=rows.map(r=>`<tr><td><b>${H(r.name)}</b></td><td>${H(aLbl(r.area))}</td><td style="text-align:center">${r.n}</td>${C.map(c=>`<td style="text-align:center">${f1(r.av[c[0]])}</td>`).join("")}<td style="text-align:center;font-weight:800">${f1(r.all)}</td></tr>`
-      +(r.rows.filter(d=>d.note).length?`<tr><td colspan="${4+C.length}" style="font-size:11px;color:#555;font-style:italic">${r.rows.filter(d=>d.note).map(d=>H(d.wk+(isS&&d.teacherName?" · "+d.teacherName:"")+": "+d.note)).join("<br>")}</td></tr>`:"")).join("");
-    const doc=`<!DOCTYPE html><html lang="${lang}"><head><meta charset="UTF-8"/><title>${H(title)}</title><style>body{font-family:-apple-system,Segoe UI,sans-serif;margin:0;color:#1a1a1a}.h{background:#0f2f38;color:#fff;padding:24px 28px}.c{padding:18px 28px}table{width:100%;border-collapse:collapse;font-size:12px}th{background:#0f2f38;color:#fff;padding:8px;text-align:left;font-size:11px}td{padding:7px 8px;border-bottom:1px solid #eee}</style></head><body>
-<div class="h"><div style="font-size:11px;opacity:.7">🏛 ${H(BRAND())}</div><div style="font-size:22px;font-weight:800;margin-top:4px">${H(title)}</div><div style="font-size:12px;opacity:.75;margin-top:4px">${H(evalWeekLabel(wFrom))} → ${H(evalWeekLabel(wTo))} · ${H(area==="all"?W2("Hemû qad","All fields"):aLbl(area))}${teachName?" · 👩‍🏫 "+H(teachName):""}</div></div>
-<div class="c"><p style="font-size:12px;color:#555">${W2("Pîvan: 1 (pir qels) – 5 (pir baş).","Scale: 1 (very poor) – 5 (very good).")}${isS?"":" "+W2("Nirxandinên xwendekaran bê nav in.","Student evaluations are anonymous.")}</p>
-<table><thead><tr><th>${isS?(isKid?W2("Zarok","Child"):W2("Xwendekar","Student")):W2("Mamoste","Teacher")}</th><th>${W2("Qad","Field")}</th><th>${W2("Hejmar","Count")}</th>${C.map(c=>`<th>${H(evalTx(c,lang))}</th>`).join("")}<th>${W2("Navgîn","Average")}</th></tr></thead><tbody>${body}</tbody></table></div></body></html>`;
-    const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([doc],{type:"text/html;charset=utf-8"})); a.download=((isKid?"zarok-":"")+(isS?"nirxandina-xwendekaran-":"nirxandina-mamosteyan-"))+wFrom+".html"; a.click();
-    setTimeout(()=>URL.revokeObjectURL(a.href),5000); logReportArchive({type:isS?"seval":"teval",label:title,by:byName||""}); toast("✓ "+W2("Rapor hat dakêşîn!","Report downloaded!"));
-  }
-  const sel={padding:"9px 10px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--surface)",color:"var(--text)",fontSize:13,minHeight:40};
-  return(
-    <div data-eval-report={kind}>
-      <div style={{fontSize:12,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>{title}. {W2("Pîvan 1–5.","Scale 1–5.")} {!isS&&"🔒 "+(isKid?W2("Navê dêûbavan nayê nîşandan.","Parent names are not shown."):W2("Navê xwendekaran nayê nîşandan.","Student names are not shown."))}</div>
-      <Card style={{marginBottom:10}}>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8}}>
-          <label style={{fontSize:11,color:"var(--text2)"}}>{W2("Ji","From")}<DateInput style={{...sel,width:"100%"}} value={from} onChange={e=>setFrom(e.target.value)}/></label>
-          <label style={{fontSize:11,color:"var(--text2)"}}>{W2("Heta","To")}<DateInput style={{...sel,width:"100%"}} value={to} onChange={e=>setTo(e.target.value)}/></label>
-          {lockArea?<div style={{...sel,display:"flex",alignItems:"center"}}>🔒 {aLbl(lockArea)}</div>:
-          <select aria-label="area" value={area} onChange={e=>setArea(e.target.value)} style={sel}>
-            <option value="all">🏫 {W2("Hemû qad","All fields")}</option>
-            {isKid?ZAROK_AREAS.map(a=><option key={a} value={a}>{aLbl(a)}</option>):AREAS.map(a=><option key={a.key} value={a.key}>{a.icon} {areaName(a.key,lang)}</option>)}
-          </select>}
-          <select aria-label="teacher" data-ev-teacher="1" value={teachF} onChange={e=>setTeachF(e.target.value)} style={sel}>
-            <option value="all">👩‍🏫 {W2("Hemû mamoste","All teachers")}</option>
-            {plainTeachers.slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"")).map(t2=><option key={t2.no} value={t2.no}>{t2.name}</option>)}
-          </select>
-          {isS&&!isKid&&<select aria-label="class" value={clsF} onChange={e=>setClsF(e.target.value)} style={sel}>
-            <option value="all">🏫 {W2("Hemû sinif","All classes")}</option>
-            {clsDocs.filter(d=>d.kind&&(area==="all"||d.area===area||d.area==="genel")).map(d=><option key={d.id} value={d.id}>{classLabel(d,lang)}</option>)}
-          </select>}
-          {isS&&!isKid&&<select aria-label="student" value={stuF} onChange={e=>setStuF(e.target.value)} style={sel}>
-            <option value="all">🎓 {W2("Hemû xwendekar","All students")}</option>
-            {(students||[]).filter(s=>!s.isAdmin&&(area==="all"||s.area===area)).slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"")).map(s=><option key={s.no} value={s.no}>{s.name} · {s.no}</option>)}
-          </select>}
-        </div>
-      </Card>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>
-        {[[shown.length,W2("Nirxandin","Evaluations")],[f1(allAvg),W2("Navgîn","Average")],[low,W2("Binê 2.5","Below 2.5")]].map(([v,l],i)=>(
-          <div key={i} style={{background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:10,padding:"10px 6px",textAlign:"center"}}>
-            <div style={{fontSize:20,fontWeight:800,color:i===2&&low?"var(--red)":"var(--text)"}}>{v}</div><div style={{fontSize:10,color:"var(--text2)"}}>{l}</div></div>))}
-      </div>
-      {rows.length===0&&<Card><div style={{fontSize:13,color:"var(--text2)",textAlign:"center",padding:14}}>{W2("Di vê navberê de nirxandin tune.","No evaluations in this range.")}</div></Card>}
-      {rows.map(r=>(
-        <div key={r.k} data-eval-row={r.k} style={{background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,marginBottom:8}}>
-          <button onClick={()=>setOpenK(openK===r.k?null:r.k)} style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"none",border:"none",cursor:"pointer",textAlign:"left",color:"var(--text)"}}>
-            <span style={{flex:1,minWidth:0}}><span style={{display:"block",fontSize:13,fontWeight:700}}>{r.name}</span>
-              <span style={{fontSize:11,color:"var(--text2)"}}>{aLbl(r.area)} · {r.n} {W2("nirxandin","evaluations")}{!isS?" · "+r.raters.size+" "+(isKid?W2("malbat","families"):W2("xwendekar","students")):""}</span></span>
-            <span style={{fontSize:18,fontWeight:800,color:col(r.all)}}>{f1(r.all)}</span>
-          </button>
-          {openK===r.k&&<div style={{padding:"0 12px 12px"}}>
-            {C.map(c=>(
-              <div key={c[0]} style={{marginBottom:6}}>
-                <div style={{display:"flex",justifyContent:"space-between",fontSize:11.5,color:"var(--text)"}}><span>{evalTx(c,lang)}</span><b style={{color:col(r.av[c[0]])}}>{f1(r.av[c[0]])}</b></div>
-                <div style={{height:6,background:"var(--bg2)",borderRadius:3}}><div style={{height:"100%",width:((r.av[c[0]]||0)/5*100)+"%",background:col(r.av[c[0]]),borderRadius:3}}/></div>
-              </div>))}
-            <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",margin:"8px 0 4px"}}>{W2("Hefte bi hefte","Week by week")}</div>
-            {r.rows.map(d=>(
-              <div key={d.fireId} style={{fontSize:12,color:"var(--text)",padding:"5px 0",borderTop:"0.5px solid var(--border)"}}>
-                <b>{evalWeekLabel(d.wk)}</b>{isS&&d.teacherName?" · 👩‍🏫 "+d.teacherName:""} · <b style={{color:col(evalAvg(d.c))}}>{f1(evalAvg(d.c))}</b>
-                {d.note&&<div style={{fontSize:11.5,color:"var(--text2)",fontStyle:"italic"}}>“{d.note}”</div>}
-              </div>))}
-          </div>}
-        </div>))}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:10}}>
-        <button onClick={html} style={{padding:12,background:"#0f2f38",color:"#fff",border:"none",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer"}}>⬇️ {W2("Rapor (HTML)","Report (HTML)")}</button>
-        <button onClick={csv} style={{padding:12,background:"var(--bg2)",color:"var(--text)",border:"1px solid var(--border2)",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer"}}>⬇ CSV</button>
-      </div>
-    </div>);
-}
 
 // ── GENEL ANALİZ (Rapor → Analiz) ──
 // Öğrenci / öğretmen / ders / sınıf karneleri: seçilen ay ya da dönemde devam % + değerlendirme ortalaması (1–10),
@@ -13278,14 +13131,13 @@ function KidAnalysis({lang,toast,lockArea,noEvals,byName}){
     L(F.query(F.collection(F.db,"kidAttendance"),F.where("date",">=",from0)),"att");
     return ()=>subs.forEach(u=>{ try{u();}catch(_){} }); },[live,from0]);
   const leaves=useLeaves(live);
-  const kEv=useEvalDocs("kidEvals",null,null,live&&!noEvals), gEv=useEvalDocs("kidTeacherEvals",null,null,live&&!noEvals);
   const efR=useEvalDocs("evalResponses","academy","kid",live&&!noEvals);
   const [ym,setYm]=useState(nowYm); const [who,setWho]=useState("kid"); const [areaF,setAreaF]=useState("all"); const [openK,setOpenK]=useState(null);
   const area=lockArea||(areaF==="all"?"":areaF);
-  const base={kids:d.kids,cls:d.cls,sched:d.sched,att:d.att,leaves,kEv,gEv,efR,area};
+  const base={kids:d.kids,cls:d.cls,sched:d.sched,att:d.att,leaves,efR,area};
   const statsOf=m=>{ const [f,t]=anMonthRange(m); return kidStats({...base,from:f,to:t}); };
-  const cur=useMemo(()=>statsOf(ym),[d,leaves,kEv,gEv,efR,ym,area]);
-  const prev=useMemo(()=>statsOf(anMonthShift(ym,-1)),[d,leaves,kEv,gEv,efR,ym,area]);
+  const cur=useMemo(()=>statsOf(ym),[d,leaves,efR,ym,area]);
+  const prev=useMemo(()=>statsOf(anMonthShift(ym,-1)),[d,leaves,efR,ym,area]);
   const avg=a=>a&&a.length?Math.round(a.reduce((p,q)=>p+q,0)/a.length*10)/10:null;
   const mapK={kid:"kid",lesson:"lesson",teacher:"teacher"}[who];
   const evOf=(S,k)=>who==="kid"?avg(S.E.kid.get(k)):who==="teacher"?avg(S.E.teacher.get(k)):null;
@@ -13352,13 +13204,24 @@ function KidAnalysis({lang,toast,lockArea,noEvals,byName}){
 function efRespDate(r){ const p=String(r.period||"");
   if(/^\d{4}-\d{2}-\d{2}$/.test(p)) return p; if(/^\d{4}-\d{2}$/.test(p)) return p+"-01";
   const a=r.at&&(r.at.toDate?r.at.toDate():r.at.seconds?new Date(r.at.seconds*1000):null); return a?ymdLocal(a):""; }
-function EvalCombinedReport({who,students,teachers,allTeachers,lang,toast,headArea,teachScope,byName}){
+// Çocuk Akademisi değerlendirmesi: yalnız sorumlunun formları (öğretmen → çocuk / veli → öğretmen, isimsiz)
+function KidEvalReport({who,lang,toast,headArea,byName}){
+  const F=window.__FB; const live=!!(F&&F.isConfigured());
+  const [kids,setKids]=useState([]), [kt,setKt]=useState([]);
+  useEffect(()=>{ if(!live) return; const subs=[];
+    try{ subs.push(F.onSnapshot(F.collection(F.db,"kids"),sn=>setKids(sn.docs.map(d=>({...d.data(),fireId:d.id}))),()=>{})); }catch(_){}
+    try{ subs.push(F.onSnapshot(F.collection(F.db,"kidTeachers"),sn=>setKt(sn.docs.map(d=>d.data())),()=>{})); }catch(_){}
+    return ()=>subs.forEach(u=>{ try{u();}catch(_){} }); },[live]);
+  const myKids=headArea?kids.filter(k=>k.area===headArea):kids;
+  const myKt=headArea?kt.filter(t=>!t.area||t.area===headArea):kt;
+  return <EvalCombinedReport key={who} academy="kid" who={who==="kid"?"student":"teacher"} students={myKids} teachers={myKt} allTeachers={kt} headArea={headArea||""} lang={lang} toast={toast} byName={byName}/>;
+}
+function EvalCombinedReport({who,students,teachers,allTeachers,lang,toast,headArea,teachScope,byName,academy="aat"}){
   const W2=(ku,en)=>lang==="en"?en:K(ku);
-  const isS=who==="student";
-  const legacy=EV_NONE;
-  const resp=useEvalDocs("evalResponses","academy","aat");
+  const isS=who==="student", KID=academy==="kid";
+  const resp=useEvalDocs("evalResponses","academy",academy);
   const forms=useEvalForms(null,null);
-  const clsDocs=useClassDocs("classes");
+  const clsDocs=useClassDocs(KID?"kidClasses":"classes");
   const TCH=allTeachers||teachers||[];
   const tName=no=>{ const t=TCH.find(x=>String(x.no)===String(no)); return t?t.name:""; };
   const lockArea=headArea&&!teachScope?headArea:"";
@@ -13366,22 +13229,17 @@ function EvalCombinedReport({who,students,teachers,allTeachers,lang,toast,headAr
   const [to,setTo]=useState(()=>ymdLocal(new Date()));
   const [teachF,setTeachF]=useState("all"), [clsF,setClsF]=useState("all"), [stuF,setStuF]=useState("all");
   const [openK,setOpenK]=useState(null);
-  const C=isS?SEVAL_C:TEVAL_C;
   const entries=useMemo(()=>{
     const out=[];
-    legacy.forEach(d=>{ const sc=evalScore10(d.c); if(sc==null) return;
-      out.push({k:"l_"+d.fireId,src:"l",date:String(d.wk||""),targetNo:String(isS?d.studentNo:d.teacherNo),targetName:isS?(d.studentName||""):(d.teacherName||tName(d.teacherNo)),
-        teacherNo:String(d.teacherNo||""),teacherName:d.teacherName||tName(d.teacherNo),area:d.area||"",classId:d.classId||"",score10:sc,
-        items:C.map(c=>({label:evalTx(c,lang),sc:Number(d.c&&d.c[c[0]])>=1?Number(d.c[c[0]])*2:null,note:""})),note:d.note||"",title:W2("Nirxandina heftane","Weekly evaluation")}); });
     const fm=new Map(forms.map(f=>[f.fireId,f]));
-    resp.filter(r=>r.direction===(isS?"t2s":"s2t")).forEach(r=>{ const f=fm.get(r.formId); const qs=(f&&f.questions)||[];
+    resp.filter(r=>r.direction===(KID?(isS?"t2k":"g2t"):(isS?"t2s":"s2t"))).forEach(r=>{ const f=fm.get(r.formId); const qs=(f&&f.questions)||[];
       const items=qs.map(q=>{ const v=r.answers&&r.answers[q.id]; const n=(r.notes&&r.notes[q.id])||"";
         return q.type==="score"?{label:q.text,sc:Number(v)>=1?Number(v):null,note:n}:{label:q.text,sc:null,note:v?String(v):""}; }).filter(x=>x.sc!=null||x.note);
       out.push({k:"f_"+r.fireId,src:"f",date:efRespDate(r),targetNo:String(r.targetNo),targetName:r.targetName||(isS?"":tName(r.targetNo)),
         teacherNo:String(isS?r.raterNo:r.targetNo),teacherName:tName(isS?r.raterNo:r.targetNo),area:r.area||"",classId:r.classId||"",score10:r.score10!=null?Number(r.score10):null,
         items,note:"",title:(f&&f.title)||W2("Form","Form")}); });
     return out;
-  },[legacy,resp,forms,isS,lang,TCH.length]);
+  },[resp,forms,isS,KID,lang,TCH.length]);
   const stuByNo=new Map((students||[]).map(x=>[String(x.no),x]));
   const clsObj=clsF==="all"?null:clsDocs.find(d=>d.id===clsF);
   // Sorumlu kapsamı: kendi alanının kaydı / öğrencisi / (öğretmen görünümünde) alanın öğretmen listesindeki öğretmen
@@ -13407,16 +13265,17 @@ function EvalCombinedReport({who,students,teachers,allTeachers,lang,toast,headAr
   const allAvg=avg(shown.map(e=>e.score10).filter(x=>x!=null));
   const low=rows.filter(r=>r.avg!=null&&r.avg<5).length;
   const col=v=>v==null?"var(--text2)":v<5?"#b42318":v<7?"#b45309":"#15803d";
-  const title=isS?W2("Nirxandina xwendekaran (mamoste → xwendekar)","Student evaluation (teacher → student)"):W2("Nirxandina mamosteyan (xwendekar → mamoste, bê nav)","Teacher evaluation (student → teacher, anonymous)");
+  const title=KID?(isS?W2("Nirxandina zarokan (mamoste → zarok)","Child evaluation (teacher → child)"):W2("Nirxandina mamosteyan (dêûbav → mamoste, bê nav)","Teacher evaluation (parent → teacher, anonymous)"))
+    :isS?W2("Nirxandina xwendekaran (mamoste → xwendekar)","Student evaluation (teacher → student)"):W2("Nirxandina mamosteyan (xwendekar → mamoste, bê nav)","Teacher evaluation (student → teacher, anonymous)");
   function csv(){
     const out=[[W2("Tarîx","Date"),isS?W2("Xwendekar","Student"):W2("Mamoste","Teacher"),isS?W2("Mamoste","Teacher"):"",W2("Form","Form"),W2("Pirs","Question"),W2("Xal (1–10)","Score (1–10)"),W2("Nîşe","Note")]];
     rows.forEach(r=>r.list.forEach(e=>{ e.items.forEach(it=>out.push([e.date,r.name,isS?e.teacherName:"",e.title,it.label,it.sc==null?"":it.sc,it.note])); if(e.note) out.push([e.date,r.name,isS?e.teacherName:"",e.title,W2("Nîşe","Note"),"",e.note]); }));
-    downloadCSV((isS?"nirxandina-xwendekaran-":"nirxandina-mamosteyan-")+from+"_"+to+".csv",out);
+    downloadCSV((KID?"zarok-":"")+(isS?"nirxandina-xwendekaran-":"nirxandina-mamosteyan-")+from+"_"+to+".csv",out);
     logReportArchive({type:"csv",label:"CSV · "+title,by:byName||""}); toast("⬇ CSV");
   }
   const sel={...selectStyle};
   return(<div data-eval-combined={who}>
-    <div style={{fontSize:12,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>{title}. {W2("Pîvan 1–10 (formên berpirsê beşê).","Scale 1–10 (department head forms).")} {!isS&&"🔒 "+W2("Navê xwendekaran nayê nîşandan.","Student names are not shown.")}</div>
+    <div style={{fontSize:12,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>{title}. {W2("Pîvan 1–10 (formên berpirsê beşê).","Scale 1–10 (department head forms).")} {!isS&&"🔒 "+(KID?W2("Navê dêûbavan nayê nîşandan.","Parent names are not shown."):W2("Navê xwendekaran nayê nîşandan.","Student names are not shown."))}</div>
     <Card style={{marginBottom:10}}>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8}}>
         <label style={{fontSize:11,color:"var(--text2)"}}>{W2("Ji","From")}<DateInput style={{...sel,width:"100%"}} value={from} onChange={e=>setFrom(e.target.value)}/></label>
@@ -13427,10 +13286,10 @@ function EvalCombinedReport({who,students,teachers,allTeachers,lang,toast,headAr
         </select>
         {isS&&<select aria-label="class" value={clsF} onChange={e=>setClsF(e.target.value)} style={sel}>
           <option value="all">{W2("Hemû sinif","All classes")}</option>
-          {clsDocs.filter(d=>reportClassOk(d,headArea,students)).map(d=><option key={d.id} value={d.id}>{classLabel(d,lang)}</option>)}
+          {clsDocs.filter(d=>KID?(!headArea||(students||[]).some(k=>inClass(d,k.no))):reportClassOk(d,headArea,students)).map(d=><option key={d.id} value={d.id}>{classLabel(d,lang)}</option>)}
         </select>}
         {isS&&<select aria-label="student" data-ev-student="1" value={stuF} onChange={e=>setStuF(e.target.value)} style={sel}>
-          <option value="all">{W2("Hemû xwendekar","All students")}</option>
+          <option value="all">{KID?W2("Hemû zarok","All children"):W2("Hemû xwendekar","All students")}</option>
           {(students||[]).filter(x=>!x.isAdmin).slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"")).map(x=><option key={x.no} value={String(x.no)}>{x.name} · {x.no}</option>)}
         </select>}
       </div>

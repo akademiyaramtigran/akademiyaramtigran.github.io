@@ -1,7 +1,7 @@
 // Uçtan uca test — çalıştırma: tools/README.md → "E2E"
 // E2E: Çocuk Akademisi — öğretmen kartları (yalnız kendi sınıfına dosyasız duyuru, Sınıfım = ödev/belge + mesaj,
-//      mesajlar yalnız kendi velileri), haftalık değerlendirme (öğretmen → çocuk, veli → öğretmen isimsiz) +
-//      hatırlatma; çocuk akademisi sorumlusu raporlarda iki değerlendirmeyi görür.
+//      mesajlar yalnız kendi velileri); eski haftalık değerlendirme yok (Değerlendirme kartı sorumlunun formunu bekler);
+//      çocuk akademisi sorumlusu raporlarda form yanıtlarını (öğretmen → çocuk, veli → öğretmen isimsiz) görür.
 const { chromium } = require('playwright-core');
 const fs = require('fs');
 const FBV = require('firebase/package.json').version;
@@ -73,15 +73,9 @@ function evalWeek() { const x = new Date(); const y = new Date(x.getFullYear(), 
   const navT = await tp.evaluate(() => [...document.querySelectorAll('.pano-tile[data-tab]')].map(x => x.dataset.tab).join('|'));
   ok('Öğretmen kartları: Duyuru, Sınıfım (ödev+mesaj), Öğrenci değerlendirmesi (anket yok)', navT === 'home|att|ann|myclass|kids|card|seval|profile', navT);
   await goZ(tp, 'home'); await tp.waitForTimeout(500);
-  ok('Ana ekranda haftalık değerlendirme hatırlatması', (await tp.locator('[data-ev-reminder]').count()) === 1);
+  ok('Ana ekranda haftalık değerlendirme hatırlatması YOK (sorumlu form göndermedi)', (await tp.locator('[data-ev-reminder]').count()) === 0);
   await goZ(tp, 'seval'); await tp.waitForTimeout(600);
-  ok('Yalnız kendi sınıfının çocuğu listede', (await tp.locator('[data-ev-kid="82026001"]').count()) === 1 && (await tp.locator('[data-ev-kid="82026002"]').count()) === 0);
-  await tp.click('[data-ev-kid="82026001"] button'); await tp.waitForTimeout(300);
-  for (const k of ['p4', 'g3', 'h5', 'b4']) await tp.click('[data-ev-score="' + k + '"]');
-  await tp.locator('[data-ev-kid="82026001"] textarea').fill('Gelek jîr e');
-  await tp.click('[data-ev-save]'); await tp.waitForTimeout(2000);
-  const ke = (await get('kidEvals/' + WK + '_72026001_82026001')).fields || {};
-  ok('Çocuk değerlendirmesi kaydedildi', !!ke.c && ke.c.mapValue.fields.p.integerValue === '4' && ke.note.stringValue === 'Gelek jîr e', JSON.stringify(ke).slice(0, 120));
+  ok('Değerlendirme kartı: form yokken "değerlendirme yok", haftalık ölçütler yok', (await tp.locator('[data-eval-none]').count()) === 1 && (await tp.locator('[data-ev-score]').count()) === 0 && (await tp.locator('[data-ev-kid]').count()) === 0);
   // 2) Duyuru: yalnız kendi sınıfına, dosyasız
   await goZ(tp, 'ann'); await tp.waitForTimeout(500);
   ok('Duyuruda dosya ekleme yok', (await tp.locator('main input[type=file]').count()) === 0);
@@ -104,19 +98,13 @@ function evalWeek() { const x = new Date(); const y = new Date(x.getFullYear(), 
   const navG = await vp.evaluate(() => [...document.querySelectorAll('.pano-tile[data-tab]')].map(x => x.dataset.tab).join('|'));
   ok('Veli kartları: Duyuru, Ödev & Belge, Öğretmen değerlendirmesi (anket yok)', navG === 'today|sched|att|ann|cls|teval|msg', navG);
   await goZ(vp, 'today'); await vp.waitForTimeout(500);
-  ok('Veli ana ekranında değerlendirme hatırlatması', (await vp.locator('[data-ev-reminder]').count()) === 1);
+  ok('Veli ana ekranında haftalık değerlendirme hatırlatması YOK', (await vp.locator('[data-ev-reminder]').count()) === 0);
   await goZ(vp, 'ann'); await vp.waitForTimeout(800);
   ok('Veli: sınıf duyurusu Duyurular kartında', (await txt(vp)).includes('Prova Şemiyê'));
   await goZ(vp, 'cls'); await vp.waitForTimeout(500);
   ok('Veli: Ödev & Belge kartında duyuru tekrar etmiyor', !(await txt(vp)).includes('Prova Şemiyê'));
   await goZ(vp, 'teval'); await vp.waitForTimeout(600);
-  ok('Veli: çocuğunun öğretmeni listede (başka sınıfın öğretmeni yok)', (await vp.locator('[data-tev="72026001"]').count()) === 1 && (await vp.locator('[data-tev="72026002"]').count()) === 0);
-  await vp.click('[data-tev="72026001"] button'); await vp.waitForTimeout(300);
-  for (const k of ['e5', 'h4', 'r5', 'f4']) await vp.click('[data-ev-score="' + k + '"]');
-  await vp.locator('[data-tev="72026001"] textarea').fill('Zarokê me kêfxweş e');
-  await vp.click('[data-tev-save]'); await vp.waitForTimeout(2000);
-  const ge = (await get('kidTeacherEvals/' + WK + '_92026001_72026001')).fields || {};
-  ok('Öğretmen değerlendirmesi kaydedildi (veli adı yok)', !!ge.c && ge.c.mapValue.fields.e.integerValue === '5' && !ge.guardianName, JSON.stringify(ge).slice(0, 120));
+  ok('Veli Değerlendirme kartı: haftalık öğretmen değerlendirmesi yok (sorumlu formu bekler)', (await vp.locator('[data-eval-none]').count()) === 1 && (await vp.locator('[data-tev]').count()) === 0);
   const vp2 = await zlogin('g', '92026002', 'Vel12345');
   await goZ(vp2, 'ann'); await vp2.waitForTimeout(800);
   ok('Başka sınıfın velisi duyuruyu görmez', !(await txt(vp2)).includes('Prova Şemiyê'));
@@ -140,18 +128,29 @@ function evalWeek() { const x = new Date(); const y = new Date(x.getFullYear(), 
   ok('Veli: bugün "derse gelmedi" durumu', (await txt(vp)).includes('Îro nehat dersê'));
   ok('QR/kart sistemi duruyor (Kart sekmesi)', (await tp.locator('.pano-tile[data-tab="card"], [data-tab="card"]').count()) >= 1);
 
-  // 5) Çocuk akademisi sorumlusu: raporlarda iki değerlendirme
+  // 5) Çocuk akademisi sorumlusu: raporlarda form yanıtları (öğretmen → çocuk, veli → öğretmen isimsiz)
+  const enc = v => v === null ? { nullValue: null } : typeof v === 'number' ? (Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v }) : typeof v === 'boolean' ? { booleanValue: v } : Array.isArray(v) ? { arrayValue: { values: v.map(enc) } } : typeof v === 'object' ? { mapValue: { fields: Object.fromEntries(Object.entries(v).map(([k, x]) => [k, enc(x)])) } } : { stringValue: String(v) };
+  const putO = (path, o) => fetch(`${FS}/${path}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: enc(o).mapValue.fields }) });
+  const qs = [{ id: 'q1', type: 'score', text: 'Beşdarî' }, { id: 'q2', type: 'text', text: 'Nîşe' }];
+  await putO('evalForms/KF1', { title: 'Nirxandina zarokan', academy: 'kid', direction: 't2k', area: 'drama', period: 'once', questions: qs, active: true, ownerNo: '96202612', ownerName: 'Berpirsa Dramayê' });
+  await putO('evalForms/KF2', { title: 'Nirxandina mamosteyan', academy: 'kid', direction: 'g2t', area: 'drama', period: 'once', questions: qs, active: true, ownerNo: '96202612', ownerName: 'Berpirsa Dramayê' });
+  await putO('evalResponses/KR1', { formId: 'KF1', period: 'once', raterNo: '72026001', raterRole: 'kidteacher', targetNo: '82026001', targetName: 'Rojîn Zarok', area: 'drama', classId: 'KC1', academy: 'kid', direction: 't2k', answers: { q1: 8, q2: 'Gelek jîr e' }, score10: 8 });
+  await putO('evalResponses/KR2', { formId: 'KF2', period: 'once', raterNo: '92026001', raterRole: 'guardian', targetNo: '72026001', targetName: 'Mamoste Hêvî', area: 'drama', academy: 'kid', direction: 'g2t', answers: { q1: 9, q2: 'Zarokê me kêfxweş e' }, score10: 9 });
   const hc = await mk(1280); const hp = await hc.newPage(); hp.on('pageerror', e => errs.push('head: ' + e.message)); hp.on('dialog', d => d.accept());
   await hp.goto('http://localhost:8765/app/?emu=1'); await hp.waitForSelector('text=Têkeve', { timeout: 60000 });
   await hp.getByText('Mamoste', { exact: true }).first().click(); await hp.locator('input.inp').first().fill('96202612'); await hp.locator('input[type=password]').first().fill('Head1234');
   await hp.getByText('Têkeve', { exact: true }).last().click(); await hp.waitForTimeout(7000);
   await hp.evaluate(() => document.querySelector('.sm-it[data-key="reports"],.pano-tile[data-key="reports"]').click()); await hp.waitForTimeout(1200);
   await hp.click('[data-khr="kseval"]'); await hp.waitForTimeout(1500);
-  ok('Sorumlu: çocuk değerlendirme raporunda çocuk satırı', (await hp.locator('[data-eval-row="82026001"]').count()) === 1);
+  ok('Sorumlu: çocuk değerlendirmesi (form) raporunda çocuk satırı 8.0', (await hp.locator('[data-eval-row="82026001"]').count()) === 1 && (await hp.locator('[data-eval-row="82026001"]').innerText()).includes('8.0'));
   await hp.click('[data-khr="kteval"]'); await hp.waitForTimeout(1500);
   await hp.click('[data-eval-row="72026001"] button').catch(() => {}); await hp.waitForTimeout(500);
-  const rt = await hp.evaluate(() => (document.querySelector('[data-eval-report="kteacher"]') || {}).innerText || '');
-  ok('Sorumlu: öğretmen değerlendirmesi (veli adı yok)', rt.includes('Zarokê me kêfxweş e') && !rt.includes('Veli Aram'), rt.slice(0, 160).replace(/\n/g, ' / '));
+  const rt = await hp.evaluate(() => (document.querySelector('[data-eval-combined="teacher"]') || {}).innerText || '');
+  ok('Sorumlu: öğretmen değerlendirmesi (veli adı yok)', rt.includes('Zarokê me kêfxweş e') && rt.includes('9.0') && !rt.includes('Veli Aram'), rt.slice(0, 160).replace(/\n/g, ' / '));
+  // Form gönderilince öğretmende Değerlendirme kartı formu gösterir + hatırlatma
+  await tp.reload(); await tp.waitForSelector('.top', { timeout: 30000 }); await tp.waitForTimeout(2500);
+  await goZ(tp, 'seval'); await tp.waitForTimeout(800);
+  ok('Sorumlu formu gönderince öğretmen Değerlendirme kartında formu görür', (await tp.locator('[data-eval-none]').count()) === 0 && (await txt(tp)).includes('Nirxandina zarokan'));
   ok('Sorumlu: anket sekmesi yok', (await hp.locator('[data-khr="anket"]').count()) === 0);
 
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));

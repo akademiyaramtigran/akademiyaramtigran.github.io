@@ -6,7 +6,8 @@ function istanbulYm() {
 const ymShift = (ym, k) => { const [y, m] = ym.split("-").map(Number); const d = new Date(Date.UTC(y, m - 1 + k, 1)); return d.getUTCFullYear() + "-" + String(d.getUTCMonth() + 1).padStart(2, "0"); };
 const ymEnd = ym => { const [y, m] = ym.split("-").map(Number); return ym + "-" + String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, "0"); };
 // Saf hesap (test edilebilir): ay M için alan bazında risk sayıları
-function monthlyRiskCounts({ students, schedule, teachers, att, sEvals, tEvals, efr, M }) {
+// Değerlendirme yalnız sorumlunun formlarından (evalResponses); eski haftalık değerlendirme kaldırıldı
+function monthlyRiskCounts({ students, schedule, teachers, att, efr, M }) {
   const P = ymShift(M, -1), mF = M + "-01", mT = ymEnd(M), pF = P + "-01", pT = ymEnd(P);
   const lsById = new Map(schedule.map(l => [String(l.id), l])), stById = new Map(students.map(s => [String(s.id), s])), stByNo = new Map(students.map(s => [String(s.no), s]));
   const tcByNo = new Map(teachers.map(t => [String(t.no), t]));
@@ -18,9 +19,6 @@ function monthlyRiskCounts({ students, schedule, teachers, att, sEvals, tEvals, 
     return A; };
   const pct = x => { if (!x) return null; const n = x.on + x.late + x.off; return n >= 2 ? Math.round((x.on + x.late) / n * 100) : null; };
   const ev = { st: new Map(), tc: new Map() }; const add = (m, k, sc) => { if (!k || sc == null || isNaN(sc)) return; const x = m.get(k) || []; x.push(sc); m.set(k, x); };
-  const s10 = c => { const v = Object.values(c || {}).map(Number).filter(x => x >= 1 && x <= 5); return v.length ? v.reduce((a, b) => a + b, 0) / v.length * 2 : null; };
-  sEvals.forEach(d => { const w = String(d.wk || ""); if (w >= mF && w <= mT) { const s = stByNo.get(String(d.studentNo)); if (s) add(ev.st, String(s.id), s10(d.c)); } });
-  tEvals.forEach(d => { const w = String(d.wk || ""); if (w >= mF && w <= mT) add(ev.tc, String(d.teacherNo), s10(d.c)); });
   efr.forEach(r => { const p = String(r.period || ""); const dt = /^\d{4}-\d{2}-\d{2}$/.test(p) ? p : /^\d{4}-\d{2}$/.test(p) ? p + "-01" : ""; if (!dt || dt < mF || dt > mT || r.score10 == null) return;
     if (r.direction === "t2s") { const s = stByNo.get(String(r.targetNo)); if (s) add(ev.st, String(s.id), Number(r.score10)); } else if (r.direction === "s2t") add(ev.tc, String(r.targetNo), Number(r.score10)); });
   const avg = a => a && a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
@@ -34,9 +32,8 @@ function monthlyRiskCounts({ students, schedule, teachers, att, sEvals, tEvals, 
   return counts;
 }
 // Çocuk Akademisi: ders günü = o gün dersin sınıfından en az bir çocuğun "in" kaydı olan gün; izinli gün sayılmaz
-function kidRiskCounts({ kids, cls, sched, att, leaves, kEvals, gEvals, efr, M, today }) {
+function kidRiskCounts({ kids, cls, sched, att, leaves, efr, M, today }) {
   const P = ymShift(M, -1);
-  const s10 = c => { const v = Object.values(c || {}).map(Number).filter(x => x >= 1 && x <= 5); return v.length ? v.reduce((a, b) => a + b, 0) / v.length * 2 : null; };
   const stat = (f, t) => { const end = t < today ? t : today; const came = new Set();
     att.forEach(a => { if (a.type === "in" && a.date >= f && a.date <= end) { came.add(a.date + "|k" + (a.kidId || "")); came.add(a.date + "|n" + (a.kidNo || "")); } });
     const cameK = (k, dt) => came.has(dt + "|k" + k._id) || came.has(dt + "|n" + (k.no || ""));
@@ -58,8 +55,6 @@ function kidRiskCounts({ kids, cls, sched, att, leaves, kEvals, gEvals, efr, M, 
   const pct = x => { if (!x) return null; const n = x.held - x.leave; return n >= 2 ? Math.round(x.came / n * 100) : null; };
   const mF = M + "-01", mT = ymEnd(M), C = stat(mF, mT), Pv = stat(P + "-01", ymEnd(P));
   const ev = { kid: new Map(), teacher: new Map() }; const add = (m, k, v) => { if (!k || v == null || isNaN(v)) return; const x = m.get(k) || []; x.push(v); m.set(k, x); };
-  kEvals.forEach(e => { const w = String(e.wk || ""); if (w >= mF && w <= mT) add(ev.kid, String(e.kidNo), s10(e.c)); });
-  gEvals.forEach(e => { const w = String(e.wk || ""); if (w >= mF && w <= mT) add(ev.teacher, String(e.teacherNo), s10(e.c)); });
   efr.forEach(r => { const p = String(r.period || ""); const dt = /^\d{4}-\d{2}-\d{2}$/.test(p) ? p : /^\d{4}-\d{2}$/.test(p) ? p + "-01" : ""; if (!dt || dt < mF || dt > mT || r.score10 == null) return;
     if (r.direction === "t2k") add(ev.kid, String(r.targetNo), Number(r.score10)); else if (r.direction === "g2t") add(ev.teacher, String(r.targetNo), Number(r.score10)); });
   const avg = a => a && a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
