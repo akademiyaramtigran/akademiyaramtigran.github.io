@@ -3811,7 +3811,7 @@ function CardResultView({res,lang,areaLabel}){
     <div className="card-res" data-ok={ok?"1":"0"} style={{marginTop:12,borderRadius:20,overflow:"hidden",background:"#fff",border:"1px solid #E1E6E7",boxShadow:"0 6px 18px rgba(16,42,49,.08)"}}>
       <div style={{padding:"14px 16px",background:tone.band,color:"#fff",fontWeight:800,fontSize:18,display:"flex",alignItems:"center",gap:10,letterSpacing:".01em"}}>
         <Ico n={ok?"check":"close"} size={24} style={{strokeWidth:2.6}}/>
-        <span>{ok?W("DERBAS BIBE","GEÇEBİLİR / ALLOWED"):W("DERBAS NEBE","GEÇEMEZ / DENIED")}</span>
+        <span>{ok?W("DERBAS BIBE","ALLOWED"):W("DERBAS NEBE","DENIED")}</span>
       </div>
       <div style={{display:"flex",gap:14,padding:16,alignItems:"center"}}>
         {res.card&&<div style={{width:84,height:104,borderRadius:14,overflow:"hidden",background:"#F2F4F4",color:"#56676C",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -7078,8 +7078,8 @@ function SideMenu({open,onClose,onOpen,items,activeKey,onSelect,user,roleLabel,e
   );
   const dockBar=dockItems.length>0&&(
     <nav className="c-dock" aria-label={RL()==="en"?"Main menu":K("Menûya sereke")}>
-      <button type="button" data-dock-key="pano" className={"c-dock-b"+(open?" on":"")} aria-label="Pano" onClick={()=>open?onClose():onOpen()}>
-        <span className="c-dock-ic"><Ico n="grid" size={22}/>{open&&<span className="c-dock-lb">Pano</span>}</span></button>
+      <button type="button" data-dock-key="pano" className={"c-dock-b"+(open?" on":"")} aria-label={RL()==="en"?"Board":K("Pano")} onClick={()=>open?onClose():onOpen()}>
+        <span className="c-dock-ic"><Ico n="grid" size={22}/>{open&&<span className="c-dock-lb">{RL()==="en"?"Board":K("Pano")}</span>}</span></button>
       {dockItems.map(it=>{ const on=!open&&activeKey===it.key; return(
         <button key={it.key} type="button" data-dock-key={it.key} className={"c-dock-b"+(on?" on":"")} aria-label={it.label} aria-current={on?"page":undefined}
           onClick={()=>{onSelect(it.key); if(open) onClose();}}>
@@ -10266,7 +10266,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
           <button onClick={async()=>{await copyToClipboard(regCreds.no+" / "+regCreds.pass);hapticSuccess();toast("✅ "+(lang==="en"?"Copied!":K("Kopye bû!")));}} style={{width:"100%",padding:"13px",background:"#0f2f38",color:"#ffffff",border:"none",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",marginBottom:8}}>
             📋 {lang==="en"?"Copy All":K("Hemûyan Kopye Bike")}
           </button>
-          <button onClick={()=>setRegCreds(null)} style={{width:"100%",padding:"11px",background:"none",border:"0.5px solid var(--border2)",borderRadius:12,fontSize:13,color:"var(--text2)",cursor:"pointer"}}>Bigire</button>
+          <button onClick={()=>setRegCreds(null)} style={{width:"100%",padding:"11px",background:"none",border:"0.5px solid var(--border2)",borderRadius:12,fontSize:13,color:"var(--text2)",cursor:"pointer"}}>{lang==="en"?"Close":K("Bigire")}</button>
         </Sheet>
       )}
     </div>
@@ -11475,8 +11475,8 @@ function AlertCenter({data,user,lang,toast,noEvals,fixCtx}){
   const kindIc={man:"chart",abs:"att",noatt:"bell",sev:"star",tev:"user",kabs:"kid",ksev:"kid",ktev:"user"};
   const aLbl=a=>{ const z=typeof ZAROK_AREA_NAMES!=="undefined"&&ZAROK_AREA_NAMES[a]; return z?(lang==="en"?z[1]:K(z[0])):areaName(a,lang); };
   return(<div data-alert-center="1">
-    <Note style={{marginBottom:12}} icon="bell">{W2("Hişyarî bixweber çêdibin: di dersekê de "+ALERT_ABS+" caran û zêdetir nehatin (destûr û dereng nayên hesibandin), an dersa bernameyê ya ku amadebûna wê nehatiye girtin. Sal ji 1ê Îlonê dest pê dike.",
-      "Alerts are created automatically: "+ALERT_ABS+" or more absences in one lesson (leave and late don't count), or a scheduled lesson whose attendance was not taken. The year starts on 1 September.")}{" "}{W2("Her meh jî analîza meha borî: amadebûn di bin %70 de, nirxandin di bin 5/10 de an li gorî meha berê 15 xal an zêdetir daketin.","Each month also from last month's analysis: attendance below 70%, evaluation below 5/10, or a drop of 15+ points from the previous month.")}</Note>
+    <Note style={{marginBottom:12}} icon="bell">{lang==="en"?"Alerts are created automatically: "+ALERT_ABS+" or more absences in one lesson (leave and late don't count), or a scheduled lesson whose attendance was not taken. The year starts on 1 September."
+      :KF("Hişyarî bixweber çêdibin: di dersekê de {0} caran û zêdetir nehatin (destûr û dereng nayên hesibandin), an dersa bernameyê ya ku amadebûna wê nehatiye girtin. Sal ji 1ê Îlonê dest pê dike.",[ALERT_ABS])}{" "}{W2("Her meh jî analîza meha borî: amadebûn di bin %70 de, nirxandin di bin 5/10 de an li gorî meha berê 15 xal an zêdetir daketin.","Each month also from last month's analysis: attendance below 70%, evaluation below 5/10, or a drop of 15+ points from the previous month.")}</Note>
     <div style={{marginBottom:10}}><Seg value={st} onChange={setSt} items={[["open",W2("Vekirî","Open")+" ("+data.open+")","bell"],["done",W2("Pê re mijûl bûn","Handled"),"check"]]}/></div>
     <div className="c-chips" style={{marginBottom:12}}>
       {[["all",W2("Hemû","All")],["man",kindLb.man+(n("man")?" ("+n("man")+")":"")],["abs",kindLb.abs+(n("abs")?" ("+n("abs")+")":"")],["noatt",kindLb.noatt+(n("noatt")?" ("+n("noatt")+")":"")]].map(([k,lb])=>
@@ -12054,10 +12054,10 @@ async function deleteLessonAsk(ls,onDataChange,lang){
   try{ if(F&&F.isConfigured()){ const ids=[...new Set([ls.id,String(ls.id)])];
     docs=(await F.getDocs(F.query(F.collection(F.db,"attendance"),F.where("lessonId","in",ids)))).docs; } }catch(_){}
   let delAtt=false;
-  if(docs.length) delAtt=window.confirm(W2("Ji vê dersê re "+docs.length+" tomarên amadebûnê hene. Bi dersê re werin jêbirin?\n\nErê (OK): tomar jî tên jêbirin.\nNa (Betal): tenê ders tê jêbirin, tomar dimînin.",
-    "This lesson has "+docs.length+" attendance records. Delete them with the lesson?\n\nOK: records are deleted too.\nCancel: only the lesson is deleted, records stay."));
+  if(docs.length) delAtt=window.confirm(RL()==="en"?"This lesson has "+docs.length+" attendance records. Delete them with the lesson?\n\nOK: records are deleted too.\nCancel: only the lesson is deleted, records stay."
+    :KF("Ji vê dersê re {0} tomarên amadebûnê hene. Bi dersê re werin jêbirin?\n\nErê (OK): tomar jî tên jêbirin.\nNa (Betal): tenê ders tê jêbirin, tomar dimînin.",[docs.length]));
   if(delAtt){ let fail=0; for(const d of docs){ try{ await F.deleteDoc(F.doc(F.db,"attendance",d.id)); }catch(_){ fail++; } }
-    if(fail) window.alert(W2(fail+" tomar nehatin jêbirin.",fail+" records could not be deleted.")); }
+    if(fail) window.alert(RL()==="en"?fail+" records could not be deleted.":KF("{0} tomar nehatin jêbirin.",[fail])); }
   onDataChange("deleteSchedule",{id:ls.id,fireId:ls.fireId||null});
   return delAtt?docs.length:0;
 }
@@ -16810,7 +16810,7 @@ function OfflineBanner({online}){
         <div style={{color:"#fff",fontSize:11,fontWeight:700}}>
           {RL()==="en"?(justCame?"Connection restored":"No connection – offline mode"):(justCame?K("Girêdan vegeriya"):K("Girêdan tune – moda derhêl"))}
         </div>
-        {!justCame&&<div style={{color:"rgba(255,255,255,0.7)",fontSize:9}}>Veriler önbellekten yüklendi. İnternete bağlanıldığında senkronize edilecek.</div>}
+        {!justCame&&<div style={{color:"rgba(255,255,255,0.7)",fontSize:9}}>{RL()==="en"?"Data loaded from cache. It will sync when you are back online.":K("Agahî ji bîra cîhazê hatin barkirin. Dema girêdan vegere, dê werin hevdemkirin.")}</div>}
       </div>
     </div>
   );
@@ -17621,7 +17621,7 @@ function App(){
             </div>
             <div style={{flex:1,minWidth:0}}>
               <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
-                <span style={{fontSize:10,color:"rgba(231,199,123,0.8)",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em"}}>📢 Ragihandin</span>
+                <span style={{fontSize:10,color:"rgba(231,199,123,0.8)",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em"}}>📢 {RL()==="en"?"Announcement":K("Ragihandin")}</span>
                 <span style={{fontSize:10,color:"rgba(255,255,255,0.4)",marginLeft:"auto"}}>✕</span>
               </div>
               <div style={{fontSize:13,fontWeight:700,color:"#fff",marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{annPopup.title}</div>
