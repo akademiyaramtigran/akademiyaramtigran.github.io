@@ -96,8 +96,8 @@ async function routes(ctx) {
   ok('Duyuru kaydedildi: hedef yalnızca tiyatro, belge ekli', anns.length === 1 && JSON.stringify(anns[0].fields.targets).includes('tiyatro') && !JSON.stringify(anns[0].fields.targets).includes('"all"') && JSON.stringify(anns[0].fields.media || {}).includes('bername.pdf'));
   // Rapor: yalnızca bölüm sekmeleri
   await goA(hp, 'reports'); await hp.waitForTimeout(1200);
-  const rt1 = await hp.evaluate(() => [...document.querySelectorAll('[data-rtab]')].map(e => e.dataset.rtab).join(','));
-  ok('Rapor: sorumluda Devam + Değerlendirme + Genel analiz (çocuk akademisi / arşiv yok)', rt1 === 'devam,eval,analiz', rt1);
+  const rt1 = await hp.evaluate(() => [...document.querySelectorAll('[data-rw-type]')].map(e => e.dataset.rwType).join(','));
+  ok('Rapor: sorumluda Devam + Değerlendirme + Genel analiz (çocuk akademisi / arşiv yok)', rt1 === 'devam,eval,analiz' && (await hp.locator('[data-rw-acad],[data-rw-archive]').count()) === 0, rt1);
 
   // 3) Öğrenciler: tiyatro öğrencisi duyuruyu görür, müzik öğrencisi görmez; tiyatro öğrencisi sorumluya yazar
   const s1 = await login(await mk(430), '20202601', 'Stu12345', 'Xwendekar');

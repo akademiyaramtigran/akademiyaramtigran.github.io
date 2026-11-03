@@ -204,10 +204,11 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   ok('Öğrenci İşleri panelinde rapor yok', !(await p.evaluate(() => [...document.querySelectorAll('.sm-it[data-key],.pano-tile[data-key]')].some(e => e.dataset.key === 'rapor'))));
   const rpA = await login(await mk(), '1000', 'Admin123');
   await rpA.evaluate(() => document.querySelector('.sm-it[data-key="reports"],.pano-tile[data-key="reports"]').click()); await rpA.waitForTimeout(1500);
-  const before = await rpA.evaluate(() => { const c = [...document.querySelectorAll('div')].find(d => /Kurte/.test(d.textContent) && d.children.length > 1); return c ? c.innerText : ''; });
-  await rpA.selectOption('select[aria-label="Mamoste"]', '50202601'); await p.waitForTimeout(600);
-  const r5 = await txt(rpA);
-  ok('Rapor: öğretmen filtresi yalnızca sınıfının öğrencilerini sayar', r5.includes('Rojîn Aram') && !/Baran Şêx/.test(r5.split('Kurte')[1] || ''), (before.match(/\d+/) || [''])[0] + ' → filtreli');
+  for (const q of ['[data-rw-acad="aat"]', '[data-rw-type="devam"]', '[data-rw-who="student"]', '[data-rw-view="student"]']) { await rpA.evaluate(q => document.querySelector(q).click(), q); await rpA.waitForTimeout(800); }
+  const before = await rpA.locator('[data-rep-student]').count();
+  await rpA.selectOption('[data-rep-teacher]', '50202601'); await rpA.waitForTimeout(800);
+  const rows5 = await rpA.evaluate(() => [...document.querySelectorAll('[data-rep-student]')].map(e => e.innerText.split('\n').find(x => /[a-zî]{3}/i.test(x)) || ''));
+  ok('Rapor: öğretmen filtresi yalnızca sınıfının öğrencilerini sayar', rows5.includes('Rojîn Aram') && !rows5.includes('Baran Şêx'), before + ' → ' + JSON.stringify(rows5));
 
   // ── 6) Veli uygulaması: 4 çocuk, sınıf + sınıf öğretmeni ──
   const vc = await mk(390); const vp = await vc.newPage(); vp.on('pageerror', e => errs.push('veli: ' + e.message));

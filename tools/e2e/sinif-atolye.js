@@ -144,9 +144,10 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   ok('Öğrenci İşleri panelinde rapor yok', !(await p.evaluate(() => [...document.querySelectorAll('.sm-it[data-key],.pano-tile[data-key]')].some(e => e.dataset.key === 'rapor'))));
   const rpA = await login(await mk(), '1000', 'Admin123');
   await rpA.evaluate(() => document.querySelector('.sm-it[data-key="reports"],.pano-tile[data-key="reports"]').click()); await rpA.waitForTimeout(1500);
-  await rpA.selectOption('select[aria-label="Sînif"]', Aid); await p.waitForTimeout(600);
-  const r6 = (await txt(rpA)).split('Kurte')[1] || '';
-  ok('Rapor: sınıf filtresi yalnızca sınıfın öğrencileri', r6.includes('Rojîn Aram') && !r6.includes('Baran Şêx') && !r6.includes('Jîyan Roj'));
+  for (const q of ['[data-rw-acad="aat"]', '[data-rw-type="devam"]', '[data-rw-who="student"]', '[data-rw-view="student"]']) { await rpA.evaluate(q => document.querySelector(q).click(), q); await rpA.waitForTimeout(800); }
+  await rpA.selectOption('[data-rw-class]', Aid); await rpA.waitForTimeout(800);
+  const r6 = await rpA.evaluate(() => [...document.querySelectorAll('[data-rep-student]')].map(e => e.innerText.split('\n').find(x => /[a-zî]{3}/i.test(x)) || ''));
+  ok('Rapor: sınıf filtresi yalnızca sınıfın öğrencileri', r6.includes('Rojîn Aram') && !r6.includes('Baran Şêx') && !r6.includes('Jîyan Roj'), JSON.stringify(r6));
 
   // ── 7) Öğrenci görünürlüğü ──
   const s1 = await login(await mk(430), '20202601', 'Stu12345', 'Xwendekar');

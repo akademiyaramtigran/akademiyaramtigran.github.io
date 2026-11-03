@@ -82,7 +82,26 @@ async function routes(ctx) {
   const shown = no => p.evaluate(no => !!document.querySelector('[data-rep-student="' + no + '"]'), no);
   const sel = (q, v) => p.evaluate(([q, v]) => { const s = document.querySelector(q); const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; set.call(s, v); s.dispatchEvent(new Event('change', { bubbles: true })); }, [q, v]).then(() => p.waitForTimeout(700));
   const opts = q => p.evaluate(q => { const s = document.querySelector(q); return s ? [...s.options].map(o => o.value) : null; }, q);
+  const clk = (q) => p.evaluate(q => { const b = document.querySelector(q); if (!b) throw new Error('yok: ' + q); b.click(); }, q).then(() => p.waitForTimeout(900));
+  const txt = q => p.evaluate(q => (document.querySelector(q) || {}).innerText || '', q);
 
+  // Adım adım rapor: sorumluda alan sabit; tür → kimin → dönem
+  ok('Rapor oluştur: sorumluda akademi adımı yok, alan sabit (Şano)', (await p.locator('[data-rw-acad]').count()) === 0 && (await txt('[data-rw-area-fixed]')).includes('Şano'), await txt('[data-rw-area-fixed]'));
+  ok('Rapor türleri: Devam · Değerlendirme · Genel analiz', (await p.evaluate(() => [...document.querySelectorAll('[data-rw-type]')].map(e => e.dataset.rwType).join(','))) === 'devam,eval,analiz');
+  ok('Kimin adımı tür seçilmeden görünmez', (await p.locator('[data-rw-who]').count()) === 0);
+  await clk('[data-rw-type="devam"]'); await clk('[data-rw-who="student"]');
+  ok('Dönem adımı: Bu yıl seçili', (await p.locator('[data-rw-period="year"].on').count()) === 1);
+  // Derse göre (varsayılan): en çok katılan üstte
+  const lessonPct = () => p.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-rw-lesson]')].map(e => [e.dataset.rwLesson, e.querySelector('.c-pct').textContent.trim()])));
+  const lessonOrder = () => p.evaluate(() => [...document.querySelectorAll('[data-rw-lesson]')].map(e => e.dataset.rwLesson).join(','));
+  const gL = await lessonPct();
+  ok('Derse göre: Şano 1 %50 (Rojîn 0/2 + Baran 2/2), Şan %50, Dîroka Hunerê %100 (yalnız bölüm öğrencisi), müzik dersi yok', gL['11'] === '50%' && gL['12'] === '50%' && gL['13'] === '100%' && !gL['14'], JSON.stringify(gL));
+  ok('Derse göre: en çok katılan ders en üstte', (await lessonOrder()).startsWith('13'), await lessonOrder());
+  await clk('[data-rw-lesson="11"] button');
+  const ses = await p.evaluate(() => [...document.querySelectorAll('[data-rw-lesson="11"] [data-rw-session]')].map(e => e.innerText.replace(/\n/g, ' ')));
+  ok('Ders açılınca tarihli oturumlar: kim geldi / kim gelmedi', ses.length === 2 && ses.every(x => x.includes('✗ Rojîn Aram') && x.includes('✓ Baran Şêx')), JSON.stringify(ses));
+  // Öğrencilere göre
+  await clk('[data-rw-view="student"]');
   ok('Tüm dersler: Rojîn 3/5 = %60', (await pct('20202601')).startsWith('60'), await pct('20202601'));
   const tOpts = await opts('[data-rep-teacher]');
   ok('Öğretmen listesinde başka bölümün öğretmeni (tiyatroya ders veren müzik hocası) var, ilgisiz olan yok', tOpts && tOpts.includes('50202602') && tOpts.includes('50202601') && !tOpts.includes('50202603'), JSON.stringify(tOpts));
@@ -97,51 +116,56 @@ async function routes(ctx) {
   ok('Başka bölüm öğrencisi sorumlunun raporunda yok', !(await shown('20202603')));
   await sel('[data-rep-lesson]', '11');
   ok('Ders: Şano 1 → Rojîn %0', (await pct('20202601')).startsWith('0'), await pct('20202601'));
-  ok('Filtre etiketinde ders adı görünür', await p.evaluate(() => [...document.querySelectorAll('.c-ftag')].some(x => x.textContent.includes('Şano 1'))));
+  ok('Süzgeç açıklamasında öğretmen ve ders adı görünür', (await txt('[data-stu-att]')).includes('Şano 1'));
   await sel('[data-rep-lesson]', '13');
   ok('Ders: Dîroka Hunerê (genel) → Rojîn %100, sınıfta olmayan Baran listede yok', (await pct('20202601')).startsWith('100') && !(await shown('20202602')), await pct('20202601'));
-
-  // Görünüm: derse / sınıfa / öğretmene göre
   await sel('[data-rep-teacher]', 'all');
-  const grp = async k => { await p.evaluate(k => [...document.querySelectorAll('[data-rep-group] button')][k].click(), k); await p.waitForTimeout(700);
-    return p.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-rep-grow]')].map(e => [e.dataset.repGrow, e.querySelector('.c-pct').textContent.trim()]))); };
-  const gL = await grp(1), gC = await grp(2), gT = await grp(3); await grp(0);
-  ok('Derse göre: Şano 1 %50 (Rojîn 0/2 + Baran 2/2), Şan %50, Dîroka Hunerê %100 (yalnız bölüm öğrencisi)', gL['11'] === '50%' && gL['12'] === '50%' && gL['13'] === '100%' && !gL['14'], JSON.stringify(gL));
-  ok('Sınıfa göre: 1. Sînif %50, Giştî %100', gC['A1'] === '50%' && gC['G1'] === '100%', JSON.stringify(gC));
-  ok('Öğretmene göre: Şano %60 (3/5), Stran %50', gT['50202601'] === '60%' && gT['50202602'] === '50%', JSON.stringify(gT));
-  // Tarih aralığı (ayrı sekme yok; Devam ekranında): "Ev meh" yalnız bu ayın yoklamaları
-  ok('Rapor sekmeleri sade: Devam + Değerlendirme + Genel analiz', (await p.evaluate(() => [...document.querySelectorAll('[data-rtab]')].map(e => e.dataset.rtab).join(','))) === 'devam,eval,analiz');
-  // Bu ay / geçen ay: beklenen yüzde test verisinin tarihlerinden hesaplanır (en az biri veri içerir)
+  // Sınıf: bölüm sınıfları + ortak (Giştî) ayrı grupta; ortak sınıfta yalnız kendi öğrencisi
+  const groups = await p.evaluate(() => [...document.querySelectorAll('[data-rw-class] optgroup')].map(g => g.label + ':' + [...g.querySelectorAll('option')].map(o => o.value).join('|')));
+  ok('Sınıf listesi gruplu: bölüm sınıfı (A1) + ortak sınıf (G1)', groups.length === 2 && groups[0].endsWith('A1') && groups[1].endsWith('G1'), JSON.stringify(groups));
+  await sel('[data-rw-class]', 'G1');
+  ok('Ortak sınıf seçildi: yalnız kendi öğrencisi (Rojîn), müzik öğrencisi yok', (await shown('20202601')) && !(await shown('20202603')) && !(await shown('20202602')));
+  await sel('[data-rw-class]', 'all');
+  // Dönem: bu ay / geçen ay
   const ym = d => d.slice(0, 7), nowD = new Date(), lastM = ymd(new Date(nowD.getFullYear(), nowD.getMonth() - 1, 1)).slice(0, 7), thisM = ymd(nowD).slice(0, 7);
   const R5 = [[14, 'off'], [7, 'off'], [13, 'on'], [6, 'on'], [12, 'on']];
-  const expOf = m => { const r = R5.filter(([k]) => ym(day(k)) === m); return r.length ? Math.round(r.filter(x => x[1] === 'on').length / r.length * 100) + '%' : null; };
-  const chip = async i => { await p.evaluate(i => [...document.querySelectorAll('[data-rep-range] button')][i].click(), i); await p.waitForTimeout(800); return pct('20202601'); };
-  const pThis = await chip(1), pLast = await chip(2);
+  const expOf = m => { const r = R5.filter(([k]) => ym(day(k)) === m); return r.length ? Math.round(r.filter(x => x[1] === 'on').length / r.length * 100) + '%' : '—'; };
+  const per = async k => { await clk('[data-rw-period="' + k + '"]'); await clk('[data-rw-view="student"]'); return pct('20202601'); };
+  const pThis = await per('month'), pLast = await per('last');
   const eThis = expOf(thisM), eLast = expOf(lastM);
-  ok('Tarih: "Ev meh" / "Meha borî" yalnız o ayın derslerini sayar', (eThis || eLast) && (!eThis || pThis === eThis) && (!eLast || pLast === eLast) && (eThis || pThis !== '60%') && (eLast || pLast !== '60%'),
-    'bu ay ' + pThis + ' (beklenen ' + eThis + ') · geçen ay ' + pLast + ' (beklenen ' + eLast + ')');
-  await p.evaluate(() => [...document.querySelectorAll('[data-rep-range] button')][0].click()); await p.waitForTimeout(800);
-  ok('Tarih: "Hemû" → yine %60', (await pct('20202601')) === '60%', await pct('20202601'));
-  // Öğretmene göre görünümde öğretmenin kendi devamı (eski ayrı sekme)
-  await grp(3);
-  const taAll = await p.evaluate(() => [...document.querySelectorAll('[data-rep-tatt] [data-ta-row]')].map(e => e.dataset.taRow).sort());
-  await sel('[data-rep-teacher]', '50202602');
-  const taSt = await p.evaluate(() => [...document.querySelectorAll('[data-rep-tatt] [data-ta-row]')].map(e => e.dataset.taRow));
-  ok('Öğretmene göre: öğretmenin kendi ders devamı da görünür; Stran seçilince yalnız onun satırı', taAll.includes('50202601') && taAll.includes('50202602') && taSt.join() === '50202602', JSON.stringify(taAll) + ' ' + JSON.stringify(taSt));
-  await sel('[data-rep-teacher]', 'all'); await grp(0);
-  ok('İzin kayıtları devam ekranının altında', (await p.locator('[data-rep-leaves]').count()) === 1);
+  ok('Dönem: "Ev meh" / "Meha borî" yalnız o ayın derslerini sayar', pThis === eThis && pLast === eLast, 'bu ay ' + pThis + ' (beklenen ' + eThis + ') · geçen ay ' + pLast + ' (beklenen ' + eLast + ')');
+  ok('Dönem: "Ev sal" → yine %60', (await per('year')) === '60%', await pct('20202601'));
+  ok('İzin kayıtları devam raporunun altında', (await p.locator('[data-rep-leaves]').count()) === 1);
+  ok('İndirme: PDF + Excel', (await p.locator('[data-rw-pdf]').count()) === 1 && (await p.locator('[data-rw-csv]').count()) === 1);
 
-  const tabBtn = k => p.evaluate(k => document.querySelector('[data-rtab="' + k + '"]').click(), k).then(() => p.waitForTimeout(1500));
-  const txt = q => p.evaluate(q => (document.querySelector(q) || {}).innerText || '', q);
-  // Değerlendirme (eski 1–5 ×2 → 1–10, yeni formlarla birlikte)
-  await tabBtn('eval');
+  // Öğretmenler: ders durumu (yapıldı / yapılmadı / ⚠ yoklama girilmedi) + elle düzeltme
+  await clk('[data-rw-who="teacher"]');
+  const taAll = await p.evaluate(() => [...document.querySelectorAll('[data-ta-row]')].map(e => e.dataset.taRow).sort());
+  await sel('[data-ta-teacher]', '50202602');
+  const taSt = await p.evaluate(() => [...document.querySelectorAll('[data-ta-row]')].map(e => e.dataset.taRow));
+  ok('Öğretmen ders durumu: tüm öğretmenler (başka bölüm hocası dahil); Stran seçilince yalnız onun satırı', taAll.includes('50202601') && taAll.includes('50202602') && taSt.join() === '50202602', JSON.stringify(taAll) + ' ' + JSON.stringify(taSt));
+  await sel('[data-ta-teacher]', '50202601');
+  await clk('[data-ta-row="50202601"] > div');
+  const fixId = await p.evaluate(() => { const b = [...document.querySelectorAll('[data-ta-fix^="11-"]')].pop(); return b ? b.dataset.taFix : null; });
+  ok('⚠ Yoklama girilmemiş Şano 1 dersinde "Yoklamayı gir" düğmesi', !!fixId, String(fixId));
+  await clk('[data-ta-fix="' + fixId + '"]');
+  ok('Elle yoklama ekranı: dersin sınıf listesi (Rojîn, Baran)', (await p.locator('[data-att-fix] [data-fix-row]').count()) === 2);
+  await clk('[data-fix-row="20202601"] [data-fv="on"]');
+  await clk('[data-fix-save]'); await p.waitForTimeout(1500);
+  const fx = await fetch(`${FS}/attendance/${fixId}`, { headers: H }).then(r => r.json());
+  ok('Sorumlu yoklamayı elle girdi: Rojîn geldi, Baran gelmedi, işleyen sorumlu', fx.fields && fx.fields.records.mapValue.fields['101'].stringValue === 'on' && fx.fields.records.mapValue.fields['102'].stringValue === 'off' && fx.fields.takenByNo.stringValue === '96000001', JSON.stringify(fx.fields || fx).slice(0, 200));
+  await p.waitForTimeout(1200);
+  ok('Girilen ders artık ⚠ değil', (await p.locator('[data-ta-fix="' + fixId + '"]').count()) === 0);
+
+  // Değerlendirme (form yanıtları)
+  await clk('[data-rw-type="eval"]'); await clk('[data-rw-who="student"]');
   const evOpts = await opts('[data-ev-teacher]');
   ok('Değerlendirme: başka bölümün öğretmeni (Stran) listede', evOpts && evOpts.includes('50202602'), JSON.stringify(evOpts));
   const evAll = await txt('[data-eval-row="20202601"]');
   await sel('[data-ev-teacher]', '50202602');
   const evSt = await txt('[data-eval-row="20202601"]');
-  ok('Değerlendirme 1–10: tümü 6.0 (5→10, 1→2) → Stran seçili 2.0 (1 kayıt)', evAll.includes('6.0') && evSt.includes('2.0') && evSt.includes('1 '), evAll.replace(/\n/g, ' ') + ' / ' + evSt.replace(/\n/g, ' '));
-  await p.evaluate(() => [...document.querySelectorAll('[data-ev-who] button')][1].click()); await p.waitForTimeout(1200);
+  ok('Değerlendirme 1–10: tümü 6.0 (10 ve 2) → Stran seçili 2.0 (1 kayıt)', evAll.includes('6.0') && evSt.includes('2.0') && evSt.includes('1 '), evAll.replace(/\n/g, ' ') + ' / ' + evSt.replace(/\n/g, ' '));
+  await clk('[data-rw-who="teacher"]'); await p.waitForTimeout(500);
   const tv = await p.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-eval-row]')].map(e => [e.dataset.evalRow, e.innerText.replace(/\n/g, ' ')])));
   ok('Değerlendirme → Öğretmenler: form puanları (Şano 9.0, Stran 3.0)', (tv['50202601'] || '').includes('9.0') && (tv['50202602'] || '').includes('3.0'), JSON.stringify(tv));
   // 1–10 form sonuçları (Değerlendirme formları menüsü)

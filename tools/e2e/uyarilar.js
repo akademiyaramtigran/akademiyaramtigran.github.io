@@ -94,7 +94,19 @@ async function routes(ctx) {
   await hp.evaluate(() => document.querySelector('.sm-it[data-key="alerts"]').click()); await hp.waitForTimeout(2000);
   const k1 = await keys(hp);
   // Rozet = açık uyarı sayısı. Uyarı türleri: aylık analiz (man_) + bir derste 3 devamsızlık (abs_); anlık değerlendirme uyarısı YOK
-  ok('Sorumluda "Hişyarî" menüsü ve rozet (açık uyarı sayısı; aylık analiz dışında yalnız 3 devamsızlık uyarısı)', badge !== null && new RegExp('\\b' + k1.length + '\\b').test(badge) && k1.filter(k => !k.startsWith('man_')).length === 1, badge + ' · ' + JSON.stringify(k1));
+  ok('Sorumluda "Hişyarî" menüsü ve rozet (açık uyarı sayısı; aylık analiz dışında yalnız 3 devamsızlık uyarısı)', badge !== null && new RegExp('\\b' + k1.length + '\\b').test(badge) && k1.filter(k => !k.startsWith('man_') && !k.startsWith('noatt_')).length === 1, badge + ' · ' + JSON.stringify(k1));
+  // ⚠ Yoklama girilmedi: son 14 günde (bugün hariç) Şano 1'in pazartesileri, yoklaması olmayanlar
+  const ymdL = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const has = new Set([day(21), day(14), day(7), day(6)]);
+  const expNo = []; for (let i = 1; i <= 14; i++) { const d = new Date(); d.setDate(d.getDate() - i); if (d.getDay() === 1 && !has.has(ymdL(d))) expNo.push('noatt_L1_' + ymdL(d)); }
+  const gotNo = k1.filter(k => k.startsWith('noatt_')).sort();
+  ok('⚠ Yoklama girilmedi uyarısı: Şano 1 pazartesileri (yoklaması olmayanlar); müzik dersi sorumluda yok', JSON.stringify(gotNo) === JSON.stringify(expNo.sort()) && !k1.some(k => k.startsWith('noatt_LM')), JSON.stringify(gotNo) + ' / beklenen ' + JSON.stringify(expNo));
+  if (expNo.length) {
+    await hp.click('[data-alert-fix="' + expNo[0] + '"]'); await hp.waitForTimeout(800);
+    ok('Uyarıdan elle yoklama ekranı açılır (tiyatro öğrencileri)', (await hp.locator('[data-att-fix] [data-fix-row]').count()) === 2);
+    await hp.click('[data-fix-row="20202601"] [data-fv="on"]'); await hp.click('[data-fix-save]'); await hp.waitForTimeout(2500);
+    ok('Yoklama girilince uyarı kendiliğinden kapanır', !(await keys(hp)).includes(expNo[0]));
+  }
   ok('Rojîn: Şano 1 dersinde 3 devamsızlık uyarısı', k1.includes('abs_20202601_L1'), JSON.stringify(k1));
   ok('Baran uyarıya düşmez (2 gelmedi; izinli ve geç sayılmaz)', !k1.some(k => k.startsWith('abs_20202602')));
   ok('Başka bölüm (müzik) öğrencisi sorumlunun uyarılarında yok', !k1.some(k => k.includes('20202603')));

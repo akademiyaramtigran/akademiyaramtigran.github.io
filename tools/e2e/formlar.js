@@ -146,13 +146,14 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   ok('Sonuç: soruya tıklayınca kişi kişi puan ve not (Rojîn 3 · not, Baran 9)', qp.includes('Rojîn') && qp.includes('Ders tê de beşdar nabe') && qp.includes('Baran') && /\b3\b/.test(qp) && /\b9\b/.test(qp), qp.replace(/\n/g, ' / '));
   // Rapor → Değerlendirme: eski + yeni tek ekranda, notlarıyla
   await go(hp, 'reports'); await hp.waitForTimeout(1500);
-  await hp.evaluate(() => document.querySelector('[data-rtab="eval"]').click()); await hp.waitForTimeout(1500);
+  await hp.evaluate(() => document.querySelector('[data-rw-type="eval"]').click()); await hp.waitForTimeout(600);
+  await hp.evaluate(() => document.querySelector('[data-rw-who="student"]').click()); await hp.waitForTimeout(1500);
   await hp.click('[data-eval-row="20202601"] button'); await hp.waitForTimeout(400);
   const rd = await hp.evaluate(() => (document.querySelector('[data-eval-detail="20202601"]') || {}).innerText || '');
   ok('Rapor → Değerlendirme: öğrencinin soru puanları ve öğretmen notu', rd.includes('Beşdarî') && rd.includes('Ders tê de beşdar nabe') && rd.includes('Mamoste'), rd.replace(/\n/g, ' / ').slice(0, 300));
   await go(hp, 'alerts'); await hp.waitForTimeout(1500);
   const ak = await hp.evaluate(() => [...document.querySelectorAll('[data-alert]')].map(e => e.dataset.alert));
-  ok('Form cevabı 5/10 altı → uyarı (Rojîn), 9/10 uyarısız', ak.includes('efr_' + r1.name.split('/').pop()) && !ak.includes('efr_' + r2.name.split('/').pop()), JSON.stringify(ak));
+  ok('Tek form cevabı 5/10 altı olsa da anlık uyarı yok (aylık analizde değerlendirilir)', !ak.some(k => k.startsWith('efr_')), JSON.stringify(ak));
   await hp.context().close();
 
   // 5) Çocuk akademisi: veli → öğretmen formu
@@ -180,7 +181,7 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   ok('Veli cevabı kaydedildi (bir kez, 4.0)', !!kr && kr.fields.period.stringValue === 'once' && kr.fields.raterRole.stringValue === 'guardian');
   await go(kp, 'alerts'); await kp.waitForTimeout(1500);
   const ak2 = await kp.evaluate(() => [...document.querySelectorAll('[data-alert]')].map(e => e.dataset.alert));
-  ok('Çocuk sorumlusu: veli cevabı 4/10 → uyarı (isimsiz)', kr && ak2.includes('efr_' + kr.name.split('/').pop()) && (await kp.evaluate(() => document.body.innerText)).includes('Dêûbavek (bê nav)'), JSON.stringify(ak2));
+  ok('Çocuk sorumlusu: tek veli cevabı 4/10 olsa da anlık uyarı yok (aylık analizde değerlendirilir)', !!kr && !ak2.some(k => k.startsWith('efr_')), JSON.stringify(ak2));
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);
 })().catch(e => { console.error('E2E HATA', e); process.exit(1); });

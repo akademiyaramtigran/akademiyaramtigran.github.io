@@ -83,11 +83,12 @@ async function routes(ctx) {
   const row = (pg, k) => pg.evaluate(k => { const r = document.querySelector('[data-an-row="' + k + '"]'); return r ? r.querySelector('button').innerText.replace(/\n/g, ' ') : null; }, k);
   const who = (pg, i) => pg.evaluate(i => [...document.querySelectorAll('[data-an-who] button')][i].click(), i).then(() => pg.waitForTimeout(800));
 
+  const rwc = async (pg, ...qs) => { for (const q of qs) { await pg.evaluate(q => { const b = document.querySelector(q); if (!b) throw new Error('rapor adımı yok: ' + q); b.click(); }, q); await pg.waitForTimeout(800); } };
   const hp = await login('96000001', 'Head1234');
   await go(hp, 'reports');
-  const tabs = await hp.evaluate(() => [...document.querySelectorAll('[data-rtab]')].map(e => e.dataset.rtab).join(','));
-  ok('Sorumlu rapor sekmeleri: Devam · Değerlendirme · Genel analiz', tabs === 'devam,eval,analiz', tabs);
-  await hp.evaluate(() => document.querySelector('[data-rtab="analiz"]').click()); await hp.waitForTimeout(2000);
+  const tabs = await hp.evaluate(() => [...document.querySelectorAll('[data-rw-type]')].map(e => e.dataset.rwType).join(','));
+  ok('Sorumlu rapor türleri: Devam · Değerlendirme · Genel analiz', tabs === 'devam,eval,analiz', tabs);
+  await rwc(hp, '[data-rw-type="analiz"]', '[data-rw-who="student"]'); await hp.waitForTimeout(1500);
   const r1 = await row(hp, '101'), r2 = await row(hp, '102');
   ok('Öğrenci: Rojîn bu ay %0 📉, değerlendirme 4.0 📉, risk ⚠', !!r1 && r1.includes('0%') && r1.includes('📉') && r1.includes('4.0') && r1.includes('⚠'), r1);
   ok('Öğrenci: Baran bu ay %100 📈', !!r2 && r2.includes('100%') && r2.includes('📈'), r2);
@@ -129,7 +130,7 @@ async function routes(ctx) {
   // Çocuk sorumlusu: Genel analiz (geçen ay) + aylık uyarı
   const kp = await login('96202602', 'Head1234');
   await go(kp, 'reports');
-  await kp.evaluate(() => document.querySelector('[data-khr="kan"]').click()); await kp.waitForTimeout(2000);
+  await rwc(kp, '[data-rw-type="analiz"]'); await kp.waitForTimeout(1500);
   await kp.evaluate(() => { const s = document.querySelector('[data-kan-month]'); const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; set.call(s, s.options[1].value); s.dispatchEvent(new Event('change', { bubbles: true })); }); await kp.waitForTimeout(1000);
   const kr = await kp.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-kan-row]')].map(e => [e.dataset.kanRow, e.querySelector('button').innerText.replace(/\n/g, ' ')])));
   ok('Çocuk analizi (geçen ay): Dilan 0/2 %0 ⚠, Azad 2/2 %100', (kr[K1] || '').includes('0%') && (kr[K1] || '').includes('⚠') && (kr[K2] || '').includes('100%'), JSON.stringify(kr));
@@ -143,7 +144,8 @@ async function routes(ctx) {
   // Öğrenci İşleri: analiz var, değerlendirme sütunu yok
   const rp = await login('98202601', 'Reg12345');
   await go(rp, 'reports');
-  await rp.evaluate(() => document.querySelector('[data-rtab="analiz"]').click()); await rp.waitForTimeout(2000);
+  ok('Öğrenci İşleri rapor türlerinde değerlendirme yok', await (async () => { await rwc(rp, '[data-rw-acad="aat"]'); return (await rp.evaluate(() => [...document.querySelectorAll('[data-rw-type]')].map(e => e.dataset.rwType).join(','))) === 'devam,analiz'; })());
+  await rwc(rp, '[data-rw-type="analiz"]', '[data-rw-who="student"]'); await rp.waitForTimeout(1500);
   ok('Öğrenci İşleri: tüm bölümler (müzik öğrencisi de var), değerlendirme sütunu yok', (await row(rp, '103')) !== null && (await rp.locator('[data-an-ev]').count()) === 0);
   await go(rp, 'alerts');
   const rk = await rp.evaluate(() => [...document.querySelectorAll('[data-alert]')].map(e => e.dataset.alert));

@@ -91,7 +91,9 @@ async function routes(ctx) {
     await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000); return p; };
   const keysOf = pg => pg.evaluate(() => [...new Set([...document.querySelectorAll('.sm-it[data-key],.pano-tile[data-key]')].map(e => e.dataset.key))]);
   const go = (pg, k) => pg.evaluate(k => [...document.querySelectorAll('.sm-it[data-key="' + k + '"],.pano-tile[data-key="' + k + '"]')].find(x => x.getClientRects().length).click(), k).then(() => pg.waitForTimeout(2000));
-  const rtabs = pg => pg.evaluate(() => [...document.querySelectorAll('[data-rtab]')].map(e => e.dataset.rtab));
+  const rtabs = pg => pg.evaluate(() => [...document.querySelectorAll('[data-rw-type]')].map(e => e.dataset.rwType));
+  const rwc = async (pg, ...qs) => { for (const q of qs) { await pg.evaluate(q => { const b = document.querySelector(q); if (!b) throw new Error('rapor adımı yok: ' + q); b.click(); }, q); await pg.waitForTimeout(800); } };
+  const devStu = pg => rwc(pg, '[data-rw-type="devam"]', '[data-rw-who="student"]', '[data-rw-view="student"]');
   const pct = (pg, no) => pg.evaluate(no => { const r = document.querySelector('[data-rep-student="' + no + '"] .c-pct'); return r ? r.textContent.trim() : null; }, no);
   const alerts = pg => pg.evaluate(() => [...document.querySelectorAll('[data-alert]')].map(e => e.dataset.alert).sort());
 
@@ -101,18 +103,17 @@ async function routes(ctx) {
   ok('Sorumlu menüsünde anket yok', !hk.includes('surveys') && hk.includes('reports') && hk.includes('evalforms'), hk.join(','));
   await go(hp, 'reports');
   const ht = await rtabs(hp);
-  ok('Sorumlu rapor sekmeleri: Devam + Değerlendirme + Genel analiz (anket yok)', ht.join(',') === 'devam,eval,analiz', ht.join(','));
+  ok('Sorumlu rapor türleri: Devam + Değerlendirme + Genel analiz (anket yok)', ht.join(',') === 'devam,eval,analiz', ht.join(','));
+  await devStu(hp);
   ok('Tiyatro sorumlusu: Rojîn genel ders dahil %50 (3/6), müzik öğrencisi yok', (await pct(hp, '20202601')) === '50%' && (await pct(hp, '20202603')) === null, await pct(hp, '20202601'));
   // Ortak "Giştî" sınıfı seçilince yalnız sorumlunun kendi öğrencileri
-  const clsOpts = await hp.evaluate(() => { const s = [...document.querySelectorAll('select')].find(x => [...x.options].some(o => o.value === 'G1')); return s ? [...s.options].map(o => o.value) : []; });
+  const clsOpts = await hp.evaluate(() => { const s = document.querySelector('[data-rw-class]'); return s ? [...s.options].map(o => o.value) : []; });
   ok('Sorumlunun sınıf listesi: kendi sınıfı + Giştî; başka bölümün sınıfı yok', clsOpts.includes('A1') && clsOpts.includes('G1') && !clsOpts.includes('M1'), JSON.stringify(clsOpts));
   await hp.evaluate(() => { const s = [...document.querySelectorAll('select')].find(x => [...x.options].some(o => o.value === 'G1')); const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; set.call(s, 'G1'); s.dispatchEvent(new Event('change', { bubbles: true })); });
   await hp.waitForTimeout(800);
   ok('Giştî seçili: yalnız kendi öğrencisi (Rojîn); müzik öğrencisi ve sınıfta olmayan Baran yok', (await pct(hp, '20202601')) !== null && (await pct(hp, '20202603')) === null && (await pct(hp, '20202602')) === null);
-  await hp.evaluate(() => [...document.querySelectorAll('[data-rep-group] button')][2].click()); await hp.waitForTimeout(800);
-  const g1 = await hp.evaluate(() => (document.querySelector('[data-rep-grow="G1"]') || {}).innerText || '');
-  ok('Sınıfa göre: Giştî satırında yalnız 1 öğrenci (kendi öğrencisi)', /\b1 xwendekar/.test(g1), g1.replace(/\n/g, ' '));
-  await hp.evaluate(() => document.querySelector('[data-rtab="eval"]').click()); await hp.waitForTimeout(1500);
+  ok('Giştî seçili: öğrenci sayısı 1 (kendi öğrencisi)', (await hp.locator('[data-rep-student]').count()) === 1);
+  await rwc(hp, '[data-rw-type="eval"]', '[data-rw-who="student"]'); await hp.waitForTimeout(800);
   const evRows = await hp.evaluate(() => [...document.querySelectorAll('[data-eval-row]')].map(e => e.dataset.evalRow));
   ok('Değerlendirme: ortak derste verilen puanlardan yalnız kendi öğrencisi (Rojîn), müzik öğrencisi (Jîyan) yok', evRows.includes('20202601') && !evRows.includes('20202603'), JSON.stringify(evRows));
   await go(hp, 'alerts');
@@ -123,11 +124,12 @@ async function routes(ctx) {
   // 2) Genel sorumlu: yalnız genel dersler
   const gp = await login('96000002', 'Head1234');
   await go(gp, 'reports');
+  await devStu(gp);
   ok('Genel sorumlu: genel sınıfın öğrencileri (Rojîn, Jîyan) var, Baran yok', (await pct(gp, '20202601')) !== null && (await pct(gp, '20202603')) !== null && (await pct(gp, '20202602')) === null);
   ok('Genel sorumlu: devam yalnız genel dersten (Rojîn %100, Jîyan %0; bölüm dersi sayılmaz)', (await pct(gp, '20202601')) === '100%' && (await pct(gp, '20202603')) === '0%', (await pct(gp, '20202601')) + ' / ' + (await pct(gp, '20202603')));
   const gOpts = await gp.evaluate(() => [...document.querySelector('[data-rep-teacher]').options].map(o => o.value));
   ok('Genel sorumlu: genel derse giren başka bölüm öğretmeni (Şano) listede, müzik hocası yok', gOpts.includes('50202601') && !gOpts.includes('50202603'), JSON.stringify(gOpts));
-  await gp.evaluate(() => document.querySelector('[data-rtab="eval"]').click()); await gp.waitForTimeout(1500);
+  await rwc(gp, '[data-rw-type="eval"]', '[data-rw-who="student"]'); await gp.waitForTimeout(800);
   const gEv = await gp.evaluate(() => [...document.querySelectorAll('[data-eval-row]')].map(e => e.dataset.evalRow).sort());
   ok('Genel sorumlu: genel dersin değerlendirmelerinde tüm genel sınıf öğrencileri (Rojîn + Jîyan)', gEv.includes('20202601') && gEv.includes('20202603'), JSON.stringify(gEv));
   await go(gp, 'alerts');
@@ -140,8 +142,12 @@ async function routes(ctx) {
   const rk = await keysOf(rp);
   ok('Öğrenci İşleri menüsünde Rapor var', rk.includes('reports'), rk.join(','));
   await go(rp, 'reports');
+  ok('Öğrenci İşleri: akademi seçimi (Konservatuar / Çocuk Akademisi), arşiv yok', (await rp.locator('[data-rw-acad]').count()) === 2 && (await rp.locator('[data-rw-archive]').count()) === 0);
+  await rwc(rp, '[data-rw-acad="aat"]');
   const rt = await rtabs(rp);
-  ok('Öğrenci İşleri sekmeleri: Devam + Genel analiz + Çocuk Akademisi; değerlendirme yok', rt.join(',') === 'devam,analiz,zarok', rt.join(','));
+  ok('Öğrenci İşleri rapor türleri: Devam + Genel analiz; değerlendirme yok', rt.join(',') === 'devam,analiz', rt.join(','));
+  ok('Öğrenci İşleri alan seçebilir (tüm alanlar)', (await rp.locator('[data-rw-area]').count()) === 1);
+  await devStu(rp);
   ok('Öğrenci İşleri tüm bölümleri görür (tiyatro + müzik öğrencisi)', (await pct(rp, '20202601')) !== null && (await pct(rp, '20202603')) !== null);
   ok('Öğrenci İşleri devam ekranında değerlendirme özeti yok', !(await rp.evaluate(() => document.body.innerText)).includes('Mamoste → xwendekar'));
   await rp.context().close();

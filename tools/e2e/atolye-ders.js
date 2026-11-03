@@ -78,6 +78,8 @@ async function routes(ctx) {
   ok('Atölyenin kendi günlük dersi yerinde', !!ws && ws.fields.lessonType.stringValue === 'extra');
   // Rapor: "Dersên di raporê de" ve alan satırı sorumluda yok; atölye dersi öğretmen/ders seçimiyle süzülür
   await p.evaluate(() => document.querySelector('.sm-it[data-key="reports"]').click()); await p.waitForTimeout(2500);
+  const rwc = async (pg, ...qs) => { for (const q of qs) { await pg.evaluate(q => { const b = document.querySelector(q); if (!b) throw new Error('rapor adımı yok: ' + q); b.click(); }, q); await pg.waitForTimeout(800); } };
+  await rwc(p, '[data-rw-type="devam"]', '[data-rw-who="student"]', '[data-rw-view="student"]'); await p.waitForTimeout(1200);
   const pct = () => p.evaluate(() => { const r = document.querySelector('[data-rep-student="20202601"] .c-pct'); return r ? r.textContent.trim() : ''; });
   ok('Raporda "Dersên di raporê de" satırı yok', (await p.locator('[data-att-scope]').count()) === 0);
   ok('Sorumluda "Hemû Qadan" alan satırı yok', !(await p.evaluate(() => document.body.innerText)).includes('Hemû Qadan'));
