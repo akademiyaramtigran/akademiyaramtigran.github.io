@@ -87,7 +87,7 @@ async function routes(ctx) {
 
   // Adım adım rapor: sorumluda alan sabit; tür → kimin → dönem
   ok('Rapor oluştur: sorumluda akademi adımı yok, alan sabit (Şano)', (await p.locator('[data-rw-acad]').count()) === 0 && (await txt('[data-rw-area-fixed]')).includes('Şano'), await txt('[data-rw-area-fixed]'));
-  ok('Rapor türleri: Devam · Değerlendirme · Genel analiz', (await p.evaluate(() => [...document.querySelectorAll('[data-rw-type]')].map(e => e.dataset.rwType).join(','))) === 'devam,eval,analiz');
+  ok('Rapor türleri: Devam · Değerlendirme · Genel analiz', (await p.evaluate(() => [...document.querySelectorAll('[data-rw-type]')].map(e => e.dataset.rwType).join(','))) === 'devam,eval,analiz,list');
   ok('Kimin adımı tür seçilmeden görünmez', (await p.locator('[data-rw-who]').count()) === 0);
   await clk('[data-rw-type="devam"]'); await clk('[data-rw-who="student"]');
   ok('Dönem adımı: Bu yıl seçili', (await p.locator('[data-rw-period="year"].on').count()) === 1);

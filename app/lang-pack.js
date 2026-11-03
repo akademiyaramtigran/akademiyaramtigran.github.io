@@ -1488,7 +1488,14 @@ window.AAT_TX={"ku":{},"zza":{},"tr":{"Ev hefte: {0} ders":"Bu hafta: {0} ders",
 "Hişyarî bixweber çêdibin: di dersekê de {0} caran û zêdetir nehatin (destûr û dereng nayên hesibandin), an dersa bernameyê ya ku amadebûna wê nehatiye girtin. Sal ji 1ê Îlonê dest pê dike.":"Uyarılar kendiliğinden oluşur: bir derste {0} veya daha fazla devamsızlık (izinli ve geç sayılmaz) ya da yoklaması girilmemiş programdaki ders. Yıl 1 Eylül'de başlar.",
 "Ji vê dersê re {0} tomarên amadebûnê hene. Bi dersê re werin jêbirin?\n\nErê (OK): tomar jî tên jêbirin.\nNa (Betal): tenê ders tê jêbirin, tomar dimînin.":"Bu dersin {0} yoklama kaydı var. Dersle birlikte silinsin mi?\n\nTamam: kayıtlar da silinir.\nİptal: yalnız ders silinir, kayıtlar kalır.",
 "{0} tomar nehatin jêbirin.":"{0} kayıt silinemedi.",
-"Agahî ji bîra cîhazê hatin barkirin. Dema girêdan vegere, dê werin hevdemkirin.":"Veriler cihaz belleğinden yüklendi. Bağlantı gelince eşitlenecek."}};
+"Agahî ji bîra cîhazê hatin barkirin. Dema girêdan vegere, dê werin hevdemkirin.":"Veriler cihaz belleğinden yüklendi. Bağlantı gelince eşitlenecek.",
+"Lîsteya xwendekaran":"Öğrenci listesi",
+"Nav û paşnav":"Ad soyad",
+"Jimareya bikarhêner":"Kullanıcı numarası",
+"Qadên di lîsteyê de (ji bo derxistinê bitikîne)":"Listedeki alanlar (çıkarmak için dokunun)",
+"Ev sal":"Bu yıl",
+"Mamoste → zarok":"Öğretmen → çocuk",
+"Dêûbav → mamoste (bê nav)":"Veli → öğretmen (isimsiz)"}};
 window.AAT_SITE={"ku":{},"zza":{}};
 window.AAT_SITE_AREA={"ku":{},"zza":{}};
 window.AAT_ZAROK={"ku":{},"zza":{}};
