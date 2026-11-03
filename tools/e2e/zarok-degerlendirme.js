@@ -141,9 +141,11 @@ function evalWeek() { const x = new Date(); const y = new Date(x.getFullYear(), 
   await hp.getByText('Mamoste', { exact: true }).first().click(); await hp.locator('input.inp').first().fill('96202612'); await hp.locator('input[type=password]').first().fill('Head1234');
   await hp.getByText('Têkeve', { exact: true }).last().click(); await hp.waitForTimeout(7000);
   await hp.evaluate(() => document.querySelector('.sm-it[data-key="reports"],.pano-tile[data-key="reports"]').click()); await hp.waitForTimeout(1200);
-  await hp.click('[data-khr="kseval"]'); await hp.waitForTimeout(1500);
+  const rwc = async (pg, ...qs) => { for (const q of qs) { await pg.evaluate(q => { const b = document.querySelector(q); if (!b) throw new Error('rapor adımı yok: ' + q); b.click(); }, q); await pg.waitForTimeout(800); } };
+  ok('Çocuk sorumlusu raporu: adım adım (Devam · Değerlendirme · Genel analiz), akademi adımı yok', (await hp.evaluate(() => [...document.querySelectorAll('[data-rw-type]')].map(e => e.dataset.rwType).join(','))) === 'devam,eval,analiz' && (await hp.locator('[data-rw-acad]').count()) === 0);
+  await rwc(hp, '[data-rw-type="eval"]', '[data-rw-who="student"]'); await hp.waitForTimeout(1000);
   ok('Sorumlu: çocuk değerlendirmesi (form) raporunda çocuk satırı 8.0', (await hp.locator('[data-eval-row="82026001"]').count()) === 1 && (await hp.locator('[data-eval-row="82026001"]').innerText()).includes('8.0'));
-  await hp.click('[data-khr="kteval"]'); await hp.waitForTimeout(1500);
+  await rwc(hp, '[data-rw-who="teacher"]'); await hp.waitForTimeout(1000);
   await hp.click('[data-eval-row="72026001"] button').catch(() => {}); await hp.waitForTimeout(500);
   const rt = await hp.evaluate(() => (document.querySelector('[data-eval-combined="teacher"]') || {}).innerText || '');
   ok('Sorumlu: öğretmen değerlendirmesi (veli adı yok)', rt.includes('Zarokê me kêfxweş e') && rt.includes('9.0') && !rt.includes('Veli Aram'), rt.slice(0, 160).replace(/\n/g, ' / '));
@@ -151,7 +153,8 @@ function evalWeek() { const x = new Date(); const y = new Date(x.getFullYear(), 
   await tp.reload(); await tp.waitForSelector('.top', { timeout: 30000 }); await tp.waitForTimeout(2500);
   await goZ(tp, 'seval'); await tp.waitForTimeout(800);
   ok('Sorumlu formu gönderince öğretmen Değerlendirme kartında formu görür', (await tp.locator('[data-eval-none]').count()) === 0 && (await txt(tp)).includes('Nirxandina zarokan'));
-  ok('Sorumlu: anket sekmesi yok', (await hp.locator('[data-khr="anket"]').count()) === 0);
+  await rwc(hp, '[data-rw-type="devam"]'); await hp.waitForTimeout(1200);
+  ok('Çocuk sorumlusu: Devam raporu açılır', (await hp.locator('[data-rep-leaves]').count()) === 1);
 
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);

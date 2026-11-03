@@ -211,11 +211,13 @@ async function routes(ctx) {
   ok('Ayrı istatistik tablosu (studentStats) yazılmaz', (await list('studentStats')).length === 0);
   const ap = await login(await mk(), '1000', 'Admin123'); await ap.waitForTimeout(4000);
   await goA(ap, 'reports'); await ap.waitForTimeout(2500);
+  const rwc = async (pg, ...qs) => { for (const q of qs) { await pg.evaluate(q => { const b = document.querySelector(q); if (!b) throw new Error('rapor adımı yok: ' + q); b.click(); }, q); await pg.waitForTimeout(800); } };
+  await rwc(ap, '[data-rw-acad="aat"]', '[data-rw-type="devam"]', '[data-rw-who="student"]', '[data-rw-view="student"]'); await ap.waitForTimeout(1200);
   const rl = await ap.evaluate(() => [...document.querySelectorAll('[data-rep-leave]')].map(e => e.textContent).join(' | '));
   ok('Devam raporunda izinli öğrenci + izin nedeni görünür', rl.includes('Nexweşî') && /1/.test(rl), rl);
-  const rp = no => ap.evaluate(no => { const r = document.querySelector('[data-rep-student="' + no + '"] .c-pct'); return r ? r.textContent.trim() : ''; }, no);
-  ok('Rapor yoklamadan: QR ile gelen öğrenci %100, ders yapılmadı işareti sayılmaz', (await rp('20202603')) === '100%' && (await rp('20202601')) === '100%', (await rp('20202603')) + ' / ' + (await rp('20202601')));
-  ok('İzinli öğrenci devamsız sayılmaz (ders sayısına girmez)', (await rp('20202602')) === '—' || (await rp('20202602')) === '', await rp('20202602'));
+  const rpct = no => ap.evaluate(no => { const r = document.querySelector('[data-rep-student="' + no + '"] .c-pct'); return r ? r.textContent.trim() : ''; }, no);
+  ok('Rapor yoklamadan: QR ile gelen öğrenci %100, ders yapılmadı işareti sayılmaz', (await rpct('20202603')) === '100%' && (await rpct('20202601')) === '100%', (await rpct('20202603')) + ' / ' + (await rpct('20202601')));
+  ok('İzinli öğrenci devamsız sayılmaz (ders sayısına girmez)', (await rpct('20202602')) === '—' || (await rpct('20202602')) === '', await rpct('20202602'));
 
   // 6) Çocuk akademisi sorumlusu: kendi dersinin programını yazar
   const kp = await login(await mk(), '96202612', 'Head1234');

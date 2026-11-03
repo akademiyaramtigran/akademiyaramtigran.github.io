@@ -297,12 +297,12 @@ service cloud.firestore {
     // Bölüm sorumlusu: kendi bölümünün dersine "ders yapılmadı" işareti (neden + açıklama). Yoklama
     // kayıtlarına (records) dokunamaz; yeni belgede records boş olmalı.
     // Misafir öğretmenli ders (programda guestTeacher dolu, teacherNo boş): yoklamayı bölüm sorumlusu yazar
-    function headGuestAttOk(aid) {
+    // Bölüm sorumlusu KENDİ alanındaki dersin yoklamasını alır / elle girer / düzeltir (misafir dersi, girilmemiş ya da
+    // yanlış yoklama). Ders programdan doğrulanır; kimin işlediği (takenByNo) kendi numarası olmalı.
+    function headLessonAttOk(aid) {
       let d = request.resource.data;
       let sp = /databases/$(database)/documents/schedule/$(d.get('lessonFire', '-'));
       return aatHead() && exists(sp)
-        && get(sp).data.get('guestTeacher', '') is string && get(sp).data.get('guestTeacher', '') != ''
-        && get(sp).data.get('teacherNo', null) == null
         && string(get(sp).data.get('id', '')) == d.get('lessonId', '')
         && (headGeneral() || get(sp).data.get('area', '') == headArea())
         && aid == d.get('lessonId', '') + '-' + d.get('date', '')
@@ -366,7 +366,7 @@ service cloud.firestore {
     match /attendance/{id} {
       // Öğrenci yalnız KENDİ QR okutma kaydını okur (başkalarının yoklaması kişisel veridir)
       allow read: if isStaff() || (isStudent() && string(resource.data.get('studentNo', '')) == prefix());
-      allow create, update: if staffW() || headAbsenceOk() || headGuestAttOk(id) || stuQrOk(id);
+      allow create, update: if staffW() || headAbsenceOk() || headLessonAttOk(id) || stuQrOk(id);
       allow delete: if staffW();
     }
     // Mesajlar: personel hepsini okur/yazar. Öğrenci yalnızca KENDİNE gelen özel mesajı

@@ -146,9 +146,10 @@ function evalWeek(d) { const x = d ? new Date(d) : new Date(); const y = new Dat
   // 6) Sorumlu: raporlar — öğrenci + öğretmen değerlendirmesi, anket
   const hp = await login(await mk(), '96202611', 'Head1234');
   await goA(hp, 'reports'); await hp.waitForTimeout(1200);
-  await hp.evaluate(() => document.querySelector('[data-rtab="eval"]').click()); await hp.waitForTimeout(1500);
+  const rwc = async (pg, ...qs) => { for (const q of qs) { await pg.evaluate(q => { const b = document.querySelector(q); if (!b) throw new Error('rapor adımı yok: ' + q); b.click(); }, q); await pg.waitForTimeout(800); } };
+  await rwc(hp, '[data-rw-type="eval"]', '[data-rw-who="student"]'); await hp.waitForTimeout(800);
   ok('Sorumlu: Değerlendirme sekmesi açılır; form yanıtı olmadan satır yok (eski haftalık veri gösterilmez)', (await hp.locator('[data-eval-row="20202601"]').count()) === 0);
-  await hp.evaluate(() => [...document.querySelectorAll('[data-ev-who] button')][1].click()); await hp.waitForTimeout(1500);
+  await rwc(hp, '[data-rw-who="teacher"]'); await hp.waitForTimeout(800);
   const tr = await hp.locator('[data-eval-row="50202601"]').count();
   await hp.click('[data-eval-row="50202601"] button').catch(() => {}); await hp.waitForTimeout(500);
   const trT = await hp.evaluate(() => (document.querySelector('[data-eval-combined="teacher"]') || {}).innerText || '');
@@ -166,6 +167,7 @@ function evalWeek(d) { const x = d ? new Date(d) : new Date(); const y = new Dat
   // 7) Yönetici: öğrenci ayrıntısında GERÇEK haftalık grafik
   const ap = await login(await mk(), '1000', 'Admin123');
   await goA(ap, 'reports'); await ap.waitForTimeout(1500);
+  await rwc(ap, '[data-rw-acad="aat"]', '[data-rw-type="devam"]', '[data-rw-who="student"]', '[data-rw-view="student"]'); await ap.waitForTimeout(1200);
   const r1 = await ap.locator('[data-rep-student="20202601"]').innerText(), r2 = await ap.locator('[data-rep-student="20202602"]').innerText();
   ok('Devam raporu doğrudan yoklamalardan (misafir dersi dahil, anında)', r1.includes('100%') && r2.includes('0%'), r1.replace(/\n/g, ' ') + ' | ' + r2.replace(/\n/g, ' '));
   await ap.click('[data-rep-student="20202601"]'); await ap.waitForTimeout(2500);
