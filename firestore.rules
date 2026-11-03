@@ -415,14 +415,6 @@ service cloud.firestore {
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']));
       allow delete: if staffW();
     }
-    // ── Haftalık değerlendirme biçimi (Çocuk Akademisi): puanlar 1–5 (4 ölçüt), not ≤ 1000 ──
-    function sc5(v) { return v is int && v >= 1 && v <= 5; }
-    function evalOk(d, keys) {
-      return d.c is map && d.c.keys().hasOnly(keys) && d.c.keys().hasAll(keys)
-        && sc5(d.c[keys[0]]) && sc5(d.c[keys[1]]) && sc5(d.c[keys[2]]) && sc5(d.c[keys[3]])
-        && d.wk is string && d.wk.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-        && d.get('note', '') is string && d.get('note', '').size() <= 1000;
-    }
     // Değerlendirme formları (sorumlunun hazırladığı, 1–10 puan + yazılı sorular)
     //  academy "aat": t2s (öğretmen → öğrenci) · s2t (öğrenci → öğretmen, isimsiz)
     //  academy "kid": t2k (öğretmen → çocuk) · g2t (veli → öğretmen, isimsiz)
@@ -599,28 +591,11 @@ service cloud.firestore {
       allow update: if isRegistrar() || (kidHeadAnnOk(resource.data) && kidHeadAnnOk(request.resource.data));
       allow delete: if isRegistrar() || kidHeadAnnOk(resource.data);
     }
-    // ── Çocuk akademisi haftalık değerlendirmeleri (sonuçları yalnız yönetici + çocuk akademisi sorumlusu okur) ──
-    //  kidEvals: öğretmen → çocuk. Öğretmen yalnız kendi yazdığını okur/düzeltir; veli okuyamaz.
-    //  kidTeacherEvals: veli → öğretmen (isimsiz raporlanır). Veli yalnız kendi gönderdiğini okur; öğretmen okuyamaz.
+    // Eski haftalık değerlendirme (Çocuk Akademisi) KALDIRILDI: değerlendirme yalnız sorumlunun formlarıyla (evalResponses t2k / g2t).
+    // Kalan eski veriler temizlik iş akışıyla silinir; kimse yazamaz, yalnız yönetici okur/siler.
     function kidTeach() { return isKidTeacher() || (isStaff() && !headLvl() && exists(dbPath('idx_kidstaff'))); }
-    match /kidEvals/{id} {
-      allow read: if isAdmin() || kidHeadLvl() || headGeneral() || (kidTeach() && resource.data.teacherNo == prefix());
-      allow create, update: if kidTeach()
-        && request.resource.data.teacherNo == prefix()
-        && id == request.resource.data.wk + '_' + prefix() + '_' + request.resource.data.kidNo
-        && evalOk(request.resource.data, ['p', 'g', 'h', 'b'])
-        && (resource == null || resource.data.teacherNo == prefix());
-      allow delete: if isAdmin();
-    }
-    match /kidTeacherEvals/{id} {
-      allow read: if isAdmin() || kidHeadLvl() || headGeneral() || (isGuardian() && resource.data.guardianNo == prefix());
-      allow create, update: if isGuardian()
-        && request.resource.data.guardianNo == prefix()
-        && id == request.resource.data.wk + '_' + prefix() + '_' + request.resource.data.teacherNo
-        && evalOk(request.resource.data, ['e', 'h', 'r', 'f'])
-        && (resource == null || resource.data.guardianNo == prefix());
-      allow delete: if isAdmin();
-    }
+    match /kidEvals/{id}        { allow read, delete: if isAdmin(); allow create, update: if false; }
+    match /kidTeacherEvals/{id} { allow read, delete: if isAdmin(); allow create, update: if false; }
 
     // Anlık bildirim cihaz kayıtları: herkes yalnızca KENDİ cihazını, KENDİ numarası ve rolüyle kaydeder.
     // Okuma/silme yalnızca sahibi; gönderimi sunucu (Cloud Functions) yapar.

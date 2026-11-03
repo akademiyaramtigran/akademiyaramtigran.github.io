@@ -1455,7 +1455,10 @@ window.AAT_TX={"ku":{},"zza":{},"tr":{"Ev hefte: {0} ders":"Bu hafta: {0} ders",
 "7 rojên bê: {0} ders":"Önümüzdeki 7 gün: {0} ders",
 "Dersên bê tune.":"Yaklaşan ders yok.",
 "Niha nirxandin tune. Dema berpirsê beşê formekê bişîne, li vir xuya dibe.":"Şu an değerlendirme yok. Bölüm sorumlusu form gönderdiğinde burada görünür.",
-"Pîvan 1–10 (formên berpirsê beşê).":"Ölçek 1–10 (bölüm sorumlusu formları)."}};
+"Pîvan 1–10 (formên berpirsê beşê).":"Ölçek 1–10 (bölüm sorumlusu formları).",
+"Nirxandina zarokan (mamoste → zarok)":"Çocuk değerlendirmesi (öğretmen → çocuk)",
+"Nirxandina mamosteyan (dêûbav → mamoste, bê nav)":"Öğretmen değerlendirmesi (veli → öğretmen, isimsiz)",
+"Hemû zarok":"Tüm çocuklar"}};
 window.AAT_SITE={"ku":{},"zza":{}};
 window.AAT_SITE_AREA={"ku":{},"zza":{}};
 window.AAT_ZAROK={"ku":{},"zza":{}};

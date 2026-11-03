@@ -317,21 +317,19 @@ const MANTX = {
 const { istanbulYm, ymShift, ymEnd, monthlyRiskCounts, kidRiskCounts } = require("./risk");
 exports.monthlyAnalysis = onSchedule({ schedule: "5 9 1 * *", timeZone: "Europe/Istanbul" }, async () => {
   const db = admin.firestore(); const M = ymShift(istanbulYm(), -1), from = ymShift(M, -1) + "-01", to = ymEnd(M);
-  const [st, sch, tc, at, se, te, er] = await Promise.all([db.collection("students").get(), db.collection("schedule").get(), db.collection("teachers").get(),
+  const [st, sch, tc, at, er] = await Promise.all([db.collection("students").get(), db.collection("schedule").get(), db.collection("teachers").get(),
     db.collection("attendance").where("date", ">=", from).where("date", "<=", to).get(),
-    db.collection("studentEvals").where("wk", ">=", M + "-01").where("wk", "<=", to).get(), db.collection("teacherEvals").where("wk", ">=", M + "-01").where("wk", "<=", to).get(),
     db.collection("evalResponses").where("academy", "==", "aat").get()]);
   const counts = monthlyRiskCounts({ students: st.docs.map(d => d.data()).filter(s => s.id != null), schedule: sch.docs.map(d => d.data()), teachers: tc.docs.map(d => d.data()),
-    att: at.docs.map(d => d.data()), sEvals: se.docs.map(d => d.data()), tEvals: te.docs.map(d => d.data()), efr: er.docs.map(d => d.data()), M });
+    att: at.docs.map(d => d.data()), efr: er.docs.map(d => d.data()), M });
   // Çocuk Akademisi (alan adları ana akademiden farklı: solfej, drama, …)
   const withId = q => q.docs.map(d => ({ ...d.data(), _id: d.id }));
-  const [kd, kc, ks, ka, lv, ke, kte, ker] = await Promise.all([db.collection("kids").get(), db.collection("kidClasses").get(), db.collection("kidSchedule").get(),
+  const [kd, kc, ks, ka, lv, ker] = await Promise.all([db.collection("kids").get(), db.collection("kidClasses").get(), db.collection("kidSchedule").get(),
     db.collection("kidAttendance").where("date", ">=", from).where("date", "<=", to).get(), db.collection("studentLeaves").where("kid", "==", true).get(),
-    db.collection("kidEvals").where("wk", ">=", M + "-01").where("wk", "<=", to).get(), db.collection("kidTeacherEvals").where("wk", ">=", M + "-01").where("wk", "<=", to).get(),
     db.collection("evalResponses").where("academy", "==", "kid").get()]);
   const todayIst = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul" }).format(new Date());
   const kc2 = kidRiskCounts({ kids: withId(kd), cls: withId(kc), sched: withId(ks), att: ka.docs.map(d => d.data()), leaves: lv.docs.map(d => d.data()),
-    kEvals: ke.docs.map(d => d.data()), gEvals: kte.docs.map(d => d.data()), efr: ker.docs.map(d => d.data()), M, today: todayIst });
+    efr: ker.docs.map(d => d.data()), M, today: todayIst });
   Object.entries(kc2).forEach(([a, c]) => { counts[a] = c; });
   const [y, m] = M.split("-").map(Number);
   const mName = l => new Intl.DateTimeFormat(l === "en" ? "en-GB" : "tr-TR", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, 15)));

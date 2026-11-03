@@ -71,8 +71,10 @@ async function routes(ctx) {
   const old = new Date(); old.setDate(old.getDate() - 30);
   await put('kidSchedule/KS1', { title: 'Drama', day: new Date(day(7) + 'T12:00:00').getDay(), start: '10:00', end: '11:00', area: 'drama', classId: 'KC', teacher: 'Mamoste Berfîn', createdAt: old });
   for (const k of [21, 14, 7]) await put('kidAttendance/A' + k, { kidId: 'KD2', kidNo: K2, kidName: 'Azad Şêx', type: 'in', date: day(k) });
-  await putJ('kidEvals/KE1', { wk: WK, teacherNo: '72026001', teacherName: 'Mamoste Berfîn', kidNo: K2, kidName: 'Azad Şêx', area: 'drama', note: '', c: { p: 1, g: 2, h: 2, b: 2 } });
-  await putJ('kidTeacherEvals/KT1', { wk: WK, guardianNo: '9' + YR + '501', teacherNo: '72026001', teacherName: 'Mamoste Berfîn', area: 'drama', note: '', c: { e: 2, h: 2, r: 2, f: 2 } });
+  // Çocuk Akademisi: sorumlunun formu yanıtları (öğretmen → çocuk, veli → öğretmen isimsiz); eski haftalık değerlendirme yok
+  const kefr = (id, o) => fetch(`${FS}/evalResponses/${id}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: enc({ formId: 'FK', period: WK, academy: 'kid', answers: { q1: o.score10 }, ...o }).mapValue.fields }) });
+  await kefr('KE1', { raterNo: '72026001', raterRole: 'kidteacher', targetNo: K2, targetName: 'Azad Şêx', area: 'drama', direction: 't2k', score10: 3 });
+  await kefr('KT1', { raterNo: '9' + YR + '501', raterRole: 'guardian', targetNo: '72026001', targetName: 'Mamoste Berfîn', area: 'drama', direction: 'g2t', score10: 4 });
 
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
@@ -91,14 +93,13 @@ async function routes(ctx) {
   const badge = await hp.evaluate(() => { const e = document.querySelector('.sm-it[data-key="alerts"]'); return e ? e.innerText.replace(/\D+/g, ' ').trim() : null; });
   await hp.evaluate(() => document.querySelector('.sm-it[data-key="alerts"]').click()); await hp.waitForTimeout(2000);
   const k1 = await keys(hp);
-  // Rozet = açık uyarı sayısı (aylık analiz uyarıları da sayılır; tarih geçen aya düşerse eklenir); ders/değerlendirme uyarıları 3
-  ok('Sorumluda "Hişyarî" menüsü ve rozet (açık uyarı sayısı; ders/değerlendirme uyarıları 3)', badge !== null && new RegExp('\\b' + k1.length + '\\b').test(badge) && k1.filter(k => !k.startsWith('man_')).length === 3, badge + ' · ' + JSON.stringify(k1));
+  // Rozet = açık uyarı sayısı. Uyarı türleri: aylık analiz (man_) + bir derste 3 devamsızlık (abs_); anlık değerlendirme uyarısı YOK
+  ok('Sorumluda "Hişyarî" menüsü ve rozet (açık uyarı sayısı; aylık analiz dışında yalnız 3 devamsızlık uyarısı)', badge !== null && new RegExp('\\b' + k1.length + '\\b').test(badge) && k1.filter(k => !k.startsWith('man_')).length === 1, badge + ' · ' + JSON.stringify(k1));
   ok('Rojîn: Şano 1 dersinde 3 devamsızlık uyarısı', k1.includes('abs_20202601_L1'), JSON.stringify(k1));
   ok('Baran uyarıya düşmez (2 gelmedi; izinli ve geç sayılmaz)', !k1.some(k => k.startsWith('abs_20202602')));
   ok('Başka bölüm (müzik) öğrencisi sorumlunun uyarılarında yok', !k1.some(k => k.includes('20202603')));
-  ok('5/10 altı öğrenci değerlendirmesi (Rojîn 4.0) uyarıda, 8/10 olan yok', k1.includes('efr_E1') && !k1.includes('efr_E2'));
-  const tevTxt = await hp.evaluate(() => (document.querySelector('[data-alert="efr_T1"]') || {}).innerText || '');
-  ok('Öğretmen değerlendirmesi uyarısı isimsiz (öğrenci adı yok)', tevTxt.includes('Mamoste Şano') && tevTxt.includes('4.0') && !tevTxt.includes('Baran'), tevTxt.replace(/\n/g, ' / '));
+  ok('Tek değerlendirme formu 5/10 altı olsa da ANLIK uyarı yok (aylık analizde değerlendirilir)', !k1.some(k => k.startsWith('efr_')), JSON.stringify(k1));
+  ok('Uyarı süzgecinde değerlendirme türleri yok (aylık analiz + devamsızlık)', (await hp.locator('[data-alert-kind="sev"],[data-alert-kind="tev"]').count()) === 0 && (await hp.locator('[data-alert-kind="man"]').count()) === 1 && (await hp.locator('[data-alert-kind="abs"]').count()) === 1);
   // İlgilenildi + not
   await hp.click('[data-alert-ack="abs_20202601_L1"]'); await hp.waitForTimeout(300);
   await hp.fill('[data-alert-note]', 'Veliyle görüşüldü');
@@ -116,10 +117,8 @@ async function routes(ctx) {
   await kp.evaluate(() => document.querySelector('.sm-it[data-key="alerts"]').click()); await kp.waitForTimeout(2500);
   const k3 = await keys(kp);
   ok('Çocuk: Dilan Drama dersinde 3 gün gelmedi → uyarı; Azad uyarısız', k3.includes('kabs_' + K1 + '_KS1') && !k3.some(k => k.startsWith('kabs_' + K2)), JSON.stringify(k3));
-  ok('Çocuk: 5/10 altı değerlendirmeler (öğretmen→çocuk, veli→öğretmen) uyarıda', k3.includes('ksev_KE1') && k3.includes('ktev_KT1'));
-  ok('Çocuk sorumlusu ana akademi uyarılarını görmez', !k3.some(k => k.startsWith('abs_') || k.startsWith('sev_') || k === 'efr_E1' || k === 'efr_T1'));
-  const ktTxt = await kp.evaluate(() => (document.querySelector('[data-alert="ktev_KT1"]') || {}).innerText || '');
-  ok('Veli değerlendirmesi isimsiz', ktTxt.includes('Dêûbavek (bê nav)'), ktTxt.replace(/\n/g, ' / '));
+  ok('Çocuk: tek değerlendirme 5/10 altı olsa da anlık uyarı yok', !k3.some(k => k.startsWith('efr_')), JSON.stringify(k3));
+  ok('Çocuk sorumlusu ana akademi uyarılarını görmez', !k3.some(k => k.startsWith('abs_')));
   await kp.context().close();
 
   // 2) Yönetici: tüm bölümler
@@ -127,7 +126,7 @@ async function routes(ctx) {
   await ap.evaluate(() => document.querySelector('.sm-it[data-key="alerts"],.pano-tile[data-key="alerts"]').click()); await ap.waitForTimeout(2000);
   const k2 = await keys(ap);
   ok('Yönetici müzik öğrencisinin uyarısını da görür', k2.includes('abs_20202603_LM') && k2.includes('abs_20202601_L1'), JSON.stringify(k2));
-  ok('Yönetici çocuk akademisi uyarılarını da görür', k2.includes('kabs_' + K1 + '_KS1') && k2.includes('ksev_KE1'));
+  ok('Yönetici çocuk akademisi uyarılarını da görür', k2.includes('kabs_' + K1 + '_KS1') && !k2.some(k => k.startsWith('efr_')));
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);
 })().catch(e => { console.error('E2E HATA', e); process.exit(1); });
