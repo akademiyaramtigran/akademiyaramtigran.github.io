@@ -56,7 +56,7 @@ const clean = t => ALLOW.reduce((s, w) => s.split(w).join(''), t);
   const mk = async (lang) => { const c = await b.newContext({ viewport: { width: 1280, height: 900 } }); await routes(c);
     await c.addInitScript(l => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', l); localStorage.setItem('zarok-lang', l); } catch (_) {} }, lang); return c; };
   // Dile özgü harfler + özel harf taşımayan sık kelimeler (sözcük sınırlı)
-  const KU_W = /(^|[^\p{L}])(ji|bi|di|tune|heye|hemû|bike|bibe|mamoste|xwendekar|peyam|ragihandin|berpirs\p{L}*|nehat|hat kirin|tomar|amadebûn|nirxandin|zarok|dêûbav)(?=$|[^\p{L}])/iu;
+  const KU_W = /(^|[^\p{L}])(ji|bi|di|tune|heye|hemû|bike|bibe|mamoste|xwendekar|peyam|ragihandin|berpirs\p{L}*|nehat|hat kirin|tomar|amadebûn|nirxandin|zarok|dêûbav|ev sal|ev meh|meha borî|demsal|tarîx|lîste\p{L}*)(?=$|[^\p{L}])/iu;
   const TR_W = /(^|[^\p{L}])(için|ile|yok|var|bir|tamam|kaydet|giriş|kayıt|tarih|sonra|önce|kapat|ekle|sil|gönder|mesaj|duyuru|yoklama|izinli|hafta|toplam|tüm|hepsi|seç|genel|öğrenci|öğretmen|veli|çocuk)(?=$|[^\p{L}])/iu;
   const bad = (lang, t) => { const c = clean(t); return lang === 'tr' ? (/[êîûÊÎÛ]/.test(c) || KU_W.test(c)) : (/[ıığöüİĞÖÜ]/.test(c) || TR_W.test(c)); };
   const scan = async (p, lang, where) => { const t = await p.evaluate(() => document.body.innerText);
@@ -78,7 +78,7 @@ const clean = t => ALLOW.reduce((s, w) => s.split(w).join(''), t);
       if (k === 'reports') {
         for (const seq of [['[data-rw-acad="aat"]', '[data-rw-type="devam"]', '[data-rw-who="student"]'], ['[data-rw-view="student"]'], ['[data-rw-who="teacher"]'],
           ['[data-rw-type="eval"]', '[data-rw-who="student"]'], ['[data-rw-type="analiz"]', '[data-rw-who="student"]'], ['[data-rw-new]', '[data-rw-acad="kid"]', '[data-rw-type="devam"]'],
-          ['[data-rw-type="analiz"]'], ['[data-rw-archive]']]) { for (const q of seq) await click(p, q); await scan(p, lang, who + ' · rapor ' + seq.join(' ')); }
+          ['[data-rw-type="analiz"]'], ['[data-rw-new]', '[data-rw-acad="aat"]', '[data-rw-type="list"]'], ['[data-rw-archive]']]) { for (const q of seq) await click(p, q); await scan(p, lang, who + ' · rapor ' + seq.join(' ')); }
       }
     }
   };

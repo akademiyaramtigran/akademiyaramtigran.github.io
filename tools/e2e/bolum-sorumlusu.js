@@ -97,7 +97,7 @@ async function routes(ctx) {
   // Rapor: yalnızca bölüm sekmeleri
   await goA(hp, 'reports'); await hp.waitForTimeout(1200);
   const rt1 = await hp.evaluate(() => [...document.querySelectorAll('[data-rw-type]')].map(e => e.dataset.rwType).join(','));
-  ok('Rapor: sorumluda Devam + Değerlendirme + Genel analiz (çocuk akademisi / arşiv yok)', rt1 === 'devam,eval,analiz' && (await hp.locator('[data-rw-acad],[data-rw-archive]').count()) === 0, rt1);
+  ok('Rapor: sorumluda Devam + Değerlendirme + Genel analiz (çocuk akademisi / arşiv yok)', rt1 === 'devam,eval,analiz,list' && (await hp.locator('[data-rw-acad],[data-rw-archive]').count()) === 0, rt1);
 
   // 3) Öğrenciler: tiyatro öğrencisi duyuruyu görür, müzik öğrencisi görmez; tiyatro öğrencisi sorumluya yazar
   const s1 = await login(await mk(430), '20202601', 'Stu12345', 'Xwendekar');

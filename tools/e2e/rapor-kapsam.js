@@ -103,7 +103,7 @@ async function routes(ctx) {
   ok('Sorumlu menüsünde anket yok', !hk.includes('surveys') && hk.includes('reports') && hk.includes('evalforms'), hk.join(','));
   await go(hp, 'reports');
   const ht = await rtabs(hp);
-  ok('Sorumlu rapor türleri: Devam + Değerlendirme + Genel analiz (anket yok)', ht.join(',') === 'devam,eval,analiz', ht.join(','));
+  ok('Sorumlu rapor türleri: Devam + Değerlendirme + Genel analiz (anket yok)', ht.join(',') === 'devam,eval,analiz,list', ht.join(','));
   await devStu(hp);
   ok('Tiyatro sorumlusu: Rojîn genel ders dahil %50 (3/6), müzik öğrencisi yok', (await pct(hp, '20202601')) === '50%' && (await pct(hp, '20202603')) === null, await pct(hp, '20202601'));
   // Ortak "Giştî" sınıfı seçilince yalnız sorumlunun kendi öğrencileri
@@ -145,11 +145,18 @@ async function routes(ctx) {
   ok('Öğrenci İşleri: akademi seçimi (Konservatuar / Çocuk Akademisi), arşiv yok', (await rp.locator('[data-rw-acad]').count()) === 2 && (await rp.locator('[data-rw-archive]').count()) === 0);
   await rwc(rp, '[data-rw-acad="aat"]');
   const rt = await rtabs(rp);
-  ok('Öğrenci İşleri rapor türleri: Devam + Genel analiz; değerlendirme yok', rt.join(',') === 'devam,analiz', rt.join(','));
+  ok('Öğrenci İşleri rapor türleri: Devam + Genel analiz; değerlendirme yok', rt.join(',') === 'devam,analiz,list', rt.join(','));
   ok('Öğrenci İşleri alan seçebilir (tüm alanlar)', (await rp.locator('[data-rw-area]').count()) === 1);
   await devStu(rp);
   ok('Öğrenci İşleri tüm bölümleri görür (tiyatro + müzik öğrencisi)', (await pct(rp, '20202601')) !== null && (await pct(rp, '20202603')) !== null);
   ok('Öğrenci İşleri devam ekranında değerlendirme özeti yok', !(await rp.evaluate(() => document.body.innerText)).includes('Mamoste → xwendekar'));
+  // Öğrenci listesi: alanlar tek tek kapatılır (ör. tiyatro hariç), ad + kullanıcı numarası, PDF / Excel
+  await rwc(rp, '[data-rw-new]', '[data-rw-acad="aat"]', '[data-rw-type="list"]');
+  const nAll = +(await rp.evaluate(() => document.querySelector('[data-sl-count]').dataset.slCount));
+  await rwc(rp, '[data-sl-area="tiyatro"]');
+  const nNoT = +(await rp.evaluate(() => document.querySelector('[data-sl-count]').dataset.slCount));
+  const slRows = await rp.evaluate(() => [...document.querySelectorAll('[data-sl-row]')].map(e => e.dataset.slRow));
+  ok('Öğrenci listesi: tiyatro kapatılınca yalnız diğer alanlar (müzik öğrencisi kalır, numarasıyla)', nAll === 3 && nNoT === 1 && slRows.join() === '20202603' && (await rp.locator('[data-sl-pdf]').count()) === 1, nAll + ' → ' + nNoT + ' ' + JSON.stringify(slRows));
   await rp.context().close();
 
   // 4) Öğretmen ve öğrenci: anket menüsü yok

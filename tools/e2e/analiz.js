@@ -87,7 +87,7 @@ async function routes(ctx) {
   const hp = await login('96000001', 'Head1234');
   await go(hp, 'reports');
   const tabs = await hp.evaluate(() => [...document.querySelectorAll('[data-rw-type]')].map(e => e.dataset.rwType).join(','));
-  ok('Sorumlu rapor türleri: Devam · Değerlendirme · Genel analiz', tabs === 'devam,eval,analiz', tabs);
+  ok('Sorumlu rapor türleri: Devam · Değerlendirme · Genel analiz', tabs === 'devam,eval,analiz,list', tabs);
   await rwc(hp, '[data-rw-type="analiz"]', '[data-rw-who="student"]'); await hp.waitForTimeout(1500);
   const r1 = await row(hp, '101'), r2 = await row(hp, '102');
   ok('Öğrenci: Rojîn bu ay %0 📉, değerlendirme 4.0 📉, risk ⚠', !!r1 && r1.includes('0%') && r1.includes('📉') && r1.includes('4.0') && r1.includes('⚠'), r1);
@@ -144,7 +144,7 @@ async function routes(ctx) {
   // Öğrenci İşleri: analiz var, değerlendirme sütunu yok
   const rp = await login('98202601', 'Reg12345');
   await go(rp, 'reports');
-  ok('Öğrenci İşleri rapor türlerinde değerlendirme yok', await (async () => { await rwc(rp, '[data-rw-acad="aat"]'); return (await rp.evaluate(() => [...document.querySelectorAll('[data-rw-type]')].map(e => e.dataset.rwType).join(','))) === 'devam,analiz'; })());
+  ok('Öğrenci İşleri rapor türlerinde değerlendirme yok', await (async () => { await rwc(rp, '[data-rw-acad="aat"]'); return (await rp.evaluate(() => [...document.querySelectorAll('[data-rw-type]')].map(e => e.dataset.rwType).join(','))) === 'devam,analiz,list'; })());
   await rwc(rp, '[data-rw-type="analiz"]', '[data-rw-who="student"]'); await rp.waitForTimeout(1500);
   ok('Öğrenci İşleri: tüm bölümler (müzik öğrencisi de var), değerlendirme sütunu yok', (await row(rp, '103')) !== null && (await rp.locator('[data-an-ev]').count()) === 0);
   await go(rp, 'alerts');
