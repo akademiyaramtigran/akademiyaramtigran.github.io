@@ -38,19 +38,23 @@ service firebase.storage {
     function isPress()     { return authed() && lvlIn(['admin', 'press']); }
     function isRegistrar() { return authed() && lvlIn(['admin', 'registrar']); }
     function isImage(max) { return request.resource.contentType.matches('image/.*') && request.resource.size < max; }
+    // SVG betik taşıyabilir: hiçbir yerde kabul edilmez
+    function safeImage(max) { return isImage(max) && request.resource.contentType != 'image/svg+xml'; }
 
     // Profil fotoğrafları: photos/students/<fireId>.jpg — öğrenci yalnızca KENDİ fotoğrafını
     // yükler (belge sahibi Firestore'dan doğrulanır); personel hepsini yönetir.
     match /photos/students/{file} {
-      allow read:   if member();
-      allow create, update: if isImage(5 * 1024 * 1024) && (isStaff() || (isStudent()
+      allow get:    if member();
+      allow list:   if false;
+      allow create, update: if safeImage(5 * 1024 * 1024) && (isStaff() || (isStudent()
         && string(firestore.get(/databases/(default)/documents/students/$(file.split('[.]')[0])).data.no) == prefix()));
       allow delete: if isRegistrar();
     }
     // Öğretmen fotoğrafı: öğrenci işleri/yönetici hepsini; öğretmen yalnızca KENDİ fotoğrafını
     match /photos/teachers/{file} {
-      allow read:   if member();
-      allow create, update: if isImage(5 * 1024 * 1024) && (isRegistrar() || (isStaff()
+      allow get:    if member();
+      allow list:   if false;
+      allow create, update: if safeImage(5 * 1024 * 1024) && (isRegistrar() || (isStaff()
         && string(firestore.get(/databases/(default)/documents/teachers/$(file.split('[.]')[0])).data.no) == prefix()));
       allow delete: if isRegistrar();
     }
@@ -67,7 +71,9 @@ service firebase.storage {
         || request.resource.contentType.matches('audio/(mpeg|mp4|aac|ogg|wav|x-wav|webm|x-m4a|3gpp|amr)');
     }
     match /attachments/{uid}/{file} {
-      allow read:   if member();
+      // Yalnız bağlantısı bilinen dosya okunur; klasör LİSTELENEMEZ (başkalarının eklerini toplama yok)
+      allow get:    if member();
+      allow list:   if false;
       allow create: if member() && request.auth.uid == uid
                     && request.resource.size < 20 * 1024 * 1024 && attachType();
       allow delete: if (member() && request.auth.uid == uid) || isRegistrar();
@@ -76,7 +82,6 @@ service firebase.storage {
     // Haber medyası (basın paneli): site herkese açık gösterir → okuma serbest;
     // yükleme/silme yalnızca basın + yönetici. Görsel ≤10MB (SVG hariç: betik taşıyabilir),
     // video ≤200MB, altyazı (yalnızca .vtt/.srt düz metin) ≤2MB — HTML yüklenemez.
-    function safeImage(max) { return isImage(max) && request.resource.contentType != 'image/svg+xml'; }
     match /news/{allPaths=**} {
       allow read: if true;
       allow create, update: if isPress()

@@ -16,6 +16,7 @@ on:
           - kurallar
           - fonksiyon
           - site
+          - giris-sertlestir
 
 permissions:
   contents: read
@@ -45,7 +46,7 @@ jobs:
           fi
 
       - name: Fonksiyon bağımlılıkları
-        if: inputs.hedef != 'kurallar' && inputs.hedef != 'site'
+        if: inputs.hedef == 'fonksiyon' || inputs.hedef == 'hepsi'
         run: npm install --omit=dev --no-audit --no-fund
         working-directory: functions
 
@@ -67,6 +68,20 @@ jobs:
             gcloud auth activate-service-account --key-file="$KEY" --quiet
             gcloud services enable cloudbilling.googleapis.com --project aram2026-a9fd7 --quiet \
               || echo "::warning::Cloud Billing API açılamadı — Console'dan elle açın"
+          fi
+          if [ "$HEDEF" = "giris-sertlestir" ]; then
+            # Giriş sertleştirme: uygulamadan HESAP AÇMA kapatılır (tüm hesaplar yalnız sunucu fonksiyonuyla açılır),
+            # kullanıcı kendi hesabını silemez, e-posta numaralandırma koruması açılır. Sırlar yazdırılmaz.
+            TOKEN=$(gcloud auth print-access-token)
+            URL="https://identitytoolkit.googleapis.com/admin/v2/projects/aram2026-a9fd7/config"
+            MASK="client.permissions.disabledUserSignup,client.permissions.disabledUserDeletion,emailPrivacyConfig.enableImprovedEmailPrivacy"
+            curl -sS --fail-with-body -X PATCH "$URL?updateMask=$MASK" \
+              -H "Authorization: Bearer $TOKEN" -H "x-goog-user-project: aram2026-a9fd7" -H "Content-Type: application/json" \
+              -d '{"client":{"permissions":{"disabledUserSignup":true,"disabledUserDeletion":true}},"emailPrivacyConfig":{"enableImprovedEmailPrivacy":true}}' \
+              -o "$RUNNER_TEMP/cfg.json"
+            node -e 'const c=require(process.argv[1]);console.log("disabledUserSignup:",c.client?.permissions?.disabledUserSignup,"| disabledUserDeletion:",c.client?.permissions?.disabledUserDeletion,"| improvedEmailPrivacy:",c.emailPrivacyConfig?.enableImprovedEmailPrivacy)' "$RUNNER_TEMP/cfg.json"
+            rm -f "$RUNNER_TEMP/cfg.json" "$KEY"
+            exit 0
           fi
           case "$HEDEF" in
             kurallar)  ONLY="firestore:rules,storage" ;;

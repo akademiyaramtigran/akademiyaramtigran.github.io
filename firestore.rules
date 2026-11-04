@@ -96,10 +96,19 @@ service cloud.firestore {
     // Akademi üyesi (giriş yapmış + dizinde kayıtlı)
     function member() { return isStaff() || isStudent(); }
 
+    // Kimlik alanları (id / fireId): değiştirilemez; eski kayıtta yoksa yalnız belgenin KENDİ kimliğiyle eklenebilir
+    // (id değiştirilip başka öğrencinin yoklama satırına yazılmasın)
+    function selfIdsOk(docId) {
+      let n = request.resource.data; let o = resource.data;
+      return (n.get('fireId', null) == o.get('fireId', null) || (!('fireId' in o) && n.get('fireId', null) == docId))
+        // uygulama kaydederken id'yi yazmaz (kimlik = belge kimliği'ne düşer): silinmesi serbest, BAŞKA değere değişemez
+        && (n.get('id', null) == o.get('id', null) || !('id' in n) || n.get('id', null) == docId);
+    }
     // Kendi kaydında değiştirilemeyecek alanlar (alan, sınıf, burs, yetki bayrakları…)
     function selfEditOk() {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(
-        ['no','name','isAdmin','isPress','isRegistrar','isGate','isHead','area','classLevel','burs','scholarship','grade','regYear','status','role','cardToken']);
+        ['no','name','isAdmin','isPress','isRegistrar','isGate','isHead','area','classLevel','burs','scholarship','grade','regYear','status','role','cardToken',
+         'uid','lvl','headArea']);
     }
 
     // Bir öğrenci/öğretmen dokümanı bu kullanıcıya mı ait? ("no" alanı = e-posta öneki)
@@ -134,7 +143,7 @@ service cloud.firestore {
       // Öğretmen yeni öğrenci ekleyebilir; düzenleme/silme öğrenci işleri + yönetici
       allow create: if isRegistrar() || isTeacherLvl();
       allow update: if isRegistrar()
-                    || (ownsStudentDoc(resource.data) && noUnchanged() && notGrantingAdmin() && selfEditOk());
+                    || (ownsStudentDoc(resource.data) && noUnchanged() && notGrantingAdmin() && selfEditOk() && selfIdsOk(id));
       allow delete: if isRegistrar();   // öğrenci kendi kaydını silemez (silme talebi yönetime gider)
     }
 
@@ -160,7 +169,7 @@ service cloud.firestore {
       allow create: if isAdmin() || (isRegistrar() && plainTeacher(request.resource.data));
       allow update: if isAdmin()
                     || (isRegistrar() && plainTeacher(resource.data) && plainTeacher(request.resource.data))
-                    || (ownsTeacherDoc(resource.data) && noUnchanged() && notGrantingAdmin() && selfEditOk());
+                    || (ownsTeacherDoc(resource.data) && noUnchanged() && notGrantingAdmin() && selfEditOk() && selfIdsOk(id));
       allow delete: if isAdmin() || (isRegistrar() && plainTeacher(resource.data));
     }
 
@@ -348,6 +357,14 @@ service cloud.firestore {
       // "zamanında" yalnız dersin açılışından sonraki ilk 16 dk (1 dk saat payı); "geç" her zaman yazılabilir
       return l == true || (l == false && request.time.toMillis() - qrSess(sid).get('openedAtMs', 0) < 960000);
     }
+    // Okutan öğrenci kaydı GERÇEKTEN kendisi mi? (studentId başkasınınki yazılıp onun adına yoklama verilemez)
+    function stuSelfOk(id, sid, d) {
+      let f = d.get('studentFire', '');
+      return f is string && f != '' && exists(/databases/$(database)/documents/students/$(f))
+        && string(get(/databases/$(database)/documents/students/$(f)).data.get('no', '')) == prefix()
+        && string(get(/databases/$(database)/documents/students/$(f)).data.get('id', f)) == string(d.get('studentId', ''))
+        && id == sid + '_' + string(d.get('studentId', ''));
+    }
     function stuQrOk(id) {
       let d = request.resource.data;
       let sid = d.get('sessionId', '');
@@ -358,7 +375,8 @@ service cloud.firestore {
         && qrSess(sid).get('active', false) == true && qrSess(sid).get('expiresAt', 0) > request.time.toMillis()
         && (d.get('deviceClaim', false) == true
             ? d.keys().hasOnly(['sessionId', 'studentNo', 'deviceClaim', 'time'])
-            : (d.keys().hasOnly(['sessionId', 'lessonName', 'area', 'studentId', 'studentName', 'studentNo', 'qrLessonId', 'qrDate', 'time', 'late', 'teacherName', 'code'])
+            : (d.keys().hasOnly(['sessionId', 'lessonName', 'area', 'studentId', 'studentFire', 'studentName', 'studentNo', 'qrLessonId', 'qrDate', 'time', 'late', 'teacherName', 'code'])
+               && stuSelfOk(id, sid, d)
                && qrCodeOk(sid, d.get('code', ''))
                && qrLateOk(sid, d.get('late', false))
                && (!('qrLessonId' in d) || (d.qrLessonId == qrSess(sid).get('lessonId', '') && d.get('qrDate', '') == qrSess(sid).get('lessonDate', '')))));
@@ -367,7 +385,8 @@ service cloud.firestore {
       // Öğrenci yalnız KENDİ QR okutma kaydını okur (başkalarının yoklaması kişisel veridir)
       allow read: if isStaff() || (isStudent() && string(resource.data.get('studentNo', '')) == prefix());
       allow create, update: if staffW() || headAbsenceOk() || headLessonAttOk(id) || stuQrOk(id);
-      allow delete: if staffW();
+      // Silme yalnız yönetici + öğrenci işleri (ders silinirken kayıtları); öğretmen geçmiş yoklamayı silip izini kaybettiremez
+      allow delete: if isRegistrar();
     }
     // Mesajlar: personel hepsini okur/yazar. Öğrenci yalnızca KENDİNE gelen özel mesajı
     // (recipientNo == kendi no) ve öğrencilere yönelik toplu mesajları okur; yalnızca
@@ -407,7 +426,10 @@ service cloud.firestore {
             && request.resource.data.get('recipientGroup', null) == null
             && request.resource.data.get('recipientNo', null) == null
             && request.resource.data.get('toRole', '') in ['admin', 'teacher', 'head']
-            && request.resource.data.get('fromNo', prefix()) == prefix()
+            // gönderen numarası kendi numarası olmalı; numarasız mesaj yalnız "isimsiz" işaretli olabilir
+            && (request.resource.data.get('fromNo', '') == prefix()
+                || (!('fromNo' in request.resource.data) && request.resource.data.get('anonymous', false) == true
+                    && request.resource.data.get('fromId', null) == null))
             && string(request.resource.data.get('body', '')).size() <= 5000
             && string(request.resource.data.get('subject', '')).size() <= 300);
       allow update: if staffW()
@@ -453,7 +475,14 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/evalForms/$(request.resource.data.formId))
         && evForm(request.resource.data.formId).active == true
         && request.resource.data.direction == evForm(request.resource.data.formId).direction
-        && evRoleOk(evForm(request.resource.data.formId).direction);
+        && evRoleOk(evForm(request.resource.data.formId).direction)
+        && request.resource.data.get('academy', '') == evForm(request.resource.data.formId).get('academy', '')
+        && request.resource.data.targetNo is string && request.resource.data.targetNo.size() <= 20
+        && string(request.resource.data.get('area', '')).size() <= 40
+        && string(request.resource.data.get('targetName', '')).size() <= 120
+        // hedef GERÇEK bir kişi olmalı (öğrenci → kayıtlı öğretmen, öğretmen → kayıtlı öğrenci)
+        && (request.resource.data.direction != 's2t' || exists(/databases/$(database)/documents/idx_staff/$(request.resource.data.targetNo)))
+        && (request.resource.data.direction != 't2s' || exists(/databases/$(database)/documents/idx_students/$(request.resource.data.targetNo)));
       allow delete: if isAdmin();
     }
     // Uyarı merkezi: "ilgilenildi" işaretleri (yönetici + bölüm sorumlusu); belge kimliği = uyarı anahtarı
@@ -601,7 +630,13 @@ service cloud.firestore {
     // Okuma/silme yalnızca sahibi; gönderimi sunucu (Cloud Functions) yapar.
     function pushRoleOk(r) {
       return (isStudent() && r == 'student')
-        || (isStaff() && r in ['teacher', 'registrar', 'press', 'admin', 'gate', 'head'])
+        // personel rolü dizindeki seviyeyle AYNI olmalı (öğretmen kendini "sorumlu"/"yönetici" diye kaydedip
+        // onların bildirimlerini alamaz); sorumlunun bölümü de dizindeki bölüm olmalı
+        || (isStaff() && (r == 'teacher'
+            || (r == 'admin' && isAdmin())
+            || (r in ['registrar', 'press', 'head'] && mail() != 'admin@aramtigran.edu'
+                && get(dbPath('idx_staff')).data.get('lvl', 'teacher') == r
+                && (r != 'head' || string(request.resource.data.get('area', '')) == headArea()))))
         || (isGuardian() && r == 'guardian')
         || (kidStaff() && r == 'kidteacher');
     }

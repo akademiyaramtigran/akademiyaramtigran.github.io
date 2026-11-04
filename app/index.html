@@ -8009,7 +8009,7 @@ function openPrintHtml(html){
   }catch(e){}
 }
 function _printShell(title, body){
-  return '<!DOCTYPE html><html><head><meta charset="utf-8"/><title>'+title+'</title><style>'
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"/><title>'+esc(title)+'</title><style>'
     +'body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0f2f38;margin:28px}'
     +'h1{font-size:20px;margin:0 0 2px} .sub{color:#69748C;font-size:12px;margin-bottom:20px}'
     +'table{width:100%;border-collapse:collapse;font-size:13px} th,td{border:1px solid #d7dde8;padding:8px 10px;text-align:left}'
@@ -16168,7 +16168,7 @@ async function checkinToSession(qrContent, student){
     const put = late => window.__FB.setDoc(
         window.__FB.doc(window.__FB.db, "attendance", s.sessionId + "_" + student.id),
         { sessionId: s.sessionId, lessonName: s.lessonName||"", area: s.area||"",
-          studentId: student.id, studentName: student.name||"", studentNo: String(student.no),
+          studentId: student.id, studentFire: String(student.fireId||student.id||""), studentName: student.name||"", studentNo: String(student.no),
           ...(s.lessonId!=null?{qrLessonId:String(s.lessonId),qrDate:s._lessonDate||s.lessonDate||ymdLocal(new Date())}:{}),
           time: new Date().toISOString(), late, teacherName: s.teacherName||"", code },
         {merge:true}
