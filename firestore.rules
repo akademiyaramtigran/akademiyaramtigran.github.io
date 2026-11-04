@@ -381,6 +381,26 @@ service cloud.firestore {
                && qrLateOk(sid, d.get('late', false))
                && (!('qrLessonId' in d) || (d.qrLessonId == qrSess(sid).get('lessonId', '') && d.get('qrDate', '') == qrSess(sid).get('lessonDate', '')))));
     }
+    // Öğrenci devam kaydı: sunucu (Cloud Functions) yoklama kaydedilince yazar; öğrenci yalnız KENDİ kayıtlarını okur, değiştiremez
+    match /studentAtt/{id} {
+      allow read: if isStaff() || (isStudent() && resource.data.get('studentNo', '') == prefix());
+      allow write: if false;
+    }
+    // Yoklama itirazı: öğrenci yalnız KENDİ "yok/geç" kaydı için, notla, bir kez; sunucu öğretmene/sorumluya/yönetime mesaj düşürür
+    match /attObjections/{id} {
+      allow read: if isStaff() || (isStudent() && resource.data.get('studentNo', '') == prefix());
+      allow create: if isStudent()
+        && request.resource.data.keys().hasOnly(['studentNo', 'studentName', 'lessonId', 'lessonFire', 'lessonName', 'area', 'date', 'status', 'note', 'createdAt'])
+        && request.resource.data.studentNo == prefix()
+        && id == request.resource.data.lessonId + '-' + request.resource.data.date + '-' + prefix()
+        && request.resource.data.note is string && request.resource.data.note.size() >= 3 && request.resource.data.note.size() <= 300
+        && string(request.resource.data.get('studentName', '')).size() <= 120 && string(request.resource.data.get('lessonName', '')).size() <= 120
+        && exists(/databases/$(database)/documents/studentAtt/$(id))
+        && get(/databases/$(database)/documents/studentAtt/$(id)).data.studentNo == prefix()
+        && get(/databases/$(database)/documents/studentAtt/$(id)).data.status in ['off', 'late']
+        && get(/databases/$(database)/documents/studentAtt/$(id)).data.status == request.resource.data.status;
+      allow delete: if isRegistrar();
+    }
     match /attendance/{id} {
       // Öğrenci yalnız KENDİ QR okutma kaydını okur (başkalarının yoklaması kişisel veridir)
       allow read: if isStaff() || (isStudent() && string(resource.data.get('studentNo', '')) == prefix());

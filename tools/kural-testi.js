@@ -118,6 +118,9 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
     await setDoc(doc(db, 'qrSessions/s4'), { lessonId: 'L1', lessonDate: '2026-11-02', openedAtMs: now - 1800000, expiresAt: now + 3600000, active: true });
     await setDoc(doc(db, 'qrCodes/s4'), { codes: ['ABC123'] });
     await setDoc(doc(db, 'attendance/s0_S2'), { sessionId: 's0', studentNo: '10202602', studentId: 'S2' });
+    await setDoc(doc(db, 'studentAtt/L1-2026-11-02-10202601'), { studentNo: '10202601', lessonId: 'L1', lessonFire: 'L1', lessonName: 'Ders', area: 'sinema', date: '2026-11-02', status: 'off' });
+    await setDoc(doc(db, 'studentAtt/L1-2026-11-02-10202602'), { studentNo: '10202602', lessonId: 'L1', lessonFire: 'L1', lessonName: 'Ders', area: 'sinema', date: '2026-11-02', status: 'off' });
+    await setDoc(doc(db, 'studentAtt/L1-2026-11-03-10202601'), { studentNo: '10202601', lessonId: 'L1', lessonFire: 'L1', lessonName: 'Ders', area: 'sinema', date: '2026-11-03', status: 'on' });
     await setDoc(doc(db, 'attendance/sx_DEL'), { sessionId: 'sx', studentNo: '10202602', studentId: 'S2' });
     await setDoc(doc(db, 'attendance/L1-2026-11-02'), { lessonId: 'L1', date: '2026-11-02', records: { S2: 'on' } });
   });
@@ -146,6 +149,23 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
   await t('Öğrenci DERS yoklama belgesi (records) YAZAMAZ', setDoc(doc(student, 'attendance/L1-2026-11-03'), { lessonId: 'L1', date: '2026-11-03', records: { S1: 'on' } }), false);
   await t('Öğrenci ders yoklamasını DEĞİŞTİREMEZ', updateDoc(doc(student, 'attendance/L1-2026-11-02'), { records: { S1: 'on', S2: 'off' } }), false);
   await t('Öğrenci yoklama SİLEMEZ', deleteDoc(doc(student, 'attendance/s1_S1')), false);
+  // Öğrenci devam kaydı + itiraz
+  const oD = (x) => ({ studentNo: '10202601', studentName: 'Xwendekar', lessonId: 'L1', lessonFire: 'L1', lessonName: 'Ders', area: 'sinema', date: '2026-11-02', status: 'off', note: 'Ben derstim', createdAt: new Date(), ...(x || {}) });
+  await t('Devam: öğrenci KENDİ devam kayıtlarını sorgular', getDocs(query(collection(student, 'studentAtt'), where('studentNo', '==', '10202601'))), true);
+  await t('Devam: öğrenci BAŞKASININ devam kaydını OKUYAMAZ', getDoc(doc(student, 'studentAtt/L1-2026-11-02-10202602')), false);
+  await t('Devam: öğrenci tüm devam kayıtlarını LİSTELEYEMEZ', getDocs(collection(student, 'studentAtt')), false);
+  await t('Devam: öğrenci devam kaydını DEĞİŞTİREMEZ', updateDoc(doc(student, 'studentAtt/L1-2026-11-02-10202601'), { status: 'on' }), false);
+  await t('Devam: öğrenci devam kaydı YAZAMAZ', setDoc(doc(student, 'studentAtt/L9-2026-11-02-10202601'), { studentNo: '10202601', status: 'on' }), false);
+  await t('Devam: öğretmen devam kaydını OKUR', getDoc(doc(teacher, 'studentAtt/L1-2026-11-02-10202601')), true);
+  await t('Devam: öğretmen devam kaydını DEĞİŞTİREMEZ (sunucu yazar)', updateDoc(doc(teacher, 'studentAtt/L1-2026-11-02-10202601'), { status: 'on' }), false);
+  await t('İtiraz: öğrenci KENDİ "yok" kaydına notla itiraz eder', setDoc(doc(student, 'attObjections/L1-2026-11-02-10202601'), oD()), true);
+  await t('İtiraz: aynı kayda ikinci kez yazamaz (güncelleme yok)', updateDoc(doc(student, 'attObjections/L1-2026-11-02-10202601'), { note: 'yeni not' }), false);
+  await t('İtiraz: "katıldı" yazılı kayda itiraz edilemez', setDoc(doc(student, 'attObjections/L1-2026-11-03-10202601'), oD({ date: '2026-11-03', status: 'on' })), false);
+  await t('İtiraz: BAŞKASININ kaydına itiraz edilemez', setDoc(doc(student, 'attObjections/L1-2026-11-02-10202602'), oD({ studentNo: '10202602' })), false);
+  await t('İtiraz: notsuz itiraz edilemez', setDoc(doc(student, 'attObjections/L1-2026-11-02-10202601'), oD({ note: '' })), false);
+  await t('İtiraz: olmayan kayda itiraz edilemez', setDoc(doc(student, 'attObjections/L7-2026-11-02-10202601'), oD({ lessonId: 'L7' })), false);
+  await t('İtiraz: öğretmen itirazı okur', getDoc(doc(teacher, 'attObjections/L1-2026-11-02-10202601')), true);
+  await t('İtiraz: öğretmen itiraz YAZAMAZ', setDoc(doc(teacher, 'attObjections/L1-2026-11-02-10202602'), oD({ studentNo: '10202602' })), false);
   await t('Öğretmen yoklama kaydı SİLEMEZ', deleteDoc(doc(teacher, 'attendance/s0_S2')), false);
   await t('Öğrenci işleri yoklama kaydı siler', deleteDoc(doc(as('98202601@ogretmen.aat'), 'attendance/sx_DEL')), true);
   await t('Öğrenci KENDİ QR kaydını okur', getDoc(doc(student, 'attendance/s1_S1')), true);

@@ -1,0 +1,35 @@
+# Bu eğitim yılının MEVCUT ders yoklamalarından öğrenci "Amadebûna Min" kayıtlarını (studentAtt) üretir.
+# Yeni yoklamalar zaten kendiliğinden işlenir; bu iş yalnızca geçmişi bir kez doldurur. Bildirim göndermez; tekrar çalıştırmak güvenlidir.
+# Elle çalıştırılır: GitHub → Actions → "Eski yoklamaları öğrenci ekranına aktar" → Run workflow.
+name: Eski yoklamaları öğrenci ekranına aktar
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-deploy
+  cancel-in-progress: false
+
+jobs:
+  aktar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --omit=dev --no-audit --no-fund
+        working-directory: functions
+      - name: Aktar
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then echo "::error::FIREBASE_SERVICE_ACCOUNT sırrı yok"; exit 1; fi
+          KEY="$RUNNER_TEMP/sa.json"; printf '%s' "$SA" > "$KEY"
+          export GOOGLE_APPLICATION_CREDENTIALS="$KEY" GCLOUD_PROJECT=aram2026-a9fd7
+          NODE_PATH="$PWD/functions/node_modules" node tools/devam-aktar.js
+          rm -f "$KEY"
