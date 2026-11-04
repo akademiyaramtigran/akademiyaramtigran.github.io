@@ -2,7 +2,7 @@
 //   cd tools && npm install && npm run kural-testi     (Java 11+ gerekir)
 const fs = require('fs');
 const { initializeTestEnvironment, assertSucceeds, assertFails } = require('@firebase/rules-unit-testing');
-const { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, addDoc } = require('firebase/firestore');
+const { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, addDoc, deleteField } = require('firebase/firestore');
 const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/storage');
 
 (async () => {
@@ -138,6 +138,7 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
   await t('QR: studentFire olmadan yoklama verilemez', setDoc(doc(student, 'attendance/s1_S1'), ci('s1', { studentFire: '' })), false);
   await t('Öğrenci kendi kaydında id değiştiremez', updateDoc(doc(student, 'students/S1'), { id: 'S2' }), false);
   await t('Öğrenci eski kaydına fireId (KENDİ belge kimliği) ekleyebilir', updateDoc(doc(student, 'students/S1'), { fireId: 'S1' }), true);
+  await t('Öğrenci kendi kaydından id alanını kaldırabilir (uygulama kaydı)', updateDoc(doc(student, 'students/S1'), { id: deleteField() }), true);
   await t('Öğretmen kendi kaydında id değiştiremez', updateDoc(doc(teacher, 'teachers/T2'), { id: 'T1' }), false);
   await t('Öğrenci kendi kaydında fireId değiştiremez', updateDoc(doc(student, 'students/S1'), { fireId: 'S2' }), false);
   await t('Öğrenci DERS yoklama belgesi (records) YAZAMAZ', setDoc(doc(student, 'attendance/L1-2026-11-03'), { lessonId: 'L1', date: '2026-11-03', records: { S1: 'on' } }), false);

@@ -101,7 +101,8 @@ service cloud.firestore {
     function selfIdsOk(docId) {
       let n = request.resource.data; let o = resource.data;
       return (n.get('fireId', null) == o.get('fireId', null) || (!('fireId' in o) && n.get('fireId', null) == docId))
-        && (n.get('id', null) == o.get('id', null) || (!('id' in o) && n.get('id', null) == docId));
+        // uygulama kaydederken id'yi yazmaz (kimlik = belge kimliği'ne düşer): silinmesi serbest, BAŞKA değere değişemez
+        && (n.get('id', null) == o.get('id', null) || !('id' in n) || n.get('id', null) == docId);
     }
     // Kendi kaydında değiştirilemeyecek alanlar (alan, sınıf, burs, yetki bayrakları…)
     function selfEditOk() {
