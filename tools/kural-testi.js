@@ -137,6 +137,8 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
   await t('QR: başkasının kayıt kimliği (studentFire) kullanılamaz', setDoc(doc(student, 'attendance/s1_S2'), ci('s1', { studentId: 'S2', studentFire: 'S2' })), false);
   await t('QR: studentFire olmadan yoklama verilemez', setDoc(doc(student, 'attendance/s1_S1'), ci('s1', { studentFire: '' })), false);
   await t('Öğrenci kendi kaydında id değiştiremez', updateDoc(doc(student, 'students/S1'), { id: 'S2' }), false);
+  await t('Öğrenci eski kaydına fireId (KENDİ belge kimliği) ekleyebilir', updateDoc(doc(student, 'students/S1'), { fireId: 'S1' }), true);
+  await t('Öğretmen kendi kaydında id değiştiremez', updateDoc(doc(teacher, 'teachers/T2'), { id: 'T1' }), false);
   await t('Öğrenci kendi kaydında fireId değiştiremez', updateDoc(doc(student, 'students/S1'), { fireId: 'S2' }), false);
   await t('Öğrenci DERS yoklama belgesi (records) YAZAMAZ', setDoc(doc(student, 'attendance/L1-2026-11-03'), { lessonId: 'L1', date: '2026-11-03', records: { S1: 'on' } }), false);
   await t('Öğrenci ders yoklamasını DEĞİŞTİREMEZ', updateDoc(doc(student, 'attendance/L1-2026-11-02'), { records: { S1: 'on', S2: 'off' } }), false);

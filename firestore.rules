@@ -96,11 +96,18 @@ service cloud.firestore {
     // Akademi üyesi (giriş yapmış + dizinde kayıtlı)
     function member() { return isStaff() || isStudent(); }
 
+    // Kimlik alanları (id / fireId): değiştirilemez; eski kayıtta yoksa yalnız belgenin KENDİ kimliğiyle eklenebilir
+    // (id değiştirilip başka öğrencinin yoklama satırına yazılmasın)
+    function selfIdsOk(docId) {
+      let n = request.resource.data; let o = resource.data;
+      return (n.get('fireId', null) == o.get('fireId', null) || (!('fireId' in o) && n.get('fireId', null) == docId))
+        && (n.get('id', null) == o.get('id', null) || (!('id' in o) && n.get('id', null) == docId));
+    }
     // Kendi kaydında değiştirilemeyecek alanlar (alan, sınıf, burs, yetki bayrakları…)
     function selfEditOk() {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(
         ['no','name','isAdmin','isPress','isRegistrar','isGate','isHead','area','classLevel','burs','scholarship','grade','regYear','status','role','cardToken',
-         'id','fireId','uid','lvl','headArea']);
+         'uid','lvl','headArea']);
     }
 
     // Bir öğrenci/öğretmen dokümanı bu kullanıcıya mı ait? ("no" alanı = e-posta öneki)
@@ -135,7 +142,7 @@ service cloud.firestore {
       // Öğretmen yeni öğrenci ekleyebilir; düzenleme/silme öğrenci işleri + yönetici
       allow create: if isRegistrar() || isTeacherLvl();
       allow update: if isRegistrar()
-                    || (ownsStudentDoc(resource.data) && noUnchanged() && notGrantingAdmin() && selfEditOk());
+                    || (ownsStudentDoc(resource.data) && noUnchanged() && notGrantingAdmin() && selfEditOk() && selfIdsOk(id));
       allow delete: if isRegistrar();   // öğrenci kendi kaydını silemez (silme talebi yönetime gider)
     }
 
@@ -161,7 +168,7 @@ service cloud.firestore {
       allow create: if isAdmin() || (isRegistrar() && plainTeacher(request.resource.data));
       allow update: if isAdmin()
                     || (isRegistrar() && plainTeacher(resource.data) && plainTeacher(request.resource.data))
-                    || (ownsTeacherDoc(resource.data) && noUnchanged() && notGrantingAdmin() && selfEditOk());
+                    || (ownsTeacherDoc(resource.data) && noUnchanged() && notGrantingAdmin() && selfEditOk() && selfIdsOk(id));
       allow delete: if isAdmin() || (isRegistrar() && plainTeacher(resource.data));
     }
 
