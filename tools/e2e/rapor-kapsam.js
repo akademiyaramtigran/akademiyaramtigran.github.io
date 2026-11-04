@@ -50,6 +50,8 @@ async function routes(ctx) {
   await put('students/S2', { no: '20202602', name: 'Baran Şêx', area: 'tiyatro', fireId: 'S2', id: 102 });
   await put('students/S3', { no: '20202603', name: 'Jîyan Roj', area: 'muzik', fireId: 'S3', id: 103 });
   await put('classes/A1', { kind: 'area', name: '1. Sînif', area: 'tiyatro', studentNos: ['20202601', '20202602'] });
+  await put('students/S9', { no: '20202609', name: 'Hefte Sonu', area: 'sinema', fireId: 'S9', id: 109 });
+  await put('classes/WS1', { kind: 'workshop', name: 'Atolye Hefte Sonu', area: 'genel', studentNos: ['20202609'] });
   await put('classes/G1', { kind: 'general', name: 'Giştî', area: 'genel', studentNos: ['20202601', '20202603'] });
   await put('classes/M1', { kind: 'area', name: '1. Sînif', area: 'muzik', studentNos: ['20202603'] });
   // Ortak (genel) derste verilen değerlendirmeler: Rojîn (tiyatro) ve Jîyan (müzik)
@@ -132,6 +134,11 @@ async function routes(ctx) {
   await rwc(gp, '[data-rw-type="eval"]', '[data-rw-who="student"]'); await gp.waitForTimeout(800);
   const gEv = await gp.evaluate(() => [...document.querySelectorAll('[data-eval-row]')].map(e => e.dataset.evalRow).sort());
   ok('Genel sorumlu: genel dersin değerlendirmelerinde tüm genel sınıf öğrencileri (Rojîn + Jîyan)', gEv.includes('20202601') && gEv.includes('20202603'), JSON.stringify(gEv));
+  // Genel sorumlu: Öğrenci listesi = tüm öğrenciler, yalnız atölye sınıfında olanlar (hafta sonu) hariç
+  await rwc(gp, '[data-rw-new]', '[data-rw-type="list"]');
+  const gRows = await gp.evaluate(() => [...document.querySelectorAll('[data-sl-row]')].map(e => e.dataset.slRow).sort());
+  ok('Genel sorumlu öğrenci listesi: tüm bölümlerin öğrencileri var (Rojîn tiyatro + Baran + Jîyan müzik), atölye sınıfındaki Hefte Sonu YOK', gRows.join() === '20202601,20202602,20202603', JSON.stringify(gRows));
+  await go(gp, 'reports'); 
   await go(gp, 'alerts');
   const ga = await alerts(gp);
   ok('Genel sorumlu uyarısı: yalnız genel ders (Jîyan · Dîroka Hunerê); bölüm dersi uyarısı yok', ga.includes('abs_20202603_13') && !ga.includes('abs_20202601_11'), ga.join(','));
@@ -156,7 +163,7 @@ async function routes(ctx) {
   await rwc(rp, '[data-sl-area="tiyatro"]');
   const nNoT = +(await rp.evaluate(() => document.querySelector('[data-sl-count]').dataset.slCount));
   const slRows = await rp.evaluate(() => [...document.querySelectorAll('[data-sl-row]')].map(e => e.dataset.slRow));
-  ok('Öğrenci listesi: tiyatro kapatılınca yalnız diğer alanlar (müzik öğrencisi kalır, numarasıyla)', nAll === 3 && nNoT === 1 && slRows.join() === '20202603' && (await rp.locator('[data-sl-pdf]').count()) === 1, nAll + ' → ' + nNoT + ' ' + JSON.stringify(slRows));
+  ok('Öğrenci İşleri listesi: atölye öğrencisi dahil hepsi; tiyatro kapatılınca yalnız diğer alanlar (müzik + sinema, numarasıyla)', nAll === 4 && nNoT === 2 && slRows.sort().join() === '20202603,20202609' && (await rp.locator('[data-sl-pdf]').count()) === 1, nAll + ' → ' + nNoT + ' ' + JSON.stringify(slRows));
   await rp.context().close();
 
   // 4) Öğretmen ve öğrenci: anket menüsü yok
