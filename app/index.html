@@ -7746,7 +7746,7 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
         {tab==="gatt"&&<HeadGuestAttendance user={user} students={aStudents} schedule={aSchedule} lang={lang} toast={toast}/>}
         {tab==="leaves"&&<LeavesPanel user={user} students={aStudents.filter(s=>!s.isAdmin)} schedule={aSchedule} area={area} all={false} stuScope={GEN?aStudents:null} lang={lang} toast={toast}/>}
         {tab==="schedule"&&<AdminScheduleTab mode="head" byName={user.name} fixedArea={area} schedule={aSchedule} teachers={teachers||[]} students={aStudents} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>}
-        {tab==="reports"&&<AdminReportCenter students={aStudents} teachers={aTeachers} schedule={aSchedule} allSchedule={schedule||[]} allTeachers={teachers||[]} lang={lang} t={t} toast={toast} byName={user.name} user={user} headArea={area} headNo={myNo} headScope={hScope}/>}
+        {tab==="reports"&&<AdminReportCenter students={aStudents} allStudents={(students||[]).filter(x=>!x.isAdmin)} teachers={aTeachers} schedule={aSchedule} allSchedule={schedule||[]} allTeachers={teachers||[]} lang={lang} t={t} toast={toast} byName={user.name} user={user} headArea={area} headNo={myNo} headScope={hScope}/>}
         {tab==="profile"&&<StaffProfileView user={user} roleLabel={roleLabel} icon="🎓" lang={lang} t={t} toast={toast} onLogout={onLogout} onDataChange={onDataChange}/>}
       </div>
     </div>
@@ -11591,7 +11591,7 @@ function rwRange(p,term,cf,ct){ const d=new Date(), y=d.getFullYear(), m=d.getMo
   if(p==="term"&&term) return [term.start||eduYearStart(),term.end&&term.end<today?term.end:today];
   if(p==="custom") return [cf||eduYearStart(),ct||today];
   return [eduYearStart(),today]; }
-function AdminReportCenter({students,teachers,schedule,allSchedule,allTeachers,lang,t,toast,byName,headArea,headNo,headScope,registrar,kidOnly,user}){
+function AdminReportCenter({students,allStudents,teachers,schedule,allSchedule,allTeachers,lang,t,toast,byName,headArea,headNo,headScope,registrar,kidOnly,user}){
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   const isHead=!!headArea, isAdmin=!isHead&&!registrar;
   const docScope0=headArea==="genel"&&headScope?headScope.lessonIds:null, teachScope=headArea==="genel"&&headScope?headScope.teacherNos:null;
@@ -11657,7 +11657,7 @@ function AdminReportCenter({students,teachers,schedule,allSchedule,allTeachers,l
     {ready&&!KID&&type==="devam"&&who==="student"&&<StudentAttendanceReport key={area+from+to} students={aS} schedule={aSch} allSchedule={SCH} teachers={aT} allTeachers={TCH} docScope={docScope0} headArea={headArea} from={from} to={to} lang={lang} toast={toast} byName={byName}/>}
     {ready&&!KID&&type==="devam"&&who==="teacher"&&<TeacherAttendanceReport key={area+from+to} noRange canFix fixCtx={{students:aS,user}} teachers={aT} schedule={aSch} allTeachers={TCH} fromP={from} toP={to} lang={lang} toast={toast}/>}
     {ready&&!KID&&type==="eval"&&<EvalCombinedReport key={who+area+from+to} who={who} fromP={from} toP={to} students={aS} teachers={aT} allTeachers={TCH} teachScope={teachScope} headArea={headArea} lang={lang} toast={toast} byName={byName}/>}
-    {ready&&!KID&&type==="list"&&<StudentListReport students={isHead||area==="all"?students:aS} lockArea={isHead?headArea:null} lang={lang} toast={toast} byName={byName}/>}
+    {ready&&!KID&&type==="list"&&<StudentListReport students={headArea==="genel"?(allStudents||students):isHead||area==="all"?students:aS} lockArea={isHead&&headArea!=="genel"?headArea:null} exWs={headArea==="genel"} lang={lang} toast={toast} byName={byName}/>}
     {ready&&!KID&&type==="analiz"&&<GeneralAnalysis key={who+area} initWho={who} students={aS} teachers={aT} schedule={aSch} allSchedule={SCH} allTeachers={TCH} docScope={docScope0} teachScope={teachScope} headArea={headArea} noEvals={!!registrar} lang={lang} toast={toast} byName={byName}/>}
     {ready&&KID&&type==="devam"&&<><KidAcademyReport lang={lang} toast={toast} lockArea={kidOnly?headArea:undefined}/>
       <details data-rep-leaves="1" style={{marginTop:12}}><summary style={{cursor:"pointer",fontWeight:800,color:"var(--text)",padding:"10px 0"}}>🏷 {W2("Destûrên zarokan","Children's leave")}</summary>
@@ -11673,9 +11673,12 @@ function KidHeadReports({lang,toast,area,byName}){
 }
 
 // ── Kayıtlı öğrencilerin listesi (yalnız ad + kullanıcı numarası) — alanlar tek tek açılıp kapatılır; PDF / Excel ──
-function StudentListReport({students,lockArea,lang,toast,byName}){
+function StudentListReport({students,lockArea,exWs,lang,toast,byName}){
   const W2=(ku,en)=>lang==="en"?en:K(ku);
-  const all=(students||[]).filter(s=>!s.isAdmin&&s.no);
+  // exWs (genel sorumlu): atölye sınıfındaki (hafta sonu) öğrenciler listeye girmez; diğer herkes alanıyla listelenir
+  const wsCls=useClassDocs("classes",!!exWs);
+  const wsOnly=new Set(); if(exWs) wsCls.filter(d=>d.kind==="workshop").forEach(d=>(d.studentNos||[]).forEach(n=>wsOnly.add(String(n))));
+  const all=(students||[]).filter(s=>!s.isAdmin&&s.no&&!wsOnly.has(String(s.no)));
   const areas=[...new Set(all.map(s=>s.area||""))].sort((a,b)=>areaName(a,lang).localeCompare(areaName(b,lang)));
   const [off,setOff]=useState({});
   const list=all.filter(s=>!off[s.area||""]).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
