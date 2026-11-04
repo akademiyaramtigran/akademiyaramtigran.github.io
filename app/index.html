@@ -15022,6 +15022,60 @@ function StudentFeedbackPanel({student, a, lang, toast}) {
   );
 }
 
+// ── Öğrenci: Devam durumum (salt okunur) — sunucunun yazdığı studentAtt kayıtları; "gelmedi / geç" satırında nota "itiraz et" ──
+function StudentAttView({student,lang,toast}){
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const F=window.__FB; const no=String(student.no||"");
+  const terms=useTerms(); const actTerm=(terms.list||[]).find(x=>x.id===terms.activeId);
+  const [rows,setRows]=useState(null), [objs,setObjs]=useState({});
+  const [open,setOpen]=useState(""), [note,setNote]=useState(""), [busy,setBusy]=useState(false);
+  useEffect(()=>{ if(!F||!F.isConfigured()||!no){ setRows([]); return; }
+    const u1=F.onSnapshot(F.query(F.collection(F.db,"studentAtt"),F.where("studentNo","==",no)),sn=>setRows(sn.docs.map(d=>({...d.data(),id:d.id}))),()=>setRows([]));
+    const u2=F.onSnapshot(F.query(F.collection(F.db,"attObjections"),F.where("studentNo","==",no)),sn=>{ const m={}; sn.docs.forEach(d=>m[d.id]=d.data()); setObjs(m); },()=>{});
+    return ()=>{ try{u1();u2();}catch(_){} }; },[no]);
+  const from=(actTerm&&actTerm.start)||eduYearStart();
+  const list=(rows||[]).filter(r=>String(r.date||"")>=from).sort((a,b)=>String(b.date).localeCompare(String(a.date))||String(a.lessonName).localeCompare(String(b.lessonName)));
+  const tl=attTally([{records:Object.fromEntries(list.map((r,i)=>[i,r.status]))}])||{};
+  const tt=Object.values(tl)[0]||{totalLessons:0,attended:0,absent:0,late:0,att:0};
+  const ST={on:["✅",W2("Hatî","Present"),"#12b76a"],late:["⏱",W2("Dereng hat","Late"),"#f79009"],off:["❌",W2("Nehat","Absent"),"#d92d20"],leave:["🏷",W2("Destûr","Excused"),"#667085"]};
+  async function send(r){
+    const n=note.trim(); if(n.length<3){ toast("⚠ "+W2("Notek binivîse","Write a short note")); return; }
+    setBusy(true);
+    try{ await F.setDoc(F.doc(F.db,"attObjections",r.id),{studentNo:no,studentName:String(student.name||"").slice(0,120),lessonId:String(r.lessonId),lessonFire:String(r.lessonFire||r.lessonId),
+        lessonName:String(r.lessonName||"").slice(0,120),area:String(r.area||""),date:r.date,status:r.status,note:n.slice(0,300),createdAt:F.serverTimestamp()});
+      toast("✅ "+W2("Îtîraz hate şandin","Objection sent")); setOpen(""); setNote(""); }
+    catch(e){ toast("❌ "+((e&&e.code)||e)); }
+    setBusy(false);
+  }
+  const card={background:"var(--bg1)",border:"1px solid var(--border2)",borderRadius:12,padding:"10px 12px",marginBottom:8};
+  return(<div data-stu-att-view="1" style={{padding:"14px 16px"}}>
+    <div style={{fontSize:17,fontWeight:800,color:"var(--text)",marginBottom:2}}>{W2("Amadebûna Min","My attendance")}</div>
+    <div style={{fontSize:12,color:"var(--text2)",marginBottom:10}}>{W2("Tenê dikarî bibînî; heke şaşiyek hebe îtîraz bike.","View only — object if something is wrong.")}</div>
+    <div data-stu-att-sum={tt.att} style={{...card,display:"flex",gap:14,alignItems:"center",flexWrap:"wrap"}}>
+      <div style={{fontSize:26,fontWeight:900,color:tt.att>=85?"#12b76a":tt.att>=70?"#f79009":"#d92d20"}}>{tt.totalLessons?tt.att+"%":"—"}</div>
+      <div style={{fontSize:12.5,color:"var(--text2)",lineHeight:1.5}}>{W2("Tevî","Total")}: {tt.totalLessons} · ✅ {tt.attended} · ❌ {tt.absent} · ⏱ {tt.late}</div>
+    </div>
+    {rows===null&&<div style={{textAlign:"center",padding:20,color:"var(--text2)"}}>…</div>}
+    {rows&&!list.length&&<div style={{textAlign:"center",padding:20,color:"var(--text2)"}}>{W2("Hîn tomarek tune.","No records yet.")}</div>}
+    {list.map(r=>{ const st=ST[r.status]||ST.on, ob=objs[r.id], can=(r.status==="off"||r.status==="late");
+      return(<div key={r.id} data-stu-att-row={r.id} data-st={r.status} style={card}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:16}}>{st[0]}</span>
+          <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,fontSize:13.5,color:"var(--text)"}}>{r.lessonName||"—"}</div>
+            <div style={{fontSize:11.5,color:"var(--text2)"}}>{r.date}{r.teacherName?" · "+r.teacherName:""}</div></div>
+          <b style={{fontSize:12,color:st[2]}}>{st[1]}</b>
+        </div>
+        {can&&ob&&<div data-att-objected="1" style={{marginTop:6,fontSize:12,color:"var(--text2)"}}>📨 {W2("Îtîraz hate şandin","Objection sent")}: “{ob.note}”</div>}
+        {can&&!ob&&open!==r.id&&<button type="button" data-att-obj={r.id} onClick={()=>{ setOpen(r.id); setNote(""); }} style={{marginTop:6,padding:"6px 10px",fontSize:12,fontWeight:700,background:"transparent",color:"var(--text)",border:"1px solid var(--border2)",borderRadius:8,cursor:"pointer"}}>{W2("Şaş e? Îtîraz bike","Wrong? Object")}</button>}
+        {can&&!ob&&open===r.id&&<div style={{marginTop:6}}>
+          <textarea data-att-note="1" value={note} onChange={e=>setNote(e.target.value)} maxLength={300} rows={2} placeholder={W2("Çima şaş e? (kurt)","Why is it wrong? (short)")} style={{width:"100%",boxSizing:"border-box",padding:8,borderRadius:8,border:"1px solid var(--border2)",fontSize:13}}/>
+          <div style={{display:"flex",gap:8,marginTop:6}}>
+            <button type="button" data-att-send="1" disabled={busy} onClick={()=>send(r)} style={{padding:"7px 12px",fontSize:12.5,fontWeight:800,background:"var(--accent,#0f2f38)",color:"#fff",border:"none",borderRadius:8,cursor:"pointer"}}>{W2("Bişîne","Send")}</button>
+            <button type="button" onClick={()=>setOpen("")} style={{padding:"7px 12px",fontSize:12.5,background:"transparent",color:"var(--text2)",border:"1px solid var(--border2)",borderRadius:8,cursor:"pointer"}}>{W2("Betal","Cancel")}</button>
+          </div></div>}
+      </div>); })}
+  </div>);
+}
 function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSettings}){
   // Aktif dönem filtresi
   const _terms=useTerms();
@@ -15173,6 +15227,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
     {key:"myclass", icon:"🏫", label:lang==="en"?"My Class":K("Sinifa Min")},
     {key:"messages",icon:"💬", label:lang==="en"?"Messages":K("Peyam"), badge:studentMsgUnread},
     {key:"schedule",icon:"📅", label:t.schedule},
+    {key:"attend", icon:"📋", label:lang==="en"?"My Attendance":K("Amadebûna Min")},
     {key:"teval",   icon:"⭐", label:lang==="en"?"Evaluation":K("Nirxandin"), badge:tevPending},
     {key:"feedback",icon:"💡", label:lang==="en"?"Feedback":K("Pêşniyar")},
     {key:"profile", icon:"👤", label:t.profile},
@@ -15609,6 +15664,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
         })()}
 
         {/* ── ANKÊT (Student Surveys) ── */}
+        {view==="attend"&&<StudentAttView student={student} lang={lang} toast={toast}/>}
         {view==="teval"&&<StudentTeacherEval student={student} teachers={myTeachers} lang={lang} toast={toast} ef={sEf}/>}
 
         {/* ── PÊŞNİYAR / ŞİKAYET (Feedback) ── */}

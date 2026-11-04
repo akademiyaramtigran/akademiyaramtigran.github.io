@@ -1495,7 +1495,16 @@ window.AAT_TX={"ku":{},"zza":{},"tr":{"Ev hefte: {0} ders":"Bu hafta: {0} ders",
 "Qadên di lîsteyê de (ji bo derxistinê bitikîne)":"Listedeki alanlar (çıkarmak için dokunun)",
 "Ev sal":"Bu yıl",
 "Mamoste → zarok":"Öğretmen → çocuk",
-"Dêûbav → mamoste (bê nav)":"Veli → öğretmen (isimsiz)"}};
+"Dêûbav → mamoste (bê nav)":"Veli → öğretmen (isimsiz)",
+"Hatî":"Geldi",
+"Dereng hat":"Geç kaldı",
+"Notek binivîse":"Kısa bir not yaz",
+"Îtîraz hate şandin":"İtiraz gönderildi",
+"Tenê dikarî bibînî; heke şaşiyek hebe îtîraz bike.":"Yalnızca görüntüleyebilirsin; bir yanlışlık varsa itiraz et.",
+"Tevî":"Toplam",
+"Hîn tomarek tune.":"Henüz kayıt yok.",
+"Şaş e? Îtîraz bike":"Yanlış mı? İtiraz et",
+"Çima şaş e? (kurt)":"Neden yanlış? (kısa)"}};
 window.AAT_SITE={"ku":{},"zza":{}};
 window.AAT_SITE_AREA={"ku":{},"zza":{}};
 window.AAT_ZAROK={"ku":{},"zza":{}};

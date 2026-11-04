@@ -344,6 +344,68 @@ exports.monthlyAnalysis = onSchedule({ schedule: "5 9 1 * *", timeZone: "Europe/
   return { M, counts };
 });
 
+
+// ── Öğrenci devam kaydı: ders yoklaması kaydedilince her öğrenciye KENDİNE ait kayıt (studentAtt) + "geç/yok" bildirimi ──
+const DV = require("./devam");
+const { FieldValue } = require("firebase-admin/firestore");
+let _stuIdx = { at: 0, map: new Map() };
+async function stuIndex(needKeys) {
+  const fresh = Date.now() - _stuIdx.at < 300000;
+  if (fresh && needKeys.every(k => _stuIdx.map.has(String(k)))) return _stuIdx.map;
+  const sn = await admin.firestore().collection("students").get();
+  _stuIdx = { at: Date.now(), map: DV.studentIndex(sn.docs) };
+  return _stuIdx.map;
+}
+exports.studentAttSync = onDocumentWritten("attendance/{id}", async (ev) => {
+  const after = ev.data && ev.data.after && ev.data.after.exists ? ev.data.after.data() : null;
+  const before = ev.data && ev.data.before && ev.data.before.exists ? ev.data.before.data() : null;
+  const id = ev.params.id, db = admin.firestore();
+  const k = DV.lessonKey(id, after);
+  if (!k) return;
+  // "Ders yapılmadı": bu derse ait öğrenci kayıtları kaldırılır
+  if (after.teacherAbsent) {
+    const sn = await db.collection("studentAtt").where("lessonId", "==", k.lessonId).where("date", "==", k.date).get();
+    const b = db.batch(); sn.docs.forEach(d => b.delete(d.ref)); if (!sn.empty) await b.commit();
+    return;
+  }
+  const idx = await stuIndex(Object.keys(after.records));
+  const rows = DV.buildRows(id, after, idx);
+  for (let i = 0; i < rows.length; i += 400) {
+    const b = db.batch();
+    rows.slice(i, i + 400).forEach(r => b.set(db.collection("studentAtt").doc(r.id), { ...r.data, updatedAt: FieldValue.serverTimestamp() }));
+    await b.commit();
+  }
+  // Bildirim: yeni "geç / yok" yazılan öğrencilere
+  const ch = DV.notifyChanges(before, after); if (!ch.length) return;
+  for (const c of ch) {
+    const st = idx.get(String(c.sid)); if (!st) continue;
+    const docs = (await tokens("aat", "no", st.no)).filter(d => d.get("role") === "student");
+    if (!docs.length) continue;
+    await push(docs, l => ({ title: DV.txd(l, "t"), body: DV.txd(l, c.status, after.lessonName || "") }), "/app/", "aat-att-" + id);
+  }
+});
+
+// ── Yoklama itirazı: öğrenci itiraz edince dersin öğretmenine, bölüm sorumlusuna ve yönetime MESAJ düşer (bildirimiyle) ──
+exports.attObjectionToMessages = onDocumentCreated("attObjections/{id}", async (ev) => {
+  const o = ev.data && ev.data.data(); if (!o) return;
+  const db = admin.firestore();
+  let teacherNo = "";
+  try { const l = await db.collection("schedule").doc(String(o.lessonFire || o.lessonId)).get(); if (l.exists) teacherNo = String(l.get("teacherNo") || ""); } catch (_) {}
+  const stName = String(o.studentName || o.studentNo);
+  const stLabel = { on: "Katıldı", late: "Geç", off: "Gelmedi", leave: "İzinli" }[o.status] || o.status;
+  const base = {
+    from: stName, fromType: "student", fromNo: String(o.studentNo), fromId: String(o.studentId || ""), fromArea: String(o.area || ""),
+    subject: ("Yoklama itirazı · " + (o.lessonName || "") + " · " + o.date).slice(0, 300),
+    body: (stName + " (" + o.studentNo + ") — " + (o.lessonName || "") + " · " + o.date + " yoklaması \"" + stLabel + "\" görünüyor, itiraz ediyor.\nNot: " + String(o.note || "")).slice(0, 2000),
+    time: new Date().toISOString().slice(0, 16).replace("T", " "), read: false, objection: true, createdAt: FieldValue.serverTimestamp()
+  };
+  const msgs = [];
+  if (teacherNo) msgs.push({ ...base, toRole: "teacher", toTeacherNo: teacherNo, type: "private", isStudentFeedback: false });
+  if (o.area) msgs.push({ ...base, toRole: "head", toArea: String(o.area), direction: "inbox_head", isStudentFeedback: true, type: "question" });
+  msgs.push({ ...base, toRole: "admin", direction: "inbox_admin", isStudentFeedback: true, type: "question" });
+  await Promise.all(msgs.map(m => db.collection("messages").add(m)));
+});
+
 // ── Haftalık temizlik: Pazar 03:17 (İstanbul) — eski QR oturumları/kodları/okutmaları, eski ders ve kapı kayıtları ──
 const { weeklyCleanupRun } = require("./temizlik");
 exports.weeklyCleanup = onSchedule({ schedule: "17 3 * * 0", timeZone: "Europe/Istanbul" }, async () => {
