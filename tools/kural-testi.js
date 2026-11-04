@@ -15,7 +15,7 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
     const db = c.firestore();
     await setDoc(doc(db, 'idx_staff/1000'), { no: '1000', lvl: 'admin' });
     await setDoc(doc(db, 'idx_staff/11202601'), { no: '11202601', lvl: 'teacher' });
-    await setDoc(doc(db, 'idx_students/10202601'), { no: '10202601' });
+    await setDoc(doc(db, 'idx_students/10202601'), { no: '10202601', area: 'sinema' });
     await setDoc(doc(db, 'idx_students/10202602'), { no: '10202602' });
     await setDoc(doc(db, 'teachers/T1'), { no: '1000', name: 'Admin', isAdmin: true });
     await setDoc(doc(db, 'teachers/T2'), { no: '11202601', name: 'Mamoste', phone: '1' });
@@ -46,6 +46,8 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
     await setDoc(doc(db, 'messages/M2'), { recipientNo: '10202601', subject: 'özel' });
     await setDoc(doc(db, 'messages/M3'), { recipientNo: '10202602', subject: 'başkasına özel' });
     await setDoc(doc(db, 'messages/M4'), { recipientGroup: 'allStudents', recipientNo: null, subject: 'toplu' });
+    await setDoc(doc(db, 'messages/MA1'), { recipientGroup: 'area_sinema', recipientNo: null, subject: 'sinema duyurusu' });
+    await setDoc(doc(db, 'messages/MA2'), { recipientGroup: 'area_muzik', recipientNo: null, subject: 'müzik duyurusu' });
     await setDoc(doc(db, 'messages/M5'), { recipientGroup: 'allTeachers', recipientNo: null, subject: 'öğretmenlere' });
     await setDoc(doc(db, 'studentSurveyResponses/R2'), { studentNo: '10202602', answers: {} });
     await setDoc(doc(db, 'applications/AP1'), { name: 'Başvuran', phone: '1', status: 'new' });
@@ -285,6 +287,9 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
   await t('Öğrenci KENDİNE gelen özel mesajları sorgular', getDocs(query(collection(student, 'messages'), where('recipientNo', '==', '10202601'))), true);
   await t('Öğrenci BAŞKASININ özel mesajını okuyamaz', getDoc(doc(student, 'messages/M3')), false);
   await t('Öğrenci toplu öğrenci mesajlarını sorgular', getDocs(query(collection(student, 'messages'), where('recipientGroup', 'in', ['allStudents', 'all', 'area_sinema']))), true);
+  await t('Öğrenci KENDİ bölümünün toplu mesajını okur', getDoc(doc(student, 'messages/MA1')), true);
+  await t('Öğrenci BAŞKA bölümün toplu mesajını OKUYAMAZ', getDoc(doc(student, 'messages/MA2')), false);
+  await t('Öğrenci başka bölümün toplu mesajlarını SORGULAYAMAZ', getDocs(query(collection(student, 'messages'), where('recipientGroup', 'in', ['allStudents', 'all', 'area_muzik']))), false);
   await t('Öğrenci öğretmenlere yönelik toplu mesajı okuyamaz', getDoc(doc(student, 'messages/M5')), false);
   await t('Öğrenci tüm mesajları listeleyemez', getDocs(collection(student, 'messages')), false);
   await t('Öğrenci yönetime geri bildirim gönderir', addDoc(collection(student, 'messages'), { fromType: 'student', fromNo: '10202601', toRole: 'admin', subject: 's', body: 'b' }), true);

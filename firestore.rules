@@ -391,8 +391,13 @@ service cloud.firestore {
     // Mesajlar: personel hepsini okur/yazar. Öğrenci yalnızca KENDİNE gelen özel mesajı
     // (recipientNo == kendi no) ve öğrencilere yönelik toplu mesajları okur; yalnızca
     // yönetime/öğretmene "öğrenci" olarak yazabilir (yönetici adına veya toplu mesaj atamaz).
+    // Bölüm mesajı (area_X) yalnız o bölümün öğrencisine: bölüm, üyelik dizinindeki (idx_students.area) kayıttan okunur.
+    // Dizin kaydında bölüm henüz yoksa (yönetici girişinde eşitlenene kadar) geçiş için eskisi gibi açık kalır.
     function studentGroup(d) {
-      return d.get('recipientGroup', '') in ['allStudents', 'all'] || string(d.get('recipientGroup', '')).matches('area_[a-z]+');
+      let g = string(d.get('recipientGroup', ''));
+      return g in ['allStudents', 'all']
+        || (g.matches('area_[a-z]+') && (get(dbPath('idx_students')).data.get('area', null) == null
+              || g == 'area_' + get(dbPath('idx_students')).data.get('area', '')));
     }
     // Bölüm sorumlusunun mesajı: kendi adıyla, tek alıcıya; alıcı yönetici ya da ÖĞRENCİ OLMAYAN personel
     // (öğrencilere yalnızca duyuru gönderir)
