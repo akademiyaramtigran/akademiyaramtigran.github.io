@@ -478,7 +478,7 @@
   async function idxPut(kind, rec) {
     const id = idxId(rec && rec.no);
     if (!id || !isStaffSession()) return false;
-    const data = kind === "student" ? { no: id } : staffIdx(rec, id);
+    const data = kind === "student" ? { no: id, area: String(rec.area || "") } : staffIdx(rec, id);
     try { await setDoc(doc(db, kind === "student" ? "idx_students" : "idx_staff", id), { ...data, updatedAt: serverTimestamp() }); return true; } catch (_) { return false; }
   }
   async function idxDel(kind, no) {
@@ -491,7 +491,7 @@
     if (!isStaffSession()) return { ok: false };
     // id → istenen veri
     const want = { idx_students: new Map(), idx_staff: new Map() };
-    students.forEach(x => { const id = idxId(x.no); if (id) want.idx_students.set(id, { no: id }); });
+    students.forEach(x => { const id = idxId(x.no); if (id) want.idx_students.set(id, { no: id, area: String(x.area || "") }); });
     teachers.forEach(x => { const id = idxId(x.no); if (id) want.idx_staff.set(id, staffIdx(x, id)); });
     let added = 0, removed = 0;
     // Eski kayıtlarda kalan şifre özetlerini sil (artık kullanılmıyor; personel okuyabiliyordu)
