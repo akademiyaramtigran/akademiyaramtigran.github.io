@@ -232,9 +232,9 @@ service cloud.firestore {
     }
     match /schedule/{id} {
       allow read: if member();
-      // Ders programı: yönetici + Öğrenci İşleri (tüm sınıflar) + bölüm sorumlusu (kendi bölümü)
-      allow create, update: if isRegistrar() || headSchedWrite();
-      allow delete: if isRegistrar()
+      // Ders programı: yönetici (hepsi) + bölüm sorumlusu (kendi bölümü; genel sorumlu hepsi). Öğrenci İşleri YALNIZ atölye dersini (ws_) yazar.
+      allow create, update: if isAdmin() || (isRegistrar() && id.matches('ws_.*')) || headSchedWrite();
+      allow delete: if isAdmin() || (isRegistrar() && id.matches('ws_.*'))
         || (aatHead() && (headGeneral() || resource.data.get('area', '') == headArea()));
     }
     // Sınıflar: öğrencinin sınıfı students.classLevel; sınıf öğretmeni burada (doc id = <alan>_<seviye>)
@@ -505,8 +505,8 @@ service cloud.firestore {
     }
     // Uyarı merkezi: "ilgilenildi" işaretleri (yönetici + bölüm sorumlusu); belge kimliği = uyarı anahtarı
     match /alertAcks/{id} {
-      allow read: if isAdmin() || isRegistrar() || headLvl();
-      allow create, update: if (isAdmin() || ((headLvl() || isRegistrar()) && request.resource.data.byNo == prefix()))
+      allow read: if isAdmin() || headLvl();
+      allow create, update: if (isAdmin() || (headLvl() && request.resource.data.byNo == prefix()))
         && request.resource.data.keys().hasOnly(['key', 'kind', 'count', 'note', 'by', 'byNo', 'at'])
         && request.resource.data.note is string && request.resource.data.note.size() <= 500
         && request.resource.data.count is int && request.resource.data.count >= 1;

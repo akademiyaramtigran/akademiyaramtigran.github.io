@@ -1513,7 +1513,10 @@ window.AAT_TX={"ku":{},"zza":{},"tr":{"Ev hefte: {0} ders":"Bu hafta: {0} ders",
 "Berpirs":"Bölüm sorumlusu",
 "Berpirsê beşê (beşa min)":"Bölüm sorumlusu (bölümüm)",
 "Panela Mamoste (dersên min)":"Öğretmen paneli (derslerim)",
-"Panela Berpirs":"Sorumlu paneli"}};
+"Panela Berpirs":"Sorumlu paneli",
+"Qad · Tescîl":"Alanlar · Kayıt",
+"Lîsteya mamosteyan":"Öğretmen listesi",
+"Mamoste tune.":"Öğretmen yok."}};
 window.AAT_SITE={"ku":{},"zza":{}};
 window.AAT_SITE_AREA={"ku":{},"zza":{}};
 window.AAT_ZAROK={"ku":{},"zza":{}};

@@ -489,9 +489,9 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
   await t('Uyarı: sorumlu başkası adına işaretleyemez', setDoc(doc(head, 'alertAcks/abs_2_L1'), ackD('11202601')), false);
   await t('Uyarı: yönetici işaretler', setDoc(doc(admin, 'alertAcks/abs_3_L1'), ackD('1000')), true);
   await t('Uyarı: öğretmen işaretleyemez', setDoc(doc(teacher, 'alertAcks/abs_4_L1'), ackD('11202601')), false);
-  await t('Uyarı: öğrenci işleri kendi adıyla işaretler', setDoc(doc(as('98202601@ogretmen.aat'), 'alertAcks/man_st_101_2026-10'), ackD('98202601')), true);
+  await t('Uyarı: öğrenci işleri artık işaretleyemez (uyarılar yönetici + sorumlularda)', setDoc(doc(as('98202601@ogretmen.aat'), 'alertAcks/man_st_101_2026-10'), ackD('98202601')), false);
   await t('Uyarı: öğrenci işleri başkası adına işaretleyemez', setDoc(doc(as('98202601@ogretmen.aat'), 'alertAcks/man_st_102_2026-10'), ackD('1000')), false);
-  await t('Uyarı: öğrenci işleri işaretleri okur', getDoc(doc(as('98202601@ogretmen.aat'), 'alertAcks/man_st_101_2026-10')), true);
+  await t('Uyarı: öğrenci işleri işaretleri okuyamaz', getDoc(doc(as('98202601@ogretmen.aat'), 'alertAcks/man_st_101_2026-10')), false);
   await t('Uyarı: öğretmen işaretleri okuyamaz', getDoc(doc(teacher, 'alertAcks/abs_1_L1')), false);
   await t('Uyarı: öğrenci okuyamaz', getDoc(doc(student, 'alertAcks/abs_1_L1')), false);
   await t('Uyarı: fazladan alan reddedilir', setDoc(doc(head, 'alertAcks/abs_5_L1'), ackD('96202601', { x: 1 })), false);
@@ -526,8 +526,9 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
   await t('B.sorumlusu: başka bölümün dersini SİLEMEZ', deleteDoc(doc(head, 'schedule/SM1')), false);
   await t('Öğretmen ders programı YAZAMAZ', setDoc(doc(teacher, 'schedule/ST1'), { area: 'muzik', name: 'x' }), false);
   await t('Öğretmen ders SİLEMEZ', deleteDoc(doc(teacher, 'schedule/SM1')), false);
-  await t('Öğrenci İşleri haftalık ders yazar', setDoc(doc(as('98202601@ogretmen.aat'), 'schedule/SR1'), { area: 'muzik', name: 'x' }), true);
-  await t('Öğrenci İşleri ders siler', deleteDoc(doc(as('98202601@ogretmen.aat'), 'schedule/SR1')), true);
+  await t('Öğrenci İşleri haftalık ders YAZAMAZ (program bölüm sorumlularında)', setDoc(doc(as('98202601@ogretmen.aat'), 'schedule/SR1'), { area: 'muzik', name: 'x' }), false);
+  await setDoc(doc(admin, 'schedule/SR1'), { area: 'muzik', name: 'x' });
+  await t('Öğrenci İşleri haftalık ders SİLEMEZ', deleteDoc(doc(as('98202601@ogretmen.aat'), 'schedule/SR1')), false);
   await t('Öğrenci İşleri atölye dersini yazar (ws_)', setDoc(doc(as('98202601@ogretmen.aat'), 'schedule/ws_W1'), { area: 'genel', name: 'Atolye', lessonType: 'extra' }), true);
   await t('Yönetici her bölüme ders yazar', setDoc(doc(admin, 'schedule/SA1'), { area: 'dans', name: 'x' }), true);
   await t('Genel sorumlu: her bölüme ders yazar', setDoc(doc(as('96202602@ogretmen.aat'), 'schedule/SG1'), { area: 'dans', name: 'x' }), true);
