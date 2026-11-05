@@ -366,6 +366,10 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
   await t('Storage ek: öğrenci öğretmenin ekini okur', getBytes(ref(st('10202601@ogrenci.aat'), 'attachments/uid-11202601@ogretmen.aat/b.docx')), true);
   await t('Storage ek: girişsiz okuyamaz', getBytes(ref(env.unauthenticatedContext().storage(), 'attachments/uid-11202601@ogretmen.aat/b.docx')), false);
   await t('Storage: girişsiz başvuru EXE yükleyemez', uploadString(ref(env.unauthenticatedContext().storage(), 'applications/a.exe'), 'data:application/octet-stream;base64,TVo=', 'data_url'), false);
+  await env.withSecurityRulesDisabled(async c => { const f = c.firestore(); await setDoc(doc(f, 'messages/MHD1'), { toRole: 'head', toArea: 'tiyatro', subject: 'itiraz', fromType: 'student' }); await setDoc(doc(f, 'messages/MHD2'), { toRole: 'head', toArea: 'muzik', subject: 'x', fromType: 'student' }); await setDoc(doc(f, 'messages/MHD3'), { recipientNo: '96202601', subject: 'y' }); });
+  await t('Mesaj: tiyatro sorumlusu kendi bölümüne gelen itiraz mesajını siler', deleteDoc(doc(as('96202601@ogretmen.aat'), 'messages/MHD1')), true);
+  await t('Mesaj: sorumlu kendisine yazılan mesajı siler', deleteDoc(doc(as('96202601@ogretmen.aat'), 'messages/MHD3')), true);
+  await t('Mesaj: tiyatro sorumlusu başka bölümün mesajını SİLEMEZ', deleteDoc(doc(as('96202601@ogretmen.aat'), 'messages/MHD2')), false);
   // Sınıflar (ana akademi + çocuk akademisi)
   const cReg = as('98202601@ogretmen.aat'), cTch = as('11202601@ogretmen.aat'), cStu = as('10202601@ogrenci.aat'), cVel = as('92026001@veli.aat'), cKidT = as('72026001@zmamoste.aat');
   await env.withSecurityRulesDisabled(async c => { await setDoc(doc(c.firestore(), 'classes/muzik_1'), { kind: 'area', area: 'muzik', level: 1, teacherNos: [], teacherNames: [] }); });
@@ -375,8 +379,8 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
   const bhd = as('96202601@ogretmen.aat'), ghd = as('96202602@ogretmen.aat');
   await t('Sınıf: tiyatro sorumlusu KENDİ bölümüne sınıf açar', setDoc(doc(bhd, 'classes/tiyatro_1'), { kind: 'area', area: 'tiyatro', name: '1', studentNos: [], teacherNos: ['11202601'], teacherNames: ['M'] }), true);
   await t('Sınıf: tiyatro sorumlusu BAŞKA bölüme sınıf açamaz', setDoc(doc(bhd, 'classes/muzik_9'), { kind: 'area', area: 'muzik', name: '9', studentNos: [] }), false);
-  await t('Sınıf: tiyatro sorumlusu KENDİ bölümünün atölyesini açar', setDoc(doc(bhd, 'classes/ws_t1'), { kind: 'workshop', area: 'tiyatro', name: 'At', studentNos: [], teacherNos: [] }), true);
-  await t('Sınıf: tiyatro sorumlusu başka bölümün atölyesini AÇAMAZ', setDoc(doc(bhd, 'classes/ws_m1'), { kind: 'workshop', area: 'muzik', name: 'At', studentNos: [], teacherNos: [] }), false);
+  await t('Sınıf: tiyatro sorumlusu KENDİ bölümünde atölye işaretli sınıf açar', setDoc(doc(bhd, 'classes/ws_t1'), { kind: 'area', workshop: true, area: 'tiyatro', name: 'At', studentNos: [], teacherNos: [] }), true);
+  await t('Sınıf: tiyatro sorumlusu başka bölümün atölye sınıfını AÇAMAZ', setDoc(doc(bhd, 'classes/ws_m1'), { kind: 'area', workshop: true, area: 'muzik', name: 'At', studentNos: [], teacherNos: [] }), false);
   await t('Sınıf: genel sorumlu atölye AÇAMAZ', setDoc(doc(ghd, 'classes/ws_g1'), { kind: 'workshop', area: 'genel', name: 'At', studentNos: [], teacherNos: [] }), false);
   await t('Sınıf: tiyatro sorumlusu genel sınıf AÇAMAZ', setDoc(doc(bhd, 'classes/gen_1'), { kind: 'general', area: 'genel', name: 'G', studentNos: [] }), false);
   await t('Sınıf: tiyatro sorumlusu başka bölümün sınıfını DEĞİŞTİREMEZ', updateDoc(doc(bhd, 'classes/muzik_1'), { teacherNos: [] }), false);
@@ -530,7 +534,7 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
   await t('B.sorumlusu: başkası adına mesaj gönderemez', addDoc(collection(head, 'messages'), hMsg({ senderNo: '1000', recipientId: 'admin', recipientNo: null })), false);
   await t('B.sorumlusu: gelen mesajı okundu işaretler', updateDoc(doc(head, 'messages/MH1'), { read: true }), true);
   await t('B.sorumlusu: mesaj içeriğini DEĞİŞTİREMEZ', updateDoc(doc(head, 'messages/MH1'), { subject: 'y' }), false);
-  await t('B.sorumlusu: mesaj SİLEMEZ', deleteDoc(doc(head, 'messages/MH1')), false);
+  await t('B.sorumlusu: kendi bölümüne gelen mesajı siler', deleteDoc(doc(head, 'messages/MH1')), true);
   await t('B.sorumlusu: rapor için öğrencileri okur', getDocs(collection(head, 'students')), true);
   await t('B.sorumlusu: yoklama okur', getDocs(collection(head, 'attendance')), true);
   await t('B.sorumlusu (öğretmen olarak): yoklama yazar', addDoc(collection(head, 'attendance'), { studentNo: '10202601' }), true);

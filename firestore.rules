@@ -242,8 +242,8 @@ service cloud.firestore {
     // Öğrenci İşleri yalnız atölyeleri (bölümler arası gruplar); yönetici hepsini
     function headClassOk(d) {
       // bölüm sorumlusu: yalnız KENDİ bölümünün sınıfı; genel sorumlu: yalnız GENEL sınıf (bütün öğrencilerden oluşan), başka bir şeye karışmaz
-      // bölüm sorumlusu ayrıca KENDİ bölümünün atölyesini açar (Öğrenci İşleri'nin "atölye öğrencisi" işaretlediği öğrenciler için)
-      return aatHead() && ((d.get('kind', '') in ['area', 'workshop'] && !headGeneral() && d.get('area', '') == headArea())
+      // atölye = bölüm sorumlusunun "atölye" diye işaretlediği KENDİ bölüm sınıfı (kind 'area', workshop: true)
+      return aatHead() && ((d.get('kind', '') == 'area' && !headGeneral() && d.get('area', '') == headArea())
                            || (headGeneral() && d.get('kind', '') == 'general'));
     }
     match /classes/{id} {
@@ -468,7 +468,10 @@ service cloud.firestore {
       allow update: if staffW()
         || ((headLvl() || (isStudent() && resource.data.get('recipientNo', '') == prefix()))
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']));
-      allow delete: if staffW();
+      // Bölüm sorumlusu kendi gelen kutusundaki (kendisine / kendi bölümüne gelen) ve gönderdiği mesajları silebilir
+      allow delete: if staffW()
+        || (headLvl() && (resource.data.get('recipientNo', '') == prefix() || resource.data.get('senderNo', '') == prefix()
+            || (resource.data.get('toRole', '') == 'head' && resource.data.get('toArea', '') == headArea())));
     }
     // Değerlendirme formları (sorumlunun hazırladığı, 1–10 puan + yazılı sorular)
     //  academy "aat": t2s (öğretmen → öğrenci) · s2t (öğrenci → öğretmen, isimsiz)

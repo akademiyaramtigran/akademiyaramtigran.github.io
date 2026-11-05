@@ -4680,7 +4680,6 @@ function AddStudentSheet({open,onClose,defaultArea,students,t,lang,toast,onSave}
   const [area,setArea]=useState(defaultArea||AREAS[0]?.key||"sinema");
   const [year,setYear]=useState("2026");
   const [burs,setBurs]=useState("");
-  const [wsOnly,setWsOnly]=useState(false);
   const [phone,setPhone]=useState("");
   const [dob,setDob]=useState("");
   const [address,setAddress]=useState("");
@@ -4739,7 +4738,7 @@ function AddStudentSheet({open,onClose,defaultArea,students,t,lang,toast,onSave}
     const student={
       id:Date.now(), name:sanitizeText(snapName), area, no,
       pass:hashed, passHash:hashed,
-      burs:sanitizeText(snapBurs), workshopOnly:wsOnly===true, phone:sanitizePhone(snapPhone),
+      burs:sanitizeText(snapBurs), phone:sanitizePhone(snapPhone),
       email:snapEmail.trim(),
       dob:snapDob, address:sanitizeText(snapAddress),
       photo:snapPhoto, docs:snapDocs,
@@ -4820,9 +4819,6 @@ function AddStudentSheet({open,onClose,defaultArea,students,t,lang,toast,onSave}
       <FieldWrap label={t.fullName}>
         <input style={inputStyle} value={name} onChange={e=>setName(e.target.value)} placeholder={lang==="en"?"Full name":K("Nav û Nasname")}/>
       </FieldWrap>
-      <label style={{display:"flex",alignItems:"center",gap:8,margin:"4px 0 12px",fontSize:13,fontWeight:700,color:"var(--text)",cursor:"pointer"}}>
-        <input type="checkbox" data-ws-only checked={wsOnly} onChange={e=>setWsOnly(e.target.checked)}/> 🛠 {lang==="en"?"Workshop-only student (not part of the academy)":K("Xwendekarê atolyeyê ye (ne yê akademiyê)")}
-      </label>
 
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <FieldWrap label={t.artField}>
@@ -5279,7 +5275,6 @@ function EditStudentSheet({student,onClose,t,lang,toast,onSave}){
   const [email,setEmail]=useState(student.email||"");
   const [dob,setDob]=useState(student.dob||"");
   const [address,setAddress]=useState(student.address||"");
-  const [wsOnly,setWsOnly]=useState(student.workshopOnly===true);
   // Şifre kutusu BOŞ başlar — boş bırakılırsa şifre DEĞİŞMEZ.
   // (Hash asla gösterilmez/yeniden hash'lenmez.)
   const [pass,setPass]=useState("");
@@ -5309,7 +5304,7 @@ function EditStudentSheet({student,onClose,t,lang,toast,onSave}){
       try{ if(window.__FB&&window.__FB.isConfigured()){ const _fr=await window.__FB.forceResetPassword(student.no,"student",student._plainPass||null,pass); if(_fr===null) toast("⚠ "+(lang==="en"?"Firebase Auth password could NOT be updated. Fix: Firebase Console → Authentication → delete this account; it recreates on next login.":K("Şîfreya Firebase Auth NEHAT nûkirin. Çare: Firebase Console → Authentication → vî hesabî jê bibe; di têketina pêş de bixweber ji nû ve tê çêkirin.")), 12000); } }catch(e){}
       toast("🔑 "+(lang==="en"?"New password: ":K("Şîfreya nû: "))+pass, 9000);
     }
-    onSave({...student,name:name.trim(),area,phone,email,dob,address,workshopOnly:wsOnly,pass:newHash,passHash:newHash,_plainPass:newPlain,photo});
+    onSave({...student,name:name.trim(),area,phone,email,dob,address,pass:newHash,passHash:newHash,_plainPass:newPlain,photo});
   }
 
   const plainPassDisplay = student._plainPass || (student.pass && student.pass.length < 20 ? student.pass : null);
@@ -5326,9 +5321,6 @@ function EditStudentSheet({student,onClose,t,lang,toast,onSave}){
         <input ref={photoRef} type="file" accept="image/*" style={{display:"none"}} onChange={handlePhoto}/>
       </div>
       <FieldWrap label={t.fullName}><input style={inputStyle} value={name} onChange={e=>setName(e.target.value)}/></FieldWrap>
-      <label style={{display:"flex",alignItems:"center",gap:8,margin:"4px 0 12px",fontSize:13,fontWeight:700,color:"var(--text)",cursor:"pointer"}}>
-        <input type="checkbox" data-ws-only checked={wsOnly} onChange={e=>setWsOnly(e.target.checked)}/> 🛠 {lang==="en"?"Workshop-only student (not part of the academy)":K("Xwendekarê atolyeyê ye (ne yê akademiyê)")}
-      </label>
       <FieldWrap label={t.artField}>
         <select style={selectStyle} value={area} onChange={e=>setArea(e.target.value)}>
           {AREAS.map(a=>(<option key={a.key} value={a.key}>{a.icon} {areaName(a.key,lang)}</option>))}
@@ -7734,15 +7726,16 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
   // Her sorumlu yalnız KENDİ alanını görür (genel sorumlu: genel dersler + bu derslerin öğrencileri)
   const ALL=false, GEN=area==="genel";
   const hCls=useClassDocs("classes");
-  const isWsLesson=l=>String(l.fireId||"").indexOf("ws_")===0;
-  const aSchedule=(schedule||[]).filter(l=>l.area===area&&!isWsLesson(l));
-  const wsSchedule=(schedule||[]).filter(l=>l.area===area&&isWsLesson(l));
+  const wsClassIds=new Set(hCls.filter(d=>isWsClass(d)&&(d.area===area)).map(d=>d.id));
+  const aSchedule=(schedule||[]).filter(l=>l.area===area&&!wsClassIds.has(l.classId));
+  const wsSchedule=(schedule||[]).filter(l=>l.area===area&&wsClassIds.has(l.classId));
+  const wsNos=wsOnlyNos(hCls);
   const aStudents0=GEN?(()=>{ const ids=new Set(); aSchedule.forEach(l=>lessonRoster(l,students,hCls).forEach(x=>ids.add(String(x.id))));
       hCls.filter(d=>d.kind==="general").forEach(d=>(students||[]).filter(x=>inClass(d,x.no)).forEach(x=>ids.add(String(x.id))));
       return (students||[]).filter(x=>ids.has(String(x.id))); })()
     :(students||[]).filter(s=>s.area===area);
-  const aStudents=aStudents0.filter(x=>!isWsStudent(x));
-  const wsStudents=(students||[]).filter(x=>isWsStudent(x)&&x.area===area&&!x.isAdmin);
+  const aStudents=aStudents0.filter(x=>!wsNos.has(String(x.no)));
+  const wsStudents=(students||[]).filter(x=>wsNos.has(String(x.no))&&x.area===area&&!x.isAdmin);
   // Öğretmenler: alanın öğretmenleri + alanın derslerine / sınıflarına atanmış BAŞKA bölüm öğretmenleri
   const hTeachNos=new Set(aSchedule.map(l=>String(l.teacherNo||"")).filter(Boolean));
   hCls.filter(d=>GEN?d.kind==="general":(d.kind==="area"&&d.area===area)).forEach(d=>(d.teacherNos||[]).forEach(n=>hTeachNos.add(String(n))));
@@ -7764,7 +7757,6 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
     {key:"announce",label:lang==="en"?"Announcements":K("Ragihandin")},
     {key:"messages",label:lang==="en"?"Messages":K("Peyam"),badge:unread},
     {key:"alerts",label:lang==="en"?"Alerts":K("Hişyarî"),badge:alertData.open},
-    ...(GEN?[]:[{key:"workshops",label:lang==="en"?"Workshops":K("Atolye")}]),
     {key:"classes",label:GEN?(lang==="en"?"General class":K("Sinifa Giştî")):(lang==="en"?"Classes":K("Sinif"))},
     {key:"schedule",label:lang==="en"?"Lesson schedule":K("Bernameya Dersan")},
     {key:"gatt",label:lang==="en"?"Guest-lesson attendance":K("Amadebûna dersên mêvan")},
@@ -7786,10 +7778,9 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
         {tab==="evalforms"&&<EvalFormsPanel user={user} academy="aat" area={area} teachers={teachers||[]} lang={lang} toast={toast}/>}
         {tab==="gatt"&&<HeadGuestAttendance user={user} students={aStudents} schedule={aSchedule} lang={lang} toast={toast}/>}
         {tab==="leaves"&&<LeavesPanel user={user} students={aStudents.filter(s=>!s.isAdmin)} schedule={aSchedule} area={area} all={false} stuScope={GEN?aStudents:null} lang={lang} toast={toast}/>}
-        {tab==="workshops"&&!GEN&&<AcademyClassBoard mode="headws" headArea={area} students={wsStudents} teachers={teachers||[]} schedule={schedule||[]} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>}
-        {tab==="classes"&&<AcademyClassBoard mode="head" headArea={area} students={students||[]} teachers={teachers||[]} schedule={schedule||[]} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>}
+        {tab==="classes"&&<AcademyClassBoard headArea={area} students={students||[]} teachers={teachers||[]} schedule={schedule||[]} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>}
         {tab==="schedule"&&<AdminScheduleTab mode="head" byName={user.name} fixedArea={area} schedule={aSchedule} teachers={teachers||[]} students={aStudents} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>}
-        {tab==="reports"&&<AdminReportCenter students={aStudents} wsStudents={GEN?undefined:wsStudents} wsSchedule={wsSchedule} allStudents={(students||[]).filter(x=>!x.isAdmin&&!isWsStudent(x))} teachers={aTeachers} schedule={aSchedule} allSchedule={schedule||[]} allTeachers={teachers||[]} lang={lang} t={t} toast={toast} byName={user.name} user={user} headArea={area} headNo={myNo} headScope={hScope}/>}
+        {tab==="reports"&&<AdminReportCenter students={aStudents} wsStudents={GEN?undefined:wsStudents} wsSchedule={wsSchedule} allStudents={(students||[]).filter(x=>!x.isAdmin&&!wsNos.has(String(x.no)))} teachers={aTeachers} schedule={aSchedule} allSchedule={schedule||[]} allTeachers={teachers||[]} lang={lang} t={t} toast={toast} byName={user.name} user={user} headArea={area} headNo={myNo} headScope={hScope}/>}
         {tab==="profile"&&<StaffProfileView user={user} roleLabel={roleLabel} icon="🎓" lang={lang} t={t} toast={toast} onLogout={onLogout} onDataChange={onDataChange}/>}
       </div>
     </div>
@@ -8020,6 +8011,7 @@ function HeadMessagesPanel({user,inbox,sent,teachers,lang,t,toast}){
                       <a key={i} href={safeHref(a.url)} download={a.name} rel="noopener" className="c-file" style={{textDecoration:"none"}}>
                         <Ico n={a.type==="image"?"file":"file"} size={18}/><span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.name}</span><Ico n="download" size={16}/></a>
                     ))}</div>}
+                  <button type="button" data-msg-del={m.fireId} onClick={async()=>{ if(!window.confirm(W("Ev peyam were jêbirin?","Delete this message?"))) return; try{ await window.__FB.deleteMessage(m.fireId); setOpen(null); toast("🗑 "+W("Peyam hat jêbirin","Message deleted")); }catch(e){ toast("❌ "+(e.code||e.message)); } }} style={{marginTop:12,padding:"8px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--red)",fontWeight:700,fontSize:12.5,cursor:"pointer"}}>🗑 {W("Jê bibe","Delete")}</button>
                   {mode==="inbox"&&m.fromType==="student"&&(m.fromNo&&!m.anonymous?(
                     <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:8}}>
                       <textarea style={{...inputStyle,minHeight:80,resize:"vertical"}} value={reply} onChange={e=>setReply(e.target.value)} placeholder={W("Bersiva xwe binivîse…","Write your reply…")} id="hm-reply"/>
@@ -8201,7 +8193,7 @@ function ClassStudio({cfg,lang,t,toast}){
 
   const areaClasses=docs.filter(d=>d.kind==="area"&&d.area===areaF).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
   const generalClasses=docs.filter(d=>d.kind==="general").sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
-  const workshops=docs.filter(d=>d.kind==="workshop"&&(!cfg.wsArea||d.area===cfg.wsArea)).sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
+  const workshops=docs.filter(d=>d.kind==="workshop").sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
   const legacy=docs.filter(d=>!d.kind&&d.level);
   const areaStuds=studs.filter(s=>s.area===areaF).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
   const noClass=areaStuds.filter(s=>!docs.some(d=>d.kind==="area"&&d.area===areaF&&inClass(d,s.no)));
@@ -8216,11 +8208,11 @@ function ClassStudio({cfg,lang,t,toast}){
 
   function newForm(k){
     const today=ymdLocal(new Date());
-    setForm({kind:k,name:"",area:k==="area"?areaF:"genel",sel:{},tsel:{},date:today,start:"14:00",end:"16:00",loc:"",guest:"",pa:"all",q:""});
+    setForm({kind:k,name:"",ws:false,area:k==="area"?areaF:"genel",sel:{},tsel:{},date:today,start:"14:00",end:"16:00",loc:"",guest:"",pa:"all",q:""});
     setAttFor(null);
   }
   function editForm(d){
-    setForm({id:d.id,kind:d.kind,name:d.name||"",area:d.area||"genel",sel:Object.fromEntries((d.studentNos||[]).map(n=>[String(n),true])),
+    setForm({id:d.id,kind:d.kind,ws:d.workshop===true,name:d.name||"",area:d.area||"genel",sel:Object.fromEntries((d.studentNos||[]).map(n=>[String(n),true])),
       tsel:Object.fromEntries((d.teacherNos||[]).map(n=>[String(n),true])),date:d.date||"",start:d.start||"",end:d.end||"",loc:d.loc||"",guest:d.guest||"",
       lessonId:d.lessonId||null,pa:"all",q:""});
     setAttFor(null);
@@ -8238,7 +8230,7 @@ function ClassStudio({cfg,lang,t,toast}){
     if(busy) return; setBusy(true);
     try{
       const ref=form.id?F.doc(F.db,cfg.coll,form.id):F.doc(F.collection(F.db,cfg.coll));
-      const data={kind:form.kind,name:nm.slice(0,80),area:form.kind==="area"?form.area:form.kind==="workshop"?(cfg.wsArea||"genel"):"genel",studentNos:nos,teacherNos:tnos,teacherNames:tnames,updatedAt:F.serverTimestamp()};
+      const data={kind:form.kind,name:nm.slice(0,80),workshop:form.kind==="area"&&cfg.wsFlag?form.ws===true:false,area:form.kind==="area"?form.area:"genel",studentNos:nos,teacherNos:tnos,teacherNames:tnames,updatedAt:F.serverTimestamp()};
       if(!form.id) data.createdAt=F.serverTimestamp();
       if(isWs){
         // Atölye kendi tek günlük dersini taşır → öğretmen programında görür, veli/öğrenci programında çıkar
@@ -8301,7 +8293,10 @@ function ClassStudio({cfg,lang,t,toast}){
   // ── Form: sınıf oluştur / düzenle ──
   function renderForm(){
     const isWs=form.kind==="workshop", isArea=form.kind==="area";
+    const wsSet=wsOnlyNos(docs);
+    const inAcademy=s=>docs.some(d=>d.id!==form.id&&d.kind==="area"&&!d.workshop&&inClass(d,s.no));
     const pool=(isArea?studs.filter(s=>s.area===form.area):studs)
+      .filter(s=>!isArea||!cfg.wsFlag||(form.ws?(!inAcademy(s)||form.sel[String(s.no)]):(!wsSet.has(String(s.no))||form.sel[String(s.no)])))
       .filter(s=>isArea||form.pa==="all"||s.area===form.pa)
       .filter(s=>{ const q=form.q.trim().toLocaleLowerCase(); return !q||(s.name||"").toLocaleLowerCase().includes(q)||String(s.no||"").includes(q); })
       .sort((a,b)=>(isArea?0:String(aName(a.area,lang)).localeCompare(String(aName(b.area,lang))))||(a.name||"").localeCompare(b.name||""));
@@ -8315,6 +8310,10 @@ function ClassStudio({cfg,lang,t,toast}){
         <div style={{fontWeight:800,color:"var(--text)",marginBottom:8}}>{isWs?"🛠":isArea?"🎨":"🌐"} {title}</div>
         <input aria-label={W2("Navê sinifê","Class name")} style={{...inp,width:"100%"}} value={form.name} maxLength={80} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
           placeholder={isWs?W2("mînak: Atolyeya Tomarkirina Deng","e.g. Sound Recording Workshop"):isArea?W2("mînak: 1. Sinif · Koma A","e.g. 1st Class · Group A"):W2("mînak: Çanda Muzîkê ya Hevpar","e.g. Shared Music Culture")}/>
+        {isArea&&cfg.wsFlag&&<label style={{display:"flex",alignItems:"center",gap:8,marginTop:8,fontSize:13,fontWeight:700,color:"var(--text)",cursor:"pointer"}}>
+          <input type="checkbox" data-class-ws checked={form.ws===true} onChange={e=>setForm(f=>({...f,ws:e.target.checked}))}/> 🛠 {W2("Sinifa atolyeyê (ji akademiyê cuda ye)","Workshop class (separate from the academy)")}
+        </label>}
+        {isArea&&cfg.wsFlag&&form.ws&&<div style={{...small,marginTop:2}}>{W2("Xwendekarên vê sinifê xwe bi xwe dibin xwendekarên atolyeyê û di lîsteyên akademiyê de nayên.","Students of this class automatically become workshop students and leave the academy lists.")}</div>}
         {isWs&&(<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:8,marginTop:8}}>
           <label style={small}>📅 {W2("Tarîx","Date")}<DateInput style={{...inp,width:"100%"}} value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/></label>
           <label style={small}>🕐 {W2("Destpêk","Start")}<input type="time" style={{...inp,width:"100%"}} value={form.start} onChange={e=>setForm(f=>({...f,start:e.target.value}))}/></label>
@@ -8389,7 +8388,7 @@ function ClassStudio({cfg,lang,t,toast}){
       <div key={d.id} style={{...box,opacity:closed?.8:1}}>
         <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
           <div onClick={()=>setOpen(isOpen?null:d.id)} style={{flex:1,minWidth:170,cursor:"pointer"}}>
-            <div style={{fontWeight:800,color:"var(--text)"}}>{isOpen?"▾":"▸"} {isWs?"🛠 ":d.kind==="general"?"🌐 ":""}{isWs?d.name:classNameTx(d.name)} <span style={small}>({ms.length} {MW()})</span>
+            <div style={{fontWeight:800,color:"var(--text)"}}>{isOpen?"▾":"▸"} {isWs?"🛠 ":d.kind==="general"?"🌐 ":""}{isWs?d.name:classNameTx(d.name)} <span style={small}>({ms.length} {MW()})</span>{d.kind==="area"&&d.workshop===true&&<span data-ws-badge style={{marginLeft:6,fontSize:10.5,fontWeight:800,padding:"2px 8px",borderRadius:20,background:"rgba(180,83,9,.12)",color:"#b45309"}}>🛠 {W2("Atolye","Workshop")}</span>}
               {isWs&&<span style={{marginLeft:6,fontSize:10.5,fontWeight:800,padding:"2px 8px",borderRadius:20,background:closed?"rgba(100,116,139,.15)":"rgba(22,163,74,.12)",color:closed?"var(--text2)":"#15803d"}}>{closed?"🔒 "+W2("Girtî","Closed"):"🟢 "+W2("Vekirî","Open")}</span>}</div>
             <div style={{...small,marginTop:2}}>👩‍🏫 {tns.length?tns.join(", "):W2("Mamosteyê sinifê tune","No class teacher")}{isWs&&d.guest?" · 🎤 "+d.guest:""}</div>
             {isWs?<div style={{...small,marginTop:2}}>📅 {d.date} · {d.start}–{d.end}{d.loc?" · 📍 "+d.loc:""}{d.attSummary?" · ✅ "+(d.attSummary.on||0)+" ⏱ "+(d.attSummary.late||0)+" ❌ "+(d.attSummary.off||0):""}</div>
@@ -8491,26 +8490,34 @@ function ClassStudio({cfg,lang,t,toast}){
 // mode "registrar": Öğrenci İşleri yalnız ATÖLYE (bölümler arası gruplar) açar / yönetir.
 // mode "head": bölüm sorumlusu KENDİ bölümünün sınıflarını açar, sınıf öğretmeni atar; genel sorumlu yalnız GENEL sınıfı (bütün öğrencilerden) yönetir.
 //   Atölye sınıfına kayıtlı öğrenciler akademiyle ilgili değildir: sorumlunun sınıf / öğrenci listelerinde yer almaz.
-// Atölye öğrencisi: Öğrenci İşleri'nin "workshopOnly" işaretlediği öğrenci. Akademinin hiçbir listesinde (sorumlu öğrenci listesi, sınıf, rapor, uyarı) yer almaz;
-// yalnız kendi bölümünün sorumlusunun "Atölye" sekmesinde işlem görür.
-const isWsStudent=s=>!!s&&s.workshopOnly===true;
-function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange,mode="registrar",headArea=null}){
+// Atölye sınıfı: bölüm sorumlusunun "Atölye" diye işaretlediği sınıf (eski tek günlük atölyeler de dahil). Bu sınıflara kayıtlı öğrenciler
+// OTOMATİK atölye öğrencisidir: akademinin hiçbir listesinde (sorumlu öğrenci listesi, sınıf, rapor, uyarı) yer almazlar.
+const isWsClass=d=>!!d&&(d.kind==="workshop"||(d.kind==="area"&&d.workshop===true));
+function wsOnlyNos(cls){
+  const ws=new Set(); (cls||[]).filter(isWsClass).forEach(d=>(d.studentNos||[]).forEach(n=>ws.add(String(n)))); return ws;
+}
+function useWsNos(enabled=true){
+  const cls=useClassDocs("classes",enabled);
+  return useMemo(()=>wsOnlyNos(cls),[cls]);
+}
+function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange,headArea=null}){
   const F=window.__FB;
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   const isGen=headArea==="genel";
-  const studs=(students||[]).filter(s=>!s.isAdmin).filter(s=>mode==="headws"?(isWsStudent(s)&&s.area===headArea):mode==="head"?(!isWsStudent(s)&&(isGen||s.area===headArea)):true);
+  const wsNosB=useWsNos();
+  const studs=(students||[]).filter(s=>!s.isAdmin).filter(s=>isGen?!wsNosB.has(String(s.no)):s.area===headArea)
   const DAYN=d=>(t&&t.days&&t.days[d])||d;
   const lessonsOf=id=>(schedule||[]).filter(l=>l.classId===id);
   const delLs=l=>deleteLessonAsk(l,onDataChange,lang);
   const removeLs=l=>onDataChange("deleteSchedule",{id:l.id,fireId:l.fireId||null});   // atölye kapanışı: yoklama korunur
   const cfg={
     lessonsReadOnly:false,   // haftalık dersleri bölüm sorumluları hazırlar; Öğrenci İşleri yalnız atölye yönetir
-    kinds:mode==="headws"?["workshop"]:isGen?["general"]:["area"],
-    wsArea:mode==="headws"?headArea:null,
+    kinds:isGen?["general"]:["area"],
+    wsFlag:!isGen,
     coll:"classes",
     members:studs,
     teachers:(teachers||[]).filter(t2=>canTeach(t2)),
-    areas:AREAS.filter(a=>a.key!=="genel"&&(mode!=="head"||isGen||a.key===headArea)),
+    areas:AREAS.filter(a=>a.key!=="genel"&&(isGen||a.key===headArea)),
     areaLabel:a=>areaName(a,lang),
     memberWord:["xwendekar","students"],
     lessonsOf,
@@ -8524,14 +8531,14 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
       onSave={(u)=>{onDataChange("updateSchedule",u);close();toast("✓ "+u.name);}}/>,
     // Atölyenin ek dersi: schedule/ws_{sınıf} → öğretmen QR/yoklama açabilir, öğrenci programında görür
     saveWorkshopLesson:async(classId,w,prev)=>{
-      const ls={...(prev||{}),id:prev?prev.id:Date.now(),fireId:prev&&prev.fireId?prev.fireId:"ws_"+classId,classId,area:headArea||"genel",name:w.name,
+      const ls={...(prev||{}),id:prev?prev.id:Date.now(),fireId:prev&&prev.fireId?prev.fireId:"ws_"+classId,classId,area:"genel",name:w.name,
         lessonType:"extra",day:null,extraDates:[w.date],start:w.start,end:w.end,loc:w.loc||"—",teacherNo:w.teacherNo,teacherName:w.teacherName,guestTeacher:w.guest||null};
       onDataChange(prev?"updateSchedule":"addSchedule",ls);
       return ls.id;
     },
     loadWsAtt:async d=>{ const s=await F.getDoc(F.doc(F.db,"attendance",String(d.lessonId)+"-"+d.date)); return s.exists()?(s.data().records||{}):{}; },
     saveWsAtt:async(d,roster,records,close)=>{
-      await F.setDoc(F.doc(F.db,"attendance",String(d.lessonId)+"-"+d.date),{lessonId:d.lessonId,lessonName:d.name||"",area:headArea||"genel",classId:d.id,date:d.date,
+      await F.setDoc(F.doc(F.db,"attendance",String(d.lessonId)+"-"+d.date),{lessonId:d.lessonId,lessonName:d.name||"",area:"genel",classId:d.id,date:d.date,
         teacherId:(d.teacherNos||[])[0]||null,teacherName:(d.teacherNames||[])[0]||d.guest||null,records,updatedAt:F.serverTimestamp()},{merge:true});
     },
     // Eski düzen: classes/{alan}_{seviye} + öğrencinin classLevel'ı
@@ -11206,7 +11213,8 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
   const [adminData,setAdminData]=useState(admin);
   const [showAdminAddLesson,setShowAdminAddLesson]=useState(false);
   const [menuOpen,setMenuOpen]=useState(isPhoneNow);
-  const aRaw=useAlerts({students:(students||[]).filter(x=>!isWsStudent(x)),teachers,schedule,area:null,lang}), kRaw=useKidAlerts({area:null});
+  const wsNosAdm=useWsNos();
+  const aRaw=useAlerts({students:(students||[]).filter(x=>!wsNosAdm.has(String(x.no))),teachers,schedule,area:null,lang}), kRaw=useKidAlerts({area:null});
   const alertData=useAlertAcks([...aRaw,...kRaw]);
 
   const tabs=[
@@ -11284,7 +11292,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
         {tab==="announcements"&&<AnnouncementsPanel t={t} toast={toast} lang={lang} senderName={adminData.name} senderRole="admin" senderArea={null}/>}
         {tab==="press"&&<AdminPressPanel teachers={teachers} onDataChange={onDataChange} lang={lang} toast={toast} t={t}/>}
         {tab==="messages"&&<AdminMessagesPanel students={students} teachers={teachers} lang={lang} t={t} toast={toast} adminName={adminData.name}/>}
-        {tab==="reports"&&<AdminReportCenter user={adminData} students={(students||[]).filter(x=>!isWsStudent(x))} teachers={teachers} schedule={schedule} lang={lang} t={t} toast={toast} byName={adminData.name}/>}
+        {tab==="reports"&&<AdminReportCenter user={adminData} students={(students||[]).filter(x=>!wsNosAdm.has(String(x.no)))} teachers={teachers} schedule={schedule} lang={lang} t={t} toast={toast} byName={adminData.name}/>}
         {tab==="alerts"&&<AlertCenter data={alertData} user={adminData} lang={lang} toast={toast} fixCtx={{students:students||[],schedule:schedule||[]}}/>}
       </div>
       {statsModal&&(
@@ -11729,7 +11737,8 @@ function KidHeadReports({lang,toast,area,byName}){
 function StudentListReport({students,lockArea,exWs,lang,toast,byName}){
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   // Atölye öğrencisi ("workshopOnly" işaretli) akademinin öğrenci listesinde yer almaz
-  const all=(students||[]).filter(s=>!s.isAdmin&&s.no&&!isWsStudent(s));
+  const wsNosL=useWsNos();
+  const all=(students||[]).filter(s=>!s.isAdmin&&s.no&&!wsNosL.has(String(s.no)));
   const areas=[...new Set(all.map(s=>s.area||""))].sort((a,b)=>areaName(a,lang).localeCompare(areaName(b,lang)));
   const [off,setOff]=useState({});
   const list=all.filter(s=>!off[s.area||""]).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
@@ -11820,9 +11829,10 @@ function StudentAttendanceReport({students,schedule,allSchedule,teachers,allTeac
   // Derse göre
   const lessons=(()=>{ const m=new Map();
     docs.forEach(d=>{ const k=String(d.lessonId); const ls=lsById.get(k);
-      const x=m.get(k)||{k,name:(ls&&ls.name)||d.lessonName||k,teacher:(ls&&(ls.teacherName||ls.guestTeacher))||d.teacherName||"",classId:(ls&&ls.classId)||d.classId||"",on:0,late:0,off:0,leave:0,sess:[]};
+      const x=m.get(k)||{k,name:(ls&&ls.name)||d.lessonName||k,teacher:(ls&&(ls.teacherName||ls.guestTeacher))||d.teacherName||"",classId:(ls&&ls.classId)||d.classId||"",on:0,late:0,off:0,leave:0,sess:[],who:{off:new Map(),late:new Map(),leave:new Map()}};
       const s={date:d.date,on:[],late:[],off:[],leave:[]};
-      Object.entries(d.records).forEach(([sid,v])=>{ const st=stById.get(String(sid)); if(!st||!s[v]) return; s[v].push(st.name); x[v]++; });
+      Object.entries(d.records).forEach(([sid,v])=>{ const st=stById.get(String(sid)); if(!st||!s[v]) return; s[v].push(st.name); x[v]++;
+        if(x.who[v]){ const e=x.who[v].get(String(st.id))||{st,n:0}; e.n++; x.who[v].set(String(st.id),e); } });
       if(s.on.length+s.late.length+s.off.length+s.leave.length){ x.sess.push(s); m.set(k,x); } });
     return [...m.values()].map(x=>({...x,pct:pctOf(x),sess:x.sess.sort((a,b)=>b.date.localeCompare(a.date))})).sort((a,b)=>(b.pct==null?-1:b.pct)-(a.pct==null?-1:a.pct)||a.name.localeCompare(b.name)); })();
   // Öğrencilere göre
@@ -11891,9 +11901,14 @@ function StudentAttendanceReport({students,schedule,allSchedule,teachers,allTeac
         return(<div key={x.k} data-rw-lesson={x.k} style={{background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,marginBottom:8}}>
           <button type="button" onClick={()=>setOpenL(op?null:x.k)} style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"none",border:"none",cursor:"pointer",textAlign:"left",color:"var(--text)"}}>
             <span style={{flex:1,minWidth:0}}><span style={{display:"block",fontSize:14,fontWeight:700}}>{op?"▾":"▸"} {x.name}</span>
-              <span style={{fontSize:11.5,color:"var(--text2)"}}>{x.teacher?"👩‍🏫 "+x.teacher+" · ":""}{cd?classLabel(cd,lang)+" · ":""}{x.sess.length} {W2("car","sessions")} · ✓ {x.on} · ⏱ {x.late} · ✗ {x.off}{x.leave?" · 🏷 "+x.leave:""}</span></span>
+              <span style={{fontSize:11.5,color:"var(--text2)"}}>{x.teacher?"👩‍🏫 "+x.teacher+" · ":""}{cd?classLabel(cd,lang)+" · ":""}{x.sess.length} {W2("car","sessions")} · ✓ {x.on}{x.leave?" · 🏷 "+x.leave:""}</span></span>
             <span className="c-pct" style={{fontSize:17,fontWeight:800,color:col(x.pct)}}>{x.pct==null?"—":x.pct+"%"}</span>
           </button>
+          {[["off","✗",W2("Nehat","Absent"),"#b42318"],["late","⏱",W2("Dereng","Late"),"#b45309"],["leave","🏷",W2("Destûrî","On leave"),"#185FA5"]].map(([k,ic,lb,cl])=>{ const arr=[...x.who[k].values()].sort((a,b)=>b.n-a.n||String(a.st.name).localeCompare(String(b.st.name)));
+            return arr.length?<div key={k} data-rw-who-names={k} style={{padding:"0 12px 6px",fontSize:12.5,color:cl,display:"flex",flexWrap:"wrap",gap:"4px 10px",alignItems:"center"}}>
+              <b>{ic} {lb}:</b>
+              {arr.map(e=><button key={e.st.id} type="button" data-rw-name={e.st.no} onClick={()=>setDetail(e.st)} style={{background:"none",border:"none",padding:0,cursor:"pointer",color:cl,fontSize:12.5,textDecoration:"underline"}}>{e.st.name}{e.n>1?" ×"+e.n:""}</button>)}
+            </div>:null; })}
           {op&&<div style={{padding:"0 12px 10px"}}>{x.sess.map(s=>(<div key={s.date} data-rw-session={s.date} style={{fontSize:12.5,padding:"6px 0",borderTop:"1px solid var(--border2)",color:"var(--text)"}}>
             <b>{fmtDateTx(s.date)}</b> · {s.on.length+s.late.length}/{s.on.length+s.late.length+s.off.length}
             {s.off.length>0&&<div style={{color:"#b42318"}}>✗ {s.off.join(", ")}</div>}
