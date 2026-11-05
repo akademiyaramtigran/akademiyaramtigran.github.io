@@ -1504,7 +1504,10 @@ window.AAT_TX={"ku":{},"zza":{},"tr":{"Ev hefte: {0} ders":"Bu hafta: {0} ders",
 "Tevî":"Toplam",
 "Hîn tomarek tune.":"Henüz kayıt yok.",
 "Şaş e? Îtîraz bike":"Yanlış mı? İtiraz et",
-"Çima şaş e? (kurt)":"Neden yanlış? (kısa)"}};
+"Çima şaş e? (kurt)":"Neden yanlış? (kısa)",
+"Destûr hatiye rakirin — nîşan bike":"İzin kaldırılmış — yoklamayı işaretle",
+"Tenê kêmasî":"Yalnız eksikler",
+"Hemû ders (rast bike)":"Tüm dersler (düzelt)"}};
 window.AAT_SITE={"ku":{},"zza":{}};
 window.AAT_SITE_AREA={"ku":{},"zza":{}};
 window.AAT_ZAROK={"ku":{},"zza":{}};

@@ -657,6 +657,9 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
     const ga = x => ({ lessonId: 'G1', lessonFire: 'GS1', lessonName: 'A', classId: '', area: 'tiyatro', date: '2026-10-26', records: { '1': 'on' }, teacherName: 'Mêvan', takenBy: 'B', takenByNo: '96202601', ...(x || {}) });
     await t('Yoklama: sorumlu misafir dersinin yoklamasını alır', setDoc(doc(hd, 'attendance/G1-2026-10-26'), ga()), true);
     await t('Yoklama: sorumlu kendi alanındaki öğretmenli dersin yoklamasını elle girer / düzeltir', setDoc(doc(hd, 'attendance/G2-2026-10-26'), ga({ lessonId: 'G2', lessonFire: 'GS2' })), true);
+    await t('Yoklama: sorumlu MEVCUT yoklamanın içeriğini düzeltir (izinli → yok)', setDoc(doc(hd, 'attendance/G2-2026-10-26'), ga({ lessonId: 'G2', lessonFire: 'GS2', records: { '1': 'off' } })), true);
+    await t('Yoklama: sorumlu mevcut yoklamayı bir kez daha düzeltir (merge)', setDoc(doc(hd, 'attendance/G2-2026-10-26'), ga({ lessonId: 'G2', lessonFire: 'GS2', records: { '1': 'on', '2': 'leave' } }), { merge: true }), true);
+    await t('Yoklama: sorumlu başkası adına mevcut yoklamayı değiştiremez', setDoc(doc(hd, 'attendance/G2-2026-10-26'), ga({ lessonId: 'G2', lessonFire: 'GS2', records: { '1': 'on' }, takenByNo: '1000' })), false);
     await t('Yoklama: sorumlu BAŞKA alanın dersine yoklama giremez', setDoc(doc(hd, 'attendance/G3-2026-10-26'), ga({ lessonId: 'G3', lessonFire: 'GS3', area: 'tiyatro' })), false);
     await t('Yoklama: sorumlu başkası adına (takenByNo) giremez', setDoc(doc(hd, 'attendance/G2-2026-10-27'), ga({ lessonId: 'G2', lessonFire: 'GS2', date: '2026-10-27', takenByNo: '1000' })), false);
     await t('Yoklama: sorumlu programda olmayan derse giremez', setDoc(doc(hd, 'attendance/G9-2026-10-26'), ga({ lessonId: 'G9', lessonFire: 'GS9' })), false);
