@@ -13600,6 +13600,11 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     if(lesson && lesson.end){ const [eh,em]=lesson.end.split(":").map(Number); const endAt=new Date(); endAt.setHours(eh,em,0,0);
       const left=endAt.getTime()-Date.now(); if(left>5*60000) ttl=left; }
     const session = openQRSession(sessionId, lessonName, teacher.name, sessionArea, ttl, null, lessonId, teacher.id, startMs);
+    // QR kapatılıp yeniden açılırsa: bu derste daha önce (önceki QR / kart / elle) "geldi / geç" olanlar yeni ekranda da görünsün;
+    // sayaç sıfırdan başlamasın (öğretmen "kimse okutmuyor" sanmasın)
+    if(lesson && String(lesson.id)===String(attLessonRef.current)){
+      try{ rosterOf(lesson).forEach(s=>{ const v=attRef.current[s.id]; if(v==="on"||v==="late") session.checkins[s.id]={confirmed:true,name:s.name,no:s.no,time:"",late:v==="late"}; }); }catch(_){}
+    }
     // Ek ders tarihini session'a ekle
     if(lessonDate && window._aat_qr_session){ window._aat_qr_session._lessonDate = lessonDate;
       try{ if(window.__FB&&window.__FB.isConfigured()) window.__FB.setDoc(window.__FB.doc(window.__FB.db,"qrSessions",sessionId),{lessonDate},{merge:true}).catch(()=>{}); }catch(_){} }
