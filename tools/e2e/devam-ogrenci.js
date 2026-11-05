@@ -67,7 +67,7 @@ async function routes(ctx) {
   await sp.evaluate(() => document.querySelector('[data-att-send]').click());
   const objShown = await sp.waitForSelector('[data-att-objected]', { timeout: 10000 }).then(() => true, () => false);
   ok('İtiraz gönderildi: satırda "îtîraz hate şandin" + not', objShown);
-  const objs = await list('attObjections');
+  const objs = await waitFor(async () => { const o = await list('attObjections'); return o.length ? o : null; }) || [];
   ok('İtiraz kaydı oluştu (Rojîn, yok, not)', objs.length === 1 && sv(objs[0]).studentNo === '20202601' && sv(objs[0]).note === 'Ez di dersê de bûm', JSON.stringify(objs.map(sv)));
   const msgs = await waitFor(async () => { const m = (await list('messages')).map(sv).filter(x => x.objection === true); return m.length >= 3 ? m : null; });
   const roles = (msgs || []).map(m => m.toRole).sort().join();

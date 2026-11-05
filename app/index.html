@@ -15048,9 +15048,12 @@ function StudentAttView({student,lang,toast}){
     return ()=>{ try{u1();u2();}catch(_){} }; },[no]);
   const from=(actTerm&&actTerm.start)||eduYearStart();
   const list=(rows||[]).filter(r=>String(r.date||"")>=from).sort((a,b)=>String(b.date).localeCompare(String(a.date))||String(a.lessonName).localeCompare(String(b.lessonName)));
-  const tl=attTally([{records:Object.fromEntries(list.map((r,i)=>[i,r.status]))}])||{};
+  const todayL=ymdLocal(new Date());
+  // Ders sürerken (kesinleşmemiş) "yok" geçicidir: öğretmen Kaydet'e basınca okutmayan herkes yok yazılır; öğrenci henüz okutuyor olabilir
+  const eff=r=>(r.status==="off"&&!r.final&&String(r.date)>=todayL)?"wait":r.status;
+  const tl=attTally([{records:Object.fromEntries(list.filter(r=>eff(r)!=="wait").map((r,i)=>[i,r.status]))}])||{};
   const tt=Object.values(tl)[0]||{totalLessons:0,attended:0,absent:0,late:0,att:0};
-  const ST={on:["✅",W2("Hatî","Present"),"#12b76a"],late:["⏱",W2("Dereng hat","Late"),"#f79009"],off:["❌",W2("Nehat","Absent"),"#d92d20"],leave:["🏷",W2("Destûr","Excused"),"#667085"]};
+  const ST={on:["✅",W2("Hatî","Present"),"#12b76a"],late:["⏱",W2("Dereng hat","Late"),"#f79009"],off:["❌",W2("Nehat","Absent"),"#d92d20"],leave:["🏷",W2("Destûr","Excused"),"#667085"],wait:["⏳",W2("Ders berdewam e — amadebûn li bendê ye","Lesson in progress — attendance pending"),"#667085"]};
   async function send(r){
     const n=note.trim(); if(n.length<3){ toast("⚠ "+W2("Notek binivîse","Write a short note")); return; }
     setBusy(true);
@@ -15070,8 +15073,8 @@ function StudentAttView({student,lang,toast}){
     </div>
     {rows===null&&<div style={{textAlign:"center",padding:20,color:"var(--text2)"}}>…</div>}
     {rows&&!list.length&&<div style={{textAlign:"center",padding:20,color:"var(--text2)"}}>{W2("Hîn tomarek tune.","No records yet.")}</div>}
-    {list.map(r=>{ const st=ST[r.status]||ST.on, ob=objs[r.id], can=(r.status==="off"||r.status==="late");
-      return(<div key={r.id} data-stu-att-row={r.id} data-st={r.status} style={card}>
+    {list.map(r=>{ const e0=eff(r), st=ST[e0]||ST.on, ob=objs[r.id], can=(e0==="off"||e0==="late");
+      return(<div key={r.id} data-stu-att-row={r.id} data-st={e0} style={card}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <span style={{fontSize:16}}>{st[0]}</span>
           <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,fontSize:13.5,color:"var(--text)"}}>{r.lessonName||"—"}</div>
@@ -16263,7 +16266,7 @@ async function checkinToSession(qrContent, student){
     late: isLate
   };
 
-  return {ok:true, session:s};
+  return {ok:true, session:s, late:isLate};
 }
 
 function closeQRSession(){
@@ -16518,6 +16521,7 @@ function StudentQRScanner({student, onClose, toast, lang="ku", initialCode=null}
   const [manualCode, setManualCode] = useState("");
   const [errorMsg, setErrorMsg]   = useState("");
   const [checkinTime, setCheckinTime] = useState("");
+  const [checkinLate, setCheckinLate] = useState(false);
   const [lessonName, setLessonName]   = useState("");
   const [tab, setTab] = useState("camera"); // camera | manual
 
@@ -16688,7 +16692,7 @@ function StudentQRScanner({student, onClose, toast, lang="ku", initialCode=null}
     if(result.ok){
       const s = getActiveQRSession();
       setLessonName(s?.lessonName||(lang==="en"?"Class":K("Ders")));
-      setCheckinTime(new Date().toLocaleTimeString());
+      setCheckinTime(new Date().toLocaleTimeString()); setCheckinLate(!!result.late);
       hapticSuccess(); setStatus("success");
     } else {
       const msgs = {
@@ -16828,7 +16832,8 @@ function StudentQRScanner({student, onClose, toast, lang="ku", initialCode=null}
           <div className="check-anim" style={{width:96,height:96,borderRadius:48,background:"#E3F1E8",color:"#1E7A46",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:20}}>
             <Ico n="check" size={48} style={{strokeWidth:2.4}}/></div>
           <div style={{color:"#102A31",fontSize:24,fontWeight:700,marginBottom:6,textAlign:"center",letterSpacing:"-0.01em"}}>{L.confirmed}</div>
-          <div style={{color:"#56676C",fontSize:14,marginBottom:22}}>{checkinTime}</div>
+          <div style={{color:"#56676C",fontSize:14,marginBottom:checkinLate?10:22}}>{checkinTime}</div>
+          {checkinLate&&<div data-checkin-late="1" style={{marginBottom:18,padding:"7px 14px",borderRadius:20,background:"#FEF3E2",color:"#9A5B00",fontSize:13.5,fontWeight:700}}>⏱ {lang==="en"?"Counted as late":K("Wek dereng hat tomarkirin")}</div>}
           <div style={{width:"100%",maxWidth:340,borderRadius:20,background:"#F7F8F8",padding:16,display:"flex",flexDirection:"column",gap:12,marginBottom:28}}>
             <div style={{display:"flex",alignItems:"center",gap:12}}>
               <span style={{width:44,height:44,borderRadius:22,background:"#0f2f38",color:"#E7C77B",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Ico n="music" size={20}/></span>
