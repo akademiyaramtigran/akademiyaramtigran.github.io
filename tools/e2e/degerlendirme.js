@@ -175,9 +175,9 @@ function evalWeek(d) { const x = d ? new Date(d) : new Date(); const y = new Dat
   const det = await ap.evaluate(() => (document.querySelector('[data-student-report]') || {}).innerText || '');
   ok('Öğrenci ayrıntısı: haftalık grafik gerçek yoklamadan (%100 bir hafta)', ch.includes('100%') && det.includes('Şano Bingeh'), ch.replace(/\n/g, ' '));
 
-  // 8) Öğrenci İşleri: rapor var ama değerlendirme sekmesi yok
+  // 8) Öğrenci İşleri: rapor ve uyarı YOK (yalnız kayıt + başvuru + sınıf/atölye + Çocuk Akademisi kaydı)
   const rp = await login(await mk(), '98202601', 'Reg12345');
-  ok('Öğrenci İşleri menüsünde Rapor var', (await keysOf(rp)).split(',').includes('reports'), await keysOf(rp));
+  ok('Öğrenci İşleri menüsünde Rapor yok', !(await keysOf(rp)).split(',').includes('reports'), await keysOf(rp));
 
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);

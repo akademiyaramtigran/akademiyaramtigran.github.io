@@ -87,7 +87,7 @@ async function routes(ctx) {
   const hp = await login('96000001', 'Head1234');
   await go(hp, 'reports');
   const tabs = await hp.evaluate(() => [...document.querySelectorAll('[data-rw-type]')].map(e => e.dataset.rwType).join(','));
-  ok('Sorumlu rapor türleri: Devam · Değerlendirme · Genel analiz', tabs === 'devam,eval,analiz,list', tabs);
+  ok('Sorumlu rapor türleri: Devam · Değerlendirme · Genel analiz', tabs === 'devam,eval,analiz,list,tlist', tabs);
   await rwc(hp, '[data-rw-type="analiz"]', '[data-rw-who="student"]'); await hp.waitForTimeout(1500);
   const r1 = await row(hp, '101'), r2 = await row(hp, '102');
   ok('Öğrenci: Rojîn bu ay %0 📉, değerlendirme 4.0 📉, risk ⚠', !!r1 && r1.includes('0%') && r1.includes('📉') && r1.includes('4.0') && r1.includes('⚠'), r1);
@@ -141,20 +141,10 @@ async function routes(ctx) {
   ok('Çocuk sorumlusu: aylık analiz uyarısı (Dilan), Azad yok', kak.includes('kman_st_' + K1 + '_' + prev5.slice(0, 7)) && !kak.includes('kman_st_' + K2 + '_' + prev5.slice(0, 7)), JSON.stringify(kak));
   await kp.context().close();
 
-  // Öğrenci İşleri: analiz var, değerlendirme sütunu yok
+  // Öğrenci İşleri: rapor ve uyarı YOK (yalnız kayıt + başvuru + sınıf/atölye + Çocuk Akademisi kaydı)
   const rp = await login('98202601', 'Reg12345');
-  await go(rp, 'reports');
-  ok('Öğrenci İşleri rapor türlerinde değerlendirme yok', await (async () => { await rwc(rp, '[data-rw-acad="aat"]'); return (await rp.evaluate(() => [...document.querySelectorAll('[data-rw-type]')].map(e => e.dataset.rwType).join(','))) === 'devam,analiz,list'; })());
-  await rwc(rp, '[data-rw-type="analiz"]', '[data-rw-who="student"]'); await rp.waitForTimeout(1500);
-  ok('Öğrenci İşleri: tüm bölümler (müzik öğrencisi de var), değerlendirme sütunu yok', (await row(rp, '103')) !== null && (await rp.locator('[data-an-ev]').count()) === 0);
-  await go(rp, 'alerts');
-  const rk = await rp.evaluate(() => [...document.querySelectorAll('[data-alert]')].map(e => e.dataset.alert));
-  const rw = await rp.evaluate(k => [...document.querySelectorAll('[data-alert="' + k + '"] [data-man-why]')].map(e => e.dataset.manWhy).join(','), 'man_st_102_' + prev5.slice(0, 7));
-  ok('Öğrenci İşleri: Uyarılar menüsü; aylık uyarıda yalnız devam nedeni (değerlendirme yok)', rk.includes('man_st_102_' + prev5.slice(0, 7)) && rw === 'att' && (await rp.locator('[data-alert-kind="sev"]').count()) === 0, JSON.stringify(rk) + ' · ' + rw);
-  await rp.click('[data-alert-ack="man_st_102_' + prev5.slice(0, 7) + '"]'); await rp.waitForTimeout(300);
-  await rp.evaluate(() => [...document.querySelectorAll('button')].filter(x => x.offsetParent && x.textContent.includes('Tomar bike')).pop().click()); await rp.waitForTimeout(1500);
-  ok('Öğrenci İşleri: Çocuk Akademisi aylık devam uyarısı da görünür', rk.includes('kman_st_' + K1 + '_' + prev5.slice(0, 7)), JSON.stringify(rk));
-  ok('Öğrenci İşleri uyarıyı "ilgilenildi" işaretler', !(await rp.evaluate(() => [...document.querySelectorAll('[data-alert]')].map(e => e.dataset.alert))).includes('man_st_102_' + prev5.slice(0, 7)));
+  const rkeys = await rp.evaluate(() => [...document.querySelectorAll('.sm-it[data-key],.pano-tile[data-key]')].map(e => e.dataset.key).join(','));
+  ok('Öğrenci İşleri menüsünde Rapor ve Hişyarî yok', !rkeys.split(',').includes('reports') && !rkeys.split(',').includes('alerts') && rkeys.split(',').includes('serledan'), rkeys);
   await rp.context().close();
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);
