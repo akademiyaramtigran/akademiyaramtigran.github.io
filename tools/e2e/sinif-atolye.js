@@ -53,6 +53,8 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   await put('idx_students/20202602', { no: '20202602' });
   await put('students/S2', { no: '20202602', name: 'Baran Şêx', area: 'muzik', fireId: 'S2' });
   await signUp('20202602@ogrenci.aat', 'Stu12345');
+  await put('idx_students/20202699', { no: '20202699' });
+  await put('students/S4', { no: '20202699', name: 'Elîf Dem', area: 'muzik', fireId: 'S4' });
   await put('idx_students/10202601', { no: '10202601' });
   await put('students/S3', { no: '10202601', name: 'Jîyan Roj', area: 'sinema', fireId: 'S3' });
 
@@ -80,7 +82,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   // ── 1) Alan sınıfı: Müzik · 1. Sınıf ──
   let p = await login(await mk(), '96000001', 'Head1234');
   await topTab(p, 'Sinif'); await p.waitForTimeout(1500);
-  ok('Alan sorumlusu: sınıfsız öğrenciler (yalnız kendi alanı)', /Bê sinif \(2\)/.test(await txt(p)));
+  ok('Alan sorumlusu: sınıfsız öğrenciler (yalnız kendi alanı)', /Bê sinif \(3\)/.test(await txt(p)));
   await clickText(p, '➕ Sinifa nû'); await p.waitForTimeout(300);
   await p.locator('input[aria-label="Navê sinifê"]').fill('1. Sînif');
   ok('Alan sınıfı formunda yalnızca o alanın öğrencileri', !(await txt(p)).includes('Jîyan Roj') && (await txt(p)).includes('Baran Şêx'));
@@ -117,32 +119,44 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   const G2 = await cls('Koro B');
   ok('Aynı öğretmen iki ortak sınıfa bağlı', G2 && JSON.stringify(G2.fields.teacherNos).includes('50202601') && JSON.stringify(G.fields.teacherNos).includes('50202601'));
 
-  // ── 4) Atölye aç ──
-  const rc = await mk(); const pr = await login(rc, '98202601', 'Reg12345');
-  await topTab(pr, 'Atolye'); await pr.waitForTimeout(1500);
-  const pOld = p; p = pr;
-  await clickText(p, '➕ Atolye veke'); await p.waitForTimeout(300);
-  await p.locator('input[aria-label="Navê sinifê"]').fill('Atolyeya Deng');
-  await p.locator('label:has-text("Perwerdekarê ji derve") input').fill('Hunermendê Mêvan');
-  await check(p, 'Mamoste Dilovan'); await check(p, 'Baran Şêx'); await check(p, 'Jîyan Roj');
+  // ── 4) Atölye sınıfı: bölüm sorumlusu normal sınıf açar ve "Atölye" işaretler → öğrencileri otomatik atölye öğrencisi olur ──
+  await clickText(p, '➕ Sinifa nû'); await p.waitForTimeout(300);
+  await p.locator('input[aria-label="Navê sinifê"]').fill('Hafta Sonu');
+  await p.locator('input[data-class-ws]').check();
+  await check(p, 'Mamoste Dilovan'); await check(p, 'Elîf Dem');
+  ok('Atölye formunda yalnız sınıfsız öğrenciler (1. Sînif\'teki Rojîn yok)', (await p.locator('label', { hasText: 'Rojîn Aram' }).count()) === 0 && (await p.locator('label', { hasText: 'Elîf Dem' }).count()) === 1);
   await clickText(p, '💾 Tomar bike'); await p.waitForTimeout(2000);
-  const W = await cls('Atolyeya Deng'); const Wid = idOf(W);
-  const WL = await getDocF('schedule/ws_' + Wid);
-  ok('Atölye açıldı (açık + o günün ek dersi)', W && W.fields.status.stringValue === 'open' && W.fields.date.stringValue === TODAY
-    && WL.fields && WL.fields.classId.stringValue === Wid && JSON.stringify(WL.fields.extraDates).includes(TODAY) && WL.fields.guestTeacher.stringValue === 'Hunermendê Mêvan');
+  const W = await cls('Hafta Sonu'); const Wid = idOf(W);
+  ok('Atölye sınıfı kaydedildi (bölüm sınıfı + atölye işareti)', W && W.fields.kind.stringValue === 'area' && W.fields.area.stringValue === 'muzik' && W.fields.workshop.booleanValue === true && JSON.stringify(W.fields.studentNos).includes('20202699'));
+  ok('Sınıf kartında Atölye etiketi', (await p.locator('[data-ws-badge]').count()) === 1);
+  // Haftalık tekrar eden ders (normal akademi mantığı)
+  await put('schedule/WS1', { id: 'WS1', fireId: 'WS1', area: 'muzik', name: 'Hafta Sonu Atölyesi', classId: Wid, teacherNo: '50202601', teacherName: 'Mamoste Dilovan', lessonType: 'main', day: 'Şemî', start: '10:00', end: '12:00', loc: '—' });
+  const putAtt = (id, o, recs) => fetch(`${FS}/attendance/${id}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { ...Object.fromEntries(Object.entries(o).map(([k, v]) => [k, { stringValue: v }])), records: { mapValue: { fields: Object.fromEntries(Object.entries(recs).map(([k, v]) => [k, { stringValue: v }])) } } } }) });
+  await putAtt('WS1-' + TODAY, { lessonId: 'WS1', lessonName: 'Hafta Sonu Atölyesi', area: 'muzik', classId: Wid, date: TODAY }, { S4: 'on' });
+  await putAtt('LS1-' + TODAY, { lessonId: 'LS1', lessonName: 'Solfej', area: 'muzik', classId: Aid, date: TODAY }, { S1: 'off', S2: 'late' });
+  await p.waitForTimeout(1500);
+  
+  await clickText(p, '➕ Sinifa nû'); await p.waitForTimeout(300);
+  ok('Akademi sınıfı formunda atölye öğrencisi görünmez', (await p.locator('label', { hasText: 'Elîf Dem' }).count()) === 0);
+  await clickText(p, 'Betal').catch(() => {}); await p.reload(); await p.waitForTimeout(6000);
 
-  // ── 5) Yoklama gir + atölyeyi kapat ──
-  await cardBtn(p, 'Atolyeya Deng', '📋 Amadebûn'); await p.waitForTimeout(1200);
-  await p.locator('button[aria-label="on Baran Şêx"]').click();
-  await p.locator('button[aria-label="off Jîyan Roj"]').click();
-  await clickText(p, '🔒 Tomar bike û atolyeyê bigire'); await p.waitForTimeout(2500);
-  const lid = W.fields.lessonId.integerValue || W.fields.lessonId.stringValue;
-  const AT = await getDocF('attendance/' + lid + '-' + TODAY);
-  ok('Atölye yoklaması kaydedildi', AT.fields && AT.fields.records.mapValue.fields.S2.stringValue === 'on' && AT.fields.records.mapValue.fields.S3.stringValue === 'off' && AT.fields.classId.stringValue === Wid);
-  const W2 = await cls('Atolyeya Deng');
-  const WL2 = await fetch(`${FS}/schedule/ws_${Wid}`, { headers: H });
-  ok('Atölye kapandı, programdan kalktı', W2.fields.status.stringValue === 'closed' && W2.fields.attSummary && WL2.status === 404);
-  ok('Kapanan atölye arşivde', /Atolyeyên girtî \(1\)/.test(await txt(p)));
+  // ── 5b) Bölüm sorumlusu raporu: Kapsam = Atölye (devam + değerlendirme), akademi raporunda atölye öğrencisi yok ──
+  await goA(p, 'reports'); await p.waitForTimeout(1200);
+  const rcl = async q => { await p.evaluate(q => { const b = document.querySelector(q); if (!b) throw new Error('rapor adımı yok: ' + q); b.click(); }, q); await p.waitForTimeout(700); };
+  await rcl('[data-rw-type="devam"]'); await p.waitForTimeout(1500);
+  const [dl] = await Promise.all([p.waitForEvent('download'), p.click('[data-rw-csv]')]);
+  const csvTxt = require('fs').readFileSync(await dl.path(), 'utf8');
+  const solfejRow = csvTxt.split('\n').find(l => l.startsWith('Solfej')) || '';
+  const cells = solfejRow.split(';');
+  ok('Excel/PDF ders satırı: gelmeyen ve geç gelen öğrencilerin ADLARI (tarihle)', /Rojîn Aram \(/.test(cells[4] || '') && /Baran Şêx \(/.test(cells[5] || '') && !/✓|⏱|✗/.test(solfejRow), solfejRow);
+  await rcl('[data-rw-view="student"]');
+  const aatRows = await p.evaluate(() => [...document.querySelectorAll('[data-rep-student]')].map(e => e.dataset.repStudent));
+  ok('Akademi devam raporunda atölye öğrencisi yok', !aatRows.includes('20202699') && aatRows.includes('20202601'), JSON.stringify(aatRows));
+  await rcl('[data-rw-scope="ws"]'); await rcl('[data-rw-type="devam"]'); await rcl('[data-rw-view="student"]'); await p.waitForTimeout(800);
+  const wsRows = await p.evaluate(() => [...document.querySelectorAll('[data-rep-student]')].map(e => e.dataset.repStudent));
+  ok('Atölye kapsamı devam raporu: yalnız atölye öğrencisi', wsRows.includes('20202699') && !wsRows.includes('20202601'), JSON.stringify(wsRows));
+  ok('Atölye kapsamında Genel analiz / listeler yok, Devam + Değerlendirme var', (await p.locator('[data-rw-type="analiz"]').count()) === 0 && (await p.locator('[data-rw-type="eval"]').count()) === 1);
+  ok('Devam raporunda "Mamoste (ders durumu)" seçeneği yok', (await p.locator('[data-rw-who="teacher"]').count()) === 0);
 
   // ── 6) Rapor: sınıf filtresi ──
   ok('Öğrenci İşleri panelinde rapor yok', !(await p.evaluate(() => [...document.querySelectorAll('.sm-it[data-key],.pano-tile[data-key]')].some(e => e.dataset.key === 'rapor'))));

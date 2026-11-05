@@ -164,7 +164,7 @@ async function routes(ctx) {
   await rwc(ap, '[data-sl-area="tiyatro"]');
   const nNoT = +(await ap.evaluate(() => document.querySelector('[data-sl-count]').dataset.slCount));
   const slRows = await ap.evaluate(() => [...document.querySelectorAll('[data-sl-row]')].map(e => e.dataset.slRow));
-  ok('Yönetici öğrenci listesi: atölye öğrencisi dahil hepsi; tiyatro kapatılınca yalnız diğer alanlar (müzik + sinema)', nAll === 4 && nNoT === 2 && slRows.sort().join() === '20202603,20202609' && (await ap.locator('[data-sl-pdf]').count()) === 1, nAll + ' → ' + nNoT + ' ' + slRows.join());
+  ok('Yönetici öğrenci listesi: atölye öğrencisi YOK; tiyatro kapatılınca yalnız diğer alanlar (müzik)', nAll === 3 && nNoT === 1 && slRows.sort().join() === '20202603' && (await ap.locator('[data-sl-pdf]').count()) === 1, nAll + ' → ' + nNoT + ' ' + slRows.join());
   await rwc(ap, '[data-rw-new]', '[data-rw-acad="aat"]', '[data-rw-type="tlist"]');
   const tAll = await ap.evaluate(() => [...document.querySelectorAll('[data-tl-row]')].map(e => e.dataset.tlRow).sort());
   ok('Yönetici öğretmen listesi: bütün bölümlerin öğretmenleri (ad, numara, bölüm) + PDF/Excel', tAll.includes('50202601') && tAll.includes('50202603') && (await ap.locator('[data-tl-pdf]').count()) === 1 && (await ap.locator('[data-tl-csv]').count()) === 1, JSON.stringify(tAll));

@@ -220,7 +220,7 @@ service cloud.firestore {
     // ── Ortak koleksiyonlar — okuma: giriş yapmış herkes ───────────────
     // (öğrenci paneli program/duyuru/anket/QR okur; yazma personel)
     // Ders programı: yönetici ve Öğrenci İşleri her dersi; bölüm sorumlusu yalnız KENDİ bölümünün derslerini ekler/düzenler/siler
-    // (genel sorumlu: ana akademinin bütün dersleri). Öğrenci İşleri yalnız atölye dersini (ws_<sınıf>) yazar.
+    // (genel sorumlu: ana akademinin bütün dersleri). Atölye dersini (ws_<sınıf>) kendi bölümünün sorumlusu yazar.
     // Öğretmen programı DEĞİŞTİREMEZ (yalnız okur, yoklama alır).
     function aatHead() { return headLvl() && !kidHeadLvl(); }
     // Bölüm sorumlusu AYNI ZAMANDA öğretmen olabilir (derse atanır, yoklama alır): ana akademide her sorumlu, öğretmen
@@ -233,26 +233,25 @@ service cloud.firestore {
     }
     match /schedule/{id} {
       allow read: if member();
-      // Ders programı: yönetici (hepsi) + bölüm sorumlusu (kendi bölümü; genel sorumlu hepsi). Öğrenci İşleri YALNIZ atölye dersini (ws_) yazar.
-      allow create, update: if isAdmin() || (isRegistrar() && id.matches('ws_.*')) || headSchedWrite();
-      allow delete: if isAdmin() || (isRegistrar() && id.matches('ws_.*'))
-        || (aatHead() && resource.data.get('area', '') == headArea());
+      // Ders programı: yönetici (hepsi) + bölüm sorumlusu (kendi bölümü; genel sorumlu hepsi). Atölye dersini (ws_) de bölüm sorumlusu yazar; Öğrenci İşleri program yazmaz.
+      allow create, update: if isAdmin() || headSchedWrite();
+      allow delete: if isAdmin() || (aatHead() && resource.data.get('area', '') == headArea());
     }
     // Sınıflar: öğrencinin sınıfı students.classLevel; sınıf öğretmeni burada (doc id = <alan>_<seviye>)
     // Sınıflar: bölüm sorumlusu KENDİ bölümünün sınıflarını açar / düzenler (genel sorumlu: bütün bölümlerin + genel sınıflar);
     // Öğrenci İşleri yalnız atölyeleri (bölümler arası gruplar); yönetici hepsini
     function headClassOk(d) {
       // bölüm sorumlusu: yalnız KENDİ bölümünün sınıfı; genel sorumlu: yalnız GENEL sınıf (bütün öğrencilerden oluşan), başka bir şeye karışmaz
+      // atölye = bölüm sorumlusunun "atölye" diye işaretlediği KENDİ bölüm sınıfı (kind 'area', workshop: true)
       return aatHead() && ((d.get('kind', '') == 'area' && !headGeneral() && d.get('area', '') == headArea())
                            || (headGeneral() && d.get('kind', '') == 'general'));
     }
-    function regWsOk(d) { return isRegistrar() && d.get('kind', '') == 'workshop'; }
     match /classes/{id} {
       allow read: if member();
-      allow create: if isAdmin() || regWsOk(request.resource.data) || headClassOk(request.resource.data);
-      allow update: if isAdmin() || (regWsOk(resource.data) && regWsOk(request.resource.data))
+      allow create: if isAdmin() || headClassOk(request.resource.data);
+      allow update: if isAdmin()
                     || (headClassOk(resource.data) && headClassOk(request.resource.data));
-      allow delete: if isAdmin() || regWsOk(resource.data) || headClassOk(resource.data);
+      allow delete: if isAdmin() || headClassOk(resource.data);
     }
     // Sınıf paylaşımları (duyuru/ödev/belge): öğretmen YALNIZCA sınıf öğretmeni olduğu sınıfa, kendi adıyla yazar
     function clsDoc(c, id) { return /databases/$(database)/documents/$(c)/$(id); }
@@ -405,10 +404,8 @@ service cloud.firestore {
       allow create, update: if tchW() || stuQrOk(id);
       // Silme yalnız yönetici + öğrenci işleri (ders silinirken kayıtları); öğretmen geçmiş yoklamayı silip izini kaybettiremez
       // Silme: yönetici; bölüm sorumlusu kendi bölümünün (genel sorumlu hepsinin) ders kayıtlarını (ders silinirken);
-      // Öğrenci İşleri yalnız atölye (bölümler arası, classId'li "genel" alan) kayıtlarını
       allow delete: if isAdmin()
-        || (aatHead() && resource.data.get('area', '') == headArea())
-        || (isRegistrar() && resource.data.get('area', '') == 'genel' && resource.data.get('classId', '') != '');
+        || (aatHead() && resource.data.get('area', '') == headArea());
     }
     // Mesajlar: personel hepsini okur/yazar. Öğrenci yalnızca KENDİNE gelen özel mesajı
     // (recipientNo == kendi no) ve öğrencilere yönelik toplu mesajları okur; yalnızca
@@ -471,7 +468,10 @@ service cloud.firestore {
       allow update: if staffW()
         || ((headLvl() || (isStudent() && resource.data.get('recipientNo', '') == prefix()))
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']));
-      allow delete: if staffW();
+      // Bölüm sorumlusu kendi gelen kutusundaki (kendisine / kendi bölümüne gelen) ve gönderdiği mesajları silebilir
+      allow delete: if staffW()
+        || (headLvl() && (resource.data.get('recipientNo', '') == prefix() || resource.data.get('senderNo', '') == prefix()
+            || (resource.data.get('toRole', '') == 'head' && resource.data.get('toArea', '') == headArea())));
     }
     // Değerlendirme formları (sorumlunun hazırladığı, 1–10 puan + yazılı sorular)
     //  academy "aat": t2s (öğretmen → öğrenci) · s2t (öğrenci → öğretmen, isimsiz)
