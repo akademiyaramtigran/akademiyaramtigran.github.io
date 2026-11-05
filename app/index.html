@@ -5072,10 +5072,10 @@ function AddTeacherSheet({open,onClose,defaultArea,teachers,t,lang,toast,onSave,
 // Ders öğretmeni seçenekleri: önce dersin bölümünün öğretmenleri, sonra diğer bölümlerden öğretmenler
 // (ör. müzik bölümündeki hoca tiyatroda şan dersine girer — ders programında ona atanır, yoklamayı o alır)
 function lessonTeacherOptions(teachers,area,lang){
-  const plain=(teachers||[]).filter(tc=>tc.no&&!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&!tc.isHead)
+  const plain=(teachers||[]).filter(canTeach)
     .sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
   const own=plain.filter(tc=>area==="genel"||tc.area===area||tc.area==="genel"), other=plain.filter(tc=>!own.includes(tc));
-  const opt=(tc,x)=><option key={tc.no} value={tc.no}>👨‍🏫 {tc.name} ({tc.no}){x?" · "+areaName(tc.area,lang):""}</option>;
+  const opt=(tc,x)=><option key={tc.no} value={tc.no}>👨‍🏫 {tc.name} ({tc.no}){tc.isHead?" · "+(lang==="en"?"Dept. head":K("Berpirs")):""}{x?" · "+areaName(tc.area,lang):""}</option>;
   return <>{own.map(tc=>opt(tc,false))}{other.length>0&&<optgroup label={lang==="en"?"Teachers from other departments":K("Mamosteyên beşên din")}>{other.map(tc=>opt(tc,true))}</optgroup>}</>;
 }
 function AddLessonSheet({open,onClose,defaultArea,defaultClassId,t,lang,toast,onSave,teachers,lockArea=false,schedule}){
@@ -6065,7 +6065,7 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
     if(msgType==="private"&&!recipient){toast(lang==="en"?"⚠ Select recipient":K("⚠ Wergir hilbijêre"));return;}
     if(msgType==="bulk"&&!bulkTargets.length){toast(lang==="en"?"⚠ No students in this class":K("⚠ Di vê sinifê de xwendekar tune"));return;}
     const toLabel=msgType==="private"
-      ? (recipient==="admin"?(lang==="en"?"Admin":K("Rêveber")):myStudents.find(s=>String(s.id)===recipient)?.name||recipient)
+      ? (recipient==="admin"?(lang==="en"?"Admin":K("Rêveber")):recipient==="head"?(lang==="en"?"Department head":K("Berpirsê beşê")):myStudents.find(s=>String(s.id)===recipient)?.name||recipient)
       : (bulkGroup?"🏫 "+bulkGroup.name:L.allStudents);
     const now=new Date();
     const timeStr=now.getHours().toString().padStart(2,"0")+":"+now.getMinutes().toString().padStart(2,"0");
@@ -6082,9 +6082,10 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
       read:true,
       direction:"sent",
       senderId:String(teacher.id),
-      recipientId:msgType==="private"?(recipient==="admin"?"admin":"s_"+recipient):null,
-      recipientNo:msgType==="private"&&recipient!=="admin"?String((myStudents.find(s=>String(s.id)===String(recipient))||{}).no||""):null,
+      recipientId:msgType==="private"?(recipient==="admin"?"admin":recipient==="head"?"head":"s_"+recipient):null,
+      recipientNo:msgType==="private"&&recipient!=="admin"&&recipient!=="head"?String((myStudents.find(s=>String(s.id)===String(recipient))||{}).no||""):null,
       recipientGroup:null,
+      ...(msgType==="private"&&recipient==="head"?{toRole:"head",toArea:teacher.area}:{}),
       area:teacher.area,
       isStudentFeedback:false,
       attachments:attachments.map(a=>({name:a.name,size:a.size,type:a.type,url:a.url,preview:a.preview}))
@@ -6159,6 +6160,7 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
               <option value="">{lang==="en"?"Select...":K("Hilbijêre...")}</option>
               <optgroup label={lang==="en"?"Admin":K("Rêveber")}>
                 <option value="admin">{lang==="en"?"Admin":K("Rêveber")}</option>
+                {!teacher.isHead&&teacher.area&&<option value="head">{lang==="en"?"Department head (my department)":K("Berpirsê beşê (beşa min)")}</option>}
               </optgroup>
               <optgroup label={lang==="en"?"Students":K("Xwendekar")}>
                 {myStudents.map(s=><option key={s.id} value={String(s.id)}>{s.name} · {s.no}</option>)}
@@ -6680,6 +6682,8 @@ const SPECIAL_TYPES = {
 };
 // Sorumlunun bölümü: ana akademi bölümü · "genel" (tüm bölümler) · çocuk akademisi dersi
 const isKidArea=a=>["solfej","ziman","teori","dalcroze","drama","enstruman"].includes(a);
+// Ders verebilen personel: sıradan öğretmen + ana akademi bölüm sorumlusu (hesap açılmaz, derse atanır, öğretmen paneli kullanır)
+const canTeach=tc=>!!(tc&&tc.no&&!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&(!tc.isHead||!isKidArea(tc.area)));
 function headAreaLabel(a,lang){
   if(a==="genel") return lang==="en"?"All departments (general)":K("Hemû beş (giştî)");
   if(isKidArea(a)){ const z=(typeof ZAROK_AREA_NAMES!=="undefined"&&ZAROK_AREA_NAMES[a])||[a,a]; return "🎼 "+(lang==="en"?"Children's Academy · "+z[1]:K("Akademiya Zarokan")+" · "+K(z[0])); }
@@ -6687,6 +6691,30 @@ function headAreaLabel(a,lang){
 }
 const specialOf=tc=>tc.isPress?SPECIAL_TYPES.press:tc.isGate?SPECIAL_TYPES.gate:tc.isHead?SPECIAL_TYPES.head:SPECIAL_TYPES.registrar;
 // Öğrenci tarafı "bölüm sorumlum" seçeneği için: config/heads = {areas:{<alan>:{name,no}}}
+// Çocuk akademisi bölüm sorumlusu da çocuk dersi verebilsin: Zarok'ta "akademi öğretmeni" gibi bağlanır
+// (kidTeachers/<no> {academy:true} + idx_kidstaff/<no>); yeni kart açılınca ve yönetici girişinde eksikler tamamlanır
+async function ensureKidHeadsLinked(list){
+  try{
+    const F=window.__FB; if(!F||!F.isConfigured()) return 0;
+    const heads=(list||[]).filter(x=>x&&x.isHead&&x.no&&isKidArea(x.area));
+    if(!heads.length) return 0;
+    const have=new Set((await F.getDocs(F.collection(F.db,"kidTeachers"))).docs.map(d=>d.id));
+    let n=0;
+    for(const h of heads){ const no=String(h.no);
+      if(!have.has(no)){ await F.setDoc(F.doc(F.db,"kidTeachers",no),{no,name:h.name||"",area:h.area||"",academy:true,head:true,createdAt:F.serverTimestamp()}); n++; }
+      await F.setDoc(F.doc(F.db,"idx_kidstaff",no),{no,updatedAt:F.serverTimestamp()}).catch(()=>{});
+    }
+    return n;
+  }catch(_){ return 0; }
+}
+// Öğrenci tarafı: bölüm sorumlularının numaraları (config/heads) — sorumlu öğretmen olarak derse girse de öğretmen değerlendirme formunda YER ALMAZ
+function useHeadNos(){
+  const [nos,setNos]=useState(()=>new Set());
+  useEffect(()=>{ const F=window.__FB; if(!F||!F.isConfigured()) return; let alive=true;
+    F.getDoc(F.doc(F.db,"config","heads")).then(d=>{ if(!alive||!d.exists()) return; const a=d.data().areas||{}; setNos(new Set(Object.values(a).map(x=>String(x&&x.no||"")).filter(Boolean))); }).catch(()=>{});
+    return ()=>{ alive=false; }; },[]);
+  return nos;
+}
 async function syncHeadsCfg(list){
   try{
     const F=window.__FB; if(!F||!F.isConfigured()) return;
@@ -7005,7 +7033,7 @@ function AdminPressPanel({teachers,onDataChange,lang,toast,t}){
       </Card>
 
       <AddSpecialCardSheet open={showAdd} onClose={()=>setShowAdd(false)} kind={kind} teachers={teachers} t={t} lang={lang} toast={toast}
-        onSave={(tc)=>{onDataChange("addTeacher",tc); if(tc.isHead) syncHeadsCfg([...cards,tc]);}}/>
+        onSave={(tc)=>{onDataChange("addTeacher",tc); if(tc.isHead){ syncHeadsCfg([...cards,tc]); ensureKidHeadsLinked([tc]); }}}/>
 
       <SectionHeader>{L("list")} ({cards.length})</SectionHeader>
       {cards.length===0&&<Card><div style={{fontSize:13,color:"var(--text2)",textAlign:"center",padding:"8px 0"}}>{L("empty")}</div></Card>}
@@ -7036,7 +7064,7 @@ function AdminPressPanel({teachers,onDataChange,lang,toast,t}){
 
       {editing&&(
         <EditSpecialCardSheet card={editing} onClose={()=>setEditing(null)} t={t} lang={lang} toast={toast}
-          onSave={(tc)=>{onDataChange("updateTeacher",tc); if(tc.isHead) syncHeadsCfg(cards.map(x=>x.no===tc.no?tc:x)); setEditing(null);toast("✅ "+tc.name);}}/>
+          onSave={(tc)=>{onDataChange("updateTeacher",tc); if(tc.isHead){ syncHeadsCfg(cards.map(x=>x.no===tc.no?tc:x)); ensureKidHeadsLinked([tc]); } setEditing(null);toast("✅ "+tc.name);}}/>
       )}
     </div>
   );
@@ -7058,7 +7086,7 @@ function SideMenu({open,onClose,onOpen,items,activeKey,onSelect,user,roleLabel,e
   },[open,onClose]);
   const ini=(user?.name||"").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
   const icoOf=it=>{ const n=it.ico||NAV_ICO[it.key]; return n?<Ico n={n} size={phone?22:18} style={{verticalAlign:"middle"}}/>:(it.icon||null); };
-  const exIco=it=>it.ico||(it.danger?"out":it.icon==="⚙️"?"settings":"globe");
+  const exIco=it=>it.ico||(it.danger?"out":it.icon==="⚙️"?"settings":it.attrs?"users":"globe");
   const bdg=n=>n>0?<span className="sm-bdg">{n>99?"99+":n}</span>:null;
   const head=(
     <div className="sm-head">
@@ -7107,7 +7135,7 @@ function SideMenu({open,onClose,onOpen,items,activeKey,onSelect,user,roleLabel,e
         {extraItems&&extraItems.length>0&&(
           <div className="pano-extra">
             {extraItems.map((it,i)=>(
-              <button key={i} className={"pano-row"+(it.danger?" sm-danger":"")} onClick={()=>{it.onClick();onClose();}}>
+              <button key={i} className={"pano-row"+(it.danger?" sm-danger":"")} {...(it.attrs||{})} onClick={()=>{it.onClick();onClose();}}>
                 <Ico n={exIco(it)} size={19} style={{verticalAlign:"middle"}}/>
                 <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{it.label}</span>
                 <span className="sm-ar" aria-hidden="true">›</span>
@@ -7147,7 +7175,7 @@ function SideMenu({open,onClose,onOpen,items,activeKey,onSelect,user,roleLabel,e
             <>
               <div className="sm-sep"/>
               {extraItems.map((it,i)=>(
-                <button key={i} className={"sm-it"+(it.danger?" sm-danger":"")} onClick={()=>{it.onClick();onClose();}}>
+                <button key={i} className={"sm-it"+(it.danger?" sm-danger":"")} {...(it.attrs||{})} onClick={()=>{it.onClick();onClose();}}>
                   <span className="sm-ic" aria-hidden="true"><Ico n={exIco(it)} size={18} style={{verticalAlign:"middle"}}/></span>
                   <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{it.label}</span>
                 </button>
@@ -7689,7 +7717,7 @@ function HeadGuestAttendance({user,students,schedule,lang,toast}){
     </Card>}
   </div>);
 }
-function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onSettings,onDataChange}){
+function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onSettings,onDataChange,onTeachMode}){
   const [menuOpen,setMenuOpen]=useState(isPhoneNow);
   const [tab,setTab]=useState("announce");
   const [msgs,setMsgs]=useState([]);
@@ -7705,7 +7733,7 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
   // Öğretmenler: alanın öğretmenleri + alanın derslerine / sınıflarına atanmış BAŞKA bölüm öğretmenleri
   const hTeachNos=new Set(aSchedule.map(l=>String(l.teacherNo||"")).filter(Boolean));
   hCls.filter(d=>GEN?d.kind==="general":(d.kind==="area"&&d.area===area)).forEach(d=>(d.teacherNos||[]).forEach(n=>hTeachNos.add(String(n))));
-  const aTeachers=(teachers||[]).filter(tc=>(tc.area===area||hTeachNos.has(String(tc.no)))&&!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&!tc.isHead);
+  const aTeachers=(teachers||[]).filter(tc=>(tc.area===area||hTeachNos.has(String(tc.no)))&&canTeach(tc));
   const hScope={lessonIds:new Set(aSchedule.map(l=>String(l.id))),teacherNos:new Set(aTeachers.map(tc=>String(tc.no)))};
   const myNo=String(user.no||"");
   useEffect(()=>{
@@ -7734,11 +7762,11 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
   return(
     <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
       <SideMenu dock={["schedule","reports","messages","announce"]} open={menuOpen} onClose={()=>setMenuOpen(false)} onOpen={()=>setMenuOpen(true)} items={items} activeKey={tab} onSelect={setTab} user={user} roleLabel={roleLabel}
-        extraItems={[...(onSettings?[{icon:"⚙️",label:t.settings||"Mîheng",onClick:onSettings}]:[]),{icon:"↩",label:t.logout||"Derkeve",onClick:onLogout,danger:true}]}/>
+        extraItems={[...(onTeachMode?[{icon:"👨‍🏫",label:lang==="en"?"Teacher panel (my lessons)":K("Panela Mamoste (dersên min)"),onClick:onTeachMode,attrs:{"data-role-switch":"teacher"}}]:[]),...(onSettings?[{icon:"⚙️",label:t.settings||"Mîheng",onClick:onSettings}]:[]),{icon:"↩",label:t.logout||"Derkeve",onClick:onLogout,danger:true}]}/>
       <SpecialPanelHeader user={user} icon="🎓" lang={lang} onLogout={onLogout} onMenu={()=>setMenuOpen(true)} roleLabel={roleLabel}/>
       <div className="scroll-area" style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
         {tab==="announce"&&<AnnouncementsPanel t={t} toast={toast} lang={lang} senderName={user.name} senderRole="head" senderArea={area} senderNo={myNo}/>}
-        {tab==="messages"&&<HeadMessagesPanel user={user} inbox={inbox} sent={sent} teachers={aTeachers} lang={lang} t={t} toast={toast}/>}
+        {tab==="messages"&&<HeadMessagesPanel user={user} inbox={inbox} sent={sent} teachers={aTeachers.filter(x=>String(x.no)!==myNo)} lang={lang} t={t} toast={toast}/>}
         {tab==="alerts"&&<AlertCenter data={alertData} user={user} lang={lang} toast={toast} fixCtx={{students:aStudents,schedule:schedule||[]}}/>}
         {tab==="evalforms"&&<EvalFormsPanel user={user} academy="aat" area={area} teachers={teachers||[]} lang={lang} toast={toast}/>}
         {tab==="gatt"&&<HeadGuestAttendance user={user} students={aStudents} schedule={aSchedule} lang={lang} toast={toast}/>}
@@ -8454,7 +8482,7 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
     lessonsReadOnly:false,  // haftalık dersleri Öğrenci İşleri (sınıf kartından) ve bölüm sorumluları hazırlar
     coll:"classes",
     members:studs,
-    teachers:(teachers||[]).filter(t2=>t2.no&&!t2.isGate&&!t2.isHead&&!t2.isPress&&!t2.isRegistrar),
+    teachers:(teachers||[]).filter(t2=>canTeach(t2)),
     areas:AREAS.filter(a=>a.key!=="genel"),
     areaLabel:a=>areaName(a,lang),
     memberWord:["xwendekar","students"],
@@ -11928,7 +11956,7 @@ function TeacherAttendanceReport({teachers,schedule,allTeachers,lang,toast,fromP
     return ()=>{ try{u();}catch(_){} };
   },[from]);
   const byId=new Map((att||[]).filter(d=>d.date).map(d=>[String(d.lessonId)+"-"+d.date,d]));
-  const isPlain=t2=>t2&&t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate&&!t2.isHead;
+  const isPlain=canTeach;
   // Listedeki öğretmenler + programdaki derslere girip başka bölümde kayıtlı olanlar
   const plain=(()=>{ const m=new Map((teachers||[]).filter(isPlain).map(t2=>[String(t2.no),t2]));
     (schedule||[]).forEach(l=>{ const k=String(l.teacherNo||""); if(k&&!m.has(k)){ const tt=(allTeachers||[]).find(x=>String(x.no)===k); if(isPlain(tt)) m.set(k,tt); } });
@@ -12017,7 +12045,7 @@ function TeacherAttendanceReport({teachers,schedule,allTeachers,lang,toast,fromP
 // (isteğe bağlı tek ders). Öğrenci listesi = bu derslerin sınıf listeleri + bu derslerde kaydı olanlar.
 function useTeacherLessonFilter({students,teachers,schedule,allSchedule,allTeachers,clsDocs,docScope}){
   const SCH=allSchedule||schedule||[], TCH=allTeachers||teachers||[];
-  const plain=t2=>t2&&t2.no&&!t2.isAdmin&&!t2.isPress&&!t2.isRegistrar&&!t2.isGate&&!t2.isHead;
+  const plain=canTeach;
   const stNos=new Set((students||[]).map(x=>String(x.no)));
   // Seçenekler: listedeki öğretmenler + bu öğrencilere (sınıfları üzerinden) ders veren diğer öğretmenler
   const teachNos=new Set((teachers||[]).filter(plain).map(t2=>String(t2.no)));
@@ -13293,7 +13321,7 @@ function TeacherProfileView({teacher,a,lang,t,toast,myStudents,onLogout,onGoStat
 }
 
 /* ─── TEACHER PANEL ─────────────────────────────────────────────────────── */
-function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataChange,onSettings}){
+function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataChange,onSettings,onHeadMode}){
   // Kayıt kimliği her yolda aynı olsun (yoklama/QR kayıtları teacherId ister)
   if(teacher && teacher.id==null) teacher={...teacher,id:teacher.fireId||teacher.no};
   // Aktif dönem filtresi: dönemsiz dersler + aktif dönemin dersleri görünür
@@ -13768,6 +13796,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
         onSelect={setView} user={teacher}
         roleLabel={(lang==="en"?"Teacher":K("Mamoste"))+" · "+areaName(teacher.area,lang)}
         extraItems={[
+          ...(onHeadMode?[{icon:"🎓",label:lang==="en"?"Department head panel":K("Panela Berpirs"),onClick:onHeadMode,attrs:{"data-role-switch":"head"}}]:[]),
           ...(onSettings?[{icon:"⚙️",label:t.settings||"Mîheng",onClick:onSettings}]:[]),
           {icon:"↩",label:t.logout||"Derkeve",onClick:onLogout,danger:true},
         ]}/>
@@ -15130,7 +15159,8 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
     return sa===ua;
   });
   // Öğretmen değerlendirmesi: YALNIZ bölüm sorumlusunun gönderdiği form (eski haftalık değerlendirme kaldırıldı)
-  const myTeachers=myTeachersOf(mySchedule,myClasses);
+  const headNos=useHeadNos();
+  const myTeachers=myTeachersOf(mySchedule,myClasses).filter(x=>!headNos.has(String(x.no)));
   const sEf=useEfFill({academy:"aat",dir:"s2t",raterNo:String(student.no||""),targetsFor:efStudentTargets(student,myTeachers)});
   const hasSEf=sEf.forms.length>0;
   const tevPending=hasSEf?sEf.pending:0;
@@ -17259,7 +17289,8 @@ function App(){
     if(!memberSyncPending.current||screen!=="admin"||!teachers.length) return;
     if(!window.__FB||!window.__FB.isConfigured()||!window.__FB.syncMemberIndex) return;
     memberSyncPending.current=false;
-    const tm=setTimeout(()=>{ window.__FB.syncMemberIndex(students,teachers).then(r=>{ if(r&&r.ok&&(r.added||r.removed)) console.info("[idx] eşitlendi",r); }).catch(e=>console.warn("[idx] eşitleme hatası",e)); },4000);
+    const tm=setTimeout(()=>{ window.__FB.syncMemberIndex(students,teachers).then(r=>{ if(r&&r.ok&&(r.added||r.removed)) console.info("[idx] eşitlendi",r); }).catch(e=>console.warn("[idx] eşitleme hatası",e));
+      syncHeadsCfg(teachers); ensureKidHeadsLinked(teachers); },4000);
     return ()=>clearTimeout(tm);
   },[screen,teachers.length,students.length]);
 
@@ -17765,13 +17796,15 @@ function App(){
         <AdminPanel admin={currentUser} students={students} teachers={teachers} schedule={schedule} t={t} lang={lang} toast={toast} onLogout={handleLogout} onDataChange={onDataChange} onSettings={()=>setShowSettings(true)} dark={false}/>
       )}
       {screen==="teacher"&&currentUser&&(
-        <TeacherPanel teacher={currentUser} students={students} schedule={schedule} t={t} lang={lang} toast={toast} onLogout={handleLogout} onDataChange={onDataChange} onSettings={()=>setShowSettings(true)}/>
+        <TeacherPanel teacher={currentUser} students={students} schedule={schedule} t={t} lang={lang} toast={toast} onLogout={handleLogout} onDataChange={onDataChange} onSettings={()=>setShowSettings(true)}
+          onHeadMode={currentUser.isHead&&!isKidArea(currentUser.area)?()=>setScreen("head"):undefined}/>
       )}
       {screen==="gate"&&currentUser&&(
         <GatePanel user={currentUser} lang={lang} toast={toast} onLogout={handleLogout}/>
       )}
       {screen==="head"&&currentUser&&(
-        <HeadPanel user={currentUser} students={students} teachers={teachers} schedule={schedule} t={t} lang={lang} toast={toast} onLogout={handleLogout} onSettings={()=>setShowSettings(true)} onDataChange={onDataChange}/>
+        <HeadPanel user={currentUser} students={students} teachers={teachers} schedule={schedule} t={t} lang={lang} toast={toast} onLogout={handleLogout} onSettings={()=>setShowSettings(true)} onDataChange={onDataChange}
+          onTeachMode={currentUser.isHead&&!isKidArea(currentUser.area)?()=>setScreen("teacher"):undefined}/>
       )}
       {screen==="press"&&currentUser&&(
         <PressPanel user={currentUser} lang={lang} toast={toast} onLogout={handleLogout}/>
