@@ -167,7 +167,10 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
   await t('İtiraz: öğretmen itirazı okur', getDoc(doc(teacher, 'attObjections/L1-2026-11-02-10202601')), true);
   await t('İtiraz: öğretmen itiraz YAZAMAZ', setDoc(doc(teacher, 'attObjections/L1-2026-11-02-10202602'), oD({ studentNo: '10202602' })), false);
   await t('Öğretmen yoklama kaydı SİLEMEZ', deleteDoc(doc(teacher, 'attendance/s0_S2')), false);
-  await t('Öğrenci işleri yoklama kaydı siler', deleteDoc(doc(as('98202601@ogretmen.aat'), 'attendance/sx_DEL')), true);
+  await t('Öğrenci işleri normal ders yoklama kaydı SİLEMEZ (yalnız atölye)', deleteDoc(doc(as('98202601@ogretmen.aat'), 'attendance/sx_DEL')), false);
+  await env.withSecurityRulesDisabled(async c => { await setDoc(doc(c.firestore(), 'attendance/wsx-2026-11-02'), { lessonId: 'wsx', area: 'genel', classId: 'ws_k1', date: '2026-11-02', records: {} }); });
+  await t('Öğrenci işleri atölye yoklama kaydını siler', deleteDoc(doc(as('98202601@ogretmen.aat'), 'attendance/wsx-2026-11-02')), true);
+  await t('Yönetici yoklama kaydı siler', deleteDoc(doc(admin, 'attendance/sx_DEL')), true);
   await t('Öğrenci KENDİ QR kaydını okur', getDoc(doc(student, 'attendance/s1_S1')), true);
   await t('Öğrenci BAŞKASININ yoklamasını OKUYAMAZ', getDoc(doc(student, 'attendance/s0_S2')), false);
   await t('Öğrenci ders yoklama belgesini OKUYAMAZ', getDoc(doc(student, 'attendance/L1-2026-11-02')), false);
@@ -365,7 +368,19 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
   await t('Storage: girişsiz başvuru EXE yükleyemez', uploadString(ref(env.unauthenticatedContext().storage(), 'applications/a.exe'), 'data:application/octet-stream;base64,TVo=', 'data_url'), false);
   // Sınıflar (ana akademi + çocuk akademisi)
   const cReg = as('98202601@ogretmen.aat'), cTch = as('11202601@ogretmen.aat'), cStu = as('10202601@ogrenci.aat'), cVel = as('92026001@veli.aat'), cKidT = as('72026001@zmamoste.aat');
-  await t('Sınıf: öğrenci işleri sınıf öğretmeni atar', setDoc(doc(cReg, 'classes/muzik_1'), { area: 'muzik', level: 1, teacherNos: ['11202601'], teacherNames: ['Mamoste'] }), true);
+  await env.withSecurityRulesDisabled(async c => { await setDoc(doc(c.firestore(), 'classes/muzik_1'), { kind: 'area', area: 'muzik', level: 1, teacherNos: [], teacherNames: [] }); });
+  await t('Sınıf: öğrenci işleri bölüm sınıfı YAZAMAZ (sınıflar bölüm sorumlusunda)', setDoc(doc(cReg, 'classes/muzik_1'), { kind: 'area', area: 'muzik', level: 1, teacherNos: ['11202601'], teacherNames: ['Mamoste'] }), false);
+  await t('Sınıf: öğrenci işleri atölye açar', setDoc(doc(cReg, 'classes/ws_k1'), { kind: 'workshop', area: 'genel', name: 'Atölye', studentNos: [], teacherNos: [] }), true);
+  await t('Sınıf: yönetici sınıf yazar', setDoc(doc(admin, 'classes/muzik_1'), { kind: 'area', area: 'muzik', level: 1, teacherNos: ['11202601'], teacherNames: ['Mamoste'] }), true);
+  const bhd = as('96202601@ogretmen.aat'), ghd = as('96202602@ogretmen.aat');
+  await t('Sınıf: tiyatro sorumlusu KENDİ bölümüne sınıf açar', setDoc(doc(bhd, 'classes/tiyatro_1'), { kind: 'area', area: 'tiyatro', name: '1', studentNos: [], teacherNos: ['11202601'], teacherNames: ['M'] }), true);
+  await t('Sınıf: tiyatro sorumlusu BAŞKA bölüme sınıf açamaz', setDoc(doc(bhd, 'classes/muzik_9'), { kind: 'area', area: 'muzik', name: '9', studentNos: [] }), false);
+  await t('Sınıf: tiyatro sorumlusu genel sınıf AÇAMAZ', setDoc(doc(bhd, 'classes/gen_1'), { kind: 'general', area: 'genel', name: 'G', studentNos: [] }), false);
+  await t('Sınıf: tiyatro sorumlusu başka bölümün sınıfını DEĞİŞTİREMEZ', updateDoc(doc(bhd, 'classes/muzik_1'), { teacherNos: [] }), false);
+  await t('Sınıf: tiyatro sorumlusu kendi sınıfını siler', deleteDoc(doc(bhd, 'classes/tiyatro_1')), true);
+  await t('Sınıf: genel sorumlu genel sınıf açar', setDoc(doc(ghd, 'classes/gen_1'), { kind: 'general', area: 'genel', name: 'G', studentNos: [] }), true);
+  await t('Sınıf: genel sorumlu bölüm sınıfına DOKUNAMAZ (yalnız genel sınıf)', updateDoc(doc(ghd, 'classes/muzik_1'), { teacherNos: ['11202601'] }), false);
+  await t('Sınıf: öğretmen sınıf YAZAMAZ (kayıtlı sınıfa dokunamaz)', updateDoc(doc(cTch, 'classes/muzik_1'), { teacherNos: [] }), false);
   await t('Sınıf: öğretmen sınıfları okur', getDocs(collection(cTch, 'classes')), true);
   await t('Sınıf: öğrenci sınıf öğretmenini okur', getDoc(doc(cStu, 'classes/muzik_1')), true);
   await t('Sınıf: öğretmen sınıf YAZAMAZ', setDoc(doc(cTch, 'classes/muzik_1'), { teacherNos: [] }), false);
@@ -531,8 +546,9 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
   await t('Öğrenci İşleri haftalık ders SİLEMEZ', deleteDoc(doc(as('98202601@ogretmen.aat'), 'schedule/SR1')), false);
   await t('Öğrenci İşleri atölye dersini yazar (ws_)', setDoc(doc(as('98202601@ogretmen.aat'), 'schedule/ws_W1'), { area: 'genel', name: 'Atolye', lessonType: 'extra' }), true);
   await t('Yönetici her bölüme ders yazar', setDoc(doc(admin, 'schedule/SA1'), { area: 'dans', name: 'x' }), true);
-  await t('Genel sorumlu: her bölüme ders yazar', setDoc(doc(as('96202602@ogretmen.aat'), 'schedule/SG1'), { area: 'dans', name: 'x' }), true);
-  await t('Genel sorumlu: başka bölümün dersini siler', deleteDoc(doc(as('96202602@ogretmen.aat'), 'schedule/SG1')), true);
+  await t('Genel sorumlu: başka bölüme ders YAZAMAZ (yalnız genel alan)', setDoc(doc(as('96202602@ogretmen.aat'), 'schedule/SG1'), { area: 'dans', name: 'x' }), false);
+  await t('Genel sorumlu: GENEL alana ders yazar', setDoc(doc(as('96202602@ogretmen.aat'), 'schedule/SG2'), { area: 'genel', name: 'Ortak' }), true);
+  await t('Genel sorumlu: başka bölümün dersini SİLEMEZ', deleteDoc(doc(as('96202602@ogretmen.aat'), 'schedule/SA1')), false);
   await t('B.sorumlusu: kendi dersini siler', deleteDoc(doc(head, 'schedule/SH1')), true);
   // Ders yapılmadı işareti (attendance): yalnız kendi bölümü, yalnız işaret alanları
   const absMark = { teacherAbsent: true, absenceKind: 'sick', absenceNote: 'Nexweş', absenceBy: 'Berpirs' };

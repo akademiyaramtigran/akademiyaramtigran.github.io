@@ -7726,10 +7726,12 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
   const ALL=false, GEN=area==="genel";
   const hCls=useClassDocs("classes");
   const aSchedule=(schedule||[]).filter(l=>l.area===area);
-  const aStudents=GEN?(()=>{ const ids=new Set(); aSchedule.forEach(l=>lessonRoster(l,students,hCls).forEach(x=>ids.add(String(x.id))));
+  const wsOnly=wsOnlyNos(hCls);
+  const aStudents0=GEN?(()=>{ const ids=new Set(); aSchedule.forEach(l=>lessonRoster(l,students,hCls).forEach(x=>ids.add(String(x.id))));
       hCls.filter(d=>d.kind==="general").forEach(d=>(students||[]).filter(x=>inClass(d,x.no)).forEach(x=>ids.add(String(x.id))));
       return (students||[]).filter(x=>ids.has(String(x.id))); })()
     :(students||[]).filter(s=>s.area===area);
+  const aStudents=aStudents0.filter(x=>!wsOnly.has(String(x.no)));
   // Öğretmenler: alanın öğretmenleri + alanın derslerine / sınıflarına atanmış BAŞKA bölüm öğretmenleri
   const hTeachNos=new Set(aSchedule.map(l=>String(l.teacherNo||"")).filter(Boolean));
   hCls.filter(d=>GEN?d.kind==="general":(d.kind==="area"&&d.area===area)).forEach(d=>(d.teacherNos||[]).forEach(n=>hTeachNos.add(String(n))));
@@ -7751,6 +7753,7 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
     {key:"announce",label:lang==="en"?"Announcements":K("Ragihandin")},
     {key:"messages",label:lang==="en"?"Messages":K("Peyam"),badge:unread},
     {key:"alerts",label:lang==="en"?"Alerts":K("Hişyarî"),badge:alertData.open},
+    {key:"classes",label:GEN?(lang==="en"?"General class":K("Sinifa Giştî")):(lang==="en"?"Classes":K("Sinif"))},
     {key:"schedule",label:lang==="en"?"Lesson schedule":K("Bernameya Dersan")},
     {key:"gatt",label:lang==="en"?"Guest-lesson attendance":K("Amadebûna dersên mêvan")},
     {key:"leaves",label:lang==="en"?"Student leave":K("Destûra Xwendekaran")},
@@ -7771,6 +7774,7 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
         {tab==="evalforms"&&<EvalFormsPanel user={user} academy="aat" area={area} teachers={teachers||[]} lang={lang} toast={toast}/>}
         {tab==="gatt"&&<HeadGuestAttendance user={user} students={aStudents} schedule={aSchedule} lang={lang} toast={toast}/>}
         {tab==="leaves"&&<LeavesPanel user={user} students={aStudents.filter(s=>!s.isAdmin)} schedule={aSchedule} area={area} all={false} stuScope={GEN?aStudents:null} lang={lang} toast={toast}/>}
+        {tab==="classes"&&<AcademyClassBoard mode="head" headArea={area} students={students||[]} teachers={teachers||[]} schedule={schedule||[]} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>}
         {tab==="schedule"&&<AdminScheduleTab mode="head" byName={user.name} fixedArea={area} schedule={aSchedule} teachers={teachers||[]} students={aStudents} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>}
         {tab==="reports"&&<AdminReportCenter students={aStudents} allStudents={(students||[]).filter(x=>!x.isAdmin)} teachers={aTeachers} schedule={aSchedule} allSchedule={schedule||[]} allTeachers={teachers||[]} lang={lang} t={t} toast={toast} byName={user.name} user={user} headArea={area} headNo={myNo} headScope={hScope}/>}
         {tab==="profile"&&<StaffProfileView user={user} roleLabel={roleLabel} icon="🎓" lang={lang} t={t} toast={toast} onLogout={onLogout} onDataChange={onDataChange}/>}
@@ -8160,7 +8164,8 @@ function ClassStudio({cfg,lang,t,toast}){
   const fieldAreas=cfg.areas;
   const aName=a=>cfg.areaLabel(a);
   const MW=()=>W2(cfg.memberWord[0],cfg.memberWord[1]);
-  const [kind,setKind]=useState("area");
+  const kinds=cfg.kinds||["area","general","workshop"];
+  const [kind,setKind]=useState(kinds[0]);
   const [areaF,setAreaF]=useState(()=>{ const a=fieldAreas.find(x=>studs.some(s=>s.area===x.key)); return (a||fieldAreas[0]||{key:"sinema"}).key; });
   const [open,setOpen]=useState(null);
   const [form,setForm]=useState(null);       // {id?, kind, name, area, sel:{no:true}, tsel:{no:true}, date,start,end,loc,guest, pa, q}
@@ -8415,11 +8420,11 @@ function ClassStudio({cfg,lang,t,toast}){
         <div style={{fontWeight:800,color:"var(--text)",marginBottom:4}}>🏫 {W2("Sinif, bername û atolye","Classes, schedule & workshops")}</div>
         <div style={small}>{W2("Di her qadê de sinifên xwendekaran ava bike, mamosteyê sinifê diyar bike û bernameya dersan bide sinifê. Dersên ku hemû qad tê de ne, wekî sinifa giştî ava bike. Atolyeyên ji derve ji bo rojekê veke, amadebûnê binivîse û bigire.",
           "Create student classes in each field, assign class teachers and give each class its lesson schedule. Lessons shared by all fields are general classes. Open one-off guest workshops, record attendance and close them.")}</div>
-        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:10}}>
-          <button onClick={()=>{setKind("area");setForm(null);}} style={chip(kind==="area")}>🎨 {W2("Sinifên qadê","Field classes")}</button>
-          <button onClick={()=>{setKind("general");setForm(null);}} style={chip(kind==="general")}>🌐 {W2("Sinifên giştî","General classes")} ({generalClasses.length})</button>
-          <button onClick={()=>{setKind("workshop");setForm(null);}} style={chip(kind==="workshop")}>🛠 {W2("Atolye","Workshops")} ({openWs.length})</button>
-        </div>
+        {kinds.length>1&&<div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:10}}>
+          {kinds.includes("area")&&<button onClick={()=>{setKind("area");setForm(null);}} style={chip(kind==="area")}>🎨 {W2("Sinifên qadê","Field classes")}</button>}
+          {kinds.includes("general")&&<button onClick={()=>{setKind("general");setForm(null);}} style={chip(kind==="general")}>🌐 {W2("Sinifên giştî","General classes")} ({generalClasses.length})</button>}
+          {kinds.includes("workshop")&&<button onClick={()=>{setKind("workshop");setForm(null);}} style={chip(kind==="workshop")}>🛠 {W2("Atolye","Workshops")} ({openWs.length})</button>}
+        </div>}
       </div>
       {legacy.length>0&&(
         <div style={{...box,border:"1.5px dashed #c9a24f"}}>
@@ -8470,20 +8475,33 @@ function ClassStudio({cfg,lang,t,toast}){
 
 
 // Ana akademi: classes + schedule (onDataChange) + attendance/{dersId}-{tarih}
-function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange}){
+// mode "registrar": Öğrenci İşleri yalnız ATÖLYE (bölümler arası gruplar) açar / yönetir.
+// mode "head": bölüm sorumlusu KENDİ bölümünün sınıflarını açar, sınıf öğretmeni atar; genel sorumlu yalnız GENEL sınıfı (bütün öğrencilerden) yönetir.
+//   Atölye sınıfına kayıtlı öğrenciler akademiyle ilgili değildir: sorumlunun sınıf / öğrenci listelerinde yer almaz.
+// Yalnız atölye sınıfında olup akademi (alan / genel) sınıfı olmayan öğrenci numaraları: bunlar akademiyle bağlı değildir, sorumlu listelerinde görünmez.
+function wsOnlyNos(cls){
+  const ws=new Set(), ac=new Set();
+  (cls||[]).forEach(d=>(d.studentNos||[]).forEach(n=>(d.kind==="workshop"?ws:ac).add(String(n))));
+  return new Set([...ws].filter(n=>!ac.has(n)));
+}
+function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange,mode="registrar",headArea=null}){
   const F=window.__FB;
   const W2=(ku,en)=>lang==="en"?en:K(ku);
-  const studs=(students||[]).filter(s=>!s.isAdmin);
+  const allCls=useClassDocs("classes");
+  const wsNos=wsOnlyNos(allCls);
+  const isGen=headArea==="genel";
+  const studs=(students||[]).filter(s=>!s.isAdmin).filter(s=>mode!=="head"||(!wsNos.has(String(s.no))&&(isGen||s.area===headArea)));
   const DAYN=d=>(t&&t.days&&t.days[d])||d;
   const lessonsOf=id=>(schedule||[]).filter(l=>l.classId===id);
   const delLs=l=>deleteLessonAsk(l,onDataChange,lang);
   const removeLs=l=>onDataChange("deleteSchedule",{id:l.id,fireId:l.fireId||null});   // atölye kapanışı: yoklama korunur
   const cfg={
-    lessonsReadOnly:true,   // haftalık dersleri bölüm sorumluları (ve yönetici) hazırlar; Öğrenci İşleri yalnız sınıf + atölye yönetir
+    lessonsReadOnly:mode!=="head",   // haftalık dersleri bölüm sorumluları hazırlar; Öğrenci İşleri yalnız atölye yönetir
+    kinds:mode==="head"?(isGen?["general"]:["area"]):["workshop"],
     coll:"classes",
     members:studs,
     teachers:(teachers||[]).filter(t2=>canTeach(t2)),
-    areas:AREAS.filter(a=>a.key!=="genel"),
+    areas:AREAS.filter(a=>a.key!=="genel"&&(mode!=="head"||isGen||a.key===headArea)),
     areaLabel:a=>areaName(a,lang),
     memberWord:["xwendekar","students"],
     lessonsOf,
@@ -9870,7 +9888,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
   const regTabs=[
     {key:"serledan",icon:"📋",label:lang==="en"?"Applications":K("Serlêdan")},
     {key:"qad",icon:"🎭",label:lang==="en"?"Art Fields · Registration":K("Qad · Tescîl")},
-    {key:"sinif",icon:"🏫",label:lang==="en"?"Classes & Workshops":K("Sinif û Atolye")},
+    {key:"sinif",icon:"🛠",label:lang==="en"?"Workshops":K("Atolye")},
     {key:"zarok",icon:"🎼",label:lang==="en"?"Children's Academy":K("Akademiya Zarokan")},
   ];
   const [activeArea,setActiveArea]=useState(null);
@@ -10129,7 +10147,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
         )}
 
         {section==="zarok"&&<ZarokAdminPanel lang={lang} toast={toast} user={user}/>}
-        {section==="sinif"&&<AcademyClassBoard students={students||[]} teachers={teachers||[]} schedule={schedule||[]} lang={lang} t={t||T.ku} toast={toast} onDataChange={onDataChange}/>}
+        {section==="sinif"&&<AcademyClassBoard mode="registrar" students={students||[]} teachers={teachers||[]} schedule={schedule||[]} lang={lang} t={t||T.ku} toast={toast} onDataChange={onDataChange}/>}
         {section!=="serledan"?null:(<>
 
         <SectionHeader>{L("settings")}</SectionHeader>

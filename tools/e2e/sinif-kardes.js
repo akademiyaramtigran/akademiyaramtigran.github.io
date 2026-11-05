@@ -44,6 +44,7 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await put('teachers/TR', { no: '98202601', name: 'Karûbar', isRegistrar: true, area: 'genel' });
   await signUp('98202601@ogretmen.aat', 'Reg12345');
   await put('idx_staff/1000', { no: '1000', lvl: 'admin' }); await put('teachers/TA', { no: '1000', name: 'Rêveber', isAdmin: true, area: 'genel' }); await signUp('1000@ogretmen.aat', 'Admin123');
+  await put('idx_staff/96000001', { no: '96000001', lvl: 'head', area: 'muzik' }); await put('teachers/HM', { id: 'HM', no: '96000001', name: 'Berpirsa Muzîkê', area: 'muzik', isHead: true }); await signUp('96000001@ogretmen.aat', 'Head1234');
   await put('idx_staff/50202601', { no: '50202601', lvl: 'teacher' });
   await put('teachers/T50', { no: '50202601', name: 'Mamoste Dilovan', area: 'muzik' });
   await signUp('50202601@ogretmen.aat', 'Tea12345');
@@ -174,14 +175,15 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   ok('Çocuk atölyesi kapandı, programdan kalktı', KW2.fields.status.stringValue === 'closed' && KWL2.status === 404);
 
   // ── 5) Ana akademi: Müzik alanında sınıf oluştur (öğrenci seç + sınıf öğretmeni) ──
-  await topTab(p, 'Sinif û Atolye'); await p.waitForTimeout(1500);
-  const s5 = await txt(p);
+  const ph = await login(await mk(), '96000001', 'Head1234');
+  await topTab(ph, 'Sinif'); await ph.waitForTimeout(1500);
+  const s5 = await txt(ph);
   ok('Ana akademi: sınıfsız öğrenciler listelenir', s5.includes('Bê sinif') && s5.includes('Rojîn Aram') && s5.includes('Baran Şêx'));
-  await clickText(p, '➕ Sinifa nû'); await p.waitForTimeout(400);
-  await p.locator('input[aria-label="Navê sinifê"]').fill('1. Sînif');
-  await p.locator('label', { hasText: 'Mamoste Dilovan' }).locator('input[type=checkbox]').check();
-  await p.locator('label', { hasText: 'Rojîn Aram' }).locator('input[type=checkbox]').check();
-  await clickText(p, '💾 Tomar bike'); await p.waitForTimeout(1500);
+  await clickText(ph, '➕ Sinifa nû'); await ph.waitForTimeout(400);
+  await ph.locator('input[aria-label="Navê sinifê"]').fill('1. Sînif');
+  await ph.locator('label', { hasText: 'Mamoste Dilovan' }).locator('input[type=checkbox]').check();
+  await ph.locator('label', { hasText: 'Rojîn Aram' }).locator('input[type=checkbox]').check();
+  await clickText(ph, '💾 Tomar bike'); await ph.waitForTimeout(1500);
   const M1 = (await list('classes')).find(d => d.fields.name && d.fields.name.stringValue === '1. Sînif');
   const M1id = M1 ? M1.name.split('/').pop() : '';
   ok('Ana akademi: Müzik · 1. Sınıf oluşturuldu (öğrenci + sınıf öğretmeni)', M1 && M1.fields.kind.stringValue === 'area' && M1.fields.area.stringValue === 'muzik'

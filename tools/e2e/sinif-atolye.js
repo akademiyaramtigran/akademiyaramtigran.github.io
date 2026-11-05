@@ -42,6 +42,8 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   await put('teachers/TR', { no: '98202601', name: 'Karûbar', isRegistrar: true, area: 'genel' });
   await signUp('98202601@ogretmen.aat', 'Reg12345');
   await put('idx_staff/1000', { no: '1000', lvl: 'admin' }); await put('teachers/TA', { no: '1000', name: 'Rêveber', isAdmin: true, area: 'genel' }); await signUp('1000@ogretmen.aat', 'Admin123');
+  await put('idx_staff/96000001', { no: '96000001', lvl: 'head', area: 'muzik' }); await put('teachers/HM', { id: 'HM', no: '96000001', name: 'Berpirsa Muzîkê', area: 'muzik', isHead: true }); await signUp('96000001@ogretmen.aat', 'Head1234');
+  await put('idx_staff/96000002', { no: '96000002', lvl: 'head', area: 'genel' }); await put('teachers/HG', { id: 'HG', no: '96000002', name: 'Berpirsê Giştî', area: 'genel', isHead: true }); await signUp('96000002@ogretmen.aat', 'Head1234');
   await put('idx_staff/50202601', { no: '50202601', lvl: 'teacher' });
   await put('teachers/T50', { no: '50202601', name: 'Mamoste Dilovan', area: 'muzik' });
   await signUp('50202601@ogretmen.aat', 'Tea12345');
@@ -76,10 +78,9 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
     [...card.querySelectorAll('button')].find(x => x.textContent.includes(t)).click(); }, [cardText, btnText]);
 
   // ── 1) Alan sınıfı: Müzik · 1. Sınıf ──
-  const rc = await mk(); const p = await login(rc, '98202601', 'Reg12345');
-  await topTab(p, 'Sinif û Atolye'); await p.waitForTimeout(1500);
-  await p.selectOption('select[aria-label="Qad"]', 'muzik'); await p.waitForTimeout(300);
-  ok('Alan seçilince sınıfsız öğrenciler', /Bê sinif \(2\)/.test(await txt(p)));
+  let p = await login(await mk(), '96000001', 'Head1234');
+  await topTab(p, 'Sinif'); await p.waitForTimeout(1500);
+  ok('Alan sorumlusu: sınıfsız öğrenciler (yalnız kendi alanı)', /Bê sinif \(2\)/.test(await txt(p)));
   await clickText(p, '➕ Sinifa nû'); await p.waitForTimeout(300);
   await p.locator('input[aria-label="Navê sinifê"]').fill('1. Sînif');
   ok('Alan sınıfı formunda yalnızca o alanın öğrencileri', !(await txt(p)).includes('Jîyan Roj') && (await txt(p)).includes('Baran Şêx'));
@@ -90,7 +91,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
 
   // ── 2) Sınıfa ders programı ──
   // Ders programını bölüm sorumluları hazırlar: Öğrenci İşleri sınıf kartında ders ekleyemez
-  ok('Öğrenci İşleri sınıf kartında "Ders zêde bike" yok, program bölüm sorumlularında', !(await txt(p)).includes('➕ Ders zêde bike') && (await txt(p)).includes('berpirsên beşan'));
+  ok('Alan sorumlusu sınıf kartından ders ekleyebilir', (await txt(p)).includes('Ders zêde bike'));
   await put('schedule/LS1', { id: 'LS1', fireId: 'LS1', area: A.fields.area.stringValue, name: 'Solfej', classId: Aid, teacherNo: '50202601', teacherName: 'Mamoste Dilovan',
     lessonType: 'main', day: 'Dûşem', start: '09:00', end: '10:30', loc: '—' });
   await p.waitForTimeout(1500);
@@ -99,24 +100,27 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   ok('Sınıf kartında ders programı görünür', /Solfej/.test(await txt(p)) && /1 ders di bernameyê de/.test(await txt(p)));
 
   // ── 3) Genel sınıf: tüm alanlardan öğrenci ──
-  await clickText(p, '🌐 Sinifên giştî'); await p.waitForTimeout(400);
-  await clickText(p, '➕ Sinifa giştî ya nû'); await p.waitForTimeout(300);
-  await p.locator('input[aria-label="Navê sinifê"]').fill('Koro');
-  await check(p, 'Mamoste Dilovan'); await check(p, 'Rojîn Aram'); await check(p, 'Jîyan Roj');
-  await clickText(p, '💾 Tomar bike'); await p.waitForTimeout(1500);
+  const pg = await login(await mk(), '96000002', 'Head1234');
+  await topTab(pg, 'Sinifa Giştî'); await pg.waitForTimeout(1500);
+  await clickText(pg, '➕ Sinifa giştî ya nû'); await pg.waitForTimeout(300);
+  await pg.locator('input[aria-label="Navê sinifê"]').fill('Koro');
+  await check(pg, 'Mamoste Dilovan'); await check(pg, 'Rojîn Aram'); await check(pg, 'Jîyan Roj');
+  await clickText(pg, '💾 Tomar bike'); await pg.waitForTimeout(1500);
   const G = await cls('Koro');
   ok('Genel sınıf iki alandan öğrenciyle kaydedildi', G && G.fields.kind.stringValue === 'general' && G.fields.area.stringValue === 'genel' && G.fields.studentNos.arrayValue.values.length === 2);
 
   // Aynı öğretmen ikinci bir ortak sınıfa (ör. başka dönemin öğrencileri) bağlanabilir
-  await clickText(p, '➕ Sinifa giştî ya nû'); await p.waitForTimeout(300);
-  await p.locator('input[aria-label="Navê sinifê"]').fill('Koro B');
-  await check(p, 'Mamoste Dilovan'); await check(p, 'Jîyan Roj');
-  await clickText(p, '💾 Tomar bike'); await p.waitForTimeout(1500);
+  await clickText(pg, '➕ Sinifa giştî ya nû'); await pg.waitForTimeout(300);
+  await pg.locator('input[aria-label="Navê sinifê"]').fill('Koro B');
+  await check(pg, 'Mamoste Dilovan'); await check(pg, 'Jîyan Roj');
+  await clickText(pg, '💾 Tomar bike'); await pg.waitForTimeout(1500);
   const G2 = await cls('Koro B');
   ok('Aynı öğretmen iki ortak sınıfa bağlı', G2 && JSON.stringify(G2.fields.teacherNos).includes('50202601') && JSON.stringify(G.fields.teacherNos).includes('50202601'));
 
   // ── 4) Atölye aç ──
-  await clickText(p, '🛠 Atolye'); await p.waitForTimeout(400);
+  const rc = await mk(); const pr = await login(rc, '98202601', 'Reg12345');
+  await topTab(pr, 'Atolye'); await pr.waitForTimeout(1500);
+  const pOld = p; p = pr;
   await clickText(p, '➕ Atolye veke'); await p.waitForTimeout(300);
   await p.locator('input[aria-label="Navê sinifê"]').fill('Atolyeya Deng');
   await p.locator('label:has-text("Perwerdekarê ji derve") input').fill('Hunermendê Mêvan');
