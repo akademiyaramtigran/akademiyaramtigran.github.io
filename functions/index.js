@@ -347,7 +347,7 @@ exports.monthlyAnalysis = onSchedule({ schedule: "5 9 1 * *", timeZone: "Europe/
 
 // ── Öğrenci devam kaydı: ders yoklaması kaydedilince her öğrenciye KENDİNE ait kayıt (studentAtt) + "geç/yok" bildirimi ──
 const DV = require("./devam");
-const { FieldValue } = require("firebase-admin/firestore");
+const { FieldValue, FieldPath } = require("firebase-admin/firestore");
 let _stuIdx = { at: 0, map: new Map() };
 async function stuIndex(needKeys) {
   const fresh = Date.now() - _stuIdx.at < 300000;
@@ -369,20 +369,37 @@ exports.studentAttSync = onDocumentWritten("attendance/{id}", async (ev) => {
     return;
   }
   const idx = await stuIndex(Object.keys(after.records));
-  const rows = DV.buildRows(id, after, idx);
+  const today = DV.istToday();
+  const rows = DV.buildRows(id, after, idx, today);
   for (let i = 0; i < rows.length; i += 400) {
     const b = db.batch();
     rows.slice(i, i + 400).forEach(r => b.set(db.collection("studentAtt").doc(r.id), { ...r.data, updatedAt: FieldValue.serverTimestamp() }));
     await b.commit();
   }
   // Bildirim: yeni "geç / yok" yazılan öğrencilere
-  const ch = DV.notifyChanges(before, after); if (!ch.length) return;
+  const ch = DV.notifyChanges(before, after, today); if (!ch.length) return;
   for (const c of ch) {
     const st = idx.get(String(c.sid)); if (!st) continue;
     const docs = (await tokens("aat", "no", st.no)).filter(d => d.get("role") === "student");
     if (!docs.length) continue;
     await push(docs, l => ({ title: DV.txd(l, "t"), body: DV.txd(l, c.status, after.lessonName || "") }), "/app/", "aat-att-" + id);
   }
+});
+
+
+// ── QR okutması ders yoklamasına kendiliğinden işlenir: öğretmen ders sürerken "Kaydet"e basıp okutmayanları geçici "yok" yazdıysa,
+//    sonradan (geç de olsa) okutan öğrencinin kaydı "geldi / geç" olur — öğretmenin ekranı ve öğrencinin kaydı aynı kalır ──
+exports.qrCheckinMerge = onDocumentWritten("attendance/{id}", async (ev) => {
+  const a = ev.data && ev.data.after && ev.data.after.exists ? ev.data.after.data() : null;
+  if (!a || a.deviceClaim || a.qrLessonId == null || !a.qrDate || a.studentId == null) return;
+  const db = admin.firestore(), ref = db.doc("attendance/" + a.qrLessonId + "-" + a.qrDate), sid = String(a.studentId);
+  await db.runTransaction(async (tx) => {
+    const sn = await tx.get(ref); if (!sn.exists) return;
+    const d = sn.data(); if (d.teacherAbsent) return;
+    const cur = (d.records || {})[sid];
+    if (cur === "on" || cur === "late" || cur === "leave") return;
+    tx.update(ref, new FieldPath("records", sid), a.late ? "late" : "on", "updatedAt", FieldValue.serverTimestamp());
+  });
 });
 
 // ── Yoklama itirazı: öğrenci itiraz edince dersin öğretmenine, bölüm sorumlusuna ve yönetime MESAJ düşer (bildirimiyle) ──

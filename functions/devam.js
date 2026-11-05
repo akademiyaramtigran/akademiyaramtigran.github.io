@@ -25,9 +25,16 @@ function studentIndex(docs) {
   return m;
 }
 
+// Bugünün tarihi (İstanbul) — YYYY-MM-DD
+const istToday = (ms) => new Date(ms == null ? Date.now() : ms).toLocaleDateString("sv-SE", { timeZone: "Europe/Istanbul" });
+// Yoklama KESİNLEŞTİ mi? Ders bitirildi (endedAt) ya da gün geçti. Ders sürerken öğretmen "Kaydet"e basınca okutmayan herkes
+// geçici olarak "yok" yazılır — bu kesin değildir, öğrenciye "gelmedi" bildirimi gitmez / ekranda "bekliyor" görünür.
+function isFinal(att, today) { return !!(att && (att.endedAt || String(att.date || "") < (today || istToday()))); }
+
 // Belgeden satırlar: [{ id, data }]
-function buildRows(attId, att, idx) {
+function buildRows(attId, att, idx, today) {
   const k = lessonKey(attId, att); if (!k || att.teacherAbsent) return [];
+  const fin = isFinal(att, today);
   const rows = [];
   for (const [sid, v] of Object.entries(att.records)) {
     const status = STATUS[v]; const st = idx.get(String(sid));
@@ -35,16 +42,17 @@ function buildRows(attId, att, idx) {
     rows.push({
       id: k.lessonId + "-" + k.date + "-" + st.no,
       data: { studentNo: st.no, lessonId: k.lessonId, lessonFire: String(att.lessonFire || k.lessonId), lessonName: String(att.lessonName || ""),
-        area: String(att.area || ""), date: k.date, status, teacherName: String(att.takenBy || att.teacherName || "") }
+        area: String(att.area || ""), date: k.date, status, final: fin, teacherName: String(att.takenBy || att.teacherName || "") }
     });
   }
   return rows;
 }
 
 // Bildirim gereken değişiklikler: yeni duruma "geç" ya da "yok" girenler (öncekiyle aynıysa yeniden bildirilmez)
-function notifyChanges(before, after) {
+function notifyChanges(before, after, today) {
   const out = [];
-  const b = (before && before.records) || {};
+  if (!isFinal(after, today)) return out;                       // ders sürerken bildirim yok
+  const b = isFinal(before, today) ? ((before && before.records) || {}) : {};   // yeni kesinleşti → bütün geç/yok bildirilir
   for (const [sid, v] of Object.entries((after && after.records) || {})) if ((v === "off" || v === "late") && b[sid] !== v) out.push({ sid, status: v });
   return out;
 }
@@ -56,4 +64,4 @@ const TXD = {
 };
 const txd = (lang, k, a) => String((TXD[lang] || TXD.ku)[k]).replace("{0}", a == null ? "" : a);
 
-module.exports = { lessonKey, studentIndex, buildRows, notifyChanges, txd, STATUS };
+module.exports = { lessonKey, studentIndex, buildRows, notifyChanges, isFinal, istToday, txd, STATUS };
