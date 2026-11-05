@@ -87,7 +87,7 @@ async function routes(ctx) {
 
   // Adım adım rapor: sorumluda alan sabit; tür → kimin → dönem
   ok('Rapor oluştur: sorumluda akademi adımı yok, alan sabit (Şano)', (await p.locator('[data-rw-acad]').count()) === 0 && (await txt('[data-rw-area-fixed]')).includes('Şano'), await txt('[data-rw-area-fixed]'));
-  ok('Rapor türleri: Devam · Değerlendirme · Genel analiz', (await p.evaluate(() => [...document.querySelectorAll('[data-rw-type]')].map(e => e.dataset.rwType).join(','))) === 'devam,eval,analiz,list');
+  ok('Rapor türleri: Devam · Değerlendirme · Genel analiz · Listeler', (await p.evaluate(() => [...document.querySelectorAll('[data-rw-type]')].map(e => e.dataset.rwType).join(','))) === 'devam,eval,analiz,list,tlist');
   ok('Kimin adımı tür seçilmeden görünmez', (await p.locator('[data-rw-who]').count()) === 0);
   await clk('[data-rw-type="devam"]'); await clk('[data-rw-who="student"]');
   ok('Dönem adımı: Bu yıl seçili', (await p.locator('[data-rw-period="year"].on').count()) === 1);
@@ -138,34 +138,9 @@ async function routes(ctx) {
   ok('İzin kayıtları devam raporunun altında', (await p.locator('[data-rep-leaves]').count()) === 1);
   ok('İndirme: PDF + Excel', (await p.locator('[data-rw-pdf]').count()) === 1 && (await p.locator('[data-rw-csv]').count()) === 1);
 
-  // Öğretmenler: ders durumu (yapıldı / yapılmadı / ⚠ yoklama girilmedi) + elle düzeltme
-  await clk('[data-rw-who="teacher"]');
-  const taAll = await p.evaluate(() => [...document.querySelectorAll('[data-ta-row]')].map(e => e.dataset.taRow).sort());
-  await sel('[data-ta-teacher]', '50202602');
-  const taSt = await p.evaluate(() => [...document.querySelectorAll('[data-ta-row]')].map(e => e.dataset.taRow));
-  ok('Öğretmen ders durumu: tüm öğretmenler (başka bölüm hocası dahil); Stran seçilince yalnız onun satırı', taAll.includes('50202601') && taAll.includes('50202602') && taSt.join() === '50202602', JSON.stringify(taAll) + ' ' + JSON.stringify(taSt));
-  await sel('[data-ta-teacher]', '50202601');
-  await clk('[data-ta-row="50202601"] > div');
-  const fixId = await p.evaluate(() => { const b = [...document.querySelectorAll('[data-ta-fix^="11-"]')].pop(); return b ? b.dataset.taFix : null; });
-  ok('⚠ Yoklama girilmemiş Şano 1 dersinde "Yoklamayı gir" düğmesi', !!fixId, String(fixId));
-  await clk('[data-ta-fix="' + fixId + '"]');
-  ok('Elle yoklama ekranı: dersin sınıf listesi (Rojîn, Baran)', (await p.locator('[data-att-fix] [data-fix-row]').count()) === 2);
-  await clk('[data-fix-row="20202601"] [data-fv="on"]');
-  await clk('[data-fix-save]'); await p.waitForTimeout(1500);
-  const fx = await fetch(`${FS}/attendance/${fixId}`, { headers: H }).then(r => r.json());
-  ok('Sorumlu yoklamayı elle girdi: Rojîn geldi, Baran gelmedi, işleyen sorumlu', fx.fields && fx.fields.records.mapValue.fields['101'].stringValue === 'on' && fx.fields.records.mapValue.fields['102'].stringValue === 'off' && fx.fields.takenByNo.stringValue === '96000001', JSON.stringify(fx.fields || fx).slice(0, 200));
-  await p.waitForTimeout(1200);
-  ok('Girilen ders artık ⚠ değil', (await p.locator('[data-ta-fix="' + fixId + '"]').count()) === 0);
-  // Yapılmış dersin kaydı da düzeltilir; izni sonradan silinen öğrencide eski "izinli" işareti kalmaz
-  await fetch(`${FS}/attendance/${fixId}?updateMask.fieldPaths=records`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { records: { mapValue: { fields: { 101: { stringValue: 'leave' }, 102: { stringValue: 'on' } } } } } }) });
-  await p.waitForTimeout(1500);
-  if (await p.locator('[data-ta-all]').count()) await clk('[data-ta-all]');
-  ok('Yapılmış derste de "Rast bike" düğmesi var (tüm dersler)', (await p.locator('[data-ta-fix="' + fixId + '"]').count()) === 1);
-  await clk('[data-ta-fix="' + fixId + '"]');
-  ok('İzni kaldırılmış öğrencide uyarı satırı görünür', (await p.locator('[data-fix-stale]').count()) === 1);
-  await clk('[data-fix-save]'); await p.waitForTimeout(2000);
-  const fx2 = await fetch(`${FS}/attendance/${fixId}`, { headers: H }).then(r => r.json());
-  ok('Kaydedince eski "izinli" kalmaz (Rojîn → yok), Baran korunur', fx2.fields.records.mapValue.fields['101'].stringValue === 'off' && fx2.fields.records.mapValue.fields['102'].stringValue === 'on', JSON.stringify(fx2.fields.records.mapValue.fields));
+  // Devam raporunda öğretmenin kendi devamı (ders durumu) yok: yalnız öğrenci devamı + öğretmen süzgeci
+  ok('Devam raporunda "Mamoste" (ders durumu) seçeneği yok', (await p.locator('[data-rw-who="teacher"]').count()) === 0);
+  ok('Öğretmen süzgeci devam raporunda duruyor', (await p.locator('[data-rep-teacher]').count()) === 1);
 
   // Değerlendirme (form yanıtları)
   await clk('[data-rw-type="eval"]'); await clk('[data-rw-who="student"]');
