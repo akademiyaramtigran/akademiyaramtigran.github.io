@@ -340,7 +340,7 @@ exports.monthlyAnalysis = onSchedule({ schedule: "5 9 1 * *", timeZone: "Europe/
   const heads = await tokens("aat", "role", "head");
   for (const d of heads) { const c = counts[String(d.get("area") || "")]; if (!c) continue; if (!txt("ku", c, false)) continue; await push([d], l => txt(l, c, false), "/app/", "aat-monthly"); }
   const admins = await tokens("aat", "role", "admin"); if (admins.length && txt("ku", tot, false)) await push(admins, l => txt(l, tot, false), "/app/", "aat-monthly");
-  const regs = await tokens("aat", "role", "registrar"); if (regs.length && txt("ku", tot, true)) await push(regs, l => txt(l, tot, true), "/app/", "aat-monthly");
+  // Öğrenci İşleri artık rapor / uyarı görmez (yalnız kayıt + başvuru + sınıf/atölye + kart): aylık analiz bildirimi yönetici + bölüm sorumlularına
   return { M, counts };
 });
 

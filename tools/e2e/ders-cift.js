@@ -32,6 +32,7 @@ async function routes(ctx) {
   const now = new Date(), past = new Date(now); past.setDate(now.getDate() - 7);
   const TODAY = ymd(now), PAST = ymd(past), DAY = KU[now.getDay()];
   const from = new Date(now); from.setDate(now.getDate() - 14);
+  await put('idx_staff/96000002', { no: '96000002', lvl: 'head', area: 'genel' }); await put('teachers/TH', { id: 'TH', no: '96000002', name: 'Berpirsê Giştî', area: 'genel', isHead: true }); await signUp('96000002@ogretmen.aat', 'Head1234');
   await put('idx_staff/98202601', { no: '98202601', lvl: 'registrar' });
   await put('teachers/TR', { no: '98202601', name: 'Karûbar', isRegistrar: true, area: 'genel' });
   await signUp('98202601@ogretmen.aat', 'Reg12345');
@@ -77,12 +78,11 @@ async function routes(ctx) {
   ok('Bugün yalnız bugünün dersi listelenir', JSON.stringify(todayBtns) === '["LW"]', JSON.stringify(todayBtns));
   await tp.context().close();
 
-  // 2) Öğrenci İşleri: aynı sınıfa aynı gün ve saatte ders eklenirken uyarı (iptal → eklenmez)
-  const rp = await login(await mk(), '98202601', 'Reg12345');
-  await rp.evaluate(() => { const mv = [...document.querySelectorAll('.sm-it,.pano-tile')].filter(x => x.getClientRects().length); mv.find(x => x.textContent.includes('Sinif û Atolye')).click(); }); await rp.waitForTimeout(1500);
-  await rp.evaluate(() => [...document.querySelectorAll('button')].find(x => x.offsetParent && x.textContent.includes('Sinifên giştî')).click()); await rp.waitForTimeout(800);
-  await rp.evaluate(() => [...document.querySelectorAll('div')].filter(d => d.textContent.includes('Giştî') && d.style.cursor === 'pointer').pop().click()); await rp.waitForTimeout(800);
-  await rp.evaluate(() => [...document.querySelectorAll('button')].find(x => x.offsetParent && x.textContent.includes('Ders zêde bike')).click()); await rp.waitForTimeout(1000);
+  // 2) Genel sorumlu (genel sınıfın programı onda): aynı sınıfa aynı gün ve saatte ders eklenirken uyarı (iptal → eklenmez)
+  const rp = await login(await mk(), '96000002', 'Head1234');
+  await rp.evaluate(() => document.querySelector('.sm-it[data-key="schedule"],.pano-tile[data-key="schedule"]').click()); await rp.waitForTimeout(1500);
+  await rp.click('[data-add-lesson]'); await rp.waitForTimeout(1000);
+  await rp.locator('select:has(option[value="G1"])').selectOption('G1');
   await rp.locator('input[placeholder="Armoni – Gr. A"]').fill('Ziman Dubare');
   await rp.evaluate(() => { const i = document.querySelector('[data-weekly] input'); if (!i.checked) i.click(); }); await rp.waitForTimeout(200);
   dialogs = []; answer = false;
@@ -94,9 +94,7 @@ async function routes(ctx) {
 
   // 3) Tek seferlik dersi yoklamasıyla birlikte sil
   dialogs = []; answer = true;
-  // Sınıf kartındaki ders satırı: "Ziman / <tarih> · 09:30–12:00" — son düğme sil
-  const delOk = await rp.evaluate(PAST => { const rows = [...document.querySelectorAll('div')].filter(d => d.textContent.includes(PAST + ' · 09:30') && d.querySelectorAll('button').length >= 1 && d.querySelectorAll('button').length <= 2);
-    const r = rows.pop(); if (!r) return false; const bs = r.querySelectorAll('button'); bs[bs.length - 1].click(); return true; }, PAST);
+  const delOk = await rp.evaluate(() => { const b = document.querySelector('[data-del-lesson="LO"]'); if (!b) return false; b.click(); return true; });
   await rp.waitForTimeout(3000);
   const sch = await list('schedule'); const att = await fetch(`${FS}/attendance/LO-${PAST}`, { headers: H });
   ok('Silerken yoklama kayıtları da soruldu', delOk && dialogs.some(m => m.includes('tomarên amadebûnê hene')), JSON.stringify(dialogs));

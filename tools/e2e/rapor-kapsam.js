@@ -37,6 +37,7 @@ async function routes(ctx) {
   await put('idx_staff/96000002', { no: '96000002', lvl: 'head', area: 'genel' });
   await put('teachers/H2', { id: 'H2', no: '96000002', name: 'Berpirsê Giştî', area: 'genel', isHead: true });
   await signUp('96000002@ogretmen.aat', 'Head1234');
+  await put('idx_staff/1000', { no: '1000', lvl: 'admin' }); await put('teachers/TA', { no: '1000', name: 'Rêveber', isAdmin: true, area: 'genel' }); await signUp('1000@ogretmen.aat', 'Admin123');
   await put('idx_staff/98202601', { no: '98202601', lvl: 'registrar' });
   await put('teachers/TR', { no: '98202601', name: 'Karûbar', isRegistrar: true, area: 'genel' });
   await signUp('98202601@ogretmen.aat', 'Reg12345');
@@ -105,7 +106,7 @@ async function routes(ctx) {
   ok('Sorumlu menüsünde anket yok', !hk.includes('surveys') && hk.includes('reports') && hk.includes('evalforms'), hk.join(','));
   await go(hp, 'reports');
   const ht = await rtabs(hp);
-  ok('Sorumlu rapor türleri: Devam + Değerlendirme + Genel analiz (anket yok)', ht.join(',') === 'devam,eval,analiz,list', ht.join(','));
+  ok('Sorumlu rapor türleri: Devam + Değerlendirme + Genel analiz (anket yok)', ht.join(',') === 'devam,eval,analiz,list,tlist', ht.join(','));
   await devStu(hp);
   ok('Tiyatro sorumlusu: Rojîn genel ders dahil %50 (3/6), müzik öğrencisi yok', (await pct(hp, '20202601')) === '50%' && (await pct(hp, '20202603')) === null, await pct(hp, '20202601'));
   // Ortak "Giştî" sınıfı seçilince yalnız sorumlunun kendi öğrencileri
@@ -144,27 +145,43 @@ async function routes(ctx) {
   ok('Genel sorumlu uyarısı: yalnız genel ders (Jîyan · Dîroka Hunerê); bölüm dersi uyarısı yok', ga.includes('abs_20202603_13') && !ga.includes('abs_20202601_11'), ga.join(','));
   await gp.context().close();
 
-  // 3) Öğrenci İşleri: rapor menüsü, tüm bölümler, değerlendirme yok
+  // 3) Öğrenci İşleri: rapor ve uyarı YOK (yalnız kayıt + başvuru + sınıf/atölye + Çocuk Akademisi kaydı)
   const rp = await login('98202601', 'Reg12345');
   const rk = await keysOf(rp);
-  ok('Öğrenci İşleri menüsünde Rapor var', rk.includes('reports'), rk.join(','));
-  await go(rp, 'reports');
-  ok('Öğrenci İşleri: akademi seçimi (Konservatuar / Çocuk Akademisi), arşiv yok', (await rp.locator('[data-rw-acad]').count()) === 2 && (await rp.locator('[data-rw-archive]').count()) === 0);
-  await rwc(rp, '[data-rw-acad="aat"]');
-  const rt = await rtabs(rp);
-  ok('Öğrenci İşleri rapor türleri: Devam + Genel analiz; değerlendirme yok', rt.join(',') === 'devam,analiz,list', rt.join(','));
-  ok('Öğrenci İşleri alan seçebilir (tüm alanlar)', (await rp.locator('[data-rw-area]').count()) === 1);
-  await devStu(rp);
-  ok('Öğrenci İşleri tüm bölümleri görür (tiyatro + müzik öğrencisi)', (await pct(rp, '20202601')) !== null && (await pct(rp, '20202603')) !== null);
-  ok('Öğrenci İşleri devam ekranında değerlendirme özeti yok', !(await rp.evaluate(() => document.body.innerText)).includes('Mamoste → xwendekar'));
-  // Öğrenci listesi: alanlar tek tek kapatılır (ör. tiyatro hariç), ad + kullanıcı numarası, PDF / Excel
-  await rwc(rp, '[data-rw-new]', '[data-rw-acad="aat"]', '[data-rw-type="list"]');
-  const nAll = +(await rp.evaluate(() => document.querySelector('[data-sl-count]').dataset.slCount));
-  await rwc(rp, '[data-sl-area="tiyatro"]');
-  const nNoT = +(await rp.evaluate(() => document.querySelector('[data-sl-count]').dataset.slCount));
-  const slRows = await rp.evaluate(() => [...document.querySelectorAll('[data-sl-row]')].map(e => e.dataset.slRow));
-  ok('Öğrenci İşleri listesi: atölye öğrencisi dahil hepsi; tiyatro kapatılınca yalnız diğer alanlar (müzik + sinema, numarasıyla)', nAll === 4 && nNoT === 2 && slRows.sort().join() === '20202603,20202609' && (await rp.locator('[data-sl-pdf]').count()) === 1, nAll + ' → ' + nNoT + ' ' + JSON.stringify(slRows));
+  ok('Öğrenci İşleri menüsünde Rapor ve Hişyarî yok', !rk.includes('reports') && !rk.includes('alerts') && rk.includes('serledan'), rk.join(','));
   await rp.context().close();
+  // 3b) Yönetici: bütün bölümler; öğrenci + öğretmen listesi (PDF/Excel), atölye sınıfındaki öğrenci de dahil
+  const ap = await login('1000', 'Admin123');
+  await go(ap, 'reports');
+  ok('Yönetici: akademi seçimi (Konservatuar / Çocuk Akademisi)', (await ap.locator('[data-rw-acad]').count()) === 2);
+  await rwc(ap, '[data-rw-acad="aat"]');
+  const at = await rtabs(ap);
+  ok('Yönetici rapor türleri: Devam + Değerlendirme + Genel analiz + öğrenci/öğretmen listesi', at.join(',') === 'devam,eval,analiz,list,tlist', at.join(','));
+  await devStu(ap);
+  ok('Yönetici tüm bölümleri görür (tiyatro + müzik öğrencisi)', (await pct(ap, '20202601')) !== null && (await pct(ap, '20202603')) !== null);
+  await rwc(ap, '[data-rw-new]', '[data-rw-acad="aat"]', '[data-rw-type="list"]');
+  const nAll = +(await ap.evaluate(() => document.querySelector('[data-sl-count]').dataset.slCount));
+  await rwc(ap, '[data-sl-area="tiyatro"]');
+  const nNoT = +(await ap.evaluate(() => document.querySelector('[data-sl-count]').dataset.slCount));
+  const slRows = await ap.evaluate(() => [...document.querySelectorAll('[data-sl-row]')].map(e => e.dataset.slRow));
+  ok('Yönetici öğrenci listesi: atölye öğrencisi dahil hepsi; tiyatro kapatılınca yalnız diğer alanlar (müzik + sinema)', nAll === 4 && nNoT === 2 && slRows.sort().join() === '20202603,20202609' && (await ap.locator('[data-sl-pdf]').count()) === 1, nAll + ' → ' + nNoT + ' ' + slRows.join());
+  await rwc(ap, '[data-rw-new]', '[data-rw-acad="aat"]', '[data-rw-type="tlist"]');
+  const tAll = await ap.evaluate(() => [...document.querySelectorAll('[data-tl-row]')].map(e => e.dataset.tlRow).sort());
+  ok('Yönetici öğretmen listesi: bütün bölümlerin öğretmenleri (ad, numara, bölüm) + PDF/Excel', tAll.includes('50202601') && tAll.includes('50202603') && (await ap.locator('[data-tl-pdf]').count()) === 1 && (await ap.locator('[data-tl-csv]').count()) === 1, JSON.stringify(tAll));
+  await ap.context().close();
+  // 3c) Bölüm sorumlusu: öğretmen listesi yalnız KENDİ bölümü (tiyatro): müzik hocası yok
+  const hp2 = await login('96000001', 'Head1234');
+  await go(hp2, 'reports');
+  await rwc(hp2, '[data-rw-type="tlist"]');
+  const hRows = await hp2.evaluate(() => [...document.querySelectorAll('[data-tl-row]')].map(e => e.dataset.tlRow));
+  ok('Bölüm sorumlusu öğretmen listesi: yalnız kendi bölümü (müzik hocası yok), bölüm düğmesi yok', hRows.includes('50202601') && !hRows.includes('50202603') && (await hp2.locator('[data-tl-area]').count()) === 0, JSON.stringify(hRows));
+  await hp2.context().close();
+  const gp2 = await login('96000002', 'Head1234');
+  await go(gp2, 'reports');
+  await rwc(gp2, '[data-rw-type="tlist"]');
+  const gRows2 = await gp2.evaluate(() => [...document.querySelectorAll('[data-tl-row]')].map(e => e.dataset.tlRow));
+  ok('Genel sorumlu öğretmen listesi: bütün bölümler (tiyatro + müzik hocası), bölüm düğmeleri var', gRows2.includes('50202601') && gRows2.includes('50202603') && (await gp2.locator('[data-tl-area]').count()) >= 2, JSON.stringify(gRows2));
+  await gp2.context().close();
 
   // 4) Öğretmen ve öğrenci: anket menüsü yok
   const tp = await login('50202601', 'Tea12345');

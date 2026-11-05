@@ -109,19 +109,12 @@ async function routes(ctx) {
   const today = new Date().toISOString().slice(0, 10);
   await put('attendance/LB-' + today, { lessonId: 'LB', area: 'tiyatro', date: today, startedAt: Date.now() - 20 * 60000 });
 
-  // 2) Öğrenci İşleri: programı görür ve ders ekler (Qad → Bername)
+  // 2) Öğrenci İşleri: ders programı YOK (yalnız kayıt: öğrenciler + öğretmenler); program bölüm sorumlusunda
   const rp = await login(await mk(), '98202601', 'Reg12345');
   await goA(rp, 'qad'); await rp.waitForTimeout(1500);
   await rp.evaluate(() => { const e = [...document.querySelectorAll('.area-card')].filter(x => x.textContent.includes('Şano')).pop(); e && e.click(); }); await rp.waitForTimeout(1500);
-  await rp.evaluate(() => { const e = document.querySelector('[data-area-tab="schedule"]'); e && e.click(); }); await rp.waitForTimeout(1000);
-  ok('Öğrenci İşleri: Bername sekmesinde ders ekleme düğmesi var', (await rp.locator('[data-add-lesson]').count()) >= 1);
-  await rp.click('[data-add-lesson]'); await rp.waitForTimeout(800);
-  await rp.evaluate(() => { const s = [...document.querySelectorAll('select')].find(x => [...x.options].some(o => o.value === 'C1')); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, 'C1'); s.dispatchEvent(new Event('change', { bubbles: true })); });
-  await rp.locator('input[placeholder="Armoni – Gr. A"]').fill('Dersa Karûbaran');
-  await rp.evaluate(() => [...document.querySelectorAll('button')].filter(x => x.offsetParent && x.textContent.includes('Bernameyê Zêde Bike')).pop().click()); await rp.waitForTimeout(2500);
-  const rsl = (await (await fetch(`${FS}/schedule?pageSize=100`, { headers: H })).json()).documents || [];
-  const rD = rsl.find(d => d.fields.name && d.fields.name.stringValue === 'Dersa Karûbaran');
-  ok('Öğrenci İşleri sınıfa ders ekledi (kayıt Firestore\'da, sınıf C1)', !!rD && rD.fields.classId.stringValue === 'C1', rD ? '' : 'kayıt yok');
+  ok('Öğrenci İşleri alan penceresinde Bername sekmesi ve ders ekleme yok; öğrenci + öğretmen sekmeleri var', (await rp.locator('[data-area-tab="schedule"]').count()) === 0 && (await rp.locator('[data-add-lesson]').count()) === 0 && (await rp.locator('[data-area-tab="students"]').count()) >= 1 && (await rp.locator('[data-area-tab="teachers"]').count()) >= 1);
+  await rp.context().close();
 
   // İzin: sorumlu Azad'a bugün izin işler → öğretmen listesinde görünmez
   await goA(hp, 'leaves'); await hp.waitForTimeout(1000);

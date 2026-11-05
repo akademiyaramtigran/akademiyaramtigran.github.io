@@ -227,18 +227,33 @@ service cloud.firestore {
     // yetkisiyle yazar; çocuk akademisinde Öğrenci İşleri sorumluyu çocuk akademisine bağlarsa (idx_kidstaff) kidStaff olur.
     function tchW() { return staffW() || aatHead(); }
     function headSchedWrite() {
-      return aatHead() && (headGeneral() || (request.resource.data.get('area', '') == headArea()
-        && (resource == null || resource.data.get('area', '') == headArea())));
+      // bölüm sorumlusu yalnız kendi bölümünün programı; genel sorumlu yalnız GENEL alanın (ortak dersler / genel sınıf)
+      return aatHead() && request.resource.data.get('area', '') == headArea()
+        && (resource == null || resource.data.get('area', '') == headArea());
     }
     match /schedule/{id} {
       allow read: if member();
-      // Ders programı: yönetici + Öğrenci İşleri (tüm sınıflar) + bölüm sorumlusu (kendi bölümü)
-      allow create, update: if isRegistrar() || headSchedWrite();
-      allow delete: if isRegistrar()
-        || (aatHead() && (headGeneral() || resource.data.get('area', '') == headArea()));
+      // Ders programı: yönetici (hepsi) + bölüm sorumlusu (kendi bölümü; genel sorumlu hepsi). Öğrenci İşleri YALNIZ atölye dersini (ws_) yazar.
+      allow create, update: if isAdmin() || (isRegistrar() && id.matches('ws_.*')) || headSchedWrite();
+      allow delete: if isAdmin() || (isRegistrar() && id.matches('ws_.*'))
+        || (aatHead() && resource.data.get('area', '') == headArea());
     }
     // Sınıflar: öğrencinin sınıfı students.classLevel; sınıf öğretmeni burada (doc id = <alan>_<seviye>)
-    match /classes/{id}           { allow read: if member(); allow write: if isRegistrar(); }
+    // Sınıflar: bölüm sorumlusu KENDİ bölümünün sınıflarını açar / düzenler (genel sorumlu: bütün bölümlerin + genel sınıflar);
+    // Öğrenci İşleri yalnız atölyeleri (bölümler arası gruplar); yönetici hepsini
+    function headClassOk(d) {
+      // bölüm sorumlusu: yalnız KENDİ bölümünün sınıfı; genel sorumlu: yalnız GENEL sınıf (bütün öğrencilerden oluşan), başka bir şeye karışmaz
+      return aatHead() && ((d.get('kind', '') == 'area' && !headGeneral() && d.get('area', '') == headArea())
+                           || (headGeneral() && d.get('kind', '') == 'general'));
+    }
+    function regWsOk(d) { return isRegistrar() && d.get('kind', '') == 'workshop'; }
+    match /classes/{id} {
+      allow read: if member();
+      allow create: if isAdmin() || regWsOk(request.resource.data) || headClassOk(request.resource.data);
+      allow update: if isAdmin() || (regWsOk(resource.data) && regWsOk(request.resource.data))
+                    || (headClassOk(resource.data) && headClassOk(request.resource.data));
+      allow delete: if isAdmin() || regWsOk(resource.data) || headClassOk(resource.data);
+    }
     // Sınıf paylaşımları (duyuru/ödev/belge): öğretmen YALNIZCA sınıf öğretmeni olduğu sınıfa, kendi adıyla yazar
     function clsDoc(c, id) { return /databases/$(database)/documents/$(c)/$(id); }
     // Sınıfa paylaşım: sınıf öğretmeni YA DA o sınıfa bağlı dersi veren öğretmen (lessonId ile kanıtlar)
@@ -389,7 +404,11 @@ service cloud.firestore {
       // headAbsenceOk'un fark hesabı kural değerlendirme sınırını aşıp meşru düzeltmeyi reddettiriyordu.
       allow create, update: if tchW() || stuQrOk(id);
       // Silme yalnız yönetici + öğrenci işleri (ders silinirken kayıtları); öğretmen geçmiş yoklamayı silip izini kaybettiremez
-      allow delete: if isRegistrar();
+      // Silme: yönetici; bölüm sorumlusu kendi bölümünün (genel sorumlu hepsinin) ders kayıtlarını (ders silinirken);
+      // Öğrenci İşleri yalnız atölye (bölümler arası, classId'li "genel" alan) kayıtlarını
+      allow delete: if isAdmin()
+        || (aatHead() && resource.data.get('area', '') == headArea())
+        || (isRegistrar() && resource.data.get('area', '') == 'genel' && resource.data.get('classId', '') != '');
     }
     // Mesajlar: personel hepsini okur/yazar. Öğrenci yalnızca KENDİNE gelen özel mesajı
     // (recipientNo == kendi no) ve öğrencilere yönelik toplu mesajları okur; yalnızca
@@ -505,8 +524,8 @@ service cloud.firestore {
     }
     // Uyarı merkezi: "ilgilenildi" işaretleri (yönetici + bölüm sorumlusu); belge kimliği = uyarı anahtarı
     match /alertAcks/{id} {
-      allow read: if isAdmin() || isRegistrar() || headLvl();
-      allow create, update: if (isAdmin() || ((headLvl() || isRegistrar()) && request.resource.data.byNo == prefix()))
+      allow read: if isAdmin() || headLvl();
+      allow create, update: if (isAdmin() || (headLvl() && request.resource.data.byNo == prefix()))
         && request.resource.data.keys().hasOnly(['key', 'kind', 'count', 'note', 'by', 'byNo', 'at'])
         && request.resource.data.note is string && request.resource.data.note.size() <= 500
         && request.resource.data.count is int && request.resource.data.count >= 1;
