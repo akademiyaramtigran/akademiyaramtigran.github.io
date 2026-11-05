@@ -7652,7 +7652,7 @@ function HeadGuestAttendance({user,students,schedule,lang,toast}){
   const cycle=v=>v==="on"?"late":v==="late"?"off":"on";
   async function save(){
     if(!ls||busy) return; setBusy(true);
-    const records={...recs}; list.forEach(st=>{ if(!records[st.id]) records[st.id]="off"; }); onLeaveL.forEach(st=>{ records[st.id]="leave"; });
+    const records={...recs}; list.forEach(st=>{ const v0=records[st.id]; if(v0!=="on"&&v0!=="late"&&v0!=="off") records[st.id]="off"; }); onLeaveL.forEach(st=>{ records[st.id]="leave"; });   // izni kaldırılmış öğrencide eski "leave" işareti kalmaz
     try{
       await F.setDoc(F.doc(F.db,"attendance",docId),{lessonId:String(ls.id),lessonFire:String(ls.fireId||ls.id),lessonName:ls.name||"",classId:ls.classId||"",area:ls.area||"",date:today,
         records,teacherName:ls.guestTeacher||"",takenBy:user.name||"",takenByNo:String(user.no||""),savedAt:F.serverTimestamp()},{merge:true});
@@ -11863,7 +11863,7 @@ function AttendanceFixModal({ls,date,students,user,lang,toast,onClose}){
   const meta={lessonId:String(ls.id),lessonName:ls.name||"",classId:ls.classId||"",teacherName:ls.teacherName||ls.guestTeacher||"",date};
   async function save(){
     if(busy) return; setBusy(true);
-    const records={...recs}; list.forEach(st=>{ if(!records[st.id]) records[st.id]="off"; }); onLeaveL.forEach(st=>{ records[st.id]="leave"; });
+    const records={...recs}; list.forEach(st=>{ const v0=records[st.id]; if(v0!=="on"&&v0!=="late"&&v0!=="off") records[st.id]="off"; }); onLeaveL.forEach(st=>{ records[st.id]="leave"; });   // izni kaldırılmış öğrencide eski "leave" işareti kalmaz
     try{ await F.setDoc(F.doc(F.db,"attendance",docId),{...meta,lessonFire:String(ls.fireId||ls.id),area:ls.area||"",records,
         ...(prev&&prev.teacherAbsent?{teacherAbsent:false,absenceKind:null,absenceNote:null}:{}),
         takenBy:(user&&user.name)||"",takenByNo:String((user&&user.no)||""),savedAt:F.serverTimestamp()},{merge:true});
@@ -11889,13 +11889,14 @@ function AttendanceFixModal({ls,date,students,user,lang,toast,onClose}){
       {list.length===0&&<div style={{fontSize:13,color:"var(--text2)",padding:10}}>{W2("Di lîsteyê de xwendekar tune.","No students on the list.")}</div>}
       {list.map(st=>{ const v=recs[st.id];
         return(<div key={st.id} data-fix-row={st.no} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:"0.5px solid var(--border)"}}>
-          <span style={{flex:1,fontSize:13,fontWeight:600,color:"var(--text)"}}>{st.name}</span>
+          <span style={{flex:1,fontSize:13,fontWeight:600,color:"var(--text)"}}>{st.name}{v==="leave"&&<span data-fix-stale="1" style={{display:"block",fontSize:10.5,fontWeight:700,color:"#b45309"}}>🏷 {W2("Destûr hatiye rakirin — nîşan bike","Leave was removed — mark attendance")}</span>}</span>
           <button data-fv="on" onClick={()=>setRecs(r=>({...r,[st.id]:"on"}))} style={btn(v==="on","#16a34a")}>✅</button>
           <button data-fv="late" onClick={()=>setRecs(r=>({...r,[st.id]:"late"}))} style={btn(v==="late","#d97706")}>⏱</button>
           <button data-fv="off" onClick={()=>setRecs(r=>({...r,[st.id]:"off"}))} style={btn(v==="off","#dc2626")}>❌</button>
         </div>); })}
-      <button data-fix-save disabled={busy} onClick={save} style={{marginTop:12,width:"100%",padding:12,borderRadius:10,border:"none",background:"#16a34a",color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer"}}>{busy?"⏳":"💾 "+W2("Amadebûnê tomar bike","Save attendance")}</button>
-      <div style={{fontSize:11,color:"var(--text2)",marginTop:6}}>{W2("Yên nehatin nîşankirin wek “tunebû” tên nivîsandin.","Unmarked students are recorded as absent.")}</div>
+      <div style={{position:"sticky",bottom:-24,background:"var(--surface)",padding:"10px 0 14px",marginTop:12,zIndex:2}}>
+      <button data-fix-save disabled={busy} onClick={save} style={{width:"100%",padding:12,borderRadius:10,border:"none",background:"#16a34a",color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer"}}>{busy?"⏳":"💾 "+W2("Amadebûnê tomar bike","Save attendance")}</button>
+      <div style={{fontSize:11,color:"var(--text2)",marginTop:6}}>{W2("Yên nehatin nîşankirin wek “tunebû” tên nivîsandin.","Unmarked students are recorded as absent.")}</div></div>
       <details style={{marginTop:14}}><summary style={{cursor:"pointer",fontWeight:700,color:"var(--text)"}}>🚫 {W2("Ders nehat kirin","Lesson not held")}</summary>
         <div style={{display:"grid",gap:8,marginTop:8}}>
           <select value={absKind} onChange={e=>setAbsKind(e.target.value)} style={selectStyle}>{TEACHER_ABSENCE.map(([k,ic])=><option key={k} value={k}>{ic} {absenceLabel(k)}</option>)}</select>
@@ -11924,7 +11925,7 @@ function TeacherAttendanceReport({teachers,schedule,allTeachers,lang,toast,fromP
   const to=toP&&toP<today?toP:today;
   const [att,setAtt]=useState(null);
   const [open,setOpen]=useState(null);
-  const [fix,setFix]=useState(null), [rev,setRev]=useState(0);
+  const [fix,setFix]=useState(null), [rev,setRev]=useState(0), [showAll,setShowAll]=useState(false);
   useEffect(()=>{
     const F=window.__FB; if(!F||!F.isConfigured()) { setAtt([]); return; }
     let u=()=>{};
@@ -12003,11 +12004,12 @@ function TeacherAttendanceReport({teachers,schedule,allTeachers,lang,toast,fromP
             <div style={{fontWeight:800,fontSize:16,color:r.pct==null?"var(--text2)":r.pct>=90?"#15803d":r.pct>=70?"#b45309":"#b42318"}}>{r.pct==null?"—":r.pct+"%"}</div>
           </div>
           {isO&&<div style={{marginTop:8}}>
-            {(bad.length?bad:r.occ).map((o,i)=>(
+            {canFix&&bad.length>0&&<button type="button" data-ta-all="1" onClick={()=>setShowAll(v=>!v)} style={{padding:"4px 9px",marginBottom:4,borderRadius:8,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:11.5,fontWeight:700,cursor:"pointer"}}>{showAll?W2("Tenê kêmasî","Only issues"):W2("Hemû ders (rast bike)","All lessons (correct)")}</button>}
+            {((bad.length&&!(canFix&&showAll))?bad:r.occ).map((o,i)=>(
               <div key={i} style={{display:"flex",gap:8,fontSize:12.5,color:"var(--text)",padding:"5px 0",borderTop:"1px solid var(--border2)"}}>
                 <span>{o.st==="absent"?(TEACHER_ABSENCE.find(x=>x[0]===o.kind)||["","🚫"])[1]:stIc[o.st]}</span><span style={{minWidth:86,fontFamily:"monospace"}}>{o.date}</span>
                 <span style={{flex:1,minWidth:0}}>{o.l.name} <span style={small}>{o.l.start}–{o.l.end}{o.st==="absent"?" · "+absenceLabel(o.kind)+(o.note?" — "+o.note:"")+(o.by?" · ✍ "+o.by:""):o.st==="missing"?" · "+W2("amadebûn nehatiye girtin","no attendance taken"):""}</span></span>
-                {canFix&&(o.st==="missing"||o.st==="absent")&&<button type="button" data-ta-fix={String(o.l.id)+"-"+o.date} onClick={e=>{e.stopPropagation();setFix(o);}} style={{padding:"4px 9px",borderRadius:8,border:"1px solid var(--border2)",background:o.st==="missing"?"#fff7e6":"var(--bg2)",color:"var(--text)",fontSize:11.5,fontWeight:800,cursor:"pointer",whiteSpace:"nowrap"}}>✍ {o.st==="missing"?W2("Amadebûnê bike","Enter"):W2("Rast bike","Correct")}</button>}
+                {canFix&&(o.st==="missing"||o.st==="absent"||o.st==="held")&&<button type="button" data-ta-fix={String(o.l.id)+"-"+o.date} onClick={e=>{e.stopPropagation();setFix(o);}} style={{padding:"4px 9px",borderRadius:8,border:"1px solid var(--border2)",background:o.st==="missing"?"#fff7e6":"var(--bg2)",color:"var(--text)",fontSize:11.5,fontWeight:800,cursor:"pointer",whiteSpace:"nowrap"}}>✍ {o.st==="missing"?W2("Amadebûnê bike","Enter"):W2("Rast bike","Correct")}</button>}
               </div>))}
             {!bad.length&&<div style={{...small,marginTop:4}}>✅ {W2("Hemû ders hatin kirin.","All lessons held.")}</div>}
           </div>}
@@ -13484,7 +13486,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
       await new Promise(r=>setTimeout(r,250));
       records={...attRef.current};
     }else{
-      attRoster.forEach(s=>{ records[s.id]=attRef.current[s.id]||"off"; });
+      attRoster.forEach(s=>{ const v0=attRef.current[s.id]; records[s.id]=(v0==="on"||v0==="late"||v0==="off")?v0:"off"; });
       attOnLeave.forEach(s=>{ records[s.id]="leave"; });
       setAttSaving(true);
       const ok=await fbSaveAttendance(ls.id, teacher.id, todayStr_t, records);
@@ -13980,7 +13982,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                   // Yoklama kaydı (raporlar buradan okur) + devam istatistiği. QR açıksa okutanlar
                   // da listeye zaten işlenmiştir; kayıt aynı belgeye yazılır, tekrar kaydetmek güvenlidir.
                   const total=attRoster.length||1;
-                  const records={}; attRoster.forEach(s=>{ records[s.id]=attendance[s.id]||"off"; });
+                  const records={}; attRoster.forEach(s=>{ const v0=attendance[s.id]; records[s.id]=(v0==="on"||v0==="late"||v0==="off")?v0:"off"; });   // izni silinmiş öğrencide eski "leave" kalmaz
                   attOnLeave.forEach(s=>{ records[s.id]="leave"; });   // izinli: devamsızlık sayılmaz
                   const presentCount=attRoster.filter(s=>records[s.id]!=="off").length;
                   setAttSaving(true);

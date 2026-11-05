@@ -404,7 +404,9 @@ service cloud.firestore {
     match /attendance/{id} {
       // Öğrenci yalnız KENDİ QR okutma kaydını okur (başkalarının yoklaması kişisel veridir)
       allow read: if isStaff() || (isStudent() && string(resource.data.get('studentNo', '')) == prefix());
-      allow create, update: if staffW() || headAbsenceOk() || headLessonAttOk(id) || stuQrOk(id);
+      // Sıra önemli: sorumlunun yoklama düzeltmesi (headLessonAttOk) headAbsenceOk'tan ÖNCE denenir — güncellemede
+      // headAbsenceOk'un fark hesabı kural değerlendirme sınırını aşıp meşru düzeltmeyi reddettiriyordu.
+      allow create, update: if staffW() || headLessonAttOk(id) || headAbsenceOk() || stuQrOk(id);
       // Silme yalnız yönetici + öğrenci işleri (ders silinirken kayıtları); öğretmen geçmiş yoklamayı silip izini kaybettiremez
       allow delete: if isRegistrar();
     }

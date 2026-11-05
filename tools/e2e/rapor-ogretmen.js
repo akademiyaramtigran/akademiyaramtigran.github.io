@@ -156,6 +156,16 @@ async function routes(ctx) {
   ok('Sorumlu yoklamayı elle girdi: Rojîn geldi, Baran gelmedi, işleyen sorumlu', fx.fields && fx.fields.records.mapValue.fields['101'].stringValue === 'on' && fx.fields.records.mapValue.fields['102'].stringValue === 'off' && fx.fields.takenByNo.stringValue === '96000001', JSON.stringify(fx.fields || fx).slice(0, 200));
   await p.waitForTimeout(1200);
   ok('Girilen ders artık ⚠ değil', (await p.locator('[data-ta-fix="' + fixId + '"]').count()) === 0);
+  // Yapılmış dersin kaydı da düzeltilir; izni sonradan silinen öğrencide eski "izinli" işareti kalmaz
+  await fetch(`${FS}/attendance/${fixId}?updateMask.fieldPaths=records`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { records: { mapValue: { fields: { 101: { stringValue: 'leave' }, 102: { stringValue: 'on' } } } } } }) });
+  await p.waitForTimeout(1500);
+  if (await p.locator('[data-ta-all]').count()) await clk('[data-ta-all]');
+  ok('Yapılmış derste de "Rast bike" düğmesi var (tüm dersler)', (await p.locator('[data-ta-fix="' + fixId + '"]').count()) === 1);
+  await clk('[data-ta-fix="' + fixId + '"]');
+  ok('İzni kaldırılmış öğrencide uyarı satırı görünür', (await p.locator('[data-fix-stale]').count()) === 1);
+  await clk('[data-fix-save]'); await p.waitForTimeout(2000);
+  const fx2 = await fetch(`${FS}/attendance/${fixId}`, { headers: H }).then(r => r.json());
+  ok('Kaydedince eski "izinli" kalmaz (Rojîn → yok), Baran korunur', fx2.fields.records.mapValue.fields['101'].stringValue === 'off' && fx2.fields.records.mapValue.fields['102'].stringValue === 'on', JSON.stringify(fx2.fields.records.mapValue.fields));
 
   // Değerlendirme (form yanıtları)
   await clk('[data-rw-type="eval"]'); await clk('[data-rw-who="student"]');
