@@ -83,11 +83,7 @@ async function routes(ctx) {
   const pct = () => p.evaluate(() => { const r = document.querySelector('[data-rep-student="20202601"] .c-pct'); return r ? r.textContent.trim() : ''; });
   ok('Raporda "Dersên di raporê de" satırı yok', (await p.locator('[data-att-scope]').count()) === 0);
   ok('Sorumluda "Hemû Qadan" alan satırı yok', !(await p.evaluate(() => document.body.innerText)).includes('Hemû Qadan'));
-  const pAll = await pct();
-  await p.evaluate(() => { const s = document.querySelector('[data-rep-teacher]'); const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; set.call(s, '50202601'); s.dispatchEvent(new Event('change', { bubbles: true })); }); await p.waitForTimeout(800);
-  const pWs = await pct();
-  ok('Hemû ders: bölüm + atölye birlikte (%50)', pAll.startsWith('50'), pAll);
-  ok('Atölye öğretmeni seçilince yalnız atölye yoklaması (%100)', pWs.startsWith('100'), pWs);
+  ok('Atölye sınıfındaki öğrenci akademi devam raporunda görünmez (Baran görünür)', (await p.locator('[data-rep-student="20202601"]').count()) === 0 && (await p.locator('[data-rep-student="20202602"]').count()) === 1);
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);
 })().catch(e => { console.error('E2E HATA', e); process.exit(1); });

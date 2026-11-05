@@ -11858,10 +11858,12 @@ function StudentAttendanceReport({students,schedule,allSchedule,teachers,allTeac
   const clsOk=d=>d.kind&&reportClassOk(d,headArea,students)&&(!headArea||(students||[]).some(s=>inClass(d,s.no)));
   const grp=[["area",W2("Sinifên beşê","Department classes")],["general",W2("Sinifên giştî","General classes")],["workshop",W2("Atolye","Workshops")]];
   const periodTx=fmtDateTx(from)+" → "+fmtDateTx(to);
+  // PDF / Excel: gelmeyen, geç gelen, izinli öğrencilerin ADLARI (tarihiyle) — dersin sayısal özeti yerine
+  const shortD=d=>{ const m=/^\d{4}-(\d{2})-(\d{2})$/.exec(d||""); return m?m[2]+"."+m[1]:d; };
+  const namesOf=(x,k)=>x.sess.flatMap(s=>(s[k]||[]).map(n=>n+" ("+shortD(s.date)+")")).join(", ");
   function csv(){
-    if(view==="lesson"){ const out=[[W2("Ders","Lesson"),W2("Mamoste","Teacher"),W2("Ders (car)","Sessions"),W2("Hat","Present"),W2("Dereng","Late"),W2("Nehat","Absent"),W2("Destûrî","Leave"),"%"]];
-      lessons.forEach(x=>out.push([x.name,x.teacher,x.sess.length,x.on,x.late,x.off,x.leave,x.pct==null?"":x.pct]));
-      lessons.forEach(x=>x.sess.forEach(s=>out.push([x.name,s.date,"","✓ "+s.on.join(", "),"⏱ "+s.late.join(", "),"✗ "+s.off.join(", "),"🏷 "+s.leave.join(", "),""])));
+    if(view==="lesson"){ const out=[[W2("Ders","Lesson"),W2("Mamoste","Teacher"),W2("Ders (car)","Sessions"),"%",W2("Nehat","Absent"),W2("Dereng","Late"),W2("Destûrî","Leave")]];
+      lessons.forEach(x=>out.push([x.name,x.teacher,x.sess.length,x.pct==null?"":x.pct,namesOf(x,"off"),namesOf(x,"late"),namesOf(x,"leave")]));
       downloadCSV("amadebun-ders-"+from+"_"+to+".csv",out); }
     else { const out=[[W2("Xwendekar","Student"),"No",W2("Ders","Lessons"),W2("Hat","Present"),W2("Dereng","Late"),W2("Nehat","Absent"),W2("Destûrî","Leave"),"%",W2("Destûr","Leave notes")]];
       rows.forEach(r=>out.push([r.s.name,r.s.no,r.st.totalLessons,r.st.attended,r.st.late,r.st.absent,r.st.leaves,r.st.totalLessons?r.st.att:"",leaveTxt(r.s)]));
@@ -11871,7 +11873,7 @@ function StudentAttendanceReport({students,schedule,allSchedule,teachers,allTeac
   function pdf(){
     const H=x=>String(x==null?"":x).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"})[c]);
     const body=view==="lesson"
-      ?"<table><tr><th>"+H(W2("Ders","Lesson"))+"</th><th>"+H(W2("Mamoste","Teacher"))+"</th><th>"+H(W2("Car","Sessions"))+"</th><th>✓</th><th>⏱</th><th>✗</th><th>🏷</th><th>%</th></tr>"+lessons.map(x=>"<tr><td>"+H(x.name)+"</td><td>"+H(x.teacher)+"</td><td>"+x.sess.length+"</td><td>"+x.on+"</td><td>"+x.late+"</td><td>"+x.off+"</td><td>"+x.leave+"</td><td>"+(x.pct==null?"—":x.pct+"%")+"</td></tr>").join("")+"</table>"
+      ?"<table><tr><th>"+H(W2("Ders","Lesson"))+"</th><th>"+H(W2("Mamoste","Teacher"))+"</th><th>"+H(W2("Car","Sessions"))+"</th><th>%</th><th>"+H(W2("Nehat","Absent"))+"</th><th>"+H(W2("Dereng","Late"))+"</th><th>"+H(W2("Destûrî","Leave"))+"</th></tr>"+lessons.map(x=>"<tr><td>"+H(x.name)+"</td><td>"+H(x.teacher)+"</td><td>"+x.sess.length+"</td><td>"+(x.pct==null?"—":x.pct+"%")+"</td><td>"+H(namesOf(x,"off"))+"</td><td>"+H(namesOf(x,"late"))+"</td><td>"+H(namesOf(x,"leave"))+"</td></tr>").join("")+"</table>"
       :"<table><tr><th>"+H(W2("Xwendekar","Student"))+"</th><th>No</th><th>"+H(W2("Ders","Lessons"))+"</th><th>✓</th><th>⏱</th><th>✗</th><th>🏷</th><th>%</th></tr>"+rows.map(r=>"<tr><td>"+H(r.s.name)+"</td><td>"+H(r.s.no)+"</td><td>"+r.st.totalLessons+"</td><td>"+r.st.attended+"</td><td>"+r.st.late+"</td><td>"+r.st.absent+"</td><td>"+r.st.leaves+"</td><td>"+(r.st.totalLessons?r.st.att+"%":"—")+"</td></tr>").join("")+"</table>";
     openPrintHTML("<!doctype html><html><head><meta charset='utf-8'><title>"+H(W2("Raporê amadebûnê","Attendance report"))+"</title><style>body{font-family:system-ui,sans-serif;padding:20px;color:#102A31}table{border-collapse:collapse;width:100%;font-size:12px}th,td{border:1px solid #d0d5dd;padding:5px 7px;text-align:left}th{background:#f2f4f7}</style></head><body><h2>"+H(BRAND())+" · "+H(W2("Raporê amadebûnê","Attendance report"))+"</h2><div>"+H(periodTx)+(clsObj?" · "+H(classLabel(clsObj,lang)):"")+(tf.teachObj?" · "+H(tf.teachObj.name):"")+"</div><br>"+body+"<script>setTimeout(()=>print(),300)<\/script></body></html>");
     logReportArchive({type:"liste",label:W2("Amadebûn","Attendance")+" · "+periodTx,by:byName||""});
@@ -11901,14 +11903,9 @@ function StudentAttendanceReport({students,schedule,allSchedule,teachers,allTeac
         return(<div key={x.k} data-rw-lesson={x.k} style={{background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,marginBottom:8}}>
           <button type="button" onClick={()=>setOpenL(op?null:x.k)} style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"none",border:"none",cursor:"pointer",textAlign:"left",color:"var(--text)"}}>
             <span style={{flex:1,minWidth:0}}><span style={{display:"block",fontSize:14,fontWeight:700}}>{op?"▾":"▸"} {x.name}</span>
-              <span style={{fontSize:11.5,color:"var(--text2)"}}>{x.teacher?"👩‍🏫 "+x.teacher+" · ":""}{cd?classLabel(cd,lang)+" · ":""}{x.sess.length} {W2("car","sessions")} · ✓ {x.on}{x.leave?" · 🏷 "+x.leave:""}</span></span>
+              <span style={{fontSize:11.5,color:"var(--text2)"}}>{x.teacher?"👩‍🏫 "+x.teacher+" · ":""}{cd?classLabel(cd,lang)+" · ":""}{x.sess.length} {W2("car","sessions")} · ✓ {x.on} · ⏱ {x.late} · ✗ {x.off}{x.leave?" · 🏷 "+x.leave:""}</span></span>
             <span className="c-pct" style={{fontSize:17,fontWeight:800,color:col(x.pct)}}>{x.pct==null?"—":x.pct+"%"}</span>
           </button>
-          {[["off","✗",W2("Nehat","Absent"),"#b42318"],["late","⏱",W2("Dereng","Late"),"#b45309"],["leave","🏷",W2("Destûrî","On leave"),"#185FA5"]].map(([k,ic,lb,cl])=>{ const arr=[...x.who[k].values()].sort((a,b)=>b.n-a.n||String(a.st.name).localeCompare(String(b.st.name)));
-            return arr.length?<div key={k} data-rw-who-names={k} style={{padding:"0 12px 6px",fontSize:12.5,color:cl,display:"flex",flexWrap:"wrap",gap:"4px 10px",alignItems:"center"}}>
-              <b>{ic} {lb}:</b>
-              {arr.map(e=><button key={e.st.id} type="button" data-rw-name={e.st.no} onClick={()=>setDetail(e.st)} style={{background:"none",border:"none",padding:0,cursor:"pointer",color:cl,fontSize:12.5,textDecoration:"underline"}}>{e.st.name}{e.n>1?" ×"+e.n:""}</button>)}
-            </div>:null; })}
           {op&&<div style={{padding:"0 12px 10px"}}>{x.sess.map(s=>(<div key={s.date} data-rw-session={s.date} style={{fontSize:12.5,padding:"6px 0",borderTop:"1px solid var(--border2)",color:"var(--text)"}}>
             <b>{fmtDateTx(s.date)}</b> · {s.on.length+s.late.length}/{s.on.length+s.late.length+s.off.length}
             {s.off.length>0&&<div style={{color:"#b42318"}}>✗ {s.off.join(", ")}</div>}

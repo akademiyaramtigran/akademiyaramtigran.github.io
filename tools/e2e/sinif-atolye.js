@@ -144,9 +144,11 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   await goA(p, 'reports'); await p.waitForTimeout(1200);
   const rcl = async q => { await p.evaluate(q => { const b = document.querySelector(q); if (!b) throw new Error('rapor adımı yok: ' + q); b.click(); }, q); await p.waitForTimeout(700); };
   await rcl('[data-rw-type="devam"]'); await p.waitForTimeout(1500);
-  const nOff = await p.evaluate(() => (document.querySelector('[data-rw-who-names="off"]') || {}).innerText || '');
-  const nLate = await p.evaluate(() => (document.querySelector('[data-rw-who-names="late"]') || {}).innerText || '');
-  ok('Ders listesinde gelmeyen / geç gelen öğrenci ADLARI görünür (yalnız sayı değil)', nOff.includes('Rojîn Aram') && nLate.includes('Baran Şêx'), nOff + ' | ' + nLate + ' || ' + (await txt(p)).slice(0, 400).replace(/\n/g, ' / '));
+  const [dl] = await Promise.all([p.waitForEvent('download'), p.click('[data-rw-csv]')]);
+  const csvTxt = require('fs').readFileSync(await dl.path(), 'utf8');
+  const solfejRow = csvTxt.split('\n').find(l => l.startsWith('Solfej')) || '';
+  const cells = solfejRow.split(';');
+  ok('Excel/PDF ders satırı: gelmeyen ve geç gelen öğrencilerin ADLARI (tarihle)', /Rojîn Aram \(/.test(cells[4] || '') && /Baran Şêx \(/.test(cells[5] || '') && !/✓|⏱|✗/.test(solfejRow), solfejRow);
   await rcl('[data-rw-view="student"]');
   const aatRows = await p.evaluate(() => [...document.querySelectorAll('[data-rep-student]')].map(e => e.dataset.repStudent));
   ok('Akademi devam raporunda atölye öğrencisi yok', !aatRows.includes('20202699') && aatRows.includes('20202601'), JSON.stringify(aatRows));
