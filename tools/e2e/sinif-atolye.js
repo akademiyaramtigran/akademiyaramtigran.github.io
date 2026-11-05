@@ -195,7 +195,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   const rowBtn = (cls) => tm.evaluate(c => { const row = [...document.querySelectorAll('div')].filter(d => d.textContent.includes('Rojîn Aram') && d.querySelectorAll('.att-btn').length === 3).pop();
     const bs = [...row.querySelectorAll('.att-btn')]; if (c) { bs[1].click(); return true; } return bs[1].classList.contains('late'); }, cls);
   await rowBtn(true); await tm.waitForTimeout(300);
-  await tm.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => /^(Tomar bike|Kaydet|Tomar)$/.test(x.textContent.trim())) ; b.click(); });
+  await tm.evaluate(() => { const b = document.querySelector('[data-att-save-list]') || [...document.querySelectorAll('button')].find(x => /^(Tomar bike|Kaydet|Tomar)$/.test(x.textContent.trim())); b.click(); });
   await tm.waitForTimeout(2000);
   let MA = await getDocF('attendance/MAN1-' + TODAY);
   ok('Öğretmen elle yoklama kaydetti (geç)', MA.fields && MA.fields.records.mapValue.fields.S1.stringValue === 'late', JSON.stringify(MA.fields && MA.fields.records));
