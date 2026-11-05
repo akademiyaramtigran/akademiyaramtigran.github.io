@@ -13982,23 +13982,6 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
             <Card>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
                 <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>📋 {t.attendanceList}</div>
-                <button disabled={attSaving} onClick={async()=>{
-                  if(!attLesson||attSaving) return;
-                  // Yoklama kaydı (raporlar buradan okur) + devam istatistiği. QR açıksa okutanlar
-                  // da listeye zaten işlenmiştir; kayıt aynı belgeye yazılır, tekrar kaydetmek güvenlidir.
-                  const total=attRoster.length||1;
-                  const records={}; attRoster.forEach(s=>{ const v0=attendance[s.id]; records[s.id]=(v0==="on"||v0==="late"||v0==="off")?v0:"off"; });   // izni silinmiş öğrencide eski "leave" kalmaz
-                  attOnLeave.forEach(s=>{ records[s.id]="leave"; });   // izinli: devamsızlık sayılmaz
-                  const presentCount=attRoster.filter(s=>records[s.id]!=="off").length;
-                  setAttSaving(true);
-                  const ok=await fbSaveAttendance(attLesson.id, teacher.id, attDay, records);
-                  setAttSaving(false);
-                  if(ok===null && window.__FB && window.__FB.isConfigured()){
-                    toast("⚠ "+(lang==="en"?"Attendance could not be saved — check the connection and try again":K("Amadebûn nehat tomarkirin — girêdanê kontrol bike û dîsa biceribîne")), 6000);
-                    return;
-                  }
-                  hapticSuccess(); toast("✓ "+t.attendanceSaved+" ("+presentCount+"/"+total+")"+(isPastAtt?" · "+fmtDateTx(attDay):""));
-                }} style={{padding:"6px 14px",fontSize:11,background:"#0f2f38",color:"#ffffff",border:"none",borderRadius:8,cursor:attSaving?"wait":"pointer",fontWeight:600,opacity:attSaving?.6:1}}>{attSaving?"…":t.saveAttendance}</button>
               </div>
               {attRoster.length===0&&<div style={{fontSize:12,color:"var(--text2)",textAlign:"center",padding:16}}>{attLesson&&!attLesson.classId
                 ?(lang==="en"?"No class is linked to this lesson — ask the department head to link one.":K("Ev ders bi sinifekê ve nehatiye girêdan — ji berpirsê beşê bixwaze."))
@@ -14020,6 +14003,23 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                   </div>
                 </div>
               ))}
+                <button data-att-save-list="1" disabled={attSaving} onClick={async()=>{
+                  if(!attLesson||attSaving) return;
+                  // Yoklama kaydı (raporlar buradan okur) + devam istatistiği. QR açıksa okutanlar
+                  // da listeye zaten işlenmiştir; kayıt aynı belgeye yazılır, tekrar kaydetmek güvenlidir.
+                  const total=attRoster.length||1;
+                  const records={}; attRoster.forEach(s=>{ const v0=attendance[s.id]; records[s.id]=(v0==="on"||v0==="late"||v0==="off")?v0:"off"; });   // izni silinmiş öğrencide eski "leave" kalmaz
+                  attOnLeave.forEach(s=>{ records[s.id]="leave"; });   // izinli: devamsızlık sayılmaz
+                  const presentCount=attRoster.filter(s=>records[s.id]!=="off").length;
+                  setAttSaving(true);
+                  const ok=await fbSaveAttendance(attLesson.id, teacher.id, attDay, records);
+                  setAttSaving(false);
+                  if(ok===null && window.__FB && window.__FB.isConfigured()){
+                    toast("⚠ "+(lang==="en"?"Attendance could not be saved — check the connection and try again":K("Amadebûn nehat tomarkirin — girêdanê kontrol bike û dîsa biceribîne")), 6000);
+                    return;
+                  }
+                  hapticSuccess(); toast("✓ "+t.attendanceSaved+" ("+presentCount+"/"+total+")"+(isPastAtt?" · "+fmtDateTx(attDay):""));
+                }} style={{marginTop:12,width:"100%",padding:"13px 14px",fontSize:14,background:"#0f2f38",color:"#ffffff",border:"none",borderRadius:10,cursor:attSaving?"wait":"pointer",fontWeight:800,opacity:attSaving?.6:1}}>{attSaving?"…":"💾 "+t.saveAttendance}</button>
             </Card>
           </>
         )}
