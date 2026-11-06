@@ -396,12 +396,47 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/studentAtt/$(id)).data.status == request.resource.data.status;
       allow delete: if isRegistrar();
     }
+    // ── Yoklama yetkisi: dersin öğretmeni / o günün görevlisi / dersin bölüm sorumlusu ──
+    function schedPath(lf) { return /databases/$(database)/documents/schedule/$(lf); }
+    function attLessonOk(id) {
+      let d = request.resource.data;
+      let lf = d.get('lessonFire', '');
+      let dt = d.get('date', '');
+      return (staffW() || aatHead()) && lf is string && lf != '' && dt is string && dt != ''
+        && ((exists(schedPath(lf)) && string(get(schedPath(lf)).data.get('teacherNo', '')) == prefix())
+            || (exists(/databases/$(database)/documents/lessonSubs/$(lf + '_' + dt))
+                && string(get(/databases/$(database)/documents/lessonSubs/$(lf + '_' + dt)).data.get('teacherNo', '')) == prefix()));
+    }
+    function attHeadOk() {
+      let lf = request.resource.data.get('lessonFire', '');
+      return aatHead() && !headGeneral() && lf is string && lf != ''
+        && exists(schedPath(lf)) && get(schedPath(lf)).data.get('area', '') == headArea();
+    }
+    // Yönetici: yalnız "ders yapılmadı" (teacherAbsent) işareti — öğrenci kayıtları (records) değişmez
+    function attAbsentOnlyOk() {
+      return isAdmin() && request.resource.data.keys().hasAny(['teacherAbsent'])
+        && request.resource.data.get('records', {}) == (resource == null ? {} : resource.data.get('records', {}));
+    }
+    // Günlük görevlendirme: dersin bölüm sorumlusu, belirli bir tarih için (asıl öğretmen değişmez) başka bir öğretmeni / kendini görevlendirir
+    match /lessonSubs/{id} {
+      allow read: if isStaff();
+      allow create, update: if aatHead() && request.resource.data.keys().hasOnly(['lessonFire', 'date', 'teacherNo', 'teacherName', 'area', 'byNo', 'updatedAt'])
+        && id == request.resource.data.get('lessonFire', '') + '_' + request.resource.data.get('date', '')
+        && request.resource.data.get('teacherNo', '') is string && request.resource.data.get('teacherNo', '') != ''
+        && exists(schedPath(request.resource.data.get('lessonFire', '')))
+        && get(schedPath(request.resource.data.get('lessonFire', ''))).data.get('area', '') == headArea();
+      allow delete: if aatHead() && exists(schedPath(resource.data.get('lessonFire', '')))
+        && get(schedPath(resource.data.get('lessonFire', ''))).data.get('area', '') == headArea();
+    }
     match /attendance/{id} {
       // Öğrenci yalnız KENDİ QR okutma kaydını okur (başkalarının yoklaması kişisel veridir)
       allow read: if isStaff() || (isStudent() && string(resource.data.get('studentNo', '')) == prefix());
       // Sıra önemli: sorumlunun yoklama düzeltmesi (headLessonAttOk) headAbsenceOk'tan ÖNCE denenir — güncellemede
       // headAbsenceOk'un fark hesabı kural değerlendirme sınırını aşıp meşru düzeltmeyi reddettiriyordu.
-      allow create, update: if tchW() || stuQrOk(id);
+      // Yoklamayı YALNIZ dersin öğretmeni, o günün görevlendirilen öğretmeni (lessonSubs) ve dersin bölüm sorumlusu yazar/düzeltir.
+      // Genel sorumlu bölüm sorumlusu olarak yoklama düzeltemez (yalnız öğretmen ya da görevli olarak alır); yönetici ve Öğrenci İşleri yazamaz
+      // (yönetici yalnız "ders yapılmadı" işaretini koyabilir, öğrenci kayıtlarına dokunamaz).
+      allow create, update: if attLessonOk(id) || attHeadOk() || attAbsentOnlyOk() || stuQrOk(id);
       // Silme yalnız yönetici + öğrenci işleri (ders silinirken kayıtları); öğretmen geçmiş yoklamayı silip izini kaybettiremez
       // Silme: yönetici; bölüm sorumlusu kendi bölümünün (genel sorumlu hepsinin) ders kayıtlarını (ders silinirken);
       allow delete: if isAdmin()
