@@ -60,7 +60,8 @@ async function routes(ctx) {
   // ── 1) Öğretmen: yalnız Rojîn'e ödev (PDF eki) ──
   const tp = await login(await mk(), '50202601', 'Tea12345');
   await goA(tp, 'myclass'); await tp.waitForTimeout(1200);
-  await btnTx(tp, '1. Sînif'); await tp.waitForTimeout(300);
+  // tek sınıflı öğretmende sınıf kendiliğinden seçili gelir
+  if ((await tp.locator('[data-post-to]').count()) === 0) { await btnTx(tp, '1. Sînif'); await tp.waitForTimeout(300); }
   ok('Tek sınıf seçilince "Ji kê re?" çıkar', (await tp.locator('[data-post-to]').count()) === 1);
   await tp.click('[data-to="pick"]'); await tp.waitForTimeout(300);
   await tp.locator('[data-pick-st="20202601"] input').check();

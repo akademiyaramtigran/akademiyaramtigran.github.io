@@ -255,7 +255,7 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await ap.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('Sinifa Min') && x.offsetParent).pop(); b.click(); });
   await ap.waitForTimeout(1200);
   await ap.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.includes('Erka malê') && x.offsetParent).click());
-  await ap.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.includes('Muzîk · 1. Sînif') && x.offsetParent).click());
+  if ((await ap.locator('[data-post-to]').count()) === 0) await ap.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.includes('Muzîk · 1. Sînif') && x.offsetParent).click());
   await ap.locator('input[placeholder="Sernav"]').fill('Gama Do major');
   await ap.locator('textarea[placeholder^="Nivîs"]').fill('Her roj 15 deqe');
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAIAAAACUFjqAAAAEklEQVR4nGP4z8CAB+GTG8HSALfKY52fTcuYAAAAAElFTkSuQmCC', 'base64');
