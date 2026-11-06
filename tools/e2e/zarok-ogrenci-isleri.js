@@ -91,27 +91,10 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await vp.waitForSelector('.top', { timeout: 20000 }); await goZ(vp, 'today'); await vp.waitForSelector('.status', { timeout: 20000 });
   ok('Veli yeni hesapla girer ve çocuğunu görür', (await vp.evaluate(() => document.body.innerText)).includes('Hêvîn'));
 
-  // Öğrenci İşleri "Hat" işaretler → veliye bildirim
-  await p.locator('button:visible', { hasText: 'Amadebûn' }).first().click(); await p.waitForTimeout(800);
-  await p.evaluate(() => { const btns = [...document.querySelectorAll('button')].filter(b => b.textContent.includes('Hat') && b.textContent.includes('✅'));
-    const mine = btns.find(b => (b.parentElement && b.parentElement.parentElement && b.parentElement.parentElement.textContent || '').includes('Hêvîn Demir')); mine.click(); });
-  await vp.waitForTimeout(2500);
-  const toast = await vp.locator('.toast').textContent().catch(() => '');
-  ok('Yoklama "Hat" → veliye anında bildirim', /Hêvîn/.test(toast), toast);
-  // Duyuru gönder → velide görünür
-  await p.locator('button:visible', { hasText: 'Ragihandin' }).first().click(); await p.waitForTimeout(500);
-  await p.fill('input[placeholder="Sernav"]', 'Roja vekirî'); await p.fill('textarea[placeholder^="Ji bo dêûbavan"]', 'Şemiyê em we vedixwînin.');
-  await p.getByText('Ji Dêûbavan re Bişîne').click(); await p.waitForTimeout(2000);
-  await goZ(vp, 'ann'); await vp.waitForTimeout(800);
-  ok('Duyuru veliye ulaşır', (await vp.evaluate(() => document.body.innerText)).includes('Roja vekirî'));
-  // Veli mesaj → Öğrenci İşleri görür ve yanıtlar
-  await goZ(vp, 'msg'); await vp.fill('#m-text', 'Hêvîn îro nexweş e.'); await vp.click('main .btn'); await vp.waitForTimeout(1500);
-  await p.locator('button:visible', { hasText: '💬' }).first().click();
-  await p.waitForTimeout(1500);
-  ok('Veli mesajı Öğrenci İşleri panelinde', (await p.evaluate(() => document.body.innerText)).includes('Hêvîn îro nexweş e'));
-  await p.locator('b', { hasText: '👤 Zelal Demir' }).first().click(); await p.waitForTimeout(500);
-  await p.fill('input[placeholder^="Bersiv"]', 'Şifa be!'); await p.locator('button:has-text("📤")').last().click(); await p.waitForTimeout(2000);
-  ok('Yanıt veliye ulaşır', (await vp.evaluate(() => document.body.innerText)).includes('Şifa be!'));
+  // Öğrenci İşleri çocuk tarafında yalnız başvuru + kayıt (çocuk, veli, öğretmen) + kart: yoklama / duyuru / mesaj / program / sınıf bölüm sorumlularında
+  const regTabs = await p.evaluate(() => [...document.querySelectorAll('button')].filter(b => b.offsetParent).map(b => b.textContent));
+  const has = w => regTabs.some(t => t.includes(w));
+  ok('Öğrenci İşleri Zarok sekmeleri: Serlêdan · Zarok · Dêûbav · Mamoste (yoklama, duyuru, mesaj, program, sınıf yok)', has('Serlêdan') && has('Zarok') && has('Dêûbav') && has('Mamoste') && !has('Amadebûn') && !has('Ragihandin') && !has('Bername') && !has('Sinif'), regTabs.filter(t => t.length < 30).slice(0, 14).join(' | '));
   // Başvuru: akademiyle aynı mantık — Öğrenci İşleri istenen belgeyi tanımlar, veli her belgeyi yükler
   await p.bringToFront();
   await clickText(p, '📋 Serlêdan'); await p.waitForTimeout(400);

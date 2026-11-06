@@ -320,7 +320,7 @@ function medal() {
 // ── Durum ────────────────────────────────────────────────────────────────
 const S = {
   phase: "boot", err: "", user: null, guardian: null, mode: null, role: (localStorage.getItem("zarok-role") || "guardian"), teacher: null, guards: [], tFilter: "today", thread: null, kids: [], kidIdx: 0, tab: "today",
-  att: [], sched: [], anns: [], msgs: [], cls: [], cposts: [], ksv: [], kresp: [], survOpen: null, survAns: {}, cpDraft: { type: "odev", sel: {}, files: [] }, annDraft: { sel: {} }, hubTab: "posts", tEvals: [], gEvals: [], evWk: null, evOpen: null, evForm: null, sheet: null, pano: true, kidMode: null, toast: "", online: navigator.onLine,
+  att: [], sched: [], subs: [], anns: [], msgs: [], cls: [], cposts: [], ksv: [], kresp: [], survOpen: null, survAns: {}, cpDraft: { type: "odev", sel: {}, files: [] }, annDraft: { sel: {} }, hubTab: "posts", tEvals: [], gEvals: [], evWk: null, evOpen: null, evForm: null, sheet: null, pano: true, kidMode: null, toast: "", online: navigator.onLine,
   drafts: {}, seenAtt: null, lastAnnSeen: +(localStorage.getItem("zarok-ann-seen") || 0), lastMsgSeen: +(localStorage.getItem("zarok-msg-seen") || 0)
 };
 let FB = null; // { auth, db, fs:{...}, au:{...} }
@@ -476,6 +476,8 @@ async function onTeacherSignedIn(u) {
   listen(query(collection(FB.db, "kidClassPosts"), where("teacherNo", "==", no)), v => { S.cposts = v.sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt)); });
   listen(query(collection(FB.db, "kidAttendance"), where("date", "==", todayStr())), v => { S.att = v.sort((a, b) => (b.time || "").localeCompare(a.time || "")); });
   listen(collection(FB.db, "kidSchedule"), v => { S.sched = v; });
+  // Günlük görevlendirme: bugün bana görevlendirilen dersler programımda (yalnız bugün) görünür
+  listen(query(collection(FB.db, "kidSubs"), where("teacherNo", "==", no)), v => { S.subs = v; });
   // Bölüm sorumlusunun işlediği izinler: izinli çocuk o gün yoklama listesinde görünmez
   listen(query(collection(FB.db, "studentLeaves"), where("kid", "==", true)), v => { S.leaves = v; });
   listen(query(collection(FB.db, "kidAnnouncements"), orderBy("createdAt", "desc"), limit(30)), v => { S.anns = v; });
@@ -735,7 +737,8 @@ function viewMsg() {
 const guardOf = no => S.guards.find(g => g.no === no);
 function myTodayAreas() {
   const dow = new Date().getDay(), me = S.teacher && S.teacher.no;
-  const ls = S.sched.filter(x => isToday(x) && (!me || !x.teacherNo || x.teacherNo === me));
+  const subToday = new Set((S.subs || []).filter(x => x.date === todayStr()).map(x => String(x.lessonFire)));
+  const ls = S.sched.filter(x => isToday(x) && (!me || !x.teacherNo || x.teacherNo === me || subToday.has(String(x.id))));
   return { lessons: ls, areas: new Set(ls.map(x => x.area).filter(Boolean)) };
 }
 // Öğretmen yalnızca KENDİ çocuklarını görür (ana akademideki gibi): sınıf öğretmeni olduğu sınıflar,
