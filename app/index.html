@@ -6021,6 +6021,9 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
           // Öğrencinin doğrudan bu öğretmene yazdığı mesaj
           if(m.fromType==="student"&&m.toRole==="teacher"&&String(m.toTeacherNo)===String(teacher.no))
             return {...m, direction:"inbox"};
+          // Bölüm arkadaşı öğretmenin doğrudan yazdığı mesaj
+          if(m.fromType==="teacher"&&m.toRole==="teacher"&&String(m.toTeacherNo)===String(teacher.no)&&String(m.fromId)!==String(teacher.id))
+            return {...m, direction:"inbox"};
           if((m.senderId==="admin"||m.fromType==="admin")&&(m.recipientGroup==="allTeachers"||m.recipientGroup==="all"||m.recipientGroup==="area_"+teacher.area))
             return {...m, direction:"inbox"};
           if(String(m.senderId)===String(teacher.id)||String(m.fromId)===String(teacher.id))
@@ -6059,6 +6062,15 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
   };
 
   const att=useAttachUpload(setAttachments,toast,lang);
+  // Alıcılar: kendi bölümümün öğretmenleri + genel sorumlu (bölüm sorumlusu zaten "head" seçeneğiyle)
+  const [colleagues,setColleagues]=useState([]), [genHead,setGenHead]=useState(null);
+  useEffect(()=>{
+    const F=window.__FB; if(!F||!F.isConfigured()||!teacher.area) return; const us=[];
+    try{ us.push(F.onSnapshot(F.query(F.collection(F.db,"teachers"),F.where("area","==",teacher.area)),sn=>setColleagues(sn.docs.map(d=>({...d.data(),fireId:d.id})).filter(x=>!x.isAdmin&&!x.isPress&&!x.isRegistrar&&!x.isGate&&!x.isHead&&String(x.no)!==String(teacher.no)).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")))),()=>{})); }catch(_){}
+    try{ us.push(F.onSnapshot(F.query(F.collection(F.db,"teachers"),F.where("area","==","genel")),sn=>setGenHead(sn.docs.map(d=>d.data()).find(x=>x.isHead&&String(x.no)!==String(teacher.no))||null),()=>{})); }catch(_){}
+    return ()=>us.forEach(u=>{ try{u();}catch(_){} });
+  },[teacher.area,teacher.no]);
+  const colleagueOf=v=>colleagues.find(x=>"c_"+(x.id==null?x.fireId:x.id)===v);
 
   async function sendMsg(){
     if(att.busy){ toast("⏳ "+(lang==="en"?"Wait for the upload to finish":K("Li benda barkirinê bimîne"))); return; }
@@ -6066,7 +6078,7 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
     if(msgType==="private"&&!recipient){toast(lang==="en"?"⚠ Select recipient":K("⚠ Wergir hilbijêre"));return;}
     if(msgType==="bulk"&&!bulkTargets.length){toast(lang==="en"?"⚠ No students in this class":K("⚠ Di vê sinifê de xwendekar tune"));return;}
     const toLabel=msgType==="private"
-      ? (recipient==="admin"?(lang==="en"?"Admin":K("Rêveber")):recipient==="head"?(lang==="en"?"Department head":K("Berpirsê beşê")):myStudents.find(s=>String(s.id)===recipient)?.name||recipient)
+      ? (recipient==="admin"?(lang==="en"?"Admin":K("Rêveber")):recipient==="head"?(lang==="en"?"Department head":K("Berpirsê beşê")):recipient==="genhead"?(lang==="en"?"General head":K("Berpirsê giştî")):recipient.indexOf("c_")===0?((colleagueOf(recipient)||{}).name||recipient):myStudents.find(s=>String(s.id)===recipient)?.name||recipient)
       : (bulkGroup?"🏫 "+bulkGroup.name:L.allStudents);
     const now=new Date();
     const timeStr=now.getHours().toString().padStart(2,"0")+":"+now.getMinutes().toString().padStart(2,"0");
@@ -6083,10 +6095,12 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
       read:true,
       direction:"sent",
       senderId:String(teacher.id),
-      recipientId:msgType==="private"?(recipient==="admin"?"admin":recipient==="head"?"head":"s_"+recipient):null,
-      recipientNo:msgType==="private"&&recipient!=="admin"&&recipient!=="head"?String((myStudents.find(s=>String(s.id)===String(recipient))||{}).no||""):null,
+      recipientId:msgType==="private"?(recipient==="admin"?"admin":(recipient==="head"||recipient==="genhead")?"head":recipient.indexOf("c_")===0?"t_"+((colleagueOf(recipient)||{}).id==null?(colleagueOf(recipient)||{}).fireId:(colleagueOf(recipient)||{}).id):"s_"+recipient):null,
+      recipientNo:msgType==="private"&&recipient!=="admin"&&recipient!=="head"&&recipient!=="genhead"&&recipient.indexOf("c_")!==0?String((myStudents.find(s=>String(s.id)===String(recipient))||{}).no||""):null,
       recipientGroup:null,
       ...(msgType==="private"&&recipient==="head"?{toRole:"head",toArea:teacher.area}:{}),
+      ...(msgType==="private"&&recipient==="genhead"?{toRole:"head",toArea:"genel"}:{}),
+      ...(msgType==="private"&&recipient.indexOf("c_")===0?{toRole:"teacher",toTeacherNo:String((colleagueOf(recipient)||{}).no||"")}:{}),
       area:teacher.area,
       isStudentFeedback:false,
       attachments:attachments.map(a=>({name:a.name,size:a.size,type:a.type,url:a.url,preview:a.preview}))
@@ -6162,7 +6176,11 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
               <optgroup label={lang==="en"?"Admin":K("Rêveber")}>
                 <option value="admin">{lang==="en"?"Admin":K("Rêveber")}</option>
                 {!teacher.isHead&&teacher.area&&<option value="head">{lang==="en"?"Department head (my department)":K("Berpirsê beşê (beşa min)")}</option>}
+                {genHead&&teacher.area!=="genel"&&<option value="genhead">{lang==="en"?"General head":K("Berpirsê giştî")} · {genHead.name}</option>}
               </optgroup>
+              {colleagues.length>0&&<optgroup label={lang==="en"?"Teachers of my department":K("Mamosteyên beşa min")}>
+                {colleagues.map(c=><option key={c.fireId} value={"c_"+(c.id==null?c.fireId:c.id)}>{c.name} · {c.no}</option>)}
+              </optgroup>}
               <optgroup label={lang==="en"?"Students":K("Xwendekar")}>
                 {myStudents.map(s=><option key={s.id} value={String(s.id)}>{s.name} · {s.no}</option>)}
               </optgroup>
@@ -9035,6 +9053,8 @@ function ClassPostsPanel({mode,teacher,student,students,lang,toast,classIds}){
   const [to,setTo]=useState("all"); const [pick,setPick]=useState({}); // all = tüm sınıf | pick = seçilen öğrenciler
   const fileRef=useRef(null);
   const att=useAttachUpload(setFiles,toast,lang);
+  // Tek sınıfı olan öğretmende sınıf kendiliğinden seçili gelir: "Hemû sinif / Xwendekarên taybet" seçimi hemen görünür
+  useEffect(()=>{ if(mine.length===1&&!Object.values(sel).some(Boolean)) setSel({[mine[0].id]:true}); },[mine.length&&mine[0].id]);
   useEffect(()=>{
     if(!live) return; let u=()=>{};
     try{
@@ -13963,6 +13983,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
           if((m.senderId==="admin"||m.fromType==="admin"||m.fromType==="head")&&m.recipientId===myId) return true;
           if((m.senderId==="admin"||m.fromType==="admin")&&(m.recipientGroup==="allTeachers"||m.recipientGroup==="all"||m.recipientGroup==="area_"+teacher.area)) return true;
           if(m.fromType==="student"&&m.toRole==="teacher"&&String(m.toTeacherNo)===String(teacher.no)) return true;
+          if(m.fromType==="teacher"&&m.toRole==="teacher"&&String(m.toTeacherNo)===String(teacher.no)&&String(m.fromId)!==String(teacher.id)) return true;
           return false;
         });
         setMsgUnreadCount(unread.length);
