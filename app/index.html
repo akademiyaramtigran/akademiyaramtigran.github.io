@@ -2308,7 +2308,7 @@ async function qrMergeRecords(lessonId, teacherId, date, records){
   Object.entries(qr).forEach(([k,q])=>{ const v=records[k]; if(v!=="on"&&v!=="late"&&v!=="leave") records[k]=q; });
   return records;
 }
-async function fbSaveAttendance(lessonId, teacherId, date, records){
+async function fbSaveAttendance(lessonId, teacherId, date, records, lessonFire){
 
   if(!window.__FB||!window.__FB.isConfigured()) {
     // Fallback: localStorage
@@ -2321,7 +2321,7 @@ async function fbSaveAttendance(lessonId, teacherId, date, records){
   try{
     await qrMergeRecords(lessonId, teacherId, date, records);   // records yerinde güncellenir (çağıran da görür)
     const ref = window.__FB.doc(window.__FB.db, "attendance", `${lessonId}-${date}`);
-    await window.__FB.setDoc(ref, {lessonId,teacherId:teacherId==null?null:teacherId,date,records,updatedAt:window.__FB.serverTimestamp()},{merge:true});
+    await window.__FB.setDoc(ref, {lessonId,lessonFire:String(lessonFire==null?lessonId:lessonFire),teacherId:teacherId==null?null:teacherId,date,records,updatedAt:window.__FB.serverTimestamp()},{merge:true});
     return ref.id;
   } catch(e){ console.warn("Attendance save error:", e); return null; }
 }
@@ -7774,12 +7774,12 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
       <div className="scroll-area" style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
         {tab==="announce"&&<AnnouncementsPanel t={t} toast={toast} lang={lang} senderName={user.name} senderRole="head" senderArea={area} senderNo={myNo}/>}
         {tab==="messages"&&<HeadMessagesPanel user={user} inbox={inbox} sent={sent} teachers={aTeachers.filter(x=>String(x.no)!==myNo)} lang={lang} t={t} toast={toast}/>}
-        {tab==="alerts"&&<AlertCenter data={alertData} user={user} lang={lang} toast={toast} fixCtx={{students:aStudents,schedule:schedule||[]}}/>}
+        {tab==="alerts"&&<AlertCenter data={alertData} user={user} lang={lang} toast={toast} fixCtx={GEN?null:{students:aStudents,schedule:schedule||[]}}/>}
         {tab==="evalforms"&&<EvalFormsPanel user={user} academy="aat" area={area} teachers={teachers||[]} lang={lang} toast={toast}/>}
         {tab==="gatt"&&<HeadGuestAttendance user={user} students={aStudents} schedule={aSchedule} lang={lang} toast={toast}/>}
         {tab==="leaves"&&<LeavesPanel user={user} students={aStudents.filter(s=>!s.isAdmin)} schedule={aSchedule} area={area} all={false} stuScope={GEN?aStudents:null} lang={lang} toast={toast}/>}
         {tab==="classes"&&<AcademyClassBoard headArea={area} students={students||[]} teachers={teachers||[]} schedule={schedule||[]} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>}
-        {tab==="schedule"&&<AdminScheduleTab mode="head" byName={user.name} fixedArea={area} schedule={aSchedule} teachers={teachers||[]} students={aStudents} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>}
+        {tab==="schedule"&&<AdminScheduleTab mode="head" byName={user.name} byNo={String(user.no||"")} fixedArea={area} schedule={aSchedule} teachers={teachers||[]} students={aStudents} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>}
         {tab==="reports"&&<AdminReportCenter students={aStudents} wsStudents={GEN?undefined:wsStudents} wsSchedule={wsSchedule} allStudents={(students||[]).filter(x=>!x.isAdmin&&!wsNos.has(String(x.no)))} teachers={aTeachers} schedule={aSchedule} allSchedule={schedule||[]} allTeachers={teachers||[]} lang={lang} t={t} toast={toast} byName={user.name} user={user} headArea={area} headNo={myNo} headScope={hScope}/>}
         {tab==="profile"&&<StaffProfileView user={user} roleLabel={roleLabel} icon="🎓" lang={lang} t={t} toast={toast} onLogout={onLogout} onDataChange={onDataChange}/>}
       </div>
@@ -10816,8 +10816,56 @@ function AdminProfileSheet({admin,onClose,t,lang,toast,onSave}){
 // termsOnly: yalnız dönem (demsal) yöneticisi — Sanat Alanları sayfasının üstünde
 // mode: "full" (yönetici) · "view" (Öğrenci İşleri: yalnız görür)
 //       · "head" (bölüm sorumlusu: ders ekler/düzenler/siler, öğretmen atar, "ders yapılmadı" işaretler; dönem yok)
-function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataChange, fixedArea=null, termsOnly=false, mode="full", byName=""}) {
-  const canEdit = mode!=="view", canAbsence = mode!=="view", canTerms = mode!=="head";
+// Günlük görevlendirme: dersin bölüm sorumlusu, BELİRLİ BİR TARİH için başka bir öğretmeni (ya da kendini) o dersin yoklamasına görevlendirir.
+// Dersin asıl öğretmeni değişmez; görevli yalnız o gün dersi programında görür ve yoklamayı alır. (lessonSubs/{ders}_{tarih})
+function LessonSubSheet({ls,teachers,byNo,byName,lang,toast,onClose}){
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const F=window.__FB; const terms=useTerms();
+  const fire=String(ls.fireId||ls.id);
+  const [date,setDate]=useState(()=>{ for(let i=0;i<60;i++){ const d=new Date(Date.now()+i*86400000); const ds=ymdLocal(d); try{ if(lessonDates(ls,terms,ds,ds).length) return ds; }catch(_){} } return ymdLocal(new Date()); });
+  const [tno,setTno]=useState("");
+  const [subs,setSubs]=useState([]); const [busy,setBusy]=useState(false);
+  useEffect(()=>{ if(!F||!F.isConfigured()) return; let u=()=>{};
+    try{ u=F.onSnapshot(F.query(F.collection(F.db,"lessonSubs"),F.where("lessonFire","==",fire)),sn=>setSubs(sn.docs.map(d=>({...d.data(),id:d.id})).sort((a,b)=>String(a.date).localeCompare(String(b.date)))),()=>{}); }catch(_){}
+    return ()=>{ try{u();}catch(_){} }; },[fire]);
+  const opts=[{no:String(byNo),name:(byName||"")+" ("+W2("ez","me")+")"},...(teachers||[]).filter(x=>canTeach(x)&&String(x.no)!==String(ls.teacherNo)&&String(x.no)!==String(byNo)).map(x=>({no:String(x.no),name:x.name}))];
+  async function save(){
+    if(busy) return;
+    if(!tno){ toast("⚠ "+W2("Mamoste hilbijêre","Select a teacher")); return; }
+    if(!date||!lessonDates(ls,terms,date,date).length){ toast("⚠ "+W2("Ev ders di wê rojê de nîne","This lesson is not scheduled on that date")); return; }
+    const o=opts.find(x=>x.no===tno);
+    setBusy(true);
+    try{
+      await F.setDoc(F.doc(F.db,"lessonSubs",fire+"_"+date),{lessonFire:fire,date,teacherNo:tno,teacherName:String(o.name||"").replace(/ \(.*\)$/,"").slice(0,80),area:ls.area||"",byNo:String(byNo||""),updatedAt:F.serverTimestamp()});
+      toast("✅ "+W2("Berpirsiyar ji bo wê rojê hate danîn","Assigned for that day"));
+    }catch(e){ toast("❌ "+((e&&e.code)||e)); }
+    setBusy(false);
+  }
+  async function del(sb){ try{ await F.deleteDoc(F.doc(F.db,"lessonSubs",sb.id)); toast("🗑"); }catch(e){ toast("❌ "+((e&&e.code)||e)); } }
+  const today=ymdLocal(new Date());
+  return(
+    <Sheet open={true} onClose={onClose} title={"👥 "+W2("Berpirsiyarê rojê","Daily assignment")+" · "+(ls.name||"")}>
+      <div style={{fontSize:12.5,color:"var(--text2)",marginBottom:10}}>{W2("Mamosteyê dersê yê esasî nayê guhertin; ji bo tenê wê rojê kesek din (an jî tu) amadebûnê digire.","The lesson's regular teacher does not change; for that day only, someone else (or you) takes attendance.")}</div>
+      <FieldWrap label={W2("Roj","Date")}><DateInput style={inputStyle} value={date} onChange={e=>setDate(e.target.value)}/></FieldWrap>
+      <FieldWrap label={W2("Mamoste","Teacher")}>
+        <select style={selectStyle} data-sub-teacher="1" value={tno} onChange={e=>setTno(e.target.value)}>
+          <option value="">—</option>
+          {opts.map(o=><option key={o.no} value={o.no}>{o.name}</option>)}
+        </select>
+      </FieldWrap>
+      <button type="button" data-sub-save="1" className="c-btn" onClick={save} disabled={busy} style={{width:"100%",minHeight:46}}>{busy?"…":W2("Tomar bike","Save")}</button>
+      {subs.filter(sb=>sb.date>=today).length>0&&<div style={{marginTop:14}}>
+        <div style={{fontSize:12,fontWeight:800,color:"var(--text)",marginBottom:6}}>{W2("Rojên hatî","Upcoming days")}</div>
+        {subs.filter(sb=>sb.date>=today).map(sb=>(<div key={sb.id} data-sub-row={sb.date} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderTop:"1px solid var(--border2)",fontSize:13,color:"var(--text)"}}>
+          <span style={{flex:1}}>📅 {fmtDateTx(sb.date)} · 👤 {sb.teacherName||sb.teacherNo}</span>
+          <button type="button" onClick={()=>del(sb)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--red)"}}><Ico n="trash" solo/></button>
+        </div>))}
+      </div>}
+    </Sheet>);
+}
+function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataChange, fixedArea=null, termsOnly=false, mode="full", byName="", byNo=""}) {
+  const canEdit = mode!=="view", canAbsence = mode!=="view"&&!(mode==="head"&&fixedArea==="genel"), canTerms = mode!=="head";
+  const [subFor,setSubFor]=useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [editingLesson, setEditingLesson] = useState(null);
   const [filterArea, setFilterArea] = useState(fixedArea||"all");
@@ -10925,6 +10973,8 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
         <div style={{display:"flex",flexDirection:"column",gap:5,justifyContent:"center",flexShrink:0}}>
           {canEdit&&<button onClick={()=>setEditingLesson(ls)}
             style={{padding:"6px 9px",fontSize:12,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:7,cursor:"pointer",color:"var(--text)"}}><Ico n="edit" solo/></button>}
+          {mode==="head"&&<button type="button" data-sub-lesson={String(ls.id)} onClick={()=>setSubFor(ls)} title={lang==="en"?"Daily assignment (substitute for one date)":K("Berpirsiyarê rojê (ji bo tenê yek rojê)")}
+            style={{padding:"6px 9px",fontSize:12,background:"var(--bg2)",border:"0.5px solid var(--border2)",borderRadius:7,cursor:"pointer"}}>👥</button>}
           {canAbsence&&<button onClick={()=>markTeacherAbsent(ls)} title={lang==="en"?"Lesson not held (teacher absent)":K("Ders nehat kirin (mamoste nehat)")}
             style={{padding:"6px 9px",fontSize:12,background:"rgba(220,38,38,0.06)",border:"0.5px solid rgba(220,38,38,0.3)",borderRadius:7,cursor:"pointer"}}>🚫</button>}
           {canEdit&&<button data-del-lesson={String(ls.id)} onClick={()=>deleteLesson(ls)}
@@ -10951,9 +11001,9 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
       if(window.__FB&&window.__FB.isConfigured()){
         const ref=window.__FB.doc(window.__FB.db,"attendance",ls.id+"-"+date);
         const by=String(byName||"").slice(0,80);
-        if(remove) await window.__FB.setDoc(ref,{teacherAbsent:false,absenceKind:null,absenceNote:null,absenceBy:by,updatedAt:window.__FB.serverTimestamp()},{merge:true});
+        if(remove) await window.__FB.setDoc(ref,{lessonFire:String(ls.fireId||ls.id),date,teacherAbsent:false,absenceKind:null,absenceNote:null,absenceBy:by,updatedAt:window.__FB.serverTimestamp()},{merge:true});
         else await window.__FB.setDoc(ref,
-          {lessonId:ls.id,lessonName:ls.name,area:ls.area,classId:ls.classId||null,teacherName:ls.teacherName||null,date,
+          {lessonId:ls.id,lessonFire:String(ls.fireId||ls.id),lessonName:ls.name,area:ls.area,classId:ls.classId||null,teacherName:ls.teacherName||null,date,
            teacherAbsent:true,absenceKind:kind,absenceNote:String(note||"").trim().slice(0,300),absenceBy:by,updatedAt:window.__FB.serverTimestamp()},{merge:true});
       }
       toast(remove?"↩ "+(lang==="en"?"Mark removed":K("Nîşan hate rakirin")):"🚫 "+(lang==="en"?"Recorded: lesson not held":K("Hate tomarkirin: ders nehat kirin")));
@@ -11197,6 +11247,7 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
             setShowAdd(false);toast("✓ "+ls.name);
           }}/>
       )}
+      {subFor&&<LessonSubSheet ls={subFor} teachers={teachers} byNo={byNo} byName={byName} lang={lang} toast={toast} onClose={()=>setSubFor(null)}/>}
       {editingLesson&&(
         <EditLessonSheet lesson={editingLesson} onClose={()=>setEditingLesson(null)} teachers={teachers} t={t} lang={lang} toast={toast}
           onSave={(u)=>{onDataChange("updateSchedule",u);setEditingLesson(null);toast("✓ "+u.name);}}/>
@@ -11214,7 +11265,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
   const [showAdminAddLesson,setShowAdminAddLesson]=useState(false);
   const [menuOpen,setMenuOpen]=useState(isPhoneNow);
   const wsNosAdm=useWsNos();
-  const aRaw=useAlerts({students:(students||[]).filter(x=>!wsNosAdm.has(String(x.no))),teachers,schedule,area:null,lang}), kRaw=useKidAlerts({area:null});
+  const aRaw=useAlerts({students:(students||[]).filter(x=>!wsNosAdm.has(String(x.no))),teachers,schedule,area:null,lang,noNoatt:true}), kRaw=useKidAlerts({area:null});
   const alertData=useAlertAcks([...aRaw,...kRaw]);
 
   const tabs=[
@@ -11293,7 +11344,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
         {tab==="press"&&<AdminPressPanel teachers={teachers} onDataChange={onDataChange} lang={lang} toast={toast} t={t}/>}
         {tab==="messages"&&<AdminMessagesPanel students={students} teachers={teachers} lang={lang} t={t} toast={toast} adminName={adminData.name}/>}
         {tab==="reports"&&<AdminReportCenter user={adminData} students={(students||[]).filter(x=>!wsNosAdm.has(String(x.no)))} teachers={teachers} schedule={schedule} lang={lang} t={t} toast={toast} byName={adminData.name}/>}
-        {tab==="alerts"&&<AlertCenter data={alertData} user={adminData} lang={lang} toast={toast} fixCtx={{students:students||[],schedule:schedule||[]}}/>}
+        {tab==="alerts"&&<AlertCenter data={alertData} user={adminData} lang={lang} toast={toast}/>}
       </div>
       {statsModal&&(
         <StatsDetailModal type={statsModal} students={students} teachers={teachers} schedule={schedule} onClose={()=>setStatsModal(null)} t={t} lang={lang} toast={toast} onDataChange={onDataChange}/>
@@ -11368,7 +11419,7 @@ function monthlyAlerts({att,sEv,tEv,efR,students,teachers,schedule,clsDocs,area,
   C.A.cl.forEach((a,id)=>{ const c=(clsDocs||[]).find(x=>x.id===id); if(!clsOk(c)) return; check("cl",id,classLabel(c,lang),"",c.area||"",a,Pv.A.cl.get(id),null); });
   return out;
 }
-function useAlerts({students,teachers,schedule,area,lang,scope,noEvals}){
+function useAlerts({students,teachers,schedule,area,lang,scope,noEvals,noNoatt}){
   const F=window.__FB; const live=!!(F&&F.isConfigured());
   const clsDocsA=useClassDocs("classes");
   const termsA=useTerms();
@@ -11395,7 +11446,7 @@ function useAlerts({students,teachers,schedule,area,lang,scope,noEvals}){
       who:st.name,whoNo:st.no,lesson:(ls&&ls.name)||x.name||x.lid,teacher:(ls&&ls.teacherName)||""}); });
   // Yoklama girilmedi: son 14 günde programdaki ders yapılmış görünmüyor — ne yoklama var ne "ders yapılmadı" işareti.
   //  (ders günü bittikten sonra, ertesi gün görünür; yoklama girilince ya da "yapılmadı" işaretlenince kendiliğinden kapanır)
-  if(live){
+  if(live&&!noNoatt){
     const dd=new Date(); dd.setDate(dd.getDate()-14); const nf0=ymdLocal(dd), nf=nf0<from?from:nf0;
     const yd=new Date(); yd.setDate(yd.getDate()-1); const yday=ymdLocal(yd);
     const recd=new Set(att.filter(d=>d.teacherAbsent||(d.records&&Object.keys(d.records).length)).map(d=>String(d.lessonId)+"-"+d.date));
@@ -11972,7 +12023,7 @@ function AttendanceFixModal({ls,date,students,user,lang,toast,onClose}){
   }
   async function notHeld(){
     if(busy) return; setBusy(true);
-    try{ await F.setDoc(F.doc(F.db,"attendance",docId),{...meta,area:ls.area||"",...(prev?{}:{records:{}}),teacherAbsent:true,absenceKind:absKind,absenceNote:absNote.trim()||null,
+    try{ await F.setDoc(F.doc(F.db,"attendance",docId),{...meta,lessonFire:String(ls.fireId||ls.id),area:ls.area||"",...(prev?{}:{records:{}}),teacherAbsent:true,absenceKind:absKind,absenceNote:absNote.trim()||null,
         absenceBy:(user&&user.name)||"",updatedAt:F.serverTimestamp()},{merge:true});
       toast("✅ "+W2("Wek “ders nehat kirin” hate nîşankirin","Marked as not held")); onClose(true);
     }catch(e){ toast("❌ "+((e&&e.code)||e)); }
@@ -12199,6 +12250,31 @@ async function deleteLessonAsk(ls,onDataChange,lang){
     if(fail) window.alert(RL()==="en"?fail+" records could not be deleted.":KF("{0} tomar nehatin jêbirin.",[fail])); }
   onDataChange("deleteSchedule",{id:ls.id,fireId:ls.fireId||null});
   return delAtt?docs.length:0;
+}
+// Öğretmenin kendi dersleri için yoklaması girilmemiş (son 14 gün) günler: buradan doğrudan girilir
+function TeacherNoAttCard({teacher,schedule,students,lang,toast}){
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const mine=(schedule||[]).filter(l=>lessonForTeacher(l,teacher));
+  const items=useAlerts({students:[],teachers:[],schedule:mine,area:null,lang,noEvals:true}).filter(x=>x.kind==="noatt").sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  const [fix,setFix]=useState(null);
+  if(!items.length) return null;
+  return(<Card style={{marginBottom:12,border:"1px solid rgba(180,83,9,.35)"}} data-noatt-card="1">
+    <div style={{fontSize:13.5,fontWeight:800,color:"#b45309",marginBottom:6}}>⚠ {W2("Amadebûna van dersan nehatiye girtin","Attendance not yet entered")} ({items.length})</div>
+    {items.slice(0,8).map(x=>(<div key={x.key} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderTop:"1px solid var(--border2)",fontSize:13,color:"var(--text)"}}>
+      <span style={{flex:1}}>📅 {fmtDateTx(x.date)} · {x.lesson}</span>
+      <button type="button" data-noatt-fix={x.key} className="c-chip on" onClick={()=>setFix(x)}>✍ {W2("Amadebûnê bike","Enter")}</button>
+    </div>))}
+    {fix&&<AttendanceFixModal ls={mine.find(l=>String(l.id)===String(fix.lsId))} date={fix.date} students={students||[]} user={teacher} lang={lang} toast={toast} onClose={()=>setFix(null)}/>}
+  </Card>);
+}
+function useMySubs(no){
+  const [list,setList]=useState([]);
+  useEffect(()=>{
+    const F=window.__FB; if(!F||!F.isConfigured()||!no) return; let u=()=>{};
+    try{ u=F.onSnapshot(F.query(F.collection(F.db,"lessonSubs"),F.where("teacherNo","==",String(no))),sn=>setList(sn.docs.map(d=>({...d.data(),id:d.id}))),()=>{}); }catch(_){}
+    return ()=>{ try{u();}catch(_){} };
+  },[no]);
+  return list;
 }
 function lessonForTeacher(ls,teacher){
   if(!ls.teacherNo) return false;
@@ -13444,7 +13520,10 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
 
 
   const a=AREA_MAP[teacher.area]||AREA_MAP["genel"]||{color:"#16a34a",bg:"rgba(22,163,74,0.08)",icon:"👨‍🏫",name:{ku:"",en:"",desc:{ku:"",en:""}}};
-  const mySchedule = schedule.filter(s=>lessonForTeacher(s,teacher));
+  // Günlük görevlendirme: bugün bana görevlendirilen dersler programımda (yalnız bugün) görünür
+  const mySubs=useMySubs(teacher.no);
+  const subFireToday=new Set(mySubs.filter(x=>x.date===ymdLocal(new Date())).map(x=>String(x.lessonFire)));
+  const mySchedule = schedule.filter(s=>lessonForTeacher(s,teacher)||subFireToday.has(String(s.fireId||s.id)));
   // Öğrencilerim: verdiğim derslerin sınıfları + sınıf öğretmeni olduğum sınıflar.
   // Hiç dersi/sınıfı yoksa eskisi gibi kendi alanının öğrencileri (genel → herkes).
   const clsDocs=useClassDocs("classes");
@@ -13548,7 +13627,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     try{ localStorage.setItem(startKey(ls.id),String(ms)); }catch(_){}
     const FB=window.__FB;
     if(FB&&FB.isConfigured()){
-      FB.setDoc(FB.doc(FB.db,"attendance",ls.id+"-"+todayStr_t),{lessonId:ls.id,lessonName:ls.name||"",area:ls.area||"",classId:ls.classId||null,
+      FB.setDoc(FB.doc(FB.db,"attendance",ls.id+"-"+todayStr_t),{lessonId:ls.id,lessonFire:String(ls.fireId||ls.id),lessonName:ls.name||"",area:ls.area||"",classId:ls.classId||null,
         teacherId:teacher.id==null?null:teacher.id,teacherName:teacher.name||"",date:todayStr_t,startedAt:ms,updatedAt:FB.serverTimestamp()},{merge:true})
         .catch(e=>toast("⚠ "+(e.code||e.message||"")));
     }
@@ -13566,7 +13645,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     setAttendance(p=>({...p,[student.id]:v}));
     const FB=window.__FB;
     if(FB&&FB.isConfigured()){
-      FB.setDoc(FB.doc(FB.db,"attendance",ls.id+"-"+todayStr_t),{lessonId:ls.id,teacherId:teacher.id==null?null:teacher.id,date:todayStr_t,
+      FB.setDoc(FB.doc(FB.db,"attendance",ls.id+"-"+todayStr_t),{lessonId:ls.id,lessonFire:String(ls.fireId||ls.id),teacherId:teacher.id==null?null:teacher.id,date:todayStr_t,
         records:{[student.id]:v},updatedAt:FB.serverTimestamp()},{merge:true}).catch(()=>{});
     }
     return {ok:true,late:v==="late"};
@@ -13586,13 +13665,13 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
       attRoster.forEach(s=>{ const v0=attRef.current[s.id]; records[s.id]=(v0==="on"||v0==="late"||v0==="off")?v0:"off"; });
       attOnLeave.forEach(s=>{ records[s.id]="leave"; });
       setAttSaving(true);
-      const ok=await fbSaveAttendance(ls.id, teacher.id, todayStr_t, records);
+      const ok=await fbSaveAttendance(ls.id, teacher.id, todayStr_t, records, ls.fireId||ls.id);
       setAttSaving(false);
       if(ok===null&&FB&&FB.isConfigured()){ toast("⚠ "+(lang==="en"?"Attendance could not be saved — check the connection and try again":K("Amadebûn nehat tomarkirin — girêdanê kontrol bike û dîsa biceribîne")),6000); return; }
       setAttendance(p=>({...p,...records}));
     }
     setLsEnds(p=>({...p,[String(ls.id)]:ms})); setAttScan(false);
-    if(FB&&FB.isConfigured()) FB.setDoc(FB.doc(FB.db,"attendance",ls.id+"-"+todayStr_t),{endedAt:ms,updatedAt:FB.serverTimestamp()},{merge:true}).catch(()=>{});
+    if(FB&&FB.isConfigured()) FB.setDoc(FB.doc(FB.db,"attendance",ls.id+"-"+todayStr_t),{lessonId:ls.id,lessonFire:String(ls.fireId||ls.id),date:todayStr_t,endedAt:ms,updatedAt:FB.serverTimestamp()},{merge:true}).catch(()=>{});
     const c=v=>attRoster.filter(s=>records[s.id]===v).length;
     hapticSuccess();
     toast("⏹ "+(ls.name||"")+" — ✅ "+c("on")+" · ⏱ "+c("late")+" · ❌ "+c("off"),7000);
@@ -13786,7 +13865,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     onLeaveNow.forEach(s=>{ records[s.id]="leave"; });   // izinli: devamsızlık sayılmaz
     setActiveQRSession(null);
     setQrToken(null);
-    await fbSaveAttendance(lessonId, teacher.id, dateStr, records);   // veritabanındaki QR okutmaları da eklenir
+    await fbSaveAttendance(lessonId, teacher.id, dateStr, records, ((mySchedule||[]).find(x=>String(x.id)===String(lessonId))||{}).fireId||lessonId);   // veritabanındaki QR okutmaları da eklenir
     if(String(lessonId)===String(attLessonRef.current)) setAttendance(p=>({...p,...records}));
 
     // 3. Öğrenci istatistiklerini güncelle (ders başına bir kez)
@@ -13896,6 +13975,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
       <div className="scroll-area" style={{padding:"14px 16px 90px"}}>
         {view==="home"&&(
           <>
+            <TeacherNoAttCard teacher={teacher} schedule={schedule} students={students} lang={lang} toast={toast}/>
             {/* Summary stats */}
             <div style={{display:"grid",gridTemplateColumns:"1fr",gap:8,marginBottom:12}}>
               <div style={{background:"var(--surface)",borderRadius:10,padding:"14px 12px",textAlign:"center",border:"1px solid rgba(15,23,42,.08)",borderLeft:"4px solid "+a.color,boxShadow:"0 1px 4px rgba(15,23,42,.06)"}}>
@@ -14110,7 +14190,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                   attOnLeave.forEach(s=>{ records[s.id]="leave"; });   // izinli: devamsızlık sayılmaz
                   const presentCount=attRoster.filter(s=>records[s.id]!=="off").length;
                   setAttSaving(true);
-                  const ok=await fbSaveAttendance(attLesson.id, teacher.id, attDay, records);
+                  const ok=await fbSaveAttendance(attLesson.id, teacher.id, attDay, records, attLesson.fireId||attLesson.id);
                   setAttSaving(false);
                   if(ok===null && window.__FB && window.__FB.isConfigured()){
                     toast("⚠ "+(lang==="en"?"Attendance could not be saved — check the connection and try again":K("Amadebûn nehat tomarkirin — girêdanê kontrol bike û dîsa biceribîne")), 6000);
