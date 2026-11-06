@@ -657,7 +657,8 @@ service cloud.firestore {
     // Giriş/çıkış yoklaması (öğretmen/öğrenci işleri yazar, veli okur)
     match /kidAttendance/{id} {
       allow read:  if kidRead() || myKid(resource.data);
-      allow write: if kidStaff();
+      // Yönetici ve Öğrenci İşleri çocuk yoklaması YAZAMAZ: yalnız çocuk öğretmenleri (ve çocuk akademisine bağlı sorumlu-öğretmenler)
+      allow write: if kidTeach();
     }
 
     // Çocuk akademisi programı: yönetici her dersi; çocuk akademisi bölüm sorumlusu yalnız KENDİ dersinin (alan)
@@ -668,12 +669,31 @@ service cloud.firestore {
     }
     match /kidSchedule/{id} {
       allow read: if kidRead() || isGuardian();
-      allow create, update: if isAdmin() || (isRegistrar() && id.matches('ws_.*')) || kidHeadSchedWrite();
-      allow delete: if isAdmin() || (isRegistrar() && id.matches('ws_.*'))
-        || (kidHeadLvl() && resource.data.get('area', '') == headArea());
+      allow create, update: if isAdmin() || kidHeadSchedWrite();
+      allow delete: if isAdmin() || (kidHeadLvl() && resource.data.get('area', '') == headArea());
+    }
+    // Günlük görevlendirme (çocuk akademisi): dersin sorumlusu belirli bir tarih için başka çocuk öğretmenini / kendini görevlendirir
+    function kidSchedPath(lf) { return /databases/$(database)/documents/kidSchedule/$(lf); }
+    match /kidSubs/{id} {
+      allow read: if kidRead();
+      allow create, update: if kidHeadLvl() && request.resource.data.keys().hasOnly(['lessonFire', 'date', 'teacherNo', 'teacherName', 'area', 'byNo', 'updatedAt'])
+        && id == request.resource.data.get('lessonFire', '') + '_' + request.resource.data.get('date', '')
+        && request.resource.data.get('teacherNo', '') is string && request.resource.data.get('teacherNo', '') != ''
+        && exists(kidSchedPath(request.resource.data.get('lessonFire', '')))
+        && get(kidSchedPath(request.resource.data.get('lessonFire', ''))).data.get('area', '') == headArea();
+      allow delete: if kidHeadLvl() && exists(kidSchedPath(resource.data.get('lessonFire', '')))
+        && get(kidSchedPath(resource.data.get('lessonFire', ''))).data.get('area', '') == headArea();
     }
     // Sınıflar (1., 2., …): çocuğun sınıfı kids.classLevel; sınıf öğretmeni burada (doc id = L<seviye>)
-    match /kidClasses/{id}       { allow read: if kidRead() || isGuardian(); allow write: if isRegistrar(); }
+    // Çocuk sınıfları: çocuk akademisi bölüm sorumlusu KENDİ bölümünün sınıflarını açar / sınıf öğretmeni atar; yönetici hepsini.
+    // Öğrenci İşleri sınıf yönetmez (yalnız kayıt, başvuru, kart).
+    function kidHeadClassOk(d) { return kidHeadLvl() && d.get('kind', '') == 'area' && d.get('area', '') == headArea(); }
+    match /kidClasses/{id} {
+      allow read: if kidRead() || isGuardian();
+      allow create: if isAdmin() || kidHeadClassOk(request.resource.data);
+      allow update: if isAdmin() || (kidHeadClassOk(resource.data) && kidHeadClassOk(request.resource.data));
+      allow delete: if isAdmin() || kidHeadClassOk(resource.data);
+    }
     // Çocuk Akademisi anketleri kaldırıldı: okuma/yazma kapalı
     match /kidSurveys/{id}         { allow read, write: if false; }
     match /kidSurveyResponses/{id} { allow read, write: if false; }
