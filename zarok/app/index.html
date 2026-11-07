@@ -2,6 +2,32 @@
 <html lang="ku">
 <head>
 <meta charset="UTF-8"/>
+<script>
+/* Uygulama açıkken gelen anlık bildirim: ekranın üstünde şerit */
+(function(){
+  if(!('serviceWorker' in navigator)) return;
+  var cur=null,tm=null;
+  function show(m){
+    try{
+      if(cur&&cur.parentNode) cur.parentNode.removeChild(cur); clearTimeout(tm);
+      var b=document.createElement('div'); b.setAttribute('data-push-banner','1'); b.setAttribute('role','alert');
+      b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:2147483000;padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 10px;background:#1a1a2e;color:#fff;font:14px/1.35 system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.35);display:flex;gap:10px;align-items:flex-start;cursor:pointer;border-bottom:3px solid #d4a84b;animation:aatBn .25s ease-out';
+      if(!document.getElementById('aat-bn-style')){var st=document.createElement('style');st.id='aat-bn-style';st.textContent='@keyframes aatBn{from{transform:translateY(-100%)}to{transform:none}}';document.head.appendChild(st);}
+      var t=document.createElement('div'); t.style.cssText='flex:1;min-width:0';
+      var h=document.createElement('div'); h.style.cssText='font-weight:700'; h.textContent='\uD83D\uDD14 '+(m.title||'');
+      var p=document.createElement('div'); p.style.cssText='opacity:.9;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical'; p.textContent=m.body||'';
+      t.appendChild(h); t.appendChild(p);
+      var x=document.createElement('span'); x.textContent='\u2715'; x.style.cssText='padding:0 4px;opacity:.7';
+      b.appendChild(t); b.appendChild(x);
+      function close(){ clearTimeout(tm); if(b.parentNode) b.parentNode.removeChild(b); }
+      b.onclick=close;
+      (document.body||document.documentElement).appendChild(b); cur=b; tm=setTimeout(close,8000);
+    }catch(_){}
+  }
+  navigator.serviceWorker.addEventListener('message',function(e){ var d=e.data; if(d&&d.type==='aat-banner') show(d); });
+  window.__showPushBanner=show;
+})();
+</script>
 <script>/* Eski adres (GitHub Pages) → yeni alan adı: yol, sorgu ve # korunur */if(location.hostname==="akademiyaramtigran.github.io")location.replace("https://konservatuaraaramtigran.org"+location.pathname+location.search+location.hash);</script>
 <!-- Güvenlik: sayfa başka bir sitenin çerçevesine (iframe) gömülürse gizle ve çerçeveden çık (clickjacking koruması; GitHub Pages X-Frame-Options başlığı gönderemez) -->
 <style id="aat-antiframe">html{display:none!important}</style>
