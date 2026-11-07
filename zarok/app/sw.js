@@ -1,5 +1,5 @@
 // Akademiya Zarokan (Konservatuara Aram Tîgran) — veli/öğretmen uygulaması Service Worker (kapsam: bu klasör)
-const CACHE = 'zarok-v44';
+const CACHE = 'zarok-v45';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './vendor/jsQR.js', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-180.png'];
 
 self.addEventListener('install', e => {
@@ -32,8 +32,9 @@ self.addEventListener('push', e => {
   let p = {}; try { p = e.data ? e.data.json() : {}; } catch (_) { p = { body: e.data && e.data.text() }; }
   const d = p.data || p.notification || p;
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => {
-    if (cs.some(c => c.focused && c.visibilityState === 'visible')) return;
-    return self.registration.showNotification(d.title || 'Akademiya Zarokan', { body: d.body || '', icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: d.tag || 'zarok', renotify: true });
+    const vis = cs.filter(c => c.visibilityState === 'visible');
+    if (vis.length) { vis.forEach(c => c.postMessage({ type: 'aat-banner', title: d.title || '', body: d.body || '', link: d.link || '' })); return; }
+    return self.registration.showNotification(d.title || 'Akademiya Zarokan', { body: d.body || '', icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: (d.tag || 'zarok') + ':' + Date.now(), renotify: true });
   }));
 });
 // Uygulama açıkken gelen yoklama bildirimi (sayfa postMessage ile ister)
