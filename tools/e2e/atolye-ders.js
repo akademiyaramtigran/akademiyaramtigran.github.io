@@ -59,6 +59,7 @@ async function routes(ctx) {
   await p.locator('input.inp').first().fill('96000001'); await p.locator('input[type=password]').first().fill('Head1234');
   await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000);
   await p.evaluate(() => document.querySelector('.sm-it[data-key="schedule"]').click()); await p.waitForTimeout(1000);
+  await p.click('[data-sched-tab="ws"]'); await p.waitForTimeout(600);   // atölye dersleri kendi alanında eklenir
   await p.evaluate(() => document.querySelector('[data-add-lesson]').click()); await p.waitForTimeout(1200);
   const opts = await p.evaluate(() => { const s = [...document.querySelectorAll('select')].find(x => [...x.options].some(o => o.textContent.includes('Sinifekê hilbijêre'))); return s ? [...s.options].map(o => o.value + '|' + o.textContent) : []; });
   ok('Sınıf listesinde açık atölye var', opts.some(o => o.startsWith('W1|') && o.includes('Atolyeya Şanoyê')), opts.join(' ; '));

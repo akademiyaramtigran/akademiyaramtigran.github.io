@@ -147,15 +147,23 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   await put('schedule/WX3', { id: 'WX3', fireId: 'WX3', area: 'muzik', name: 'Atolyeya Borî', classId: Wid, category: 'workshop', lessonType: 'extra', extraDates: [addDays(-3)], day: null, start: '14:00', end: '15:00', teacherNo: '50202601', teacherName: 'Mamoste Dilovan', loc: 'Salon' });
   const pw = await login(await mk(), '96000001', 'Head1234');
   await goA(pw, 'schedule'); await pw.waitForTimeout(1500);
-  ok('Program ekranında atölye (haftalık) dersi görünür, 🛠 etiketli', (await pw.locator('[data-ws-lesson]').count()) >= 1 && (await txt(pw)).includes('Hafta Sonu Atölyesi'));
-  await pw.click('[data-sched-tab="extra"]'); await pw.waitForTimeout(800);
+  const mainTx = await txt(pw);
+  ok('Ana dersler alanında yalnız akademi dersleri (atölye dersleri burada görünmez)', mainTx.includes('Solfej') && !mainTx.includes('Hafta Sonu Atölyesi') && !mainTx.includes('Atolyeya Îro'));
+  await pw.click('[data-sched-tab="ws"]'); await pw.waitForTimeout(800);
   const ex1 = await txt(pw);
-  ok('Ek ders/atölye: bu hafta + gelecek hafta görünür, biten ders görünmez', ex1.includes('Atolyeya Îro') && ex1.includes('Atolyeya Hefteya Bê') && !ex1.includes('Atolyeya Borî'), ex1.replace(/\n/g, ' / ').slice(430, 1100));
+  ok('Atölye alanında yalnız atölye dersleri: haftalık + bu/gelecek hafta; biten ders görünmez', ex1.includes('Hafta Sonu Atölyesi') && ex1.includes('Atolyeya Îro') && ex1.includes('Atolyeya Hefteya Bê') && !ex1.includes('Atolyeya Borî') && !ex1.includes('Solfej'), ex1.replace(/\n/g, ' / ').slice(430, 900));
+  ok('Atölye dersi 🛠 etiketli', (await pw.locator('[data-ws-lesson]').count()) >= 1);
+  await pw.click('[data-sched-tab="ws"]');
   await pw.click('[data-wk-mode="pick"]'); await pw.waitForTimeout(500);
   ok('"Hefteyek hilbijêre": hafta seçici açılır', (await pw.evaluate(() => document.querySelector('[data-wk-bar]').children.length)) >= 4);
   await pw.click('[data-wk-mode="all"]'); await pw.waitForTimeout(500);
   await pw.evaluate(() => { const b = document.querySelector('[data-sched-archive]'); b && b.click(); }); await pw.waitForTimeout(500);
   ok('"Hemû": biten ders arşivde görünür', (await txt(pw)).includes('Atolyeya Borî'));
+
+  // Ekleme formları kendi alanına özel: atölye alanında yalnız atölye sınıfı + tür seçimi yok; ana alanda atölye türü / atölye sınıfı yok
+  await pw.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => /Dersekî Nû/.test(x.textContent) && x.offsetParent); b && b.click(); }); await pw.waitForTimeout(900);
+  const wsForm = await pw.evaluate(() => ({ cat: document.querySelectorAll('[data-cat]').length, opts: [...document.querySelectorAll('select')].flatMap(x => [...x.options].map(o => o.textContent)).filter(t => /Sînif|Hafta Sonu/.test(t)) }));
+  ok('Atölye alanı ekleme formu: tür seçimi yok, yalnız atölye sınıfı', wsForm.cat === 0 && wsForm.opts.length >= 1 && wsForm.opts.every(t => /Hafta Sonu/.test(t)), JSON.stringify(wsForm));
 
   // ── 5b) Bölüm sorumlusu raporu: Kapsam = Atölye (devam + değerlendirme), akademi raporunda atölye öğrencisi yok ──
   await goA(p, 'reports'); await p.waitForTimeout(1200);
