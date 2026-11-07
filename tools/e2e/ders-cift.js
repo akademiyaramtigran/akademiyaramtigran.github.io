@@ -94,6 +94,9 @@ async function routes(ctx) {
 
   // 3) Tek seferlik dersi yoklamasıyla birlikte sil
   dialogs = []; answer = true;
+  // biten (geçmiş) tarihli ders varsayılan görünümde yok: "Hemû" + arşiv ile görünür
+  await rp.evaluate(() => { const b = document.querySelector('[data-wk-mode="all"]'); b && b.click(); }); await rp.waitForTimeout(500);
+  await rp.evaluate(() => { const b = document.querySelector('[data-sched-archive]'); b && b.click(); }); await rp.waitForTimeout(500);
   const delOk = await rp.evaluate(() => { const b = document.querySelector('[data-del-lesson="LO"]'); if (!b) return false; b.click(); return true; });
   await rp.waitForTimeout(3000);
   const sch = await list('schedule'); const att = await fetch(`${FS}/attendance/LO-${PAST}`, { headers: H });
