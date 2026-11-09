@@ -93,6 +93,28 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   const hg = await login('96000002', 'Head1234');
   await goA(hg, 'messages'); await hg.waitForTimeout(1500);
   ok('Genel sorumlu mesajı gelen kutusunda görür', (await hg.evaluate(() => document.body.innerText)).includes('Ji bo berpirsê giştî'));
+  // 4) Kişisel silme: alıcı gelen mesajı siler → yalnız kendisinden gizlenir; gönderen de gönderdiğini siler
+  const delFirst = async (pg, subj) => { await pg.evaluate(() => { const b = [...document.querySelectorAll('.c-seg button,button')].find(x => /Gihîştî|Inbox/.test(x.textContent) && x.offsetParent); b && b.click(); }); await pg.waitForTimeout(300);
+    const n = await pg.evaluate(subj => { const row = [...document.querySelectorAll('.c-row')].find(r => r.textContent.includes(subj)); const b = row && row.querySelector('[data-msg-del]'); if (b) b.click(); return !!b; }, subj); await pg.waitForTimeout(1800); return n; };
+  ok('Alıcı öğretmen gelen mesajda silme düğmesini görür', await delFirst(tb, 'Ji bo hevalê beşê'));
+  ok('Silinen mesaj alıcının listesinden kalkar', !(await tb.evaluate(() => document.body.innerText)).includes('Ji bo hevalê beşê'));
+  ok('Belge herkes için silinmedi (gönderende duruyor)', !!(await msgs()).find(d => d.fields.subject && d.fields.subject.stringValue === 'Ji bo hevalê beşê'));
+  await ta.reload(); await ta.waitForTimeout(500);
+  const ta2 = await login('50202601', 'Tea12345', 430);
+  await goA(ta2, 'myclass').catch(() => {}); await ta2.evaluate(() => { const b = document.querySelector('[data-hub-tab="messages"]'); b && b.click(); }); await ta2.waitForTimeout(1500);
+  await ta2.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => /Şandî|Sent/.test(x.textContent) && x.offsetParent); b && b.click(); }); await ta2.waitForTimeout(400);
+  const sd = await ta2.evaluate(subj => { const row = [...document.querySelectorAll('.c-row')].find(r => r.textContent.includes(subj)); const b = row && row.querySelector('[data-msg-del]'); if (b) b.click(); return !!b; }, 'Ji bo berpirsê giştî'); await ta2.waitForTimeout(1800);
+  ok('Gönderen "Gönderilenler"de silme düğmesini görür ve siler', sd && !(await ta2.evaluate(() => document.body.innerText)).includes('Ji bo berpirsê giştî'));
+  await hg.reload(); const hg2 = await login('96000002', 'Head1234'); await goA(hg2, 'messages'); await hg2.waitForTimeout(1500);
+  ok('Gönderenin silmesi alıcıdaki mesajı etkilemez', (await hg2.evaluate(() => document.body.innerText)).includes('Ji bo berpirsê giştî'));
+  // 5) Duyuru: öğretmen aldığı duyuruyu kendi listesinden siler (belge durur, öbür öğretmen görmeye devam eder)
+  await put('announcements/ANN1', { title: 'Ragihandina Giştî', msg: 'Civîn sibê', senderRole: 'admin', senderName: 'Rêveber', targets: ['all'], createdAt: new Date() });
+  await tb.reload().catch(() => {}); const tb2 = await login('50202602', 'Tea12345', 430); await goA(tb2, 'announce'); await tb2.waitForTimeout(1500);
+  ok('Öğretmen gelen duyuruyu görür', (await tb2.evaluate(() => document.body.innerText)).includes('Ragihandina Giştî'));
+  await tb2.evaluate(() => document.querySelector('[data-ann-del]').click()); await tb2.waitForTimeout(1800);
+  ok('Silinen duyuru yalnız o öğretmenin listesinden kalkar', !(await tb2.evaluate(() => document.body.innerText)).includes('Ragihandina Giştî') && (await list('announcements')).some(d => d.name.endsWith('/ANN1')));
+  const ta3 = await login('50202601', 'Tea12345', 430); await goA(ta3, 'announce'); await ta3.waitForTimeout(1500);
+  ok('Diğer öğretmen duyuruyu görmeye devam eder', (await ta3.evaluate(() => document.body.innerText)).includes('Ragihandina Giştî'));
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);
 })().catch(e => { console.error('E2E HATA', e); process.exit(1); });
