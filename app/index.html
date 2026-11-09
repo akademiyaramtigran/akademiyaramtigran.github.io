@@ -730,7 +730,7 @@
     // Kişisel silme: belge herkes için silinmez, yalnız bu kullanıcının listesinden gizlenir
     async hideItem(kind, id) {
       const u = auth.currentUser; if(!u) throw new Error("no auth");
-      await setDoc(doc(db,"userHidden",u.uid), { [kind==="ann"?"anns":"msgs"]: arrayUnion(String(id)) }, { merge:true });
+      await setDoc(doc(db,"userHidden",u.uid), { [kind==="ann"?"anns":kind==="post"?"posts":"msgs"]: arrayUnion(String(id)) }, { merge:true });
     },
     // Yönetici / sorumlu gerçek siler; öğretmen ve öğrenci yalnız kendi listesinden gizler (başkasını etkilemez)
     async deleteMessage(fireId) {
@@ -741,6 +741,7 @@
       await this.hideItem("msg", fireId);
     },
     async deleteAnnouncementForMe(fireId) { await this.hideItem("ann", fireId); },
+    async deletePostForMe(fireId) { await this.hideItem("post", fireId); },
     // Belirli alana ait yoklama kayıtlarını dinle
     onAttendance(area, cb) {
       const q = query(collection(db,"attendance"), where("area","==",area), orderBy("date","desc"), limit(100));
@@ -9153,7 +9154,13 @@ function ClassPostsPanel({mode,teacher,student,students,lang,toast,classIds}){
     try{ await F.deleteDoc(F.doc(F.db,"classPosts",p.fireId)); }catch(e){ toast("❌ "+(e.code||e.message)); }
   }
   if(!live) return <Card><div style={{fontSize:13,color:"var(--text2)"}}>{W2("Firebase girêdayî nîne.","Firebase is not connected.")}</div></Card>;
-  const shown=posts.filter(p=>p.type!=="duyuru"&&(tf==="all"||p.type===tf)
+  // Öğrenci: silinen (kişisel gizlenen) sınıf paylaşımları
+  const [hidP,setHidP]=useState([]);
+  useEffect(()=>{ if(!live||mode!=="student") return; let u=()=>{};
+    try{ const uid=F.auth&&F.auth.currentUser&&F.auth.currentUser.uid; if(uid) u=F.onSnapshot(F.doc(F.db,"userHidden",uid),sn=>setHidP(((sn.exists()&&sn.data().posts)||[]).map(String)),()=>{}); }catch(_){}
+    return ()=>{ try{u();}catch(_){} }; },[live,mode]);
+  const delMine=async p=>{ if(!window.confirm(W2("Ev paylaşî were jêbirin?","Delete this post?"))) return; try{ await F.deletePostForMe(p.fireId); toast("🗑 "+W2("Hate jêbirin","Deleted")); }catch(e){ toast("❌ "+((e&&e.code)||e)); } };
+  const shown=posts.filter(p=>!hidP.includes(String(p.fireId))&&p.type!=="duyuru"&&(tf==="all"||p.type===tf)
     &&(mode==="teacher"||!(p.studentNos||[]).length||(student&&(p.studentNos||[]).map(String).includes(String(student.no)))));
   const filterRow=(
     <div style={{display:"flex",gap:6,flexWrap:"wrap",margin:"4px 0 10px"}}>
@@ -9170,7 +9177,7 @@ function ClassPostsPanel({mode,teacher,student,students,lang,toast,classIds}){
       </div>))}
       {filterRow}
       {shown.length===0&&<div style={{textAlign:"center",padding:28,fontSize:13,color:"var(--text2)"}}>{W2("Hîn tiştek nehatiye şandin.","Nothing posted yet.")}</div>}
-      {shown.map(p=><PostCard key={p.fireId} p={p} lang={lang} showClass={myClasses.length>1} classLabel={clsLabel}/>)}
+      {shown.map(p=><PostCard key={p.fireId} p={p} lang={lang} onDelete={delMine} showClass={myClasses.length>1} classLabel={clsLabel}/>)}
     </div>);
   return(
     <div>
@@ -12054,7 +12061,7 @@ function TeacherListReport({teachers,lockArea,lang,toast,byName}){
 function StudentAttendanceReport({students,schedule,allSchedule,teachers,allTeachers,docScope,headArea,from,to,lang,toast,byName}){
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   const F=window.__FB;
-  const [att,setAtt]=useState(null);
+  const [att0,setAtt]=useState(null); const att=useMemo(()=>att0&&canonAtt(att0,students),[att0,students]);
   useEffect(()=>{ if(!F||!F.isConfigured()){ setAtt([]); return; } let u=()=>{};
     try{ u=F.onSnapshot(F.query(F.collection(F.db,"attendance"),F.where("date",">=",from)),sn=>setAtt(sn.docs.map(d=>d.data())),()=>setAtt([])); }catch(_){ setAtt([]); }
     return ()=>{ try{u();}catch(_){} }; },[from]);
@@ -12138,6 +12145,7 @@ function StudentAttendanceReport({students,schedule,allSchedule,teachers,allTeac
         <TeacherLessonSelects tf={tf} lang={lang}/>
         {view==="student"&&<input value={q} onChange={e=>setQ(e.target.value)} placeholder={W2("Nav / jimareya xwendekar","Student name / no")} style={inputStyle}/>}
       </div>
+      {tf.teachObj&&tf.otherCount>0&&<div data-tl-other={tf.otherCount} style={{fontSize:11.5,color:"var(--text2)",marginTop:6}}>ℹ️ {tf.otherCount} {W2("dersên din ên vî/wê di raporeke din de ne (Atolye / beşeke din)","more lessons of this teacher are in another report (Workshop / another department)")}</div>}
       {tf.teachObj&&<div style={{fontSize:11.5,color:"var(--text2)",marginTop:6}}>👩‍🏫 {W2("Tenê dersên vî mamosteyî tên hesibandin","Only this teacher's lessons are counted")}: {tf.teachObj.name}{tf.lessonObj?" · "+tf.lessonObj.name:""}</div>}
     </Card>
     {att===null&&<div style={{textAlign:"center",padding:20,color:"var(--text2)"}}>⏳</div>}
@@ -12359,6 +12367,15 @@ function TeacherAttendanceReport({teachers,schedule,allTeachers,lang,toast,fromP
     </div>);
 }
 
+// Yoklama belgesindeki kayıt anahtarı öğrencinin belge kimliği (fireId) ise, öğrencinin id'sine çevirir
+// (öğrenci ekranı da iki anahtarı da tanır; raporda da kaybolmasın)
+function canonAtt(arr,students){
+  const al=new Map(); (students||[]).forEach(s=>{ if(s.fireId&&String(s.fireId)!==String(s.id)) al.set(String(s.fireId),String(s.id)); });
+  if(!al.size||!arr) return arr;
+  return arr.map(d=>{ if(!d||!d.records) return d; let ch=false; const r={};
+    Object.entries(d.records).forEach(([k,v])=>{ const k2=al.get(String(k)); if(k2&&!(k2 in d.records)){ r[k2]=v; ch=true; } else r[k]=v; });
+    return ch?{...d,records:r}:d; });
+}
 // Öğretmen süzgeci: öğretmen seçilince devam YALNIZ o öğretmenin derslerinin yoklamalarından hesaplanır
 // (isteğe bağlı tek ders). Öğrenci listesi = bu derslerin sınıf listeleri + bu derslerde kaydı olanlar.
 function useTeacherLessonFilter({students,teachers,schedule,allSchedule,allTeachers,clsDocs,docScope}){
@@ -12373,13 +12390,18 @@ function useTeacherLessonFilter({students,teachers,schedule,allSchedule,allTeach
   const [teachF,setTeachF0]=useState("all"); const [lessonF,setLessonF]=useState("all");
   const setTeachF=v=>{ setTeachF0(v); setLessonF("all"); };
   const teachObj=teachF==="all"?null:(options.find(t2=>String(t2.no)===String(teachF))||TCH.find(t2=>String(t2.no)===String(teachF))||null);
-  const tLessons=teachObj?SCH.filter(l=>String(l.teacherNo||"")===String(teachObj.no)).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""))):[];
+  // Yalnız bu raporun kapsamındaki dersler (bu bölümün programı ya da bu öğrencilerin sınıfı); atölye / başka bölüm dersleri öbür raporda
+  const scopedIds=new Set((schedule||[]).map(l=>String(l.id)));
+  const inScope=l=>scopedIds.has(String(l.id))||(()=>{ const d=l.classId&&(clsDocs||[]).find(x=>x.id===l.classId); return !!(d&&(d.studentNos||[]).some(n=>stNos.has(String(n)))); })();
+  const allT=teachObj?SCH.filter(l=>String(l.teacherNo||"")===String(teachObj.no)):[];
+  const otherCount=allT.filter(l=>!inScope(l)).length;
+  const tLessons=teachObj?allT.filter(inScope).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""))):[];
   const selLessons=lessonF==="all"?tLessons:tLessons.filter(l=>String(l.id)===String(lessonF));
   const lessonIds=new Set(selLessons.map(l=>String(l.id)));
   const lessonMode=!!teachObj&&tLessons.length>0;
   const docOk=d=>(!docScope||docScope.has(String(d.lessonId)))&&(!lessonMode||lessonIds.has(String(d.lessonId)));
   const lessonObj=lessonF==="all"?null:tLessons.find(l=>String(l.id)===String(lessonF))||null;
-  return {options,teachF,setTeachF,lessonF,setLessonF,teachObj,tLessons,selLessons,lessonIds,lessonMode,docOk,lessonObj};
+  return {options,teachF,setTeachF,lessonF,setLessonF,teachObj,tLessons,otherCount,selLessons,lessonIds,lessonMode,docOk,lessonObj};
 }
 function TeacherLessonSelects({tf,lang,days}){
   const W2=(ku,en)=>lang==="en"?en:K(ku);
@@ -13135,7 +13157,7 @@ const anTrend=(cur,prev,step)=>cur==null||prev==null?{ic:"➖",d:null}:(cur-prev
 function GeneralAnalysis({students,teachers,schedule,allSchedule,allTeachers,docScope,teachScope,headArea,noEvals,lang,toast,byName,initWho}){
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   const F=window.__FB; const live=!!(F&&F.isConfigured());
-  const [att,setAtt]=useState([]);
+  const [att0,setAtt]=useState([]); const att=useMemo(()=>canonAtt(att0,students),[att0,students]);
   const sEv=EV_NONE, tEv=EV_NONE;
   const efR=useEvalDocs("evalResponses","academy","aat",!noEvals);
   const clsDocs=useClassDocs("classes");
@@ -13526,7 +13548,7 @@ function StudentReportModal({student,lang,onClose}){
   useEffect(()=>{
     const F=window.__FB; if(!F||!F.isConfigured()){ setAtt([]); return; }
     let alive=true;
-    F.getDocs(F.query(F.collection(F.db,"attendance"),F.where("date",">=",eduYearStart()))).then(s=>{ if(alive) setAtt(s.docs.map(d=>d.data()).filter(d=>!d.teacherAbsent&&d.records&&d.records[student.id]!=null)); }).catch(()=>alive&&setAtt([]));
+    F.getDocs(F.query(F.collection(F.db,"attendance"),F.where("date",">=",eduYearStart()))).then(s=>{ if(alive) setAtt(canonAtt(s.docs.map(d=>d.data()),[student]).filter(d=>!d.teacherAbsent&&d.records&&d.records[student.id]!=null)); }).catch(()=>alive&&setAtt([]));
     return ()=>{ alive=false; };
   },[student.id,student.no]);
   const weeks=[]; let w=evalWeek(); for(let i=0;i<8;i++){ weeks.unshift(w); w=evalWeekShift(w,-1); }
@@ -15429,8 +15451,10 @@ function StudentAttView({student,lang,toast}){
   const todayL=ymdLocal(new Date());
   // Ders sürerken (kesinleşmemiş) "yok" geçicidir: öğretmen Kaydet'e basınca okutmayan herkes yok yazılır; öğrenci henüz okutuyor olabilir
   const eff=r=>(r.status==="off"&&!r.final&&String(r.date)>=todayL)?"wait":r.status;
-  const tl=attTally([{records:Object.fromEntries(list.filter(r=>eff(r)!=="wait").map((r,i)=>[i,r.status]))}])||{};
-  const tt=Object.values(tl)[0]||{totalLessons:0,attended:0,absent:0,late:0,att:0};
+  // Toplam: bütün dersler birlikte (izinli sayılmaz; geç gelen "hazır" sayılır)
+  const cs=list.map(eff).filter(x=>x==="on"||x==="late"||x==="off");
+  const tt={totalLessons:cs.length,attended:cs.filter(x=>x!=="off").length,absent:cs.filter(x=>x==="off").length,late:cs.filter(x=>x==="late").length,att:0};
+  tt.att=tt.totalLessons?Math.round(tt.attended/tt.totalLessons*100):0;
   const ST={on:["✅",W2("Hatî","Present"),"#12b76a"],late:["⏱",W2("Dereng hat","Late"),"#f79009"],off:["❌",W2("Nehat","Absent"),"#d92d20"],leave:["🏷",W2("Destûr","Excused"),"#667085"],wait:["⏳",W2("Ders berdewam e — amadebûn li bendê ye","Lesson in progress — attendance pending"),"#667085"]};
   async function send(r){
     const n=note.trim(); if(n.length<3){ toast("⚠ "+W2("Notek binivîse","Write a short note")); return; }
@@ -15528,7 +15552,12 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
         time:fmtDateTx(at.toISOString()),createdAt:at.toISOString()}; }))); }catch(_){}
     return ()=>{ try{u();}catch(_){} };
   },[myCidKey]);
-  const announcements=[...schoolAnns,...classAnns].sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
+  // Kişisel silinen sınıf duyuruları (cp_<id>): userHidden/{uid}.anns
+  const [hidAnn,setHidAnn]=useState([]);
+  useEffect(()=>{ const F=window.__FB; if(!F||!F.isConfigured()) return; let u=()=>{};
+    try{ const uid=F.auth&&F.auth.currentUser&&F.auth.currentUser.uid; if(uid) u=F.onSnapshot(F.doc(F.db,"userHidden",uid),sn=>setHidAnn(((sn.exists()&&sn.data().anns)||[]).map(String)),()=>{}); }catch(_){}
+    return ()=>{ try{u();}catch(_){} }; },[]);
+  const announcements=[...schoolAnns,...classAnns].filter(a=>!hidAnn.includes(String(a.fireId||a.id))).sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
   // Okunan duyurular cihazda saklanır (her girişte yeniden "okunmadı" görünmesin)
   const RK="aat-ann-read-s-"+String(student.no||student.id||"");
   const [readIds,setReadIdsRaw]=useState(()=>{ try{ return JSON.parse(localStorage.getItem(RK)||"[]"); }catch(_){ return []; } });

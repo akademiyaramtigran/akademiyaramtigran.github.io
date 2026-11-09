@@ -485,9 +485,10 @@ service cloud.firestore {
     match /userHidden/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
       allow create, update: if request.auth != null && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['msgs', 'anns'])
+        && request.resource.data.keys().hasOnly(['msgs', 'anns', 'posts'])
         && request.resource.data.get('msgs', []).size() <= 1000
-        && request.resource.data.get('anns', []).size() <= 1000;
+        && request.resource.data.get('anns', []).size() <= 1000
+        && request.resource.data.get('posts', []).size() <= 1000;
       allow delete: if request.auth != null && request.auth.uid == uid;
     }
     match /messages/{id} {
