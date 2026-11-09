@@ -791,6 +791,31 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
     await t('Yoklama: sorumlu (öğretmen olarak) belge kimliğini öğretmenle aynı serbestlikte yazar', setDoc(doc(hd, 'attendance/X-2026-10-26'), ga()), true);
     await t('Kart: sorumlu öğrenci kartını okutabilir', getDoc(doc(hd, 'cards/' + 'a'.repeat(32))), true);
   }
+  // Sorumlu → sınıf / sınıftan öğrenciler: mesaj + sınıf duyurusu (yalnız kendi bölümünün sınıfı)
+  await env.withSecurityRulesDisabled(async c => { const db = c.firestore();
+    await setDoc(doc(db, 'classes/HC1'), { kind: 'area', area: 'tiyatro', name: '1. Sınıf', studentNos: ['10202601'] });
+    await setDoc(doc(db, 'classes/HC2'), { kind: 'area', area: 'muzik', name: 'Müzik 1', studentNos: ['10202602'] }); });
+  const hdc = as('96202601@ogretmen.aat');
+  const hm = (cls, no, o) => ({ fromType: 'head', senderNo: '96202601', senderId: 'h_96202601', recipientNo: no, recipientGroup: null, classId: cls, subject: 's', body: 'b', ...(o || {}) });
+  await t('Sorumlu kendi sınıfının öğrencisine mesaj yazar', addDoc(collection(hdc, 'messages'), hm('HC1', '10202601')), true);
+  await t('Sorumlu başka bölümün sınıfındaki öğrenciye YAZAMAZ', addDoc(collection(hdc, 'messages'), hm('HC2', '10202602')), false);
+  await t('Sorumlu sınıfta olmayan öğrenciye (sınıf kimliği kendi sınıfı olsa da) YAZAMAZ', addDoc(collection(hdc, 'messages'), hm('HC1', '10202602')), false);
+  await t('Sorumlu sınıf kimliği olmadan öğrenciye YAZAMAZ', addDoc(collection(hdc, 'messages'), hm(null, '10202601')), false);
+  await t('Sorumlu başkası adına (senderNo) YAZAMAZ', addDoc(collection(hdc, 'messages'), hm('HC1', '10202601', { senderNo: '1000' })), false);
+  const cpost = cls => ({ classId: cls, area: 'tiyatro', className: 'x', type: 'duyuru', title: 'D', body: 'b', priv: false, teacherNo: '96202601', teacherName: 'Berpirs' });
+  await t('Sorumlu kendi bölümünün sınıfına duyuru yazar', addDoc(collection(hdc, 'classPosts'), cpost('HC1')), true);
+  await t('Sorumlu başka bölümün sınıfına duyuru YAZAMAZ', addDoc(collection(hdc, 'classPosts'), cpost('HC2')), false);
+  await t('Sorumlu başkası adına (teacherNo) sınıf duyurusu YAZAMAZ', addDoc(collection(hdc, 'classPosts'), { ...cpost('HC1'), teacherNo: '1000' }), false);
+  // Çocuk akademisi sorumlusu → kendi bölümünün sınıfına duyuru / ödev / belge
+  await env.withSecurityRulesDisabled(async c => { const db = c.firestore();
+    await setDoc(doc(db, 'kidClasses/KHC1'), { kind: 'area', area: 'drama', name: 'D1', studentNos: ['82026003'] });
+    await setDoc(doc(db, 'kidClasses/KHC2'), { kind: 'area', area: 'ziman', name: 'Z1', studentNos: [] }); });
+  const khd = as('96202603@ogretmen.aat');
+  const kcp = (cls, o) => ({ classId: cls, className: 'x', type: 'odev', title: 'T', body: 'b', teacherNo: '96202603', teacherName: 'KB', ...(o || {}) });
+  await t('Çocuk sorumlusu kendi bölümünün sınıfına ödev yazar', addDoc(collection(khd, 'kidClassPosts'), kcp('KHC1')), true);
+  await t('Çocuk sorumlusu seçilen çocuklara belge yazar', addDoc(collection(khd, 'kidClassPosts'), kcp('KHC1', { type: 'belge', studentNos: ['82026003'], priv: true })), true);
+  await t('Çocuk sorumlusu başka bölümün sınıfına YAZAMAZ', addDoc(collection(khd, 'kidClassPosts'), kcp('KHC2')), false);
+  await t('Çocuk sorumlusu başkası adına (teacherNo) YAZAMAZ', addDoc(collection(khd, 'kidClassPosts'), kcp('KHC1', { teacherNo: '1000' })), false);
   // Kişisel silme (userHidden): herkes yalnız KENDİ gizleme listesini yazar/okur
   await t('Gizleme: öğretmen kendi listesine yazar', setDoc(doc(teacher, 'userHidden/uid-11202601@ogretmen.aat'), { msgs: ['M1'], anns: ['AH1'] }), true);
   await t('Gizleme: öğrenci kendi listesine yazar', setDoc(doc(student, 'userHidden/uid-10202601@ogrenci.aat'), { anns: ['AH1'] }), true);

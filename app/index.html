@@ -7804,7 +7804,7 @@ function HeadGuestAttendance({user,students,schedule,lang,toast}){
 function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onSettings,onDataChange,onTeachMode}){
   const [menuOpen,setMenuOpen]=useState(isPhoneNow);
   const [tab,setTab]=useState("announce");
-  const [lvWs,setLvWs]=useState(false); const W2h=(ku,en)=>lang==="en"?en:K(ku);
+  const [lvWs,setLvWs]=useState(false); const [annMode,setAnnMode]=useState("dept"); const W2h=(ku,en)=>lang==="en"?en:K(ku);
   const [msgs,setMsgs]=useState([]);
   const area=user.area||"";
   // Her sorumlu yalnız KENDİ alanını görür (genel sorumlu: genel dersler + bu derslerin öğrencileri)
@@ -7856,8 +7856,11 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
         extraItems={[...(onTeachMode?[{icon:"👨‍🏫",label:lang==="en"?"Teacher panel (my lessons)":K("Panela Mamoste (dersên min)"),onClick:onTeachMode,attrs:{"data-role-switch":"teacher"}}]:[]),...(onSettings?[{icon:"⚙️",label:t.settings||"Mîheng",onClick:onSettings}]:[]),{icon:"↩",label:t.logout||"Derkeve",onClick:onLogout,danger:true}]}/>
       <SpecialPanelHeader user={user} icon="🎓" lang={lang} onLogout={onLogout} onMenu={()=>setMenuOpen(true)} roleLabel={roleLabel}/>
       <div className="scroll-area" style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
-        {tab==="announce"&&<AnnouncementsPanel t={t} toast={toast} lang={lang} senderName={user.name} senderRole="head" senderArea={area} senderNo={myNo}/>}
-        {tab==="messages"&&<HeadMessagesPanel user={user} inbox={inbox} sent={sent} teachers={aTeachers.filter(x=>String(x.no)!==myNo)} lang={lang} t={t} toast={toast}/>}
+        {tab==="announce"&&<>
+          <div className="c-chips" style={{marginBottom:12}}>
+            {[["dept",W2h("Duyuruya beşê","Department announcement")],["cls",W2h("Duyuruya sinifan","Class announcement")]].map(([k,l])=><button key={k} type="button" data-ann-mode={k} className={"c-chip"+(annMode===k?" on":"")} onClick={()=>setAnnMode(k)}>{l}</button>)}</div>
+          {annMode==="cls"?<HeadClassAnnounce user={user} lang={lang} toast={toast}/>:<AnnouncementsPanel t={t} toast={toast} lang={lang} senderName={user.name} senderRole="head" senderArea={area} senderNo={myNo}/>}</>}
+        {tab==="messages"&&<HeadMessagesPanel user={user} inbox={inbox} sent={sent} students={students||[]} teachers={aTeachers.filter(x=>String(x.no)!==myNo)} lang={lang} t={t} toast={toast}/>}
         {tab==="alerts"&&<AlertCenter data={alertData} user={user} lang={lang} toast={toast} fixCtx={GEN?null:{students:aStudents,schedule:schedule||[]}}/>}
         {tab==="evalforms"&&<EvalFormsPanel user={user} academy="aat" area={area} teachers={teachers||[]} lang={lang} toast={toast}/>}
         {tab==="gatt"&&<HeadGuestAttendance user={user} students={aStudents} schedule={aSchedule} lang={lang} toast={toast}/>}
@@ -7910,6 +7913,7 @@ function KidHeadPanel({user,t,lang,toast,onLogout,onSettings,onDataChange}){
     {key:"messages",label:lang==="en"?"Messages":K("Peyam"),badge:unread},
     {key:"alerts",label:lang==="en"?"Alerts":K("Hişyarî"),badge:alertData.open},
     {key:"classes",label:lang==="en"?"Classes":K("Sinif")},
+    {key:"classsend",label:lang==="en"?"Class · Announcement · Homework":K("Sinif · Ragihandin · Erk")},
     {key:"schedule",label:lang==="en"?"Lesson schedule":K("Bernameya Dersan")},
     {key:"leaves",label:lang==="en"?"Student leave":K("Destûra Xwendekaran")},
     {key:"evalforms",label:lang==="en"?"Evaluation forms":K("Formên nirxandinê")},
@@ -7943,6 +7947,7 @@ function KidHeadPanel({user,t,lang,toast,onLogout,onSettings,onDataChange}){
       <SpecialPanelHeader user={user} icon="🎼" lang={lang} onLogout={onLogout} onMenu={()=>setMenuOpen(true)} roleLabel={roleLabel}/>
       <div className="scroll-area" style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
         {tab==="classes"&&<KidHeadClasses area={area} user={user} lang={lang} toast={toast}/>}
+        {tab==="classsend"&&<KidHeadClassSend area={area} user={user} kids={kids} guards={guards} lang={lang} toast={toast}/>}
         {tab==="schedule"&&<KidHeadSchedule area={area} user={user} lang={lang} toast={toast}/>}
         {tab==="leaves"&&<LeavesPanel user={user} students={kids.map(k=>({id:k.fireId,no:k.no,name:k.name,area:k.area}))} area={area} kid={true} lang={lang} toast={toast}/>}
         {tab==="announce"&&(<div>
@@ -8002,11 +8007,21 @@ function KidHeadPanel({user,t,lang,toast,onLogout,onSettings,onDataChange}){
   );
 }
 
-function HeadMessagesPanel({user,inbox,sent,teachers,lang,t,toast}){
+// Sorumlunun sınıfları: bölüm sorumlusu kendi bölümünün (atölye dahil) açık sınıfları; genel sorumlu genel sınıflar
+function useHeadClasses(user){
+  const docs=useClassDocs("classes");
+  return docs.filter(d=>d.kind&&d.status!=="closed"&&(user.area==="genel"?d.kind==="general":(d.kind==="area"&&d.area===user.area))).sort((a,b)=>classLabel(a,"ku").localeCompare(classLabel(b,"ku")));
+}
+function HeadMessagesPanel({user,inbox,sent,students,teachers,lang,t,toast}){
   const W=(ku,en)=>lang==="en"?en:K(ku);
+  const myCls=useHeadClasses(user);
+  const [whom,setWhom]=useState("all"); const [pick,setPick]=useState({});
+
   const [mode,setMode]=useState("inbox");
   const [open,setOpen]=useState(null);
   const [to,setTo]=useState("admin");
+  const clsObj=String(to).startsWith("cls_")?myCls.find(d=>"cls_"+d.id===to):null;
+  const roster=clsObj?(students||[]).filter(s=>!s.isAdmin&&inClass(clsObj,s.no)).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""))):[];
   const [subject,setSubject]=useState("");
   const [body,setBody]=useState("");
   const [files,setFiles]=useState([]);
@@ -8030,9 +8045,25 @@ function HeadMessagesPanel({user,inbox,sent,teachers,lang,t,toast}){
   async function send(){
     if(att.busy){ toast("⏳ "+W("Li benda barkirinê bimîne","Wait for the upload to finish")); return; }
     if(!subject.trim()||!body.trim()){ toast("⚠ "+W("Sernav û peyam pêwîst in","Subject and message are required")); return; }
-    const tc=to==="admin"?null:(teachers||[]).find(x=>"t_"+x.id===to);
-    if(to!=="admin"&&!tc){ toast(W("⚠ Wergir hilbijêre","⚠ Select recipient")); return; }
+    const tc=to==="admin"||clsObj?null:(teachers||[]).find(x=>"t_"+x.id===to);
+    if(to!=="admin"&&!tc&&!clsObj){ toast(W("⚠ Wergir hilbijêre","⚠ Select recipient")); return; }
     const now=new Date();
+    // Sınıfa / sınıftan seçilen öğrencilere: her öğrenciye kendi numarasıyla ayrı kayıt
+    if(clsObj){
+      const targets=whom==="all"?roster:roster.filter(x=>pick[String(x.no)]);
+      if(!targets.length){ toast("⚠ "+W("Xwendekarek hilbijêre","Choose at least one student")); return; }
+      const bulkId="hb_"+myNo+"_"+Date.now(), lbl=classLabel(clsObj,lang)+(whom==="all"?"":" ("+targets.length+")");
+      setBusy(true); let fail=0;
+      for(const st of targets){
+        try{ await fbSave("message",{id:bulkId+"_"+st.id,bulkId,from:user.name,fromType:"head",fromId:user.id,senderId:"h_"+myNo,senderNo:myNo,to:lbl,type:targets.length>1?"bulk":"private",
+          subject:subject.trim(),body:body.trim(),time:ymdLocal(now)+" "+String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0"),
+          read:false,recipientId:"s_"+st.id,recipientNo:String(st.no),recipientGroup:null,classId:clsObj.id,area:user.area||"",isStudentFeedback:false,
+          attachments:files.map(f=>({name:f.name,size:f.size,type:f.type,url:f.url,preview:f.preview}))}); }catch(e){ fail++; } }
+      setBusy(false);
+      if(fail){ toast("⚠ "+W("Hin peyam nehatin şandin","Some messages could not be sent")+" ("+fail+")",6000); }
+      else toast("✅ "+W("Peyam hat şandin","Message sent")+" → "+targets.length);
+      setSubject(""); setBody(""); setFiles([]); setPick({}); setWhom("all"); setMode("sent"); return;
+    }
     const msg={id:Date.now(),from:user.name,fromType:"head",fromId:user.id,senderId:"h_"+myNo,senderNo:myNo,
       to:tc?tc.name:W("Rêveber","Admin"),type:"private",subject:subject.trim(),body:body.trim(),
       time:ymdLocal(now)+" "+String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0"),
@@ -8044,7 +8075,9 @@ function HeadMessagesPanel({user,inbox,sent,teachers,lang,t,toast}){
     setBusy(false);
   }
   const fmt=m=>m.time||(m.createdAt&&m.createdAt.seconds?new Date(m.createdAt.seconds*1000).toLocaleString():"");
-  const list=mode==="inbox"?inbox:sent;
+  // Sınıfa toplu mesaj öğrenci başına ayrı kayıttır: Gönderilen'de tek satır; silince hepsi kalkar
+  const sentU=(sent||[]).filter((m,i,a)=>!m.bulkId||a.findIndex(x=>x.bulkId===m.bulkId)===i);
+  const list=mode==="inbox"?inbox:sentU;
   const unreadN=inbox.filter(m=>!m.read).length;
   return(
     <div>
@@ -8052,17 +8085,30 @@ function HeadMessagesPanel({user,inbox,sent,teachers,lang,t,toast}){
         <Seg value={mode} onChange={k=>{setMode(k);setOpen(null);}} items={[
           ["inbox",<>{W("Gihîştî","Inbox")}{unreadN>0&&<span className="c-badge" style={{marginLeft:6}}>{unreadN}</span>}</>,"inbox"],
           ["sent",W("Şandî","Sent"),"send"],
-          ["compose",W("Peyamek Nû","New Message"),"edit"]]}/>
+          ["compose",W("Peyamek Nû","New Message"),"edit"],
+          ["posts",W("Erk û Belge","Homework & Docs"),"book"]]}/>
       </div>
-      {mode==="compose"?(
+      {mode==="posts"?(
+        <div data-head-posts="1"><ClassPostsPanel mode="teacher" teacher={{no:myNo,name:user.name}} students={students||[]} classIds={myCls.map(d=>d.id)} lang={lang} toast={toast}/></div>
+      ):mode==="compose"?(
         <Card>
-          <Note style={{marginBottom:16}}>{W("Ji xwendekaran re tenê ragihandin tê şandin. Peyam ji rêveber û mamosteyên beşê re ye.","Students receive announcements only. Messages go to the admin and the department's teachers.")}</Note>
+          <Note style={{marginBottom:16}}>{W("Peyam dikare ji rêveber, mamosteyên beşê, sinifek an xwendekarên taybet re were şandin.","You can message the admin, the department's teachers, a class or selected students.")}</Note>
           <FieldWrap label={W("Bo","To")}>
             <select style={selectStyle} value={to} onChange={e=>setTo(e.target.value)} data-head-to="1">
               <option value="admin">{W("Rêveber","Admin")}</option>
               {(teachers||[]).map(tc=><option key={tc.id} value={"t_"+tc.id}>{tc.name}</option>)}
+              {myCls.length>0&&<optgroup label={W("Sinif (xwendekar)","Class (students)")}>{myCls.map(d=><option key={d.id} value={"cls_"+d.id}>🏫 {classLabel(d,lang)} · {(d.studentNos||[]).length}</option>)}</optgroup>}
             </select>
           </FieldWrap>
+          {clsObj&&<div data-head-cls="1" style={{marginBottom:12}}>
+            <div className="c-chips">
+              <button type="button" data-hw="all" className={"c-chip"+(whom==="all"?" on":"")} onClick={()=>setWhom("all")}>{W("Hemû sinif","Whole class")} ({roster.length})</button>
+              <button type="button" data-hw="pick" className={"c-chip"+(whom==="pick"?" on":"")} onClick={()=>setWhom("pick")}>{W("Xwendekarên taybet","Selected students")}</button></div>
+            {whom==="pick"&&<div style={{maxHeight:220,overflowY:"auto",border:"1px solid var(--border2)",borderRadius:10,padding:"4px 8px",marginTop:8}}>
+              {roster.map(s2=>(<label key={s2.no} data-hpick={s2.no} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 2px",fontSize:13,color:"var(--text)",cursor:"pointer"}}>
+                <input type="checkbox" checked={!!pick[String(s2.no)]} onChange={e=>{const v=e.target.checked;setPick(x=>({...x,[String(s2.no)]:v}));}}/>{s2.name} <span style={{fontSize:11.5,color:"var(--text2)"}}>#{s2.no}</span></label>))}
+              {roster.length===0&&<div style={{fontSize:12.5,color:"var(--text2)",padding:6}}>{W("Di vê sinifê de xwendekar tune.","No students in this class.")}</div>}</div>}
+          </div>}
           <FieldWrap label={W("Sernav","Subject")}><input style={inputStyle} value={subject} onChange={e=>setSubject(e.target.value)} id="hm-subject" placeholder={W("Sernav","Subject")}/></FieldWrap>
           <FieldWrap label={W("Peyam","Message")}><textarea style={{...inputStyle,minHeight:120,resize:"vertical",lineHeight:1.55}} value={body} onChange={e=>setBody(e.target.value)} id="hm-body" placeholder={W("Peyama xwe binivîse…","Write your message…")}/></FieldWrap>
           <input ref={fileRef} type="file" multiple accept={ATT_ACCEPT} style={{display:"none"}} onChange={att.onChange}/>
@@ -8100,7 +8146,7 @@ function HeadMessagesPanel({user,inbox,sent,teachers,lang,t,toast}){
                       <a key={i} href={safeHref(a.url)} download={a.name} rel="noopener" className="c-file" style={{textDecoration:"none"}}>
                         <Ico n={a.type==="image"?"file":"file"} size={18}/><span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.name}</span><Ico n="download" size={16}/></a>
                     ))}</div>}
-                  <button type="button" data-msg-del={m.fireId} onClick={async()=>{ if(!window.confirm(W("Ev peyam were jêbirin?","Delete this message?"))) return; try{ await window.__FB.deleteMessage(m.fireId); setOpen(null); toast("🗑 "+W("Peyam hat jêbirin","Message deleted")); }catch(e){ toast("❌ "+(e.code||e.message)); } }} style={{marginTop:12,padding:"8px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--red)",fontWeight:700,fontSize:12.5,cursor:"pointer"}}>🗑 {W("Jê bibe","Delete")}</button>
+                  <button type="button" data-msg-del={m.fireId} onClick={async()=>{ if(!window.confirm(W("Ev peyam were jêbirin?","Delete this message?"))) return; try{ const ids=m.bulkId?(sent||[]).filter(x=>x.bulkId===m.bulkId).map(x=>x.fireId).filter(Boolean):[m.fireId]; for(const id of ids) await window.__FB.deleteMessage(id); setOpen(null); toast("🗑 "+W("Peyam hat jêbirin","Message deleted")); }catch(e){ toast("❌ "+(e.code||e.message)); } }} style={{marginTop:12,padding:"8px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--red)",fontWeight:700,fontSize:12.5,cursor:"pointer"}}>🗑 {W("Jê bibe","Delete")}</button>
                   {mode==="inbox"&&m.fromType==="student"&&(m.fromNo&&!m.anonymous?(
                     <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:8}}>
                       <textarea style={{...inputStyle,minHeight:80,resize:"vertical"}} value={reply} onChange={e=>setReply(e.target.value)} placeholder={W("Bersiva xwe binivîse…","Write your reply…")} id="hm-reply"/>
@@ -8644,6 +8690,79 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
 
 // Çocuk akademisi: kidClasses + kidSchedule (classId) + kidAttendance ("in" kaydı = geldi)
 // Çocuk akademisi bölüm sorumlusu: KENDİ bölümünün sınıflarını açar / sınıf öğretmeni atar (Öğrenci İşleri sınıf yönetmez)
+// Çocuk akademisi sorumlusu: sınıflara / sınıftan seçilen çocuklara duyuru, ödev, belge ve velilere mesaj
+function KidHeadClassSend({area,user,kids,guards,lang,toast}){
+  const W=(ku,en)=>lang==="en"?en:K(ku);
+  const F=window.__FB; const no=String(user.no||"");
+  const docs=useClassDocs("kidClasses");
+  const myCls=docs.filter(d=>d.kind==="area"&&d.area===area&&d.status!=="closed").sort((a,b)=>classLabel(a,"ku").localeCompare(classLabel(b,"ku")));
+  const [kind,setKind]=useState("duyuru"); // duyuru | odev | belge | msg
+  const [sel,setSel]=useState({}); const [whom,setWhom]=useState("all"); const [pick,setPick]=useState({});
+  const [title,setTitle]=useState(""); const [body,setBody]=useState(""); const [due,setDue]=useState(""); const [files,setFiles]=useState([]); const [busy,setBusy]=useState(false);
+  const att=useAttachUpload(setFiles,toast,lang); const fileRef=useRef();
+  const picked=myCls.filter(d=>sel[d.id]);
+  const oneCls=picked.length===1?picked[0]:null;
+  const roster=oneCls?(kids||[]).filter(k=>inClass(oneCls,k.no)).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""))):[];
+  const [sentL,setSentL]=useState([]);
+  useEffect(()=>{ if(!F||!F.isConfigured()||!no) return; let u=()=>{};
+    try{ u=F.onSnapshot(F.query(F.collection(F.db,"kidClassPosts"),F.where("teacherNo","==",no)),sn=>setSentL(sn.docs.map(d=>({...d.data(),fireId:d.id})).sort((x,y)=>((y.createdAt&&y.createdAt.seconds)||9e9)-((x.createdAt&&x.createdAt.seconds)||9e9))),()=>{}); }catch(_){}
+    return ()=>{ try{u();}catch(_){} }; },[no]);
+  async function send(){
+    if(att.busy){ toast("⏳ "+W("Li benda barkirinê bimîne","Wait for the upload to finish")); return; }
+    if(!picked.length){ toast("⚠ "+W("Sinifekê hilbijêre","Choose a class")); return; }
+    if(!title.trim()||(kind==="msg"&&!body.trim())){ toast("⚠ "+W("Sernav û peyam pêwîst in","Subject and message are required")); return; }
+    const chosen=oneCls&&whom==="pick"?roster.filter(k=>pick[String(k.no)]):null;
+    if(chosen&&!chosen.length){ toast("⚠ "+W("Zarokek hilbijêre","Choose at least one child")); return; }
+    setBusy(true);
+    try{
+      if(kind==="msg"){
+        const target=chosen||picked.flatMap(d=>(kids||[]).filter(k=>inClass(d,k.no)));
+        const gs=[...new Set(target.flatMap(k=>(k.guardianNos||[]).map(String)))];
+        if(!gs.length){ toast("⚠ "+W("Di vê hilbijartinê de dêûbav tune","No parents in this selection")); setBusy(false); return; }
+        const text=(title.trim()+"\n"+body.trim()).slice(0,1000);
+        for(const g of gs){ const gd=(guards||[]).find(x=>String(x.no)===g); await F.addDoc(F.collection(F.db,"kidMessages"),{guardianNo:g,guardianName:(gd&&gd.name)||"",text,from:"staff",by:user.name||"",byNo:no,read:false,createdAt:F.serverTimestamp()}); }
+        toast("✅ "+W("Peyam ji dêûbavan re çû","Message sent to parents")+" → "+gs.length);
+      } else {
+        for(const d of picked){
+          await F.addDoc(F.collection(F.db,"kidClassPosts"),{classId:d.id,className:String(classLabel(d,"ku")||"").slice(0,80),type:kind,title:title.trim().slice(0,140),body:body.trim().slice(0,3000),
+            due:kind==="odev"?due:"",files:files.map(f=>({name:f.name,size:f.size,type:f.type,url:f.url})),teacherNo:no,teacherName:user.name||"",
+            ...(chosen?{studentNos:chosen.map(k=>String(k.no)),priv:true}:{}),createdAt:F.serverTimestamp()}); }
+        toast("✅ "+title.trim()+" → "+picked.length+" "+W("sinif","class(es)"));
+      }
+      setTitle(""); setBody(""); setDue(""); setFiles([]); setSel({}); setPick({}); setWhom("all");
+    }catch(e){ toast("❌ "+(/permission/i.test(String(e&&e.code))?W("Tenê ji sinifên beşa xwe re","Only to your department's classes"):((e&&e.code)||e))); }
+    setBusy(false);
+  }
+  async function del(p){ if(!window.confirm(W("Were jêbirin?","Delete?"))) return; try{ await F.deleteDoc(F.doc(F.db,"kidClassPosts",p.fireId)); }catch(e){ toast("❌ "+((e&&e.code)||e)); } }
+  const KINDS=[["duyuru",W("Ragihandin","Announcement"),"📢"],["odev",W("Erk","Homework"),"📝"],["belge",W("Belge","Document"),"📎"],["msg",W("Peyam ji dêûbavan re","Message to parents"),"💬"]];
+  return(<div data-kid-head-send="1">
+    <Card>
+      <div className="c-chips" style={{marginBottom:12}}>{KINDS.map(([k,l,ic])=><button key={k} type="button" data-ks-kind={k} className={"c-chip"+(kind===k?" on":"")} onClick={()=>setKind(k)}>{ic} {l}</button>)}</div>
+      <FieldWrap label={W("Sinif","Classes")}>
+        {myCls.length===0?<div style={{fontSize:14,color:"var(--text2)"}}>{W("Hîn sinif tune.","No classes yet.")}</div>:
+        <div className="c-chips">{myCls.map(d=><button key={d.id} type="button" data-ks-class={d.id} aria-pressed={!!sel[d.id]} className={"c-chip"+(sel[d.id]?" on":"")} onClick={()=>setSel(x=>({...x,[d.id]:!x[d.id]}))}>{sel[d.id]?"✓ ":""}{classLabel(d,lang)} · {(d.studentNos||[]).length}</button>)}</div>}
+      </FieldWrap>
+      {oneCls&&<div data-ks-whom="1" style={{marginBottom:12}}>
+        <div className="c-chips"><button type="button" data-ks-w="all" className={"c-chip"+(whom==="all"?" on":"")} onClick={()=>setWhom("all")}>{W("Hemû sinif","Whole class")} ({roster.length})</button>
+          <button type="button" data-ks-w="pick" className={"c-chip"+(whom==="pick"?" on":"")} onClick={()=>setWhom("pick")}>{W("Zarokên taybet","Selected children")}</button></div>
+        {whom==="pick"&&<div style={{maxHeight:220,overflowY:"auto",border:"1px solid var(--border2)",borderRadius:10,padding:"4px 8px",marginTop:8}}>
+          {roster.map(k=>(<label key={k.no} data-ks-pick={k.no} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 2px",fontSize:13,color:"var(--text)",cursor:"pointer"}}>
+            <input type="checkbox" checked={!!pick[String(k.no)]} onChange={e=>{const v=e.target.checked;setPick(x=>({...x,[String(k.no)]:v}));}}/>{k.name} <span style={{fontSize:11.5,color:"var(--text2)"}}>#{k.no}</span></label>))}</div>}
+      </div>}
+      <FieldWrap label={W("Sernav","Title")}><input style={inputStyle} value={title} maxLength={140} onChange={e=>setTitle(e.target.value)} id="ks-title"/></FieldWrap>
+      <FieldWrap label={W("Peyam","Message")}><textarea style={{...inputStyle,minHeight:100,resize:"vertical"}} value={body} maxLength={kind==="msg"?900:3000} onChange={e=>setBody(e.target.value)} id="ks-body"/></FieldWrap>
+      {kind==="odev"&&<FieldWrap label={W("Roja dawî","Due date")}><DateInput style={inputStyle} value={due} onChange={e=>setDue(e.target.value)}/></FieldWrap>}
+      {kind!=="msg"&&kind!=="duyuru"&&<div style={{marginBottom:12}} data-ks-attach="1">
+        <AttachBox lang={lang} label={W("Pel zêde bike","Attach file")} files={files} busy={att.busy} onPick={()=>fileRef.current&&fileRef.current.click()} onRemove={id=>setFiles(x=>x.filter(f=>f.id!==id))}/>
+        <input ref={fileRef} type="file" multiple accept={ATT_ACCEPT} style={{display:"none"}} onChange={att.onChange}/></div>}
+      <PBtn onClick={send} disabled={busy} icon="send">{busy?"…":W("Bişîne","Send")}</PBtn>
+    </Card>
+    <div style={{fontWeight:800,color:"var(--text)",margin:"14px 0 6px"}}>📋 {W("Yên min şandî","Sent by me")} ({sentL.length})</div>
+    {sentL.map(p=>(<div key={p.fireId} data-ks-sent={p.fireId} className="card" style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+      <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,color:"var(--text)"}}>{(KINDS.find(x=>x[0]===p.type)||[,,"📢"])[2]} {p.title}</div><div style={{fontSize:12.5,color:"var(--text2)"}}>🏫 {p.className}{(p.studentNos||[]).length?" · "+p.studentNos.length+" "+W("zarok","children"):""}</div></div>
+      <button type="button" className="c-iconbtn sm danger" aria-label="🗑" onClick={()=>del(p)}><Ico n="trash" size={17}/></button></div>))}
+  </div>);
+}
 function KidHeadClasses({area,user,lang,toast}){
   const F=window.__FB; const live=!!(F&&F.isConfigured());
   const [kids,setKids]=useState([]), [kteach,setKteach]=useState([]), [sched,setSched]=useState([]);
@@ -10458,6 +10577,47 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
       )}
     </div>
   );
+}
+
+/* ─── Sorumlu: sınıflara duyuru (classPosts type "duyuru"; öğrenci yalnız kendi sınıfının duyurusunu görür) ── */
+function HeadClassAnnounce({user,lang,toast}){
+  const W=(ku,en)=>lang==="en"?en:K(ku);
+  const F=window.__FB; const myCls=useHeadClasses(user);
+  const [sel,setSel]=useState({}); const [title,setTitle]=useState(""); const [msg,setMsg]=useState(""); const [busy,setBusy]=useState(false);
+  const [sentL,setSentL]=useState([]);
+  const no=String(user.no||"");
+  useEffect(()=>{ if(!F||!F.isConfigured()||!no) return; let u=()=>{};
+    try{ u=F.onSnapshot(F.query(F.collection(F.db,"classPosts"),F.where("teacherNo","==",no)),sn=>setSentL(sn.docs.map(d=>({...d.data(),fireId:d.id})).filter(p=>p.type==="duyuru").sort((x,y)=>((y.createdAt&&y.createdAt.seconds)||9e9)-((x.createdAt&&x.createdAt.seconds)||9e9))),()=>{}); }catch(_){}
+    return ()=>{ try{u();}catch(_){} }; },[no]);
+  async function send(){
+    const targets=myCls.filter(d=>sel[d.id]);
+    if(!targets.length){ toast("⚠ "+W("Sinifekê hilbijêre","Choose a class")); return; }
+    if(!title.trim()||!msg.trim()){ toast("⚠ "+W("Sernav û peyam pêwîst in","Subject and message are required")); return; }
+    setBusy(true);
+    try{ for(const d of targets){
+        await F.addDoc(F.collection(F.db,"classPosts"),{classId:d.id,area:d.area||user.area||"genel",className:String(classLabel(d,"ku")||"").slice(0,80),type:"duyuru",
+          title:title.trim().slice(0,140),body:msg.trim().slice(0,3000),due:"",files:[],priv:false,teacherNo:no,teacherName:user.name||"",createdAt:F.serverTimestamp()}); }
+      toast("✅ "+title.trim()+" → "+targets.length+" "+W("sinif","class(es)")); setTitle(""); setMsg(""); setSel({});
+    }catch(e){ toast("❌ "+(/permission/i.test(String(e&&e.code))?W("Tenê ji sinifên beşa xwe re","Only to your department's classes"):((e&&e.code)||e))); }
+    setBusy(false);
+  }
+  async function del(p){ if(!window.confirm(W("Were jêbirin?","Delete?"))) return; try{ await F.deleteDoc(F.doc(F.db,"classPosts",p.fireId)); }catch(e){ toast("❌ "+((e&&e.code)||e)); } }
+  return(<div data-head-class-ann="1">
+    <Card>
+      <Note style={{marginBottom:12}} icon="ann">{W("Duyuru tenê digihîje xwendekarên sinifên ku hilbijêrî.","The announcement reaches only the students of the classes you choose.")}</Note>
+      <FieldWrap label={W("Sinif","Classes")}>
+        {myCls.length===0?<div style={{fontSize:14,color:"var(--text2)"}}>{W("Hîn sinif tune.","No classes yet.")}</div>:
+        <div className="c-chips">{myCls.map(d=><button key={d.id} type="button" data-hann-class={d.id} aria-pressed={!!sel[d.id]} className={"c-chip"+(sel[d.id]?" on":"")} onClick={()=>setSel(x=>({...x,[d.id]:!x[d.id]}))}>{sel[d.id]?"✓ ":""}{classLabel(d,lang)} · {(d.studentNos||[]).length}</button>)}</div>}
+      </FieldWrap>
+      <FieldWrap label={W("Sernav","Title")}><input style={inputStyle} value={title} maxLength={140} onChange={e=>setTitle(e.target.value)} id="hca-title"/></FieldWrap>
+      <FieldWrap label={W("Peyam","Message")}><textarea style={{...inputStyle,minHeight:110,resize:"vertical"}} value={msg} maxLength={3000} onChange={e=>setMsg(e.target.value)} id="hca-body"/></FieldWrap>
+      <PBtn onClick={send} disabled={busy} icon="send">{busy?"…":W("Bişîne","Send")}</PBtn>
+    </Card>
+    <div style={{fontWeight:800,color:"var(--text)",margin:"14px 0 6px"}}>📋 {W("Yên min şandî","Sent by me")} ({sentL.length})</div>
+    {sentL.map(p=>(<div key={p.fireId} data-hann-sent={p.fireId} className="card" style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+      <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,color:"var(--text)"}}>{p.title}</div><div style={{fontSize:12.5,color:"var(--text2)"}}>🏫 {p.className}</div><div style={{fontSize:13.5,color:"var(--text)",whiteSpace:"pre-wrap",marginTop:4}}>{p.body}</div></div>
+      <button type="button" className="c-iconbtn sm danger" aria-label="🗑" onClick={()=>del(p)}><Ico n="trash" size={17}/></button></div>))}
+  </div>);
 }
 
 /* ─── ANNOUNCEMENTS ─────────────────────────────────────────────────────── */

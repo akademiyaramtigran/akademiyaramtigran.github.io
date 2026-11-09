@@ -187,7 +187,9 @@ exports.pushAnnouncement = onDocumentCreated("announcements/{id}", async (ev) =>
 exports.pushClassPost = onDocumentCreated("classPosts/{id}", async (ev) => {
   const p = ev.data && ev.data.data(); if (!p || !p.classId) return;
   const c = await admin.firestore().collection("classes").doc(p.classId).get();
-  const nos = c.exists ? (c.get("studentNos") || []) : [];
+  let nos = c.exists ? (c.get("studentNos") || []) : [];
+  // Seçilen öğrencilere gönderilen ödev / belge yalnız onlara bildirilir (sınıfın geri kalanına değil)
+  if (Array.isArray(p.studentNos) && p.studentNos.length) { const sel = new Set(p.studentNos.map(String)); nos = nos.filter(n => sel.has(String(n))); }
   if (!nos.length) return;
   const docs = (await tokens("aat", "no", nos)).filter(d => d.get("role") === "student");
   await push(docs, l => ({ title: tx(l, p.type === "duyuru" ? "ann" : "post") + (p.className ? " · " + p.className : ""), body: p.title || "" }), "/app/", "aat-post");
@@ -206,7 +208,9 @@ exports.pushKidAttendance = onDocumentCreated("kidAttendance/{id}", async (ev) =
 exports.pushKidClassPost = onDocumentCreated("kidClassPosts/{id}", async (ev) => {
   const p = ev.data && ev.data.data(); if (!p || !p.classId) return;
   const db = admin.firestore(), c = await db.collection("kidClasses").doc(p.classId).get();
-  const nos = c.exists ? (c.get("studentNos") || []).map(String) : [];
+  let nos = c.exists ? (c.get("studentNos") || []).map(String) : [];
+  // Seçilen çocuklara gönderilen ödev / belge yalnız onların velilerine bildirilir
+  if (Array.isArray(p.studentNos) && p.studentNos.length) { const sel = new Set(p.studentNos.map(String)); nos = nos.filter(n => sel.has(n)); }
   let gnos = [];
   for (let i = 0; i < nos.length; i += 30) {
     const s = await db.collection("kids").where("no", "in", nos.slice(i, i + 30)).get();

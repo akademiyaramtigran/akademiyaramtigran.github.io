@@ -273,11 +273,21 @@ service cloud.firestore {
         && (!('studentNos' in request.resource.data)
             || (request.resource.data.studentNos is list && request.resource.data.studentNos.size() >= 1 && request.resource.data.studentNos.size() <= 60));
     }
+    // Bölüm sorumlusu kendi bölümünün (genel sorumlu: genel) sınıflarına duyuru / ödev / belge yazar (önce denenir: kural değerlendirme sınırı)
+    function headClassPostOk() {
+      let d = request.resource.data;
+      return aatHead() && d.teacherNo == prefix() && d.classId is string
+        && d.title is string && d.title.size() > 0 && d.title.size() <= 140
+        && d.type in ['duyuru', 'odev', 'belge']
+        && d.get('priv', false) == ('studentNos' in d)
+        && (!('studentNos' in d) || (d.studentNos is list && d.studentNos.size() >= 1 && d.studentNos.size() <= 60))
+        && exists(clsDoc('classes', d.classId)) && headClassOk(get(clsDoc('classes', d.classId)).data);
+    }
     // Öğrenci: sınıf geneli paylaşım (priv == false) ya da kendisine gönderilen (studentNos içinde)
     match /classPosts/{id} {
       allow read: if isStaff()
         || (isStudent() && (resource.data.get('priv', true) == false || prefix() in resource.data.get('studentNos', [])));
-      allow create: if (isRegistrar() || (tchW() && classPostOk('classes', 'schedule')))
+      allow create: if headClassPostOk() || (isRegistrar() || (tchW() && classPostOk('classes', 'schedule')))
         && request.resource.data.get('priv', false) == ('studentNos' in request.resource.data);
       allow update: if isRegistrar();
       allow delete: if isRegistrar() || (isStaff() && resource.data.teacherNo == prefix());
@@ -481,6 +491,16 @@ service cloud.firestore {
             || (d.get('recipientNo', null) is string && exists(/databases/$(database)/documents/idx_students/$(d.get('recipientNo', '')))))
         && string(d.get('body', '')).size() <= 5000 && string(d.get('subject', '')).size() <= 300;
     }
+    // Bölüm sorumlusunun SINIFINA / sınıftan seçilen öğrencilere mesajı: sınıf kendi bölümünün (genel sorumlu: genel) sınıfı, alıcı o sınıfın öğrencisi
+    function headStudentMsgOk(d) {
+      return aatHead() && d.get('fromType', '') == 'head' && d.get('senderNo', '') == prefix()
+        && d.get('recipientGroup', null) == null
+        && d.get('classId', null) is string && d.get('recipientNo', null) is string
+        && string(d.get('body', '')).size() <= 5000 && string(d.get('subject', '')).size() <= 300
+        && exists(/databases/$(database)/documents/classes/$(d.classId))
+        && headStuInClass(get(/databases/$(database)/documents/classes/$(d.classId)).data, d.recipientNo);
+    }
+    function headStuInClass(c, no) { return headClassOk(c) && no in c.get('studentNos', []); }
     // Kişisel silme: kullanıcı kendi gelen/giden mesaj ve duyurularını yalnız KENDİ listesinden gizler
     match /userHidden/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
@@ -497,6 +517,7 @@ service cloud.firestore {
             || resource.data.get('fromNo', '') == prefix()));
       allow create: if staffW()
         || (headLvl() && headMsgOk(request.resource.data))
+        || headStudentMsgOk(request.resource.data)
         || headTeacherMsgOk(request.resource.data)
         || (isStudent()
             && request.resource.data.get('fromType', '') == 'student'
@@ -707,9 +728,18 @@ service cloud.firestore {
     // Çocuk Akademisi anketleri kaldırıldı: okuma/yazma kapalı
     match /kidSurveys/{id}         { allow read, write: if false; }
     match /kidSurveyResponses/{id} { allow read, write: if false; }
+    // Çocuk akademisi bölüm sorumlusu kendi bölümünün sınıflarına duyuru / ödev / belge yazar (önce denenir)
+    function kidHeadClassPostOk() {
+      let d = request.resource.data;
+      return kidHeadLvl() && d.teacherNo == prefix() && d.classId is string
+        && d.title is string && d.title.size() > 0 && d.title.size() <= 140
+        && d.type in ['duyuru', 'odev', 'belge']
+        && (!('studentNos' in d) || (d.studentNos is list && d.studentNos.size() >= 1 && d.studentNos.size() <= 60))
+        && exists(clsDoc('kidClasses', d.classId)) && kidHeadClassOk(get(clsDoc('kidClasses', d.classId)).data);
+    }
     match /kidClassPosts/{id} {
       allow read: if kidRead() || isGuardian();
-      allow create: if isRegistrar() || (kidStaff() && classPostOk('kidClasses', 'kidSchedule'));
+      allow create: if kidHeadClassPostOk() || isRegistrar() || (kidStaff() && classPostOk('kidClasses', 'kidSchedule'));
       allow update: if isRegistrar();
       allow delete: if isRegistrar() || (kidStaff() && resource.data.teacherNo == prefix());
     }
