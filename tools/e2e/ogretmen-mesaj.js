@@ -10,6 +10,8 @@ const FS = `http://127.0.0.1:8080/v1/projects/${P}/databases/(default)/documents
 const H = { 'Content-Type': 'application/json', 'Authorization': 'Bearer owner' };
 const val = v => v instanceof Date ? { timestampValue: v.toISOString() } : typeof v === 'number' ? { integerValue: String(v) } : Array.isArray(v) ? { arrayValue: { values: v.map(val) } } : typeof v === 'boolean' ? { booleanValue: v } : { stringValue: String(v) };
 const put = (path, obj) => fetch(`${FS}/${path}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, val(v)])) }) }).then(r => { if (!r.ok) throw new Error('seed ' + path + ' ' + r.status); });
+const enc = v => v === null ? { nullValue: null } : typeof v === 'number' ? { integerValue: String(v) } : typeof v === 'boolean' ? { booleanValue: v } : v instanceof Date ? { timestampValue: v.toISOString() } : { stringValue: String(v) };
+const putO = (path, o) => fetch(`${FS}/${path}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: Object.fromEntries(Object.entries(o).map(([k, v]) => [k, enc(v)])) }) }).then(r => { if (!r.ok) throw new Error('seed ' + path + ' ' + r.status); });
 const list = col => fetch(`${FS}/${col}?pageSize=100`, { headers: H }).then(r => r.json()).then(j => j.documents || []);
 const signUp = (email, password) => fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=x', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, returnSecureToken: true }) }).then(r => r.json());
 const LOCAL = { 'react.production.min.js': 'react/umd/react.production.min.js', 'react-dom.production.min.js': 'react-dom/umd/react-dom.production.min.js', 'babel.min.js': '@babel/standalone/babel.min.js' };
@@ -115,6 +117,16 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   ok('Silinen duyuru yalnız o öğretmenin listesinden kalkar', !(await tb2.evaluate(() => document.body.innerText)).includes('Ragihandina Giştî') && (await list('announcements')).some(d => d.name.endsWith('/ANN1')));
   const ta3 = await login('50202601', 'Tea12345', 430); await goA(ta3, 'announce'); await ta3.waitForTimeout(1500);
   ok('Diğer öğretmen duyuruyu görmeye devam eder', (await ta3.evaluate(() => document.body.innerText)).includes('Ragihandina Giştî'));
+  // 6) Toplu mesaj (öğrenci başına ayrı kayıt): "Gönderilenler"den silince BÜTÜN kayıtlar listeden kalkar, öğrencilerde durur
+  const now6 = new Date();
+  for (const [i, no] of [['1', '20202601'], ['2', '20202602']]) await putO('messages/BULK' + i, { senderId: 'TA', fromId: 'TA', fromType: 'teacher', from: 'Mamoste Şano', to: 'Hemû Xwendekarên Min', type: 'bulk', bulkId: 'b_TA_1', subject: 'Peyama toplu', body: 'Silav', recipientId: 's_S' + i, recipientNo: no, createdAt: now6, time: '2026-11-09 11:46', read: true });
+  const ta4 = await login('50202601', 'Tea12345', 430); await goA(ta4, 'myclass').catch(() => {}); await ta4.evaluate(() => { const b = document.querySelector('[data-hub-tab="messages"]'); b && b.click(); }); await ta4.waitForTimeout(1500);
+  await ta4.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => /Şandî|Sent/.test(x.textContent) && x.offsetParent); b && b.click(); }); await ta4.waitForTimeout(500);
+  ok('Toplu mesaj "Gönderilenler"de tek satır', (await ta4.evaluate(() => [...document.querySelectorAll('.c-row')].filter(r => r.textContent.includes('Peyama toplu')).length)) === 1);
+  await ta4.evaluate(() => { const row = [...document.querySelectorAll('.c-row')].find(r => r.textContent.includes('Peyama toplu')); row.querySelector('.c-row-main').click(); }); await ta4.waitForTimeout(700);
+  await ta4.evaluate(() => document.querySelector('[data-msg-del]').click()); await ta4.waitForTimeout(2200);
+  ok('Toplu mesaj silinince gönderilenler listesinden tamamen kalkar (ikinci kayıt görünmez)', !(await ta4.evaluate(() => document.body.innerText)).includes('Peyama toplu'));
+  ok('Öğrencilerdeki kayıtlar silinmedi', (await msgs()).filter(d => d.fields.subject && d.fields.subject.stringValue === 'Peyama toplu').length === 2);
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);
 })().catch(e => { console.error('E2E HATA', e); process.exit(1); });

@@ -741,6 +741,12 @@
       await this.hideItem("msg", fireId);
     },
     async deleteAnnouncementForMe(fireId) { await this.hideItem("ann", fireId); },
+    // Toplu mesaj öğrenci başına ayrı kayıttır: hepsi tek seferde kişisel gizlenir
+    async hideMessages(ids) {
+      const u = auth.currentUser; if(!u) throw new Error("no auth");
+      const list = [...new Set((ids||[]).map(String).filter(Boolean))]; if(!list.length) return;
+      await setDoc(doc(db,"userHidden",u.uid), { msgs: arrayUnion(...list) }, { merge:true });
+    },
     async deletePostForMe(fireId) { await this.hideItem("post", fireId); },
     // Belirli alana ait yoklama kayıtlarını dinle
     onAttendance(area, cb) {
@@ -6171,8 +6177,10 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
   /* ── Detay görünümü ── */
   const delMsgT=async(msg)=>{
     if(!window.confirm(lang==="en"?"Delete this message?":K("Peyam were jêbirin?"))) return false;
-    try{ await window.__FB.deleteMessage(msg.fireId); }catch(e){ toast("❌ "+(e.code||e.message)); return false; }
-    setMessages(p=>p.filter(m=>m.fireId!==msg.fireId));
+    // Toplu mesaj: aynı bulkId'li bütün öğrenci kayıtları gönderen listesinden kalkar
+    const ids=msg.bulkId&&msg.direction==="sent"?messages.filter(m=>m.direction==="sent"&&m.bulkId===msg.bulkId).map(m=>m.fireId).filter(Boolean):[msg.fireId];
+    try{ if(ids.length>1) await window.__FB.hideMessages(ids); else await window.__FB.deleteMessage(msg.fireId); }catch(e){ toast("❌ "+(e.code||e.message)); return false; }
+    setMessages(p=>p.filter(m=>!ids.includes(m.fireId)));
     toast(lang==="en"?"Message deleted":K("Peyam hate jêbirin"));
     return true;
   };
