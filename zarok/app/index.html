@@ -346,9 +346,14 @@ function medal() {
 // ── Durum ────────────────────────────────────────────────────────────────
 const S = {
   phase: "boot", err: "", user: null, guardian: null, mode: null, role: (localStorage.getItem("zarok-role") || "guardian"), teacher: null, guards: [], tFilter: "today", thread: null, kids: [], kidIdx: 0, tab: "today",
-  att: [], sched: [], subs: [], anns: [], msgs: [], cls: [], cposts: [], ksv: [], kresp: [], survOpen: null, survAns: {}, cpDraft: { type: "odev", sel: {}, files: [] }, annDraft: { sel: {} }, hubTab: "posts", tEvals: [], gEvals: [], evWk: null, evOpen: null, evForm: null, sheet: null, pano: true, kidMode: null, toast: "", online: navigator.onLine,
+  hid: {}, att: [], sched: [], subs: [], anns: [], msgs: [], cls: [], cposts: [], ksv: [], kresp: [], survOpen: null, survAns: {}, cpDraft: { type: "odev", sel: {}, files: [] }, annDraft: { sel: {} }, hubTab: "posts", tEvals: [], gEvals: [], evWk: null, evOpen: null, evForm: null, sheet: null, pano: true, kidMode: null, toast: "", online: navigator.onLine,
   drafts: {}, seenAtt: null, lastAnnSeen: +(localStorage.getItem("zarok-ann-seen") || 0), lastMsgSeen: +(localStorage.getItem("zarok-msg-seen") || 0)
 };
+// Kişisel silme: duyuru / mesaj / sınıf paylaşımı yalnız bu kullanıcının listesinden gizlenir (userHidden/{uid}); belge herkes için silinmez
+const V = (arr, k) => { const hd = (S.hid && S.hid[k]) || []; return hd.length ? (arr || []).filter(x => !hd.includes(String(x.id))) : (arr || []); };
+const hideMine = async (k, id) => { const { doc, setDoc, arrayUnion } = FB.fs; await setDoc(doc(FB.db, "userHidden", FB.auth.currentUser.uid), { [k]: arrayUnion(String(id)) }, { merge: true }); };
+const delBtn = (k, id) => h("button", { class: "iconbtn", "data-hide": id, "aria-label": "🗑", style: "width:34px;height:34px;font-size:15px;float:right;margin-left:8px",
+  onclick: async e => { e.stopPropagation(); if (!confirm(T("delQ"))) return; try { await hideMine(k, id); } catch (er) { toast("❌ " + (er.code || er.message)); } } }, "🗑");
 let FB = null; // { auth, db, fs:{...}, au:{...} }
 const unsubs = [];
 
@@ -414,7 +419,7 @@ async function initFirebase() {
   FB = { app, auth, db, fs: fsM, au: authM };
   authM.onAuthStateChanged(auth, u => { if (u) onSignedIn(u); else { cleanup(); S.user = null; S.phase = "login"; render(); } });
 }
-function cleanup() { while (unsubs.length) { try { unsubs.pop()(); } catch (_) {} } S.kids = []; S.att = []; S.cls = []; S.cposts = []; S.ksv = []; S.kresp = []; S.survOpen = null; S.sched = []; S.anns = []; S.msgs = []; S.seenAtt = null; S.seenPosts = null; S.postsLoaded = false; S.tEvals = []; S.gEvals = []; S.evOpen = null; S.efForms = []; S.efResp = []; S.efPick = null; S.efBack = 0; }
+function cleanup() { while (unsubs.length) { try { unsubs.pop()(); } catch (_) {} } S.hid = {}; S.kids = []; S.att = []; S.cls = []; S.cposts = []; S.ksv = []; S.kresp = []; S.survOpen = null; S.sched = []; S.anns = []; S.msgs = []; S.seenAtt = null; S.seenPosts = null; S.postsLoaded = false; S.tEvals = []; S.gEvals = []; S.evOpen = null; S.efForms = []; S.efResp = []; S.efPick = null; S.efBack = 0; }
 
 async function signIn(no, pass) {
   S.err = "";
@@ -446,6 +451,7 @@ async function onSignedIn(u) {
   }
   cleanup();
   const listen = (q, fn) => unsubs.push(onSnapshot(q, snap => { fn(snap.docs.map(d => ({ ...d.data(), id: d.id }))); render(); }, err => console.warn("[zarok]", err.code)));
+  try { unsubs.push(onSnapshot(doc(FB.db, "userHidden", FB.auth.currentUser.uid), sn => { S.hid = sn.exists() ? sn.data() : {}; render(); }, () => {})); } catch (_) {}
   // Bölüm sorumlusunun duyurusu (area dolu) yalnızca o dersteki çocukların velilerine görünür
   const annsMine = v => (v || []).filter(a => !a.area || S.kids.some(k => k.area === a.area));
   listen(query(collection(FB.db, "kids"), where("guardianNos", "array-contains", no)), v => { S.kids = v.sort((a, b) => (a.name || "").localeCompare(b.name || "")); if (S.kidIdx >= S.kids.length) S.kidIdx = 0; S.anns = annsMine(S.annsAll); notifyNewPosts(S.cposts); });
@@ -496,6 +502,7 @@ async function onTeacherSignedIn(u) {
   }
   cleanup(); S.mode = "teacher"; S.tab = "home"; S.tFilter = "mine";
   const listen = (q, fn) => unsubs.push(onSnapshot(q, snap => { fn(snap.docs.map(d => ({ ...d.data(), id: d.id }))); render(); }, err => console.warn("[zarok]", err.code)));
+  try { unsubs.push(onSnapshot(doc(FB.db, "userHidden", FB.auth.currentUser.uid), sn => { S.hid = sn.exists() ? sn.data() : {}; render(); }, () => {})); } catch (_) {}
   listen(collection(FB.db, "kids"), v => { S.kids = v.sort((a, b) => (a.name || "").localeCompare(b.name || "")); });
   listen(collection(FB.db, "guardians"), v => { S.guards = v; });
   listen(collection(FB.db, "kidClasses"), v => { S.cls = v; });
@@ -732,17 +739,17 @@ function viewAtt() {
     }) : h("div", { class: "muted" }, T("noAtt"))));
 }
 function viewAnn() {
-  const cp = kidPosts(curKid()).filter(p => p.type === "duyuru");
-  if (!S.anns.length && !cp.length) return h("div", { class: "card center muted" }, T("noAnn"));
-  const newest = Math.max(0, ...S.anns.map(a => tsMs(a.createdAt)), ...cp.map(p => tsMs(p.createdAt)));
+  const cp = V(kidPosts(curKid()).filter(p => p.type === "duyuru"), "posts"), anns = V(S.anns, "anns");
+  if (!anns.length && !cp.length) return h("div", { class: "card center muted" }, T("noAnn"));
+  const newest = Math.max(0, ...anns.map(a => tsMs(a.createdAt)), ...cp.map(p => tsMs(p.createdAt)));
   if (newest > S.lastAnnSeen) { S.lastAnnSeen = newest; try { localStorage.setItem("zarok-ann-seen", newest); } catch (_) {} }
   const fmt = t => new Date(tsMs(t)).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR", { day: "numeric", month: "long" });
   return h("div", null,
     cp.length ? h("div", { class: "h" }, "🏫 " + T("classAnn") + " · " + classTxt(curKid())) : null,
-    cp.map(p => h("div", { class: "card", "data-class-ann": "1" }, h("div", { class: "h" }, "📢 " + (p.title || "")), p.body ? h("div", { style: "white-space:pre-wrap" }, p.body) : null,
+    cp.map(p => h("div", { class: "card", "data-class-ann": "1" }, h("div", { class: "h" }, delBtn("posts", p.id), "📢 " + (p.title || "")), p.body ? h("div", { style: "white-space:pre-wrap" }, p.body) : null,
       h("div", { class: "muted", style: "margin-top:8px" }, "👩‍🏫 " + (p.teacherName || "") + " · " + fmt(p.createdAt)))),
-    S.anns.length && cp.length ? h("div", { class: "h", style: "margin-top:10px" }, "📢 " + T("tabAnn")) : null,
-    S.anns.map(a => h("div", { class: "card" }, h("div", { class: "h" }, "📢 " + a.title),
+    anns.length && cp.length ? h("div", { class: "h", style: "margin-top:10px" }, "📢 " + T("tabAnn")) : null,
+    anns.map(a => h("div", { class: "card" }, h("div", { class: "h" }, delBtn("anns", a.id), "📢 " + a.title),
       h("div", { style: "white-space:pre-wrap" }, a.body || ""), h("div", { class: "muted", style: "margin-top:8px" }, fmt(a.createdAt)))));
 }
 function viewMsg() {
@@ -755,7 +762,7 @@ function viewMsg() {
   const send = async () => { const t = (box.value || "").trim(); if (!t) return; const to = ts.find(x => x.no === (S.drafts.msgTo || ""));
     try { await write("msg", t, curKid(), to); S.drafts.msg = ""; box.value = ""; vib(); render(); } catch (e) { toast("❌ " + (e.code || e.message)); } };
   return h("div", null,
-    h("div", { class: "card" }, S.msgs.length ? S.msgs.map(m => h("div", { class: "bubble " + (m.from === "guardian" ? "me" : "them") },
+    h("div", { class: "card" }, V(S.msgs, "msgs").length ? V(S.msgs, "msgs").map(m => h("div", { class: "bubble " + (m.from === "guardian" ? "me" : "them") }, delBtn("msgs", m.id),
       m.from === "guardian" ? (m.toName ? h("div", { style: "font-size:12px;font-weight:800;opacity:.7" }, "→ 👩‍🏫 " + m.toName) : null) : h("div", { style: "font-size:12px;font-weight:800;opacity:.7" }, (m.by ? "👩‍🏫 " + m.by : "🏫 " + T("academy"))), m.text)) : h("div", { class: "muted center" }, T("noMsg"))),
     h("div", { class: "card" }, h("div", { class: "muted", style: "margin-bottom:8px" }, T("msgHint2")), h("div", { class: "muted", style: "font-size:13px;font-weight:700" }, T("msgToLbl")), sel, h("div", { style: "height:8px" }), box, h("button", { class: "btn", style: "margin-top:10px", onclick: send }, "📤 " + T("send"))));
 }
@@ -1055,14 +1062,14 @@ function viewTAnn() {
       h("button", { class: "iconbtn", "aria-label": "🗑", onclick: () => { if (confirm(T("delQ"))) tWrite("cpdel", p.id).catch(e => toast("❌ " + e.code)); } }, "🗑")),
       p.body ? h("div", { style: "white-space:pre-wrap" }, p.body) : null, h("div", { class: "muted", style: "margin-top:6px" }, "🏫 " + (p.className || "") + " · " + fmt(p.createdAt)))),
     h("div", { class: "h", style: "margin-top:10px" }, "📥 " + T("annFromMgmt")),
-    S.anns.length ? S.anns.map(a => h("div", { class: "card" }, h("div", { class: "h" }, "📢 " + (a.title || "")), h("div", { style: "white-space:pre-wrap" }, a.body || ""),
+    V(S.anns, "anns").length ? V(S.anns, "anns").map(a => h("div", { class: "card" }, h("div", { class: "h" }, delBtn("anns", a.id), "📢 " + (a.title || "")), h("div", { style: "white-space:pre-wrap" }, a.body || ""),
       h("div", { class: "muted", style: "margin-top:6px" }, (a.by ? a.by + " · " : "") + fmt(a.createdAt)))) : h("div", { class: "card center muted" }, T("noAnn")));
 }
 // Öğretmenin velileri: yalnız kendi çocuklarının aileleri (mesajlar başka sınıfların velilerine karışmaz)
 const myGuardNos = () => new Set(myKids().flatMap(k => (k.guardianNos || []).map(String)));
 // Velinin başka bir öğretmene yazdığı mesaj ya da başka öğretmenin yanıtı bu öğretmende görünmez
 const myMsgs = () => { const g = myGuardNos(), me = String(S.teacher && S.teacher.no);
-  return S.msgs.filter(m => g.has(String(m.guardianNo)) && (m.from === "guardian" ? (!m.toTeacherNo || String(m.toTeacherNo) === me) : (!m.byNo || String(m.byNo) === me))); };
+  return V(S.msgs, "msgs").filter(m => g.has(String(m.guardianNo)) && (m.from === "guardian" ? (!m.toTeacherNo || String(m.toTeacherNo) === me) : (!m.byNo || String(m.byNo) === me))); };
 const myUnreadMsgs = () => myMsgs().filter(m => m.from === "guardian" && !m.read).length;
 function tComposeMsg() {
   const D = S.drafts.nm = S.drafts.nm || { to: "", text: "" };
@@ -1102,7 +1109,7 @@ function viewTMsg() {
   return h("div", null,
     h("button", { class: "btn alt sm", style: "margin-bottom:10px", onclick: () => { S.thread = null; render(); } }, T("back")),
     h("div", { class: "card" }, h("div", { class: "h" }, "👤 " + ((g && g.name) || S.thread)),
-      S.msgs.filter(m => m.guardianNo === S.thread).map(m => h("div", { class: "bubble " + (m.from === "staff" ? "me" : "them") },
+      V(S.msgs, "msgs").filter(m => m.guardianNo === S.thread).map(m => h("div", { class: "bubble " + (m.from === "staff" ? "me" : "them") }, delBtn("msgs", m.id),
         m.kidName && m.from !== "staff" ? h("div", { style: "font-size:12px;font-weight:800;opacity:.7" }, "🎓 " + m.kidName) : null, m.text,
         m.from === "staff" && m.by ? h("div", { style: "font-size:11px;opacity:.7;margin-top:2px" }, "— " + m.by) : null))),
     h("div", { class: "card" }, box, h("button", { class: "btn", style: "margin-top:10px", onclick: send }, "📤 " + T("send"))));
