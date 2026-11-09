@@ -613,7 +613,7 @@ const classTeachers = k => [...new Set(classesOf(k).flatMap(c => c.teacherNames 
 const PT = { duyuru: "📢", odev: "📝", belge: "📎" };
 const ptLabel = k => T(k === "odev" ? "ptOdev" : k === "belge" ? "ptBelge" : "ptDuyuru");
 const safeFile = u => (typeof u === "string" && /^(https:\/\/|data:(image\/(png|jpeg|webp|gif)|application\/pdf);base64,)/i.test(u)) ? u : null;
-const kidPosts = k => { const ids = classesOf(k).map(c => c.id); return S.cposts.filter(p => ids.includes(p.classId)); };
+const kidPosts = k => { const ids = classesOf(k).map(c => c.id); return S.cposts.filter(p => ids.includes(p.classId) && (!(p.studentNos || []).length || p.studentNos.map(String).includes(String(k.no)))); };
 function postCard(p, onDel) {
   const late = p.type === "odev" && p.due && p.due < todayStr();
   return h("div", { class: "card" },
