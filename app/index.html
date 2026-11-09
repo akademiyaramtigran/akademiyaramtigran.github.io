@@ -308,7 +308,7 @@
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, connectFirestoreEmulator, collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, query, orderBy, where, limit } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getFirestore, connectFirestoreEmulator, collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, query, orderBy, where, limit, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
   import { getAuth, setPersistence, browserLocalPersistence, browserSessionPersistence, connectAuthEmulator, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
 
@@ -536,6 +536,15 @@
     return { ok: true, added, removed };
   }
 
+  // Kişisel olarak silinen (gizlenen) mesaj/duyuruları listeden çıkarır: userHidden/{uid} {msgs:[], anns:[]}
+  function hiddenFiltered(kind, subscribe, cb) {
+    let data = null, hid = new Set(), off1 = () => {}, off2 = () => {}, dead = false;
+    const emit = () => { if(dead || data === null) return; cb(hid.size ? data.filter(x => !hid.has(String(x.fireId))) : data); };
+    const u = auth.currentUser;
+    if(u) { try { off2 = onSnapshot(doc(db,"userHidden",u.uid), sn => { const d = sn.exists() ? sn.data() : {}; hid = new Set((d[kind==="ann"?"anns":"msgs"]||[]).map(String)); emit(); }, () => {}); } catch(_) {} }
+    off1 = subscribe(arr => { data = arr; emit(); });
+    return () => { dead = true; try{ off1 && off1(); }catch(_){} try{ off2(); }catch(_){} };
+  }
   window.__FB = {
     db, auth,
     ADMIN_EMAIL,
@@ -695,33 +704,43 @@
     onSchedule(cb) { return onSnapshot(collection(db,"schedule"), snap => cb(snap.docs.map(d=>({...d.data(), fireId: d.id})))); },
     onMessages(userId, cb) {
       const q = query(collection(db,"messages"), where("recipientId","==",userId), orderBy("createdAt","desc"));
-      return onSnapshot(q, snap => cb(snap.docs.map(d=>({...d.data(), fireId:d.id}))));
+      return hiddenFiltered("msg", h => onSnapshot(q, snap => h(snap.docs.map(d=>({...d.data(), fireId:d.id})))), cb);
     },
     // Admin için tüm mesajları dinle (gelen + feedback + sent)
     onAllMessages(cb) {
-      // orderBy("createdAt") için Firestore index gerekebilir
-      // Index yoksa unordered snapshot al
-      try {
-        const q = query(collection(db,"messages"), orderBy("createdAt","desc"), limit(200));
-        return onSnapshot(q, snap => cb(snap.docs.map(d=>({...d.data(), fireId:d.id}))),
-          err => {
-            // Index hatası — unordered olarak tekrar dene
-            const q2 = query(collection(db,"messages"), limit(200));
-            return onSnapshot(q2, snap2 => cb(snap2.docs.map(d=>({...d.data(), fireId:d.id}))));
-          }
-        );
-      } catch(e) {
-        const q2 = query(collection(db,"messages"), limit(200));
-        return onSnapshot(q2, snap => cb(snap.docs.map(d=>({...d.data(), fireId:d.id}))));
-      }
+      return hiddenFiltered("msg", h => {
+        try {
+          const q = query(collection(db,"messages"), orderBy("createdAt","desc"), limit(200));
+          return onSnapshot(q, snap => h(snap.docs.map(d=>({...d.data(), fireId:d.id}))),
+            err => {
+              const q2 = query(collection(db,"messages"), limit(200));
+              return onSnapshot(q2, snap2 => h(snap2.docs.map(d=>({...d.data(), fireId:d.id}))));
+            }
+          );
+        } catch(e) {
+          const q2 = query(collection(db,"messages"), limit(200));
+          return onSnapshot(q2, snap => h(snap.docs.map(d=>({...d.data(), fireId:d.id}))));
+        }
+      }, cb);
     },
     // Mesajı okundu olarak işaretle
     async markRead(fireId) {
       try { await updateDoc(doc(db,"messages",fireId), {read:true, readAt:serverTimestamp()}); } catch(e){}
     },
-    async deleteMessage(fireId) {
-      await deleteDoc(doc(db,"messages",fireId));
+    // Kişisel silme: belge herkes için silinmez, yalnız bu kullanıcının listesinden gizlenir
+    async hideItem(kind, id) {
+      const u = auth.currentUser; if(!u) throw new Error("no auth");
+      await setDoc(doc(db,"userHidden",u.uid), { [kind==="ann"?"anns":"msgs"]: arrayUnion(String(id)) }, { merge:true });
     },
+    // Yönetici / sorumlu gerçek siler; öğretmen ve öğrenci yalnız kendi listesinden gizler (başkasını etkilemez)
+    async deleteMessage(fireId) {
+      const r = window.__AAT_ROLE;
+      if(r === "admin" || r === "registrar" || r === "head") {
+        try { await deleteDoc(doc(db,"messages",fireId)); return; } catch(e) {}
+      }
+      await this.hideItem("msg", fireId);
+    },
+    async deleteAnnouncementForMe(fireId) { await this.hideItem("ann", fireId); },
     // Belirli alana ait yoklama kayıtlarını dinle
     onAttendance(area, cb) {
       const q = query(collection(db,"attendance"), where("area","==",area), orderBy("date","desc"), limit(100));
@@ -729,7 +748,7 @@
     },
     onAnnouncements(cb) {
       const q = query(collection(db,"announcements"), orderBy("createdAt","desc"));
-      return onSnapshot(q, snap => cb(snap.docs.map(d=>({...d.data(), fireId:d.id}))));
+      return hiddenFiltered("ann", h => onSnapshot(q, snap => h(snap.docs.map(d=>({...d.data(), fireId:d.id})))), cb);
     },
     // Alan bazlı duyuru filtresi — client side
     filterAnnouncements(anns, role, area) {
@@ -6149,9 +6168,18 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
   }
 
   /* ── Detay görünümü ── */
+  const delMsgT=async(msg)=>{
+    if(!window.confirm(lang==="en"?"Delete this message?":K("Peyam were jêbirin?"))) return false;
+    try{ await window.__FB.deleteMessage(msg.fireId); }catch(e){ toast("❌ "+(e.code||e.message)); return false; }
+    setMessages(p=>p.filter(m=>m.fireId!==msg.fireId));
+    toast(lang==="en"?"Message deleted":K("Peyam hate jêbirin"));
+    return true;
+  };
   if(selectedMsg) return(
     <div style={{paddingBottom:20}}>
-      <BackBar lang={lang} onBack={()=>setSelectedMsg(null)} title={selectedMsg.subject}/>
+      <BackBar lang={lang} onBack={()=>setSelectedMsg(null)} title={selectedMsg.subject}
+        right={selectedMsg.fireId?<button type="button" data-msg-del={selectedMsg.fireId} className="c-iconbtn danger" aria-label={lang==="en"?"Delete":K("Jêbire")}
+          onClick={async()=>{ if(await delMsgT(selectedMsg)) setSelectedMsg(null); }}><Ico n="trash" size={19}/></button>:null}/>
       <Card>
         <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
           <span className="c-av"><Ico n={(selectedMsg.senderId==="admin"||selectedMsg.fromType==="admin")?"shield":selectedMsg.fromType==="student"?"user":"msg"} size={19}/></span>
@@ -6274,6 +6302,7 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
                   </span>
                   {isUnread&&<span className="c-dot"/>}
                 </div>
+                {msg.fireId&&<button type="button" data-msg-del={msg.fireId} className="c-iconbtn sm danger" aria-label={lang==="en"?"Delete":K("Jêbire")} onClick={()=>delMsgT(msg)}><Ico n="trash" size={17}/></button>}
               </div>
             );
           })}
@@ -12663,6 +12692,7 @@ function TeacherAnnounceView({teacher, anns, setAnns, classGroups, lang, toast})
                   <div style={{fontSize:15,fontWeight:700,color:"var(--text)",marginTop:2}}>{ann.title}</div>
                   <div style={{fontSize:14,color:"var(--text)",lineHeight:1.55,marginTop:4,whiteSpace:"pre-wrap"}}>{ann.msg}</div>
                 </div>
+                {ann.fireId&&<button type="button" data-ann-del={ann.fireId} className="c-iconbtn sm danger" aria-label={lang==="en"?"Delete":K("Jêbire")} onClick={async e=>{ e.stopPropagation(); if(!window.confirm(lang==="en"?"Delete this announcement?":K("Ev ragihandin were jêbirin?"))) return; try{ await window.__FB.deleteAnnouncementForMe(ann.fireId); toast("🗑 "+(lang==="en"?"Deleted":K("Hate jêbirin"))); }catch(er){ toast("❌ "+((er&&er.code)||er)); } }}><Ico n="trash" size={17}/></button>}
               </div>
             );
           })}
@@ -15901,6 +15931,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
                     </div>
                   </div>
                   <div style={{fontSize:13,color:"var(--text)",lineHeight:1.55,paddingLeft:40}}>{ann.msg}</div>
+                  {ann.fireId&&<div style={{textAlign:"right",marginTop:6}}><button type="button" data-ann-del={ann.fireId} onClick={async e=>{ e.stopPropagation(); if(!window.confirm(lang==="en"?"Delete this announcement?":K("Ev ragihandin were jêbirin?"))) return; try{ await window.__FB.deleteAnnouncementForMe(ann.fireId); toast("🗑 "+(lang==="en"?"Deleted":K("Hate jêbirin"))); }catch(er){ toast("❌ "+((er&&er.code)||er)); } }} style={{fontSize:11,padding:"4px 10px",borderRadius:8,background:"var(--bg2)",border:"0.5px solid var(--border2)",cursor:"pointer",color:"var(--red)"}}>🗑 {lang==="en"?"Delete":K("Jê bibe")}</button></div>}
                 </div>
               );
             })}

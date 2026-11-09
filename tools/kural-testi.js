@@ -791,6 +791,15 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
     await t('Yoklama: sorumlu (öğretmen olarak) belge kimliğini öğretmenle aynı serbestlikte yazar', setDoc(doc(hd, 'attendance/X-2026-10-26'), ga()), true);
     await t('Kart: sorumlu öğrenci kartını okutabilir', getDoc(doc(hd, 'cards/' + 'a'.repeat(32))), true);
   }
+  // Kişisel silme (userHidden): herkes yalnız KENDİ gizleme listesini yazar/okur
+  await t('Gizleme: öğretmen kendi listesine yazar', setDoc(doc(teacher, 'userHidden/uid-11202601@ogretmen.aat'), { msgs: ['M1'], anns: ['AH1'] }), true);
+  await t('Gizleme: öğrenci kendi listesine yazar', setDoc(doc(student, 'userHidden/uid-10202601@ogrenci.aat'), { anns: ['AH1'] }), true);
+  await t('Gizleme: kendi listesini okur', getDoc(doc(teacher, 'userHidden/uid-11202601@ogretmen.aat')), true);
+  await t('Gizleme: başkasının listesine YAZAMAZ', setDoc(doc(teacher, 'userHidden/uid-10202601@ogrenci.aat'), { msgs: ['M1'] }), false);
+  await t('Gizleme: başkasının listesini OKUYAMAZ', getDoc(doc(student, 'userHidden/uid-11202601@ogretmen.aat')), false);
+  await t('Gizleme: yönetici de başkasının listesini OKUYAMAZ', getDoc(doc(admin, 'userHidden/uid-11202601@ogretmen.aat')), false);
+  await t('Gizleme: tanımsız alan YAZAMAZ', setDoc(doc(teacher, 'userHidden/uid-11202601@ogretmen.aat'), { x: 1 }), false);
+  await t('Gizleme: girişsiz YAZAMAZ', setDoc(doc(anon, 'userHidden/x'), { msgs: [] }), false);
   console.log(results.join('\n'));
   console.log(results.filter(r => r.startsWith('❌')).length + ' başarısız / ' + results.length);
   await env.cleanup();
