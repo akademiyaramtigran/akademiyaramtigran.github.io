@@ -171,16 +171,34 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   await rcl('[data-rw-type="devam"]'); await p.waitForTimeout(1500);
   const [dl] = await Promise.all([p.waitForEvent('download'), p.click('[data-rw-csv]')]);
   const csvTxt = require('fs').readFileSync(await dl.path(), 'utf8');
-  const solfejRow = csvTxt.split('\n').find(l => l.startsWith('Solfej')) || '';
+  const solfejRow = csvTxt.split('\n').find(l => l.split(';')[1] === 'Solfej') || '';
   const cells = solfejRow.split(';');
-  ok('Excel/PDF ders satırı: gelmeyen ve geç gelen öğrencilerin ADLARI (tarihle)', /Rojîn Aram \(/.test(cells[4] || '') && /Baran Şêx \(/.test(cells[5] || '') && !/✓|⏱|✗/.test(solfejRow), solfejRow);
+  ok('Excel/PDF ders raporu: en solda dersin tarihi, her oturum ayrı satır; gelmeyen / geç gelen öğrencilerin ADLARI', /^\d{4}-\d{2}-\d{2}$/.test(cells[0] || '') && /Rojîn Aram/.test(cells[4] || '') && /Baran Şêx/.test(cells[5] || '') && !/✓|⏱|✗/.test(solfejRow), solfejRow);
   await rcl('[data-rw-view="student"]');
   const aatRows = await p.evaluate(() => [...document.querySelectorAll('[data-rep-student]')].map(e => e.dataset.repStudent));
   ok('Akademi devam raporunda atölye öğrencisi yok', !aatRows.includes('20202699') && aatRows.includes('20202601'), JSON.stringify(aatRows));
   await rcl('[data-rw-scope="ws"]'); await rcl('[data-rw-type="devam"]'); await rcl('[data-rw-view="student"]'); await p.waitForTimeout(800);
   const wsRows = await p.evaluate(() => [...document.querySelectorAll('[data-rep-student]')].map(e => e.dataset.repStudent));
   ok('Atölye kapsamı devam raporu: yalnız atölye öğrencisi', wsRows.includes('20202699') && !wsRows.includes('20202601'), JSON.stringify(wsRows));
-  ok('Atölye kapsamında Genel analiz / listeler yok, Devam + Değerlendirme var', (await p.locator('[data-rw-type="analiz"]').count()) === 0 && (await p.locator('[data-rw-type="eval"]').count()) === 1);
+  ok('Atölye kapsamında Devam + Değerlendirme + Genel analiz + öğrenci/öğretmen listesi var', (await p.locator('[data-rw-type="analiz"]').count()) === 1 && (await p.locator('[data-rw-type="eval"]').count()) === 1 && (await p.locator('[data-rw-type="list"]').count()) === 1 && (await p.locator('[data-rw-type="tlist"]').count()) === 1);
+  await rcl('[data-rw-type="list"]'); await p.waitForTimeout(800);
+  const wsList = await p.evaluate(() => (document.querySelector('[data-stu-list]') || { innerText: '' }).innerText);
+  ok('Atölye öğrenci listesi: yalnız atölye öğrencisi (Elîf), akademi öğrencisi yok', wsList.includes('Elîf Dem') && !wsList.includes('Rojîn Aram'), wsList.slice(0, 120));
+  await rcl('[data-rw-type="tlist"]'); await p.waitForTimeout(800);
+  const wsT = await p.evaluate(() => (document.querySelector('[data-tl-count]') || { innerText: '' }).innerText);
+  ok('Atölye öğretmen listesi: atölye derslerine giren öğretmenler', /^[1-9]/.test(wsT.trim()), wsT);
+  await rcl('[data-rw-type="analiz"]'); await rcl('[data-rw-who="student"]'); await p.waitForTimeout(1500);
+  ok('Atölye Genel analiz açılır (hata yok)', (await p.locator('[data-rw-type="analiz"].on').count()) === 1);
+  await rcl('[data-rw-type="devam"]'); await rcl('[data-rw-view="student"]').catch(() => {});
+  // ── İzin: sorumlu Akademi / Atölye seçer; atölye öğrencisine izin yazılır, akademi listesinde görünmez ──
+  await goA(p, 'leaves'); await p.waitForTimeout(1200);
+  const lvOpts = () => p.evaluate(() => { const s = document.querySelector('#lv-student'); return s ? [...s.options].map(o => o.value) : []; });
+  const aatOpts = await lvOpts();
+  ok('İzin: Akademi seçiliyken yalnız akademi öğrencileri (atölye öğrencisi yok)', aatOpts.includes('20202601') && !aatOpts.includes('20202699'), JSON.stringify(aatOpts));
+  await p.evaluate(() => document.querySelector('[data-lv-scope="ws"]').click()); await p.waitForTimeout(800);
+  const wsOpts = await lvOpts();
+  ok('İzin: Atölye seçilince yalnız atölye öğrencisi', wsOpts.includes('20202699') && !wsOpts.includes('20202601'), JSON.stringify(wsOpts));
+  await p.evaluate(() => { const s = document.querySelector('#lv-student'); const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; set.call(s, '20202699'); s.dispatchEvent(new Event('change', { bubbles: true })); }); await p.waitForTimeout(500);
   ok('Devam raporunda "Mamoste (ders durumu)" seçeneği yok', (await p.locator('[data-rw-who="teacher"]').count()) === 0);
 
   // ── 6) Rapor: sınıf filtresi ──

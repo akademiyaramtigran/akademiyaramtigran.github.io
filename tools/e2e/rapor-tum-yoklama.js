@@ -55,16 +55,20 @@ async function routes(ctx) {
   await L('L5', 15, { classId: 'A1', area: 'tiyatro', name: 'Ders E (misafir)', teacherNo: '', guestTeacher: 'Konuk Hoca' });
   await L('L6', 16, { area: 'tiyatro', name: 'Ders F (sınıfsız)', teacherNo: '50202611' });
   await L('L7', 17, { classId: 'A1', area: 'tiyatro', name: 'Ders G (yedek öğretmen)', teacherNo: '50202610' });
+  // Müzik bölümünde kayıtlı öğretmen, müzik alanlı ders ama TİYATRO sınıfına veriyor (Şan û Solfej)
+  await L('L8', 18, { classId: 'A1', area: 'muzik', name: 'Ders H (müzik alanlı, tiyatro sınıfı)', teacherNo: '50202611' });
   await put('lessonSubs/L7_' + day(2), { lessonFire: 'L7', date: day(2), teacherNo: '50202612', teacherName: 'Sinan Yedek', area: 'tiyatro', byNo: '96000001' });
   const putAtt = (id, lid, fire, cls, area, date, r, extra) => putO('attendance/' + id, { lessonId: lid, lessonFire: fire, classId: cls, area, date, records: r, lessonName: 'x', ...(extra || {}) });
   // 2 oturum her derste (kayıt anahtarları: sayısal id, belge kimliği karışık)
   const R1 = { '101': 'on', '102': 'off', S3: 'on', S4: 'late' };
   const R2 = { '101': 'on', '102': 'on', S3: 'off', S4: 'on' };
-  const plan = [['11', 'L1', 'A1', 'tiyatro'], ['22', 'LX2', 'A1', 'tiyatro'], ['13', 'L3', 'G1', 'genel'], ['14', 'L4', 'A1', 'tiyatro'], ['15', 'L5', 'A1', 'tiyatro'], ['16', 'L6', '', 'tiyatro'], ['17', 'L7', 'A1', 'tiyatro']];
+  const plan = [['11', 'L1', 'A1', 'tiyatro'], ['22', 'LX2', 'A1', 'tiyatro'], ['13', 'L3', 'G1', 'genel'], ['14', 'L4', 'A1', 'tiyatro'], ['15', 'L5', 'A1', 'tiyatro'], ['16', 'L6', '', 'tiyatro'], ['17', 'L7', 'A1', 'tiyatro'], ['18', 'L8', 'A1', 'muzik']];
   for (const [lid, fire, cls, area] of plan) {
     await putAtt(lid + '-' + day(9), lid, fire, cls, area, day(9), R1, { takenBy: 'Hoca' });
     await putAtt(lid + '-' + day(2), lid, fire, cls, area, day(2), R2, { takenBy: lid === '17' ? 'Sinan Yedek' : 'Hoca' });
   }
+  // Rapora girmeyen kayıt: yalnız listede olmayan öğrenciler (başka bölüm gibi) → "sayılmadı" listesinde nedeniyle görünür
+  await putAtt('11-' + day(20), '11', 'L1', 'A1', 'tiyatro', day(20), { '999': 'on' }, { lessonName: 'Ders A (haftalık)' });
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
   // Öğrenci ekranının verisi (studentAtt, sunucu fonksiyonu yazar) hazır olana kadar bekle
   let sa = []; for (let i = 0; i < 40; i++) { sa = await list('studentAtt'); if (sa.length >= plan.length * 2 * 4) break; await new Promise(r => setTimeout(r, 1000)); }
@@ -89,13 +93,14 @@ async function routes(ctx) {
   const rowsNow = () => p.evaluate(() => [...document.querySelectorAll('[data-rw-lesson]')].map(e => e.dataset.rwLesson));
   const all = await rowsNow();
   ok('Raporda (öğretmen süzgeci yok) bütün dersler görünür: ' + plan.map(x => x[0]).join(','), plan.every(([lid]) => all.includes(lid)), all.join(','));
+  ok('Rapora girmeyen yoklama "sayılmadı" kutusunda nedeniyle görünür (1 kayıt)', (await p.locator('[data-rw-skipped="1"]').count()) === 1 && (await p.locator('[data-rw-skip]').count()) === 1, await p.evaluate(() => (document.querySelector('[data-rw-skipped]') || { innerText: '' }).innerText));
   const bad = []; for (const [lid] of plan) { const n = await sessionsOf(lid); if (n !== 2) bad.push(lid + ':' + n); }
   ok('Her derste 2 oturum listelenir (öğrenci ekranıyla aynı)', !bad.length, bad.join(' '));
-  // Öğrencilere göre: dört öğrencinin ders sayısı = öğrenci ekranındaki kayıt sayısı (7 ders × 2)
+  // Öğrencilere göre: dört öğrencinin ders sayısı = öğrenci ekranındaki kayıt sayısı (8 ders × 2)
   await clk('[data-rw-view="student"]');
   const cnt = no => p.evaluate(no => (document.querySelector('[data-rep-student="' + no + '"]') || { innerText: '' }).innerText, no);
   const stuTxt = {}; for (const no of ['20202601', '20202602', '20202603', '20202604']) stuTxt[no] = await cnt(no);
-  ok('Öğrencilere göre: her öğrencide 14 ders sayılır (anahtar türü fark etmez)', Object.values(stuTxt).every(t => /14 /.test(t)), JSON.stringify(stuTxt).slice(0, 300));
+  ok('Öğrencilere göre: her öğrencide 16 ders sayılır (anahtar türü fark etmez)', Object.values(stuTxt).every(t => /16 /.test(t)), JSON.stringify(stuTxt).slice(0, 300));
   // Öğretmen süzgeci: Mesut → A, B, C, D, G (5 ders) ; Rojda → F ; Misafir/yedek hocalar listede ona göre
   const tOpts = await opts('[data-rep-teacher]');
   ok('Öğretmen listesinde Mesut ve Rojda var', tOpts && tOpts.includes('50202610') && tOpts.includes('50202611'), JSON.stringify(tOpts));
@@ -107,7 +112,7 @@ async function routes(ctx) {
   ok('Mesut seçilince raporda 5 dersinin hepsi görünür (11,22,13,14,17)', ['11', '22', '13', '14', '17'].every(x => mRows.includes(x)) && mRows.length === 5, mRows.join(','));
   await sel('[data-rep-teacher]', '50202611');
   const rRows = await rowsNow();
-  ok('Rojda seçilince yalnız kendi dersi (16) görünür', rRows.join(',') === '16', rRows.join(','));
+  ok('Rojda seçilince kendi dersleri görünür: 16 (sınıfsız) + 18 (müzik alanlı, tiyatro sınıfına)', rRows.join(',') === '16,18' || rRows.join(',') === '18,16', rRows.join(','));
   // Öğrenci ekranı: toplam bütün derslerden hesaplanır (Baran: 14 ders, 7 gelmedi → %50)
   const sc = await (await b.newContext({ viewport: { width: 430, height: 900 } })).newPage();
   await routes(sc.context()); await sc.context().addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} });
@@ -120,7 +125,7 @@ async function routes(ctx) {
   await sc.waitForSelector('[data-stu-att-view]', { timeout: 15000 }); await sc.waitForTimeout(2500);
   const sum = await sc.evaluate(() => { const e = document.querySelector('[data-stu-att-sum]'); return e ? e.dataset.stuAttSum + '|' + e.innerText.replace(/\s+/g, ' ') : ''; });
   const nRows = await sc.evaluate(() => document.querySelectorAll('[data-stu-att-row]').length);
-  ok('Öğrenci ekranı: 14 ders listelenir, özet bütün derslerden (%50, toplam 14, gelmedi 7)', nRows === 14 && sum.startsWith('50|') && /Tevî: 14/.test(sum) && /❌ 7/.test(sum), nRows + ' · ' + sum);
+  ok('Öğrenci ekranı: 16 ders listelenir, özet bütün derslerden (%50, toplam 16, gelmedi 8)', nRows === 16 && sum.startsWith('50|') && /Tevî: 16/.test(sum) && /❌ 8/.test(sum), nRows + ' · ' + sum);
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);
 })().catch(e => { console.error('E2E HATA', e); process.exit(1); });
