@@ -7862,7 +7862,7 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
           {annMode==="cls"?<HeadClassAnnounce user={user} lang={lang} toast={toast}/>:<AnnouncementsPanel t={t} toast={toast} lang={lang} senderName={user.name} senderRole="head" senderArea={area} senderNo={myNo}/>}</>}
         {tab==="messages"&&<HeadMessagesPanel user={user} inbox={inbox} sent={sent} students={students||[]} teachers={aTeachers.filter(x=>String(x.no)!==myNo)} lang={lang} t={t} toast={toast}/>}
         {tab==="alerts"&&<AlertCenter data={alertData} user={user} lang={lang} toast={toast} fixCtx={GEN?null:{students:aStudents,schedule:schedule||[]}}/>}
-        {tab==="evalforms"&&<EvalFormsPanel user={user} academy="aat" area={area} teachers={teachers||[]} lang={lang} toast={toast}/>}
+        {tab==="evalforms"&&<EvalFormsPanel user={user} academy="aat" area={area} teachers={teachers||[]} pickTeachers={aTeachers} schedule={[...aSchedule,...wsSchedule]} lang={lang} toast={toast}/>}
         {tab==="gatt"&&<HeadGuestAttendance user={user} students={aStudents} schedule={aSchedule} lang={lang} toast={toast}/>}
         {tab==="leaves"&&<>
           {!GEN&&wsStudents.length>0&&<div className="c-chips" style={{marginBottom:10}}>
@@ -12986,7 +12986,8 @@ function useEvalDocs(col,field,value,enabled=true){
     if(field&&(value==null||value==="")) return;
     let u=()=>{};
     try{ const ref=field?F.query(F.collection(F.db,col),F.where(field,"==",String(value))):F.collection(F.db,col);
-      u=F.onSnapshot(ref,s=>setList(s.docs.map(d=>({...d.data(),fireId:d.id}))),e=>console.warn("["+col+"]",e&&e.code)); }catch(_){}
+      // "Boş bırak" (skipped) kayıtları yalnız değerlendirenin kendi ekranında görünür; ortalama / rapor / uyarılarda sayılmaz
+      u=F.onSnapshot(ref,s=>setList(s.docs.map(d=>({...d.data(),fireId:d.id})).filter(d=>!(col==="evalResponses"&&d.skipped&&field!=="raterNo"))),e=>console.warn("["+col+"]",e&&e.code)); }catch(_){}
     return ()=>{ try{u();}catch(_){} };
   },[col,field,value,enabled]);
   return list;
@@ -13040,7 +13041,9 @@ function efMissing(form,ans){ return (form.questions||[]).filter(q=>q.required&&
 function useEfFill({academy,dir,raterNo,targetsFor,enabled=true}){
   const all=useEvalForms(null,null,enabled);
   const resp=useEvalDocs("evalResponses","raterNo",raterNo,enabled&&!!raterNo);
-  const forms=all.filter(f=>f.active&&f.academy===academy&&f.direction===dir&&targetsFor(f).length)
+  // Forma öğretmen atanmışsa: değerlendiren öğretmen yönlerinde (t2s/t2k) yalnız o öğretmenin panelinde görünür
+  const mine=f=>!f.teacherNo||!(dir==="t2s"||dir==="t2k")||String(f.teacherNo)===String(raterNo);
+  const forms=all.filter(f=>f.active&&f.academy===academy&&f.direction===dir&&mine(f)&&targetsFor(f).length)
     .sort((a,b)=>String(a.title||"").localeCompare(String(b.title||"")));
   const doneIn=(f,per,t)=>resp.find(r=>r.formId===f.fireId&&r.period===per&&String(r.targetNo)===String(t.no));
   const pending=forms.reduce((n,f)=>n+targetsFor(f).filter(t=>!doneIn(f,efPeriod(f),t)).length,0);
@@ -13051,29 +13054,35 @@ function EfFill({ef,targetsFor,rater,academy,dir,lang,toast,title,intro}){
   const F=window.__FB; const W2=(ku,en)=>lang==="en"?en:K(ku);
   const [fid,setFid]=useState(null); const [back,setBack]=useState(0); const [open,setOpen]=useState(null);
   const [ans,setAns]=useState({}); const [nts,setNts]=useState({}); const [busy,setBusy]=useState(false);
-  const [mode,setMode]=useState("q");          // q: soru soru (her sorunun altında kişi listesi) · p: kişi kişi
+  const [mode,setMode]=useState("q");          // q: soru soru (her sorunun altında kişi listesi) · p: kişi kişi · r: kontrol / özet
   const [grid,setGrid]=useState({});           // {kişiNo:{answers:{},notes:{}}} — soru soru görünümde düzenlenen
   const form=ef.forms.find(f=>f.fireId===fid)||ef.forms[0]||null;
   if(!form) return null;
   const per=efPeriod(form,form.period==="once"?0:back);
   const targets=targetsFor(form);
-  const gOf=t=>{ const k=String(t.no); if(grid[k]) return grid[k]; const ex=ef.doneIn(form,per,t); return {answers:{...((ex&&ex.answers)||{})},notes:{...((ex&&ex.notes)||{})}}; };
-  const setG=(t,fn)=>setGrid(g=>{ const k=String(t.no); const cur=g[k]||gOf(t); return {...g,[k]:fn({answers:{...cur.answers},notes:{...cur.notes}})}; });
+  const gOf=t=>{ const k=String(t.no); if(grid[k]) return grid[k]; const ex=ef.doneIn(form,per,t); return {answers:{...((ex&&ex.answers)||{})},notes:{...((ex&&ex.notes)||{})},skipped:!!(ex&&ex.skipped)}; };
+  const setG=(t,fn)=>setGrid(g=>{ const k=String(t.no); const cur=g[k]||gOf(t); return {...g,[k]:fn({answers:{...cur.answers},notes:{...cur.notes},skipped:!!cur.skipped})}; });
+  const canSkip=dir==="t2s"||dir==="t2k"; // yalnız öğrenci / çocuk değerlendirmesinde (yeni başlayanlar için)
   const cleanOf=(src)=>{ const answers={}, notes={}; (form.questions||[]).forEach(q=>{ const v=src.answers[q.id]; if(q.type==="score"){ if(v>=1&&v<=10) answers[q.id]=v; } else { const x=String(v||"").trim().slice(0,1000); if(x) answers[q.id]=x; }
       const nt=String((src.notes||{})[q.id]||"").trim().slice(0,300); if(nt) notes[q.id]=nt; }); return {answers,notes}; };
-  const docOf=(t,answers,notes)=>({formId:form.fireId,period:per,raterNo:String(rater.no),raterRole:rater.role,
-    targetNo:String(t.no),targetName:String(t.name||"").slice(0,120),area:t.area||form.area||"",classId:t.classId||"",academy,direction:dir,answers,notes,score10:efScore10(form,answers),at:F.serverTimestamp()});
+  const docOf=(t,answers,notes,skipped)=>({formId:form.fireId,period:per,raterNo:String(rater.no),raterRole:rater.role,
+    targetNo:String(t.no),targetName:String(t.name||"").slice(0,120),area:t.area||form.area||"",classId:t.classId||"",academy,direction:dir,answers:skipped?{}:answers,notes:skipped?{}:notes,score10:skipped?null:efScore10(form,answers),...(skipped?{skipped:true}:{}),at:F.serverTimestamp()});
+  // "Boş bırak": bu öğrenci şimdilik değerlendirilmez (ortalamalara / raporlara girmez, bekleyen sayılmaz)
+  async function skipOne(t){ if(busy) return; setBusy(true);
+    try{ await F.setDoc(F.doc(F.db,"evalResponses",form.fireId+"_"+per+"_"+rater.no+"_"+t.no),docOf(t,{},{},true)); toast("↷ "+(t.name||"")+" — "+W2("hate vala hiştin","left blank")); setGrid(g=>{ const n={...g}; delete n[String(t.no)]; return n; }); setOpen(null); }
+    catch(e){ toast("❌ "+((e&&e.code)||e)); } setBusy(false); }
   // Soru soru: değiştirilen kişilerin hepsi tek seferde kaydedilir; zorunlu sorusu eksik olan kaydedilmez
   async function saveGrid(){
     const ks=Object.keys(grid); if(!ks.length){ toast("⚠ "+W2("Hîn tiştek nehatiye guhertin","Nothing changed yet")); return; }
     if(busy) return; setBusy(true); let ok=0; const miss=[];
     for(const k of ks){ const t=targets.find(x=>String(x.no)===k); if(!t) continue; const g=grid[k];
+      if(g.skipped){ try{ await F.setDoc(F.doc(F.db,"evalResponses",form.fireId+"_"+per+"_"+rater.no+"_"+t.no),docOf(t,{},{},true)); ok++; }catch(e){ toast("❌ "+((e&&e.code)||e)); } continue; }
       if(efMissing(form,g.answers).length){ miss.push(t.name||t.no); continue; }
       const {answers,notes}=cleanOf(g); if(!Object.keys(answers).length) continue;
       try{ await F.setDoc(F.doc(F.db,"evalResponses",form.fireId+"_"+per+"_"+rater.no+"_"+t.no),docOf(t,answers,notes)); ok++; }catch(e){ toast("❌ "+((e&&e.code)||e)); }
     }
     setBusy(false);
-    if(ok){ toast("✅ "+ok+" "+(efAnon(dir)?W2("nirxandin hate şandin","evaluations sent"):W2("kes hatin tomarkirin","people saved"))); setGrid(g=>{ const n={...g}; Object.keys(n).forEach(k=>{ if(!miss.includes(k)) delete n[k]; }); return n; }); }
+    if(ok){ toast("✅ "+ok+" "+(efAnon(dir)?W2("nirxandin hate şandin","evaluations sent"):W2("kes hatin tomarkirin","people saved"))); setGrid(g=>{ const n={...g}; Object.keys(n).forEach(k=>{ if(!miss.includes(k)) delete n[k]; }); return n; }); if(!miss.length) setMode("r"); }
     if(miss.length) toast("⚠ "+W2("Pirsên mecbûrî kêm in","Required questions missing")+": "+miss.join(", "),6000);
   }
   const doneN=targets.filter(t=>ef.doneIn(form,per,t)).length;
@@ -13087,7 +13096,7 @@ function EfFill({ef,targetsFor,rater,academy,dir,lang,toast,title,intro}){
       await F.setDoc(F.doc(F.db,"evalResponses",form.fireId+"_"+per+"_"+rater.no+"_"+t.no),docOf(t,answers,notes));
       toast("✅ "+(efAnon(dir)?W2("Spas! Nirxandina te hate şandin","Thank you! Your evaluation was sent"):(t.name||"")+" — "+W2("hate tomarkirin","saved")));
       const i=targets.findIndex(x=>String(x.no)===String(t.no)); const nx=targets.slice(i+1).find(x=>!ef.doneIn(form,per,x));
-      if(nx) openFor(nx); else setOpen(null);
+      if(nx) openFor(nx); else { setOpen(null); setMode("r"); }
     }catch(e){ toast("❌ "+((e&&e.code)||e)); }
     setBusy(false);
   }
@@ -13108,15 +13117,27 @@ function EfFill({ef,targetsFor,rater,academy,dir,lang,toast,title,intro}){
     <div data-ef-mode="1" style={{display:"flex",gap:6,marginBottom:10}}>
       <button onClick={()=>setMode("q")} style={chip(mode==="q")}>{W2("Pirs bi pirs","Question by question")}</button>
       <button onClick={()=>setMode("p")} style={chip(mode==="p")}>{efAnon(dir)?W2("Mamoste bi mamoste","Teacher by teacher"):W2("Kes bi kes","Person by person")}</button>
+      <button data-ef-review="1" onClick={()=>setMode("r")} style={chip(mode==="r")}>🔎 {W2("Kontrol","Review")}</button>
     </div>
+    {mode==="r"&&<div data-ef-summary="1">
+      <div style={{fontSize:12,color:"var(--text2)",marginBottom:8}}>{W2("Tomarkirinên xwe kontrol bike; şaşiyek hebe “Sererast bike” bitikîne.","Review what you saved; tap “Edit” to correct a mistake.")}</div>
+      {targets.map(t=>{ const ex=ef.doneIn(form,per,t); return(<div key={t.no} data-ef-sum={t.no} style={{background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,padding:"10px 12px",marginBottom:8}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <span style={{flex:1,fontWeight:700,fontSize:13,color:"var(--text)"}}>{t.name||t.no}{t.sub?<span style={{fontWeight:500,color:"var(--text2)"}}> · {t.sub}</span>:null}</span>
+          <span data-ef-sum-st={ex?(ex.skipped?"skip":"done"):"wait"} style={{fontSize:11.5,fontWeight:800,color:ex?(ex.skipped?"#64748b":"#16a34a"):"#b45309"}}>{ex?(ex.skipped?"↷ "+W2("Vala","Blank"):"✓ "+(ex.score10!=null?ex.score10+"/10":W2("Hat tomarkirin","Saved"))):"⏳ "+W2("Li bendê","Pending")}</span>
+          <button data-ef-sum-edit={t.no} onClick={()=>{ setMode("p"); openFor(t); }} style={{padding:"5px 10px",borderRadius:8,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12,cursor:"pointer"}}>✏️ {W2("Sererast bike","Edit")}</button></div>
+        {ex&&!ex.skipped&&<div style={{marginTop:6,display:"flex",flexWrap:"wrap",gap:6}}>{(form.questions||[]).map((q,i)=>{ const v=(ex.answers||{})[q.id]; return(<span key={q.id} style={{fontSize:11.5,padding:"3px 8px",borderRadius:8,background:"var(--bg2)",color:"var(--text)"}}>{i+1}: {q.type==="score"?(v>=1?v:"—"):(String(v||"").trim()?"✍️":"—")}</span>); })}</div>}
+      </div>); })}
+    </div>}
     {mode==="q"&&<div data-ef-grid="1">
       {(form.questions||[]).map((q,i)=>(<div key={q.id} data-ef-gq={q.id} style={{background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,padding:12,marginBottom:10}}>
         <div style={{fontSize:13.5,fontWeight:800,color:"var(--text)",marginBottom:8}}>{i+1}. {q.text}{q.required&&<span style={{color:"#dc2626"}}> *</span>}</div>
         {targets.map(t=>{ const g=gOf(t); return(<div key={t.no} data-ef-gcell={q.id+"_"+t.no} style={{padding:"8px 0",borderTop:"1px solid var(--border2)"}}>
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}><Avatar name={t.name||"?"} color="#0f2f38" size={26} photo={t.photo}/>
             <span style={{flex:1,fontSize:12.5,fontWeight:700,color:"var(--text)"}}>{t.name||t.no}{t.sub?<span style={{fontWeight:500,color:"var(--text2)"}}> · {t.sub}</span>:null}</span>
-            {ef.doneIn(form,per,t)&&!grid[String(t.no)]&&<span style={{fontSize:11,color:"#16a34a",fontWeight:700}}>✓</span>}</div>
-          {q.type==="score"?<Score10 qid={q.id+"_"+t.no} value={g.answers[q.id]} onPick={n=>setG(t,x=>({...x,answers:{...x.answers,[q.id]:n}}))}/>
+            {ef.doneIn(form,per,t)&&!grid[String(t.no)]&&<span style={{fontSize:11,color:ef.doneIn(form,per,t).skipped?"#64748b":"#16a34a",fontWeight:700}}>{ef.doneIn(form,per,t).skipped?"↷":"✓"}</span>}
+            {canSkip&&i===0&&<button type="button" data-ef-skip={t.no} aria-pressed={!!g.skipped} onClick={()=>setG(t,x=>({...x,skipped:!x.skipped}))} style={{padding:"4px 9px",borderRadius:8,border:"1px solid "+(g.skipped?"#64748b":"var(--border2)"),background:g.skipped?"#64748b":"var(--bg2)",color:g.skipped?"#fff":"var(--text)",fontWeight:700,fontSize:11.5,cursor:"pointer"}}>↷ {W2("Vala bihêle","Leave blank")}</button>}</div>
+          {g.skipped?<div style={{fontSize:12,color:"var(--text2)",padding:"4px 0"}}>{W2("Ev xwendekar niha nayê nirxandin.","This student is not evaluated for now.")}</div>:q.type==="score"?<Score10 qid={q.id+"_"+t.no} value={g.answers[q.id]} onPick={n=>setG(t,x=>({...x,answers:{...x.answers,[q.id]:n}}))}/>
             :<textarea data-ef-gtext={q.id+"_"+t.no} value={g.answers[q.id]||""} maxLength={1000} onChange={e=>{ const v=e.target.value; setG(t,x=>({...x,answers:{...x.answers,[q.id]:v}})); }} placeholder={W2("Bersiva te","Your answer")} style={{...inputStyle,minHeight:44,resize:"vertical",fontSize:13}}/>}
           {q.type==="score"&&<input data-ef-gnote={q.id+"_"+t.no} value={g.notes[q.id]||""} maxLength={300} onChange={e=>{ const v=e.target.value; setG(t,x=>({...x,notes:{...x.notes,[q.id]:v}})); }}
             placeholder={W2("Nîşe (vebijarkî): çima ev xal?","Note (optional): why this score?")} style={{...inputStyle,marginTop:6,fontSize:12.5,padding:"7px 10px"}}/>}
@@ -13130,10 +13151,11 @@ function EfFill({ef,targetsFor,rater,academy,dir,lang,toast,title,intro}){
           <Avatar name={t.name||"?"} color="#0f2f38" size={34} photo={t.photo}/>
           <span style={{flex:1,minWidth:0}}><span style={{display:"block",fontSize:13,fontWeight:700}}>{t.name||t.no}</span>
             {t.sub&&<span style={{display:"block",fontSize:11,color:"var(--text2)"}}>{t.sub}</span>}
-            <span style={{fontSize:11,color:ex?"#16a34a":"#b45309",fontWeight:700}}>{ex?"✓ "+W2("Hat nirxandin","Evaluated")+(ex.score10!=null?" · "+ex.score10+"/10":""):"⏳ "+W2("Li bendê","Pending")}</span></span>
+            <span style={{fontSize:11,color:ex?(ex.skipped?"#64748b":"#16a34a"):"#b45309",fontWeight:700}}>{ex?(ex.skipped?"↷ "+W2("Vala hat hiştin","Left blank"):"✓ "+W2("Hat nirxandin","Evaluated")+(ex.score10!=null?" · "+ex.score10+"/10":"")):"⏳ "+W2("Li bendê","Pending")}</span></span>
           <span style={{fontSize:16,color:"var(--text2)"}}>{isOpen?"▴":"▾"}</span>
         </button>
         {isOpen&&<div style={{padding:"4px 12px 12px"}}>
+          {canSkip&&<button type="button" data-ef-skip-one={t.no} disabled={busy} onClick={()=>skipOne(t)} style={{marginBottom:10,padding:"8px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12.5,cursor:"pointer"}}>↷ {W2("Vala bihêle (hîn nayê nirxandin)","Leave blank (not evaluated yet)")}</button>}
           <EfQuestions form={form} ans={ans} setAns={setAns} notes={nts} setNotes={setNts} lang={lang}/>
           <button data-ef-save="1" disabled={busy} onClick={()=>save(t)} style={{marginTop:4,width:"100%",padding:12,borderRadius:10,border:"none",background:"#16a34a",color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer"}}>{busy?"⏳":"💾 "+W2("Tomar bike","Save")}</button>
         </div>}
@@ -13142,8 +13164,14 @@ function EfFill({ef,targetsFor,rater,academy,dir,lang,toast,title,intro}){
 }
 
 // ── Sorumlu: form stüdyosu + sonuçlar ──
-function EvalFormsPanel({user,academy,area,teachers,lang,toast}){
+function EvalFormsPanel({user,academy,area,teachers,pickTeachers,schedule,lang,toast}){
   const F=window.__FB; const W2=(ku,en)=>lang==="en"?en:K(ku);
+  // Forma atanabilecek öğretmenler: ana akademide sorumlunun öğretmenleri; Çocuk Akademisi'nde bölümün (kidTeachers) öğretmenleri
+  const [kidT,setKidT]=useState([]);
+  useEffect(()=>{ if(academy!=="kid"||!F||!F.isConfigured()) return; let u=()=>{};
+    try{ u=F.onSnapshot(F.query(F.collection(F.db,"kidTeachers"),F.where("area","==",area)),sn=>setKidT(sn.docs.map(d=>({...d.data(),id:d.id}))),()=>{}); }catch(_){}
+    return ()=>{ try{u();}catch(_){} }; },[academy,area]);
+  const tList=(academy==="kid"?kidT:(pickTeachers||teachers||[])).filter(x=>x&&x.no&&(academy==="kid"||String(x.no)!==String(user.no||""))).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
   const myNo=String(user.no||"");
   const forms=useEvalForms("ownerNo",myNo).slice().sort((a,b)=>String(b.createdAtIso||"").localeCompare(String(a.createdAtIso||"")));
   const [view,setView]=useState("list"); const [edit,setEdit]=useState(null); const [res,setRes]=useState(null);
@@ -13153,12 +13181,16 @@ function EvalFormsPanel({user,academy,area,teachers,lang,toast}){
     if(!f.title.trim()){ toast("⚠ "+W2("Sernavê formê binivîse","Enter a form title")); return; }
     if(!qs.length){ toast("⚠ "+W2("Herî kêm pirsek lazim e","At least one question is required")); return; }
     const id=f.id||("ef"+Date.now().toString(36));
+    // Öğretmen (+ ders) seçimi: seçilirse form yalnız o öğretmenin panelinde (ve o dersin öğrencileri için) görünür
+    const tc=f.teacherNo?tList.find(x=>String(x.no)===String(f.teacherNo)):null;
+    const ls=tc&&f.lessonId?(schedule||[]).find(x=>String(x.id)===String(f.lessonId)&&String(x.teacherNo)===String(tc.no)):null;
     const doc={title:f.title.trim().slice(0,120),academy,direction:f.direction,area,period:f.period,questions:qs,active:!!active,ownerNo:myNo,ownerName:user.name||"",
+      teacherNo:tc?String(tc.no):"",teacherName:tc?String(tc.name||"").slice(0,120):"",lessonId:ls?String(ls.id):"",lessonName:ls?String(ls.name||"").slice(0,120):"",classId:ls&&ls.classId?String(ls.classId):"",
       createdAtIso:f.createdAtIso||new Date().toISOString(),updatedAt:F.serverTimestamp()};
     try{ await F.setDoc(F.doc(F.db,"evalForms",id),doc); toast("✅ "+doc.title+(active?" — "+W2("hate weşandin","published"):"")); setView("list"); setEdit(null); }
     catch(e){ toast("❌ "+((e&&e.code)||e)); }
   }
-  if(view==="studio") return <EvalFormStudio initial={edit||blank()} academy={academy} lang={lang} onSave={save} onCancel={()=>{setView("list");setEdit(null);}}/>;
+  if(view==="studio") return <EvalFormStudio initial={edit||blank()} academy={academy} teachers={tList} schedule={schedule} lang={lang} onSave={save} onCancel={()=>{setView("list");setEdit(null);}}/>;
   if(res) return <EvalFormResults form={res} teachers={teachers} lang={lang} onBack={()=>setRes(null)}/>;
   const btn={padding:"7px 11px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12,cursor:"pointer"};
   return(<div data-ef-panel="1">
@@ -13168,7 +13200,7 @@ function EvalFormsPanel({user,academy,area,teachers,lang,toast}){
     {forms.length===0&&<EmptyState icon="star" text={W2("Hîn form tune.","No forms yet.")}/>}
     {forms.map(f=>(<div key={f.fireId} data-ef-form={f.fireId} className="card" style={{marginBottom:10}}>
       <div style={{fontWeight:800,color:"var(--text)"}}>{f.title}</div>
-      <div style={{fontSize:12,color:"var(--text2)",marginTop:3}}>{f.active?"🟢 "+W2("Çalak","Live"):"⏸ "+W2("Rawestandî","Paused")} · {efDirLabel(f.direction,lang)} · {efPeriodLabel(f.period,lang)} · {(f.questions||[]).length} {W2("pirs","questions")}</div>
+      <div style={{fontSize:12,color:"var(--text2)",marginTop:3}}>{f.active?"🟢 "+W2("Çalak","Live"):"⏸ "+W2("Rawestandî","Paused")} · {efDirLabel(f.direction,lang)}{f.teacherName?" · 👩‍🏫 "+f.teacherName+(f.lessonName?" · "+f.lessonName:""):""} · {efPeriodLabel(f.period,lang)} · {(f.questions||[]).length} {W2("pirs","questions")}</div>
       <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>
         <button data-ef-results={f.fireId} onClick={()=>setRes(f)} style={btn}>📊 {W2("Encam","Results")}</button>
         <button onClick={()=>{setEdit({...f,id:f.fireId});setView("studio");}} style={btn}><Ico n="edit" solo/></button>
@@ -13178,7 +13210,7 @@ function EvalFormsPanel({user,academy,area,teachers,lang,toast}){
     </div>))}
   </div>);
 }
-function EvalFormStudio({initial,academy,lang,onSave,onCancel}){
+function EvalFormStudio({initial,academy,teachers,schedule,lang,onSave,onCancel}){
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   const [f,setF]=useState(()=>({...initial,questions:(initial.questions||[]).map(q=>({...q}))}));
   const upd=(i,p)=>setF(x=>({...x,questions:x.questions.map((q,j)=>j===i?{...q,...p}:q)}));
@@ -13199,8 +13231,21 @@ function EvalFormStudio({initial,academy,lang,onSave,onCancel}){
       <div style={{...h,marginTop:14}}>③ {W2("Kengî?","How often?")}</div>
       <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{EF_PERIODS.map(([k,ku,en])=><button key={k} data-ef-period={k} onClick={()=>setF(x=>({...x,period:k}))} style={chip(f.period===k)}>{lang==="en"?en:K(ku)}</button>)}</div>
     </div>
+    <div style={card} data-ef-teacher-card="1">
+      <div style={h}>④ {W2("Mamoste (vebijarkî)","Teacher (optional)")}</div>
+      <select data-ef-teacher="1" style={selectStyle} value={f.teacherNo||""} onChange={e=>setF(x=>({...x,teacherNo:e.target.value,lessonId:""}))}>
+        <option value="">{W2("Hemû mamoste (hemû beş)","All teachers (whole department)")}</option>
+        {(teachers||[]).map(t=><option key={t.no} value={String(t.no)}>{t.name||t.no}</option>)}
+      </select>
+      {academy==="aat"&&f.teacherNo&&(()=>{ const ls=(schedule||[]).filter(l=>String(l.teacherNo)===String(f.teacherNo)); return ls.length>0&&(
+        <select data-ef-lesson="1" style={{...selectStyle,marginTop:8}} value={f.lessonId||""} onChange={e=>setF(x=>({...x,lessonId:e.target.value}))}>
+          <option value="">{W2("Hemû dersên wî/wê","All of their lessons")}</option>
+          {ls.map(l=><option key={l.id} value={String(l.id)}>{l.name}{l.day?" · "+K(l.day):""}</option>)}
+        </select>); })()}
+      <div style={{fontSize:11.5,color:"var(--text2)",marginTop:8}}>{f.teacherNo?"🔒 "+(efAnon(f.direction)?W2("Ev form tenê ji bo vê mamosteyê tê nirxandin; tenê xwendekarên wî/wê dibînin.","Only this teacher is evaluated; only their students see the form."):W2("Ev form tenê di panela vê mamosteyê de xuya dibe.","This form appears only in this teacher's panel.")):W2("Ger mamoste neyê hilbijartin, form ji hemû mamosteyên beşê re xuya dibe.","If no teacher is chosen, the form is shown to all of the department's teachers.")}</div>
+    </div>
     <div style={card}>
-      <div style={h}>④ {W2("Pirs","Questions")} ({f.questions.length})</div>
+      <div style={h}>⑤ {W2("Pirs","Questions")} ({f.questions.length})</div>
       {f.questions.map((q,i)=>(<div key={q.id} data-ef-q={i} style={{border:"1px solid var(--border2)",borderRadius:12,padding:12,marginBottom:10,background:"var(--bg2)"}}>
         <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",marginBottom:8}}>
           <span style={{fontWeight:800,color:"var(--text)",fontSize:13}}>{i+1}.</span>
@@ -13294,7 +13339,9 @@ function TeacherStudentEval(props){
     title={"📝 "+W2("Nirxandina Xwendekaran","Student Evaluation")} intro={W2("Formên ku berpirsê beşê amade kirine (1–10). Encam tenê ji rêveberî û berpirsê beşê re xuya dibin; xwendekar nabîne.","Forms prepared by the department head (1–10). Only the management and department heads see the results; students don't.")}/>;
   return <EvalNone lang={lang}/>;
 }
-const efTeacherTargets=(myStudents,classGroups)=>f=>(myStudents||[]).filter(s=>f.area==="genel"||s.area===f.area)
+const efTeacherTargets=(myStudents,classGroups)=>f=>(myStudents||[]).filter(s=>(f.area==="genel"||s.area===f.area)
+    // Forma ders (sınıf) atanmışsa yalnız o sınıfın öğrencileri
+    &&(!f.classId||(classGroups||[]).some(g=>g.id===f.classId&&g.students.some(y=>String(y.id)===String(s.id)))||!(classGroups||[]).some(g=>g.id===f.classId)))
   .map(s=>{ const g=(classGroups||[]).find(x=>x.students.some(y=>y.id===s.id)); return {no:String(s.no),name:s.name,area:s.area,photo:s.photo,classId:g?g.id:"",sub:g?g.name:""}; });
 function myTeachersOf(mySchedule,myClasses){
   const m=new Map();
@@ -13313,7 +13360,7 @@ function StudentTeacherEval(props){
     title={"⭐ "+W2("Nirxandina Mamosteyan","Teacher Evaluation")} intro={"🔒 "+W2("Nirxandina te bê nav digihîje rêveberî û berpirsê beşê; mamoste encaman nabîne.","Your evaluation reaches the management and department head anonymously; teachers don't see the results.")}/>;
   return <EvalNone lang={lang}/>;
 }
-const efStudentTargets=(student,teachers)=>f=>(f.area==="genel"||f.area===student.area)?(teachers||[]).map(t=>({no:String(t.no),name:t.name,area:student.area,sub:(t.lessons||[]).join(" · ")})):[];
+const efStudentTargets=(student,teachers)=>f=>(f.area==="genel"||f.area===student.area)?(teachers||[]).filter(t=>!f.teacherNo||String(t.no)===String(f.teacherNo)).map(t=>({no:String(t.no),name:t.name,area:student.area,sub:(t.lessons||[]).join(" · ")})):[];
 function EvalReminder({pending,total,onGo,lang,kind}){
   if(!total||!pending) return null;
   const W2=(ku,en)=>lang==="en"?en:K(ku);

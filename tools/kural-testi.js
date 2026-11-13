@@ -503,6 +503,16 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
     await t('Cevap: çocuk öğretmeni çocuğu değerlendirir (t2k)', setDoc(doc(fKT, 'evalResponses/K2_2026-11-02_72026001_k1'), resp('K2', '2026-11-02', '72026001', 'k1', 't2k', { academy: 'kid' })), true);
     await t('Cevap: öğretmen başkasının cevabını okuyamaz', getDoc(doc(fT, 'evalResponses/F2_2026-11-02_10202601_11202601')), false);
     await t('Cevap: sorumlu cevapları okur', getDoc(doc(fH, 'evalResponses/F2_2026-11-02_10202601_11202601')), true);
+    // Forma atanan öğretmen + "boş bırak"
+    await t('Form: sorumlu forma öğretmen atar', setDoc(doc(fH, 'evalForms/FA'), form({ teacherNo: '11202601', teacherName: 'Mamoste' })), true);
+    await t('Form: sorumlu öğrenci→öğretmen formunu o öğretmene bağlar', setDoc(doc(fH, 'evalForms/FB'), form({ direction: 's2t', teacherNo: '11202601' })), true);
+    await t('Cevap: atanan öğretmen kendi formunu doldurur (t2s)', setDoc(doc(fT, 'evalResponses/FA_2026-11-02_11202601_10202601'), resp('FA', '2026-11-02', '11202601', '10202601', 't2s')), true);
+    await t('Cevap: "boş bırak" (skipped) kaydı yazılır', setDoc(doc(fT, 'evalResponses/FA_2026-11-03_11202601_10202601'), resp('FA', '2026-11-03', '11202601', '10202601', 't2s', { answers: {}, score10: null, skipped: true })), true);
+    await t('Cevap: skipped bool değilse reddedilir', setDoc(doc(fT, 'evalResponses/FA_2026-11-04_11202601_10202601'), resp('FA', '2026-11-04', '11202601', '10202601', 't2s', { skipped: 'evet' })), false);
+    await env.withSecurityRulesDisabled(async c => { await setDoc(doc(c.firestore(), 'idx_staff/11202699'), { no: '11202699', lvl: 'teacher' }); });
+    await t('Cevap: başka öğretmen atanmış formu DOLDURAMAZ', setDoc(doc(as('11202699@ogretmen.aat'), 'evalResponses/FA_2026-11-02_11202699_10202601'), resp('FA', '2026-11-02', '11202699', '10202601', 't2s')), false);
+    await t('Cevap: öğrenci atanmış formda BAŞKA öğretmeni değerlendiremez (s2t)', setDoc(doc(fS, 'evalResponses/FB_2026-11-02_10202601_11202699'), resp('FB', '2026-11-02', '10202601', '11202699', 's2t')), false);
+    await t('Cevap: öğrenci yalnız atanan öğretmeni değerlendirir (s2t)', setDoc(doc(fS, 'evalResponses/FB_2026-11-02_10202601_11202601'), resp('FB', '2026-11-02', '10202601', '11202601', 's2t')), true);
     await updateDoc(doc(fH, 'evalForms/F1'), { active: false });
     await t('Cevap: duraklatılan forma yazılamaz', setDoc(doc(fT, 'evalResponses/F1_2026-11-09_11202601_10202601'), resp('F1', '2026-11-09', '11202601', '10202601', 't2s')), false);
   }

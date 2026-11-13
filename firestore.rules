@@ -563,6 +563,10 @@ service cloud.firestore {
       return (dir == 't2s' && (isTeacherLvl() || aatHead())) || (dir == 's2t' && isStudent())
         || (dir == 't2k' && kidTeach()) || (dir == 'g2t' && isGuardian());
     }
+    function evTeacherOk(f, d) {
+      return f.get('teacherNo', '') == '' || (d.direction in ['t2s', 't2k'] && prefix() == f.get('teacherNo', ''))
+        || (d.direction in ['s2t', 'g2t'] && d.targetNo == f.get('teacherNo', ''));
+    }
     // Form cevabı: yalnız KENDİ adına, aktif forma, formun yönüne uygun rolle; belge kimliği form_dönem_değerlendiren_hedef
     match /evalResponses/{id} {
       allow read: if isAdmin() || headLvl() || (authed() && resource.data.raterNo == prefix());
@@ -570,7 +574,10 @@ service cloud.firestore {
         && request.resource.data.raterNo == prefix()
         && id == request.resource.data.formId + '_' + request.resource.data.period + '_' + prefix() + '_' + request.resource.data.targetNo
         && (resource == null || resource.data.raterNo == prefix())
-        && request.resource.data.keys().hasOnly(['formId', 'period', 'raterNo', 'raterRole', 'targetNo', 'targetName', 'area', 'classId', 'academy', 'direction', 'answers', 'notes', 'score10', 'at'])
+        && request.resource.data.keys().hasOnly(['formId', 'period', 'raterNo', 'raterRole', 'targetNo', 'targetName', 'area', 'classId', 'academy', 'direction', 'answers', 'notes', 'score10', 'skipped', 'at'])
+        && (!('skipped' in request.resource.data) || request.resource.data.skipped is bool)
+        // Forma öğretmen atanmışsa: değerlendiren öğretmen YALNIZ o öğretmen (t2s/t2k), hedef YALNIZ o öğretmen (s2t/g2t)
+        && evTeacherOk(evForm(request.resource.data.formId), request.resource.data)
         && request.resource.data.answers is map && request.resource.data.answers.size() <= 30
         && (!('notes' in request.resource.data) || (request.resource.data.notes is map && request.resource.data.notes.size() <= 30))
         && (request.resource.data.score10 == null || (request.resource.data.score10 is number && request.resource.data.score10 >= 1 && request.resource.data.score10 <= 10))

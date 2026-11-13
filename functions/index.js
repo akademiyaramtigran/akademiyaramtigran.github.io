@@ -325,7 +325,7 @@ exports.monthlyAnalysis = onSchedule({ schedule: "5 9 1 * *", timeZone: "Europe/
     db.collection("attendance").where("date", ">=", from).where("date", "<=", to).get(),
     db.collection("evalResponses").where("academy", "==", "aat").get()]);
   const counts = monthlyRiskCounts({ students: st.docs.map(d => d.data()).filter(s => s.id != null), schedule: sch.docs.map(d => d.data()), teachers: tc.docs.map(d => d.data()),
-    att: at.docs.map(d => d.data()), efr: er.docs.map(d => d.data()), M });
+    att: at.docs.map(d => d.data()), efr: er.docs.map(d => d.data()).filter(r => !r.skipped), M });
   // Çocuk Akademisi (alan adları ana akademiden farklı: solfej, drama, …)
   const withId = q => q.docs.map(d => ({ ...d.data(), _id: d.id }));
   const [kd, kc, ks, ka, lv, ker] = await Promise.all([db.collection("kids").get(), db.collection("kidClasses").get(), db.collection("kidSchedule").get(),
@@ -333,7 +333,7 @@ exports.monthlyAnalysis = onSchedule({ schedule: "5 9 1 * *", timeZone: "Europe/
     db.collection("evalResponses").where("academy", "==", "kid").get()]);
   const todayIst = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul" }).format(new Date());
   const kc2 = kidRiskCounts({ kids: withId(kd), cls: withId(kc), sched: withId(ks), att: ka.docs.map(d => d.data()), leaves: lv.docs.map(d => d.data()),
-    efr: ker.docs.map(d => d.data()), M, today: todayIst });
+    efr: ker.docs.map(d => d.data()).filter(r => !r.skipped), M, today: todayIst });
   Object.entries(kc2).forEach(([a, c]) => { counts[a] = c; });
   const [y, m] = M.split("-").map(Number);
   const mName = l => new Intl.DateTimeFormat(l === "en" ? "en-GB" : "tr-TR", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, 15)));
