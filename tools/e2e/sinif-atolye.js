@@ -143,15 +143,25 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   // ── 5a) Sorumlunun program ekranı: atölye dersleri de görünür; bu hafta + gelecek hafta, biten ders arşiv/hafta seçimiyle ──
   const addDays = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
   await put('schedule/WX1', { id: 'WX1', fireId: 'WX1', area: 'muzik', name: 'Atolyeya Îro', classId: Wid, category: 'workshop', lessonType: 'extra', extraDates: [TODAY], day: null, start: '14:00', end: '15:00', teacherNo: '50202601', teacherName: 'Mamoste Dilovan', loc: 'Salon' });
-  await put('schedule/WX2', { id: 'WX2', fireId: 'WX2', area: 'muzik', name: 'Atolyeya Hefteya Bê', classId: Wid, category: 'workshop', lessonType: 'extra', extraDates: [addDays(8)], day: null, start: '14:00', end: '15:00', teacherNo: '50202601', teacherName: 'Mamoste Dilovan', loc: 'Salon' });
+  await put('schedule/WX2', { id: 'WX2', fireId: 'WX2', area: 'muzik', name: 'Atolyeya Hefteya Bê', classId: Wid, category: 'workshop', lessonType: 'extra', extraDates: [addDays(((7 - new Date().getDay()) % 7) + 3)], day: null, start: '14:00', end: '15:00', teacherNo: '50202601', teacherName: 'Mamoste Dilovan', loc: 'Salon' });
   await put('schedule/WX3', { id: 'WX3', fireId: 'WX3', area: 'muzik', name: 'Atolyeya Borî', classId: Wid, category: 'workshop', lessonType: 'extra', extraDates: [addDays(-3)], day: null, start: '14:00', end: '15:00', teacherNo: '50202601', teacherName: 'Mamoste Dilovan', loc: 'Salon' });
   const pw = await login(await mk(), '96000001', 'Head1234');
   await goA(pw, 'schedule'); await pw.waitForTimeout(1500);
   const mainTx = await txt(pw);
   ok('Ana dersler alanında yalnız akademi dersleri (atölye dersleri burada görünmez)', mainTx.includes('Solfej') && !mainTx.includes('Hafta Sonu Atölyesi') && !mainTx.includes('Atolyeya Îro'));
+  // Ders programında gün seçip o günün derslerinin (atölye dahil) yoklamasını girme / düzeltme
+  await pw.evaluate(() => { const d = document.querySelector('[data-fixday]'); d && (d.open = true); }); await pw.waitForTimeout(500);
+  const fixLs = await pw.evaluate(() => [...document.querySelectorAll('[data-fixday-lesson]')].map(e => e.dataset.fixdayLesson + ':' + e.dataset.fixdaySt));
+  ok('Gün seçici: bugünün dersleri listelenir (akademi + atölye), yoklaması girilmeyen "none" işaretli', fixLs.some(x => x.startsWith('WX1:')) && fixLs.some(x => x.startsWith('LS1:')) === (new Date().getDay() === 1), fixLs.join());
+  await pw.evaluate(() => document.querySelector('[data-fixday-open="WX1"]').click()); await pw.waitForTimeout(1200);
+  const fixTx = await txt(pw);
+  ok('Atölye dersinin düzeltme ekranında atölye öğrencisi listelenir ("Di lîsteyê de xwendekar tune" yok)', fixTx.includes('Elîf Dem') && !fixTx.includes('Di lîsteyê de xwendekar tune'));
+  await pw.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.includes('Amadebûnê tomar bike') && x.offsetParent); b && b.click(); }); await pw.waitForTimeout(2500);
+  ok('Sorumlu atölye dersinin yoklamasını kaydetti (attendance/WX1-bugün)', (await list('attendance')).some(d => d.name.endsWith('/WX1-' + TODAY)));
+  await pw.evaluate(() => { const d = document.querySelector('[data-fixday]'); d && (d.open = false); });
   await pw.click('[data-sched-tab="ws"]'); await pw.waitForTimeout(800);
   const ex1 = await txt(pw);
-  ok('Atölye alanında yalnız atölye dersleri: haftalık + bu/gelecek hafta; biten ders görünmez', ex1.includes('Hafta Sonu Atölyesi') && ex1.includes('Atolyeya Îro') && ex1.includes('Atolyeya Hefteya Bê') && !ex1.includes('Atolyeya Borî') && !ex1.includes('Solfej'), ex1.replace(/\n/g, ' / ').slice(430, 900));
+  ok('Atölye alanında yalnız atölye dersleri: haftalık + bu/gelecek hafta; biten ders görünmez', ex1.includes('Hafta Sonu Atölyesi') && ex1.includes('Atolyeya Îro') && ex1.includes('Atolyeya Hefteya Bê') && !ex1.includes('Atolyeya Borî') && !ex1.includes('Solfej'), ['HS','Atolyeya Îro','Atolyeya Hefteya Bê','Atolyeya Borî','Solfej'].map(x => x + ':' + ex1.includes(x === 'HS' ? 'Hafta Sonu Atölyesi' : x)).join(' '));
   ok('Atölye dersi 🛠 etiketli', (await pw.locator('[data-ws-lesson]').count()) >= 1);
   await pw.click('[data-sched-tab="ws"]');
   await pw.click('[data-wk-mode="pick"]'); await pw.waitForTimeout(500);
