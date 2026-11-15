@@ -7861,7 +7861,7 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
             {[["dept",W2h("Duyuruya beşê","Department announcement")],["cls",W2h("Duyuruya sinifan","Class announcement")]].map(([k,l])=><button key={k} type="button" data-ann-mode={k} className={"c-chip"+(annMode===k?" on":"")} onClick={()=>setAnnMode(k)}>{l}</button>)}</div>
           {annMode==="cls"?<HeadClassAnnounce user={user} lang={lang} toast={toast}/>:<AnnouncementsPanel t={t} toast={toast} lang={lang} senderName={user.name} senderRole="head" senderArea={area} senderNo={myNo}/>}</>}
         {tab==="messages"&&<HeadMessagesPanel user={user} inbox={inbox} sent={sent} students={students||[]} teachers={aTeachers.filter(x=>String(x.no)!==myNo)} lang={lang} t={t} toast={toast}/>}
-        {tab==="alerts"&&<AlertCenter data={alertData} user={user} lang={lang} toast={toast} fixCtx={GEN?null:{students:aStudents,schedule:schedule||[]}}/>}
+        {tab==="alerts"&&<AlertCenter data={alertData} user={user} lang={lang} toast={toast} fixCtx={GEN?null:{students:[...aStudents,...wsStudents],schedule:schedule||[]}}/>}
         {tab==="evalforms"&&<EvalFormsPanel user={user} academy="aat" area={area} teachers={teachers||[]} pickTeachers={aTeachers} schedule={[...aSchedule,...wsSchedule]} lang={lang} toast={toast}/>}
         {tab==="gatt"&&<HeadGuestAttendance user={user} students={aStudents} schedule={aSchedule} lang={lang} toast={toast}/>}
         {tab==="leaves"&&<>
@@ -7869,7 +7869,7 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
             {[[false,W2h("Akademî","Academy"),"🎓"],[true,W2h("Atolye","Workshop"),"🛠"]].map(([k,l,ic])=><button key={String(k)} type="button" data-lv-scope={k?"ws":"aat"} className={"c-chip"+(lvWs===k?" on":"")} onClick={()=>setLvWs(k)}>{ic} {l}</button>)}</div>}
           <LeavesPanel key={lvWs?"ws":"aat"} user={user} students={(lvWs?wsStudents:aStudents).filter(s=>!s.isAdmin)} schedule={lvWs?wsSchedule:aSchedule} area={area} all={false} stuScope={GEN?aStudents:(lvWs?wsStudents:aStudents)} lang={lang} toast={toast}/></>}
         {tab==="classes"&&<AcademyClassBoard headArea={area} students={students||[]} teachers={teachers||[]} schedule={schedule||[]} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>}
-        {tab==="schedule"&&<AdminScheduleTab mode="head" byName={user.name} byNo={String(user.no||"")} fixedArea={area} schedule={[...aSchedule,...wsSchedule]} teachers={teachers||[]} students={aStudents} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>}
+        {tab==="schedule"&&<AdminScheduleTab mode="head" byName={user.name} byNo={String(user.no||"")} fixedArea={area} schedule={[...aSchedule,...wsSchedule]} teachers={teachers||[]} students={aStudents} fixStudents={[...aStudents,...wsStudents]} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>}
         {tab==="reports"&&<AdminReportCenter students={aStudents} wsStudents={GEN?undefined:wsStudents} wsSchedule={wsSchedule} allStudents={(students||[]).filter(x=>!x.isAdmin&&!wsNos.has(String(x.no)))} teachers={aTeachers} schedule={aSchedule} allSchedule={schedule||[]} allTeachers={teachers||[]} lang={lang} t={t} toast={toast} byName={user.name} user={user} headArea={area} headNo={myNo} headScope={hScope}/>}
         {tab==="profile"&&<StaffProfileView user={user} roleLabel={roleLabel} icon="🎓" lang={lang} t={t} toast={toast} onLogout={onLogout} onDataChange={onDataChange}/>}
       </div>
@@ -11159,7 +11159,34 @@ function LessonSubSheet({ls,teachers,byNo,byName,lang,toast,onClose}){
       </div>}
     </Sheet>);
 }
-function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataChange, fixedArea=null, termsOnly=false, mode="full", byName="", byNo=""}) {
+// Sorumlu: tarih seç → o günün dersleri → her dersin yoklamasını gir / düzelt (öğretmenle birlikte; atölye dersleri dahil)
+function HeadFixByDay({schedule,students,user,lang,toast}){
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const F=window.__FB; const terms=useTerms();
+  const today=ymdLocal(new Date());
+  const [date,setDate]=useState(today); const [att,setAtt]=useState({}); const [fix,setFix]=useState(null);
+  useEffect(()=>{ if(!F||!F.isConfigured()||!date) return; let u=()=>{};
+    try{ u=F.onSnapshot(F.query(F.collection(F.db,"attendance"),F.where("date","==",date)),sn=>{ const m={}; sn.docs.forEach(d=>{ const v=d.data(); if(v.lessonId!=null&&v.records) m[String(v.lessonId)]=v; }); setAtt(m); },()=>{}); }catch(_){}
+    return ()=>{ try{u();}catch(_){} }; },[date]);
+  const lessons=(schedule||[]).filter(l=>lessonDates(l,terms,date,date).length).sort((a,b)=>String(a.start||"").localeCompare(String(b.start||"")));
+  return(<details data-fixday="1" style={{marginBottom:14,background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,padding:"10px 12px"}}>
+    <summary style={{cursor:"pointer",fontWeight:800,fontSize:13.5,color:"var(--text)"}}>✍ {W2("Amadebûnê rojekê rast bike / bigire","Enter / correct attendance for a day")}</summary>
+    <div style={{marginTop:10}}>
+      <div style={{fontSize:12,color:"var(--text2)",marginBottom:8}}>{W2("Rojekê hilbijêre; dersên wê rojê li jêr xuya dibin. Amadebûn bi mamosteyê re tê rastkirin.","Pick a day; that day's lessons appear below. You can correct attendance alongside the teacher.")}</div>
+      <DateInput style={{...selectStyle,width:"100%"}} value={date} onChange={e=>setDate(e.target.value)}/>
+      {lessons.length===0&&<div data-fixday-none="1" style={{textAlign:"center",padding:16,color:"var(--text2)",fontSize:13}}>{W2("Di vê rojê de ders tune.","No lessons on this day.")}</div>}
+      {lessons.map(l=>{ const d=att[String(l.id)]; const rec=(d&&d.records)||{}; const n=Object.keys(rec).length; const on=Object.values(rec).filter(v=>v==="on"||v==="late").length;
+        const st=d?(d.teacherAbsent?{k:"absent",t:"🚫 "+W2("Ders nehat kirin","Not held"),c:"#64748b"}:{k:"done",t:"✅ "+on+"/"+n,c:"#16a34a"}):(date<=today?{k:"none",t:"⚠ "+W2("Amadebûn nehatiye girtin","Not taken"),c:"#b45309"}:{k:"future",t:"⏳",c:"var(--text2)"});
+        return(<div key={l.id} data-fixday-lesson={l.id} data-fixday-st={st.k} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderTop:"1px solid var(--border2)"}}>
+          <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,fontSize:13.5,color:"var(--text)"}}>{l.name}</div>
+            <div style={{fontSize:12,color:"var(--text2)"}}>{l.start}{l.end?"–"+l.end:""}{(l.teacherName||l.guestTeacher)?" · 👩‍🏫 "+(l.teacherName||l.guestTeacher):""}</div>
+            <div style={{fontSize:12,fontWeight:700,color:st.c,marginTop:2}}>{st.t}</div></div>
+          <button type="button" data-fixday-open={l.id} onClick={()=>setFix(l)} style={{padding:"8px 12px",borderRadius:9,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12.5,cursor:"pointer"}}>✍ {d?W2("Rast bike","Correct"):W2("Bigire","Enter")}</button></div>); })}
+    </div>
+    {fix&&<AttendanceFixModal ls={fix} date={date} students={students||[]} user={user} lang={lang} toast={toast} onClose={()=>setFix(null)}/>}
+  </details>);
+}
+function AdminScheduleTab({schedule, teachers, students, fixStudents, lang, t, toast, onDataChange, fixedArea=null, termsOnly=false, mode="full", byName="", byNo=""}) {
   const canEdit = mode!=="view", canAbsence = mode!=="view"&&!(mode==="head"&&fixedArea==="genel"), canTerms = mode!=="head";
   const [subFor,setSubFor]=useState(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -11255,6 +11282,7 @@ function AdminScheduleTab({schedule, teachers, students, lang, t, toast, onDataC
         {tbtn("main","📅",lang==="en"?"Main lessons":K("Dersên Sereke"),nMain,"var(--accent)")}
         {tbtn("ws","🛠",lang==="en"?"Workshop":K("Atolye"),nWs,"#b45309")}
       </div>
+      {canAbsence&&<HeadFixByDay schedule={schedule} students={fixStudents||students} user={{name:byName,no:byNo}} lang={lang} toast={toast}/>}
       {weekly.length===0&&extras.length===0&&(<div style={{textAlign:"center",padding:36,color:"var(--text2)"}}>
         <div style={{fontSize:36,marginBottom:10}}>{ws?"🛠":"📅"}</div>
         <div style={{fontSize:14,fontWeight:600,marginBottom:12}}>{ws?W2e("Hîn dersa atolyeyê tune.","No workshop lessons yet."):t.noMainLessons}</div>
