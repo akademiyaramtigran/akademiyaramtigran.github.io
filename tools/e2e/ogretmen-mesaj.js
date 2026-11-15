@@ -127,6 +127,12 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   await ta4.evaluate(() => document.querySelector('[data-msg-del]').click()); await ta4.waitForTimeout(2200);
   ok('Toplu mesaj silinince gönderilenler listesinden tamamen kalkar (ikinci kayıt görünmez)', !(await ta4.evaluate(() => document.body.innerText)).includes('Peyama toplu'));
   ok('Öğrencilerdeki kayıtlar silinmedi', (await msgs()).filter(d => d.fields.subject && d.fields.subject.stringValue === 'Peyama toplu').length === 2);
+  // 7) Öğretmen kendi öğrencilerinin listesini PDF / Excel alır
+  const ta7 = await login('50202601', 'Tea12345', 430); await goA(ta7, 'students'); await ta7.waitForTimeout(1500);
+  ok('Öğretmen "Xwendekarên Min" ekranında PDF + Excel düğmeleri var', (await ta7.locator('[data-ms-pdf]').count()) === 1 && (await ta7.locator('[data-ms-csv]').count()) === 1);
+  const [dl7] = await Promise.all([ta7.waitForEvent('download'), ta7.click('[data-ms-csv]')]);
+  const csv7 = require('fs').readFileSync(await dl7.path(), 'utf8');
+  ok('Excel listesi: yalnız kendi öğrencileri (ad, numara, sınıf)', csv7.includes('Rojîn Aram') && csv7.includes('20202601') && csv7.includes('Baran Şêx') && csv7.includes('1. Sînif'), csv7.replace(/\n/g, ' | ').slice(0, 160));
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);
 })().catch(e => { console.error('E2E HATA', e); process.exit(1); });

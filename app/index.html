@@ -2852,8 +2852,8 @@ const AREAS = [
     name:{get ku(){return K("Şano")},ku_short:"Şano",en:"Theatre",en_short:"Theatre",de_short:"Theater",
           emblem:"🎭",desc:{get ku(){return K("Hunera Şanoyê û Performans")},en:"Theatre Arts & Performance"}} },
   { key:"dans",     code:40, icon:"💃", color:"#5BAAD4", bg:"rgba(91,170,212,0.13)", text:"#90ccf0",
-    name:{get ku(){return K("Dans")},ku_short:"Dans",en:"Dance",en_short:"Dance",de_short:"Tanz",
-          emblem:"💃",desc:{get ku(){return K("Dansên Klasîk û Modern")},en:"Classical & Modern Dance"}} },
+    name:{get ku(){return K("Govend")},ku_short:"Govend",en:"Halay",en_short:"Halay",de_short:"Halay",
+          emblem:"💃",desc:{get ku(){return K("Govend û Halay")},en:"Halay & Folk Dance"}} },
   { key:"edebiyat", code:50, icon:"📚", color:"#5DB87B", bg:"rgba(93,184,123,0.13)", text:"#8eda9e",
     name:{get ku(){return K("Wêje")},ku_short:"Wêje",en:"Literature",en_short:"Literature",de_short:"Literatur",
           emblem:"📚",desc:{get ku(){return K("Nivîsandina Afirîner û Wêje")},en:"Creative Writing & Literature"}} },
@@ -14858,6 +14858,18 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
               </div>
 
             </div>
+            {/* Öğretmen: kendi öğrencilerinin listesi — PDF / Excel (CSV) */}
+            {myStudents.length>0&&(()=>{
+              const clsOf=st=>((myClassGroups||[]).find(g=>(g.students||[]).some(y=>String(y.id)===String(st.id)))||{}).name||"";
+              const rowsL=myStudents.map(st=>({n:st.name||"",no:st.no||"",c:clsOf(st)})).sort((x,y)=>String(x.c).localeCompare(String(y.c))||String(x.n).localeCompare(String(y.n)));
+              const H=x=>String(x==null?"":x).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"})[c]);
+              const ttl=lang==="en"?"My students":K("Xwendekarên Min");
+              const csvL=()=>{ downloadCSV("xwendekaren-min-"+ymdLocal(new Date())+".csv",[["#",lang==="en"?"Full name":K("Nav û paşnav"),lang==="en"?"User number":K("Jimareya bikarhêner"),lang==="en"?"Class":K("Sinif")],...rowsL.map((r,i)=>[i+1,r.n,r.no,r.c])]); toast("⬇ CSV"); };
+              const pdfL=()=>{ openPrintHTML("<!doctype html><html><head><meta charset='utf-8'><title>"+H(ttl)+"</title><style>body{font-family:system-ui,sans-serif;padding:20px;color:#102A31}table{border-collapse:collapse;width:100%;font-size:12px}th,td{border:1px solid #cfd8dc;padding:6px 8px;text-align:left}th{background:#eef3f4}h2{margin:0 0 4px}.s{color:#5b6b70;margin-bottom:12px}</style></head><body><h2>"+H(ttl)+"</h2><div class='s'>"+H(teacher.name||"")+" · "+rowsL.length+" · "+H(fmtDateTx(ymdLocal(new Date())))+"</div><table><tr><th>#</th><th>"+H(lang==="en"?"Full name":K("Nav û paşnav"))+"</th><th>"+H(lang==="en"?"User number":K("Jimareya bikarhêner"))+"</th><th>"+H(lang==="en"?"Class":K("Sinif"))+"</th></tr>"+rowsL.map((r,i)=>"<tr><td>"+(i+1)+"</td><td>"+H(r.n)+"</td><td><b>"+H(r.no)+"</b></td><td>"+H(r.c)+"</td></tr>").join("")+"</table></body></html>"); };
+              const bs={padding:"9px 12px",background:"var(--bg2)",color:"var(--text)",border:"1px solid var(--border2)",borderRadius:10,fontSize:12.5,fontWeight:700,cursor:"pointer"};
+              return(<div data-my-students-export="1" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+                <button type="button" data-ms-pdf="1" onClick={pdfL} style={bs}>📄 PDF</button>
+                <button type="button" data-ms-csv="1" onClick={csvL} style={bs}>📊 Excel (CSV)</button></div>); })()}
 
             <MyClassesCard teacherNo={teacher.no} students={students} lang={lang}/>
             {/* Bulk message shortcut */}
