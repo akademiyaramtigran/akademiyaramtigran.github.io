@@ -9053,7 +9053,7 @@ function KidHeadSchedule({area,user,lang,toast}){
   const myIds=new Set(clsOpts.map(c=>c.fireId));
   const tOpts=kteach.slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
   const dayName=i=>lang==="en"?ZAROK_DAYS_EN[i]:K(ZAROK_DAYS_KU[i]);
-  const weekly=sched.filter(l=>!l.date);
+  const weekly=sched.filter(l=>!l.date&&myIds.has(l.classId));   // sorumlu yalnız KENDİ sınıflarının programını görür
   const inp={width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:14,boxSizing:"border-box",fontFamily:"inherit",minHeight:42,marginBottom:8};
   const card={background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:14,padding:14,marginBottom:12};
   async function save(){
@@ -9100,7 +9100,7 @@ function KidHeadSchedule({area,user,lang,toast}){
     <div>
       {subFor&&<KidSubSheet ls={subFor} kteach={tOpts} byNo={String((user&&user.no)||"")} byName={(user&&user.name)||""} lang={lang} toast={toast} onClose={()=>setSubFor(null)}/>}
       <div style={card}>
-        <div style={{fontSize:14,fontWeight:800,color:"var(--text)",marginBottom:4}}>📅 {W2("Bernameya dersan","Lesson schedule")} · {W2("Hemû akademî","Whole academy")}</div>
+        <div style={{fontSize:14,fontWeight:800,color:"var(--text)",marginBottom:4}}>📅 {W2("Bernameya dersan","Lesson schedule")} · {clsOpts.map(c=>classNameTx(c.name)).join(", ")}</div>
         <div style={{fontSize:11.5,color:"var(--text2)",lineHeight:1.6,marginBottom:10}}>{W2("Dersan, saetan û mamosteyan tu destnîşan dikî. Mamoste “Dersê dest pê bike” dike û amadebûnê digire.","You set the lessons, times and teachers. The teacher taps “Start lesson” and takes attendance.")}</div>
         {clsOpts.length>0?<PrimaryBtn onClick={()=>setForm({...blank})} icon="➕">{W2("Dersê Zêde Bike","Add Lesson")}</PrimaryBtn>:<div data-khs-noclass="1" style={{fontSize:12.5,color:"var(--text2)"}}>{W2("Hîn berpirsiyariya sinifekê li ser te nîne.","You are not the head of any class yet.")}</div>}
       </div>

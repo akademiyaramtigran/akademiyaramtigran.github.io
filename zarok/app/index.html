@@ -934,13 +934,16 @@ function viewTKids() {
   }));
 }
 function viewTSched() {
-  if (!S.sched.length) return h("div", { class: "card center muted" }, T("noSched"));
+  // Öğretmen yalnız KENDİ dersleri ile sınıf öğretmeni / ders verdiği sınıfların programını görür
+  const meT = S.teacher && S.teacher.no, mineC = new Set([...myClasses().map(c => c.id), ...myLessonClassIds()]);
+  const SC = S.sched.filter(x => (x.teacherNo && x.teacherNo === meT) || (x.classId && mineC.has(x.classId)));
+  if (!SC.length) return h("div", { class: "card center muted" }, T("noSched"));
   const order = [1, 2, 3, 4, 5, 6, 0], today = new Date().getDay(), me = S.teacher && S.teacher.no;
-  const dated = S.sched.filter(x => x.date && x.date >= todayStr()).sort((a, b) => a.date.localeCompare(b.date));
+  const dated = SC.filter(x => x.date && x.date >= todayStr()).sort((a, b) => a.date.localeCompare(b.date));
   return h("div", null, dated.length ? h("div", { class: "card", style: "border:2px solid #b8923f" }, h("div", { class: "h" }, "🛠 " + T("workshops")),
     dated.map(x => h("div", null, h("div", { class: "muted", style: "font-size:13px;font-weight:700" }, x.date), lessonRow(x)))) : null,
     h("div", { class: "h" }, "🗓 " + T("week")), order.map(d => {
-    const ls = S.sched.filter(x => +x.day === d && !x.date).sort((a, b) => (a.start || "").localeCompare(b.start || ""));
+    const ls = SC.filter(x => +x.day === d && !x.date).sort((a, b) => (a.start || "").localeCompare(b.start || ""));
     if (!ls.length) return null;
     return h("div", { class: "card", style: d === today ? "outline:3px solid var(--sun)" : "" }, h("div", { class: "h" }, T("d" + d) + (d === today ? " · " + T("tabToday") : "")),
       ls.map(x => { const r = lessonRow(x); if (me && x.teacherNo === me) r.style.outline = "2px solid var(--grass)"; return r; }));

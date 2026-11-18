@@ -63,8 +63,8 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   // Program: bütün akademi görünür, düzenleme yalnız kendi sınıfında
   await goA(p, 'schedule'); await p.waitForTimeout(1500);
   const t0 = await p.evaluate(() => document.body.innerText);
-  ok('Program: başka sınıfın dersi de görünür (tüm akademi)', t0.includes('Ders ya 2'));
-  ok('Program: başkasının dersinde düzenle/sil düğmesi YOK', (await p.locator('[data-khs-row] button').count()) === 0);
+  ok('Program: başka sınıfın dersi GÖRÜNMEZ (yalnız kendi sınıfı)', !t0.includes('Ders ya 2'));
+  ok('Program: başlangıçta kendi sınıfında ders yok', (await p.locator('[data-khs-row]').count()) === 0);
   await p.evaluate(() => [...document.querySelectorAll('button')].filter(x => x.offsetParent && x.textContent.includes('Dersê Zêde Bike'))[0].click()); await p.waitForTimeout(500);
   const opts = await p.evaluate(() => [...document.querySelectorAll('#khs-class option')].map(o => o.value).join(','));
   ok('Ders formunda yalnız kendi sınıfı seçilebilir', opts === ',KC1' || opts === 'KC1', opts);
