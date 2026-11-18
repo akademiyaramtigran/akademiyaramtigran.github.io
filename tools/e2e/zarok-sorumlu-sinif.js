@@ -43,10 +43,10 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   await put('idx_staff/96202612', { no: '96202612', lvl: 'head', area: 'drama' }); await put('teachers/TK', { id: 'TK', no: '96202612', name: 'Berpirsa Dramayê', isHead: true, area: 'drama' }); await signUp('96202612@ogretmen.aat', 'Head1234');
   for (const [no, nm] of [['92026001', 'Veli Aram'], ['92026002', 'Veli Din']]) { await put('idx_guardians/' + no, { no }); await put('guardians/' + no, { no, name: nm, phone: '0532' }); await signUp(no + '@veli.aat', 'Vel12345'); }
   await put('idx_kidstaff/96202612', { no: '96202612' });
-  await put('kids/K1', { no: '82026001', name: 'Rojîn Zarok', area: 'drama', guardianNos: ['92026001'] });
-  await put('kids/K2', { no: '82026002', name: 'Baran Zarok', area: 'drama', guardianNos: ['92026002'] });
-  await put('kidClasses/KC1', { kind: 'area', area: 'drama', name: '1. Sınıf', studentNos: ['82026001', '82026002'] });
-  await put('kidClasses/KC9', { kind: 'area', area: 'ziman', name: 'Ziman 1', studentNos: [] });
+  await put('kids/K1', { no: '82026001', name: 'Rojîn Zarok', area: 'zarok', guardianNos: ['92026001'] });
+  await put('kids/K2', { no: '82026002', name: 'Baran Zarok', area: 'zarok', guardianNos: ['92026002'] });
+  await put('kidClasses/KC1', { kind: 'area', area: 'zarok', name: '1. Sınıf', studentNos: ['82026001', '82026002'], headNos: ['96202612'] });
+  await put('kidClasses/KC9', { kind: 'area', area: 'zarok', name: 'Ziman 1', studentNos: [], headNos: ['96202699'] });
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
   const errs = [];
@@ -61,7 +61,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000);
   await goA(p, 'classsend'); await p.waitForTimeout(1200);
   const cls = await p.evaluate(() => [...document.querySelectorAll('[data-ks-class]')].map(e => e.dataset.ksClass));
-  ok('Çocuk sorumlusu yalnız kendi bölümünün sınıflarını görür', cls.join() === 'KC1', cls.join());
+  ok('Çocuk sınıf sorumlusu yalnız KENDİ sınıflarını görür', cls.join() === 'KC1', cls.join());
   const send = () => p.evaluate(() => [...document.querySelectorAll('button')].filter(x => x.textContent.includes('Bişîne') && x.offsetParent).pop().click()).then(() => p.waitForTimeout(2500));
   // Sınıf duyurusu
   await p.evaluate(() => document.querySelector('[data-ks-class="KC1"]').click());
