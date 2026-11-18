@@ -863,6 +863,7 @@
   --shadow-sm:none;
   --shadow-card:none;
   --ease:cubic-bezier(0.4,0,0.2,1);
+  --vh80:80vh; --vh88:88vh; --vh90:90vh; --sab:env(safe-area-inset-bottom,0px);
   --spring:cubic-bezier(0.34,1.56,0.64,1);
   --radius-sm:4px;
   --radius:6px;
@@ -870,6 +871,8 @@
   --serif:Georgia,'Iowan Old Style','Times New Roman',serif;
   --rule:#E7C77B;
 }
+@supports (height:100dvh){ :root{--vh80:80dvh;--vh88:88dvh;--vh90:90dvh;} }
+
 
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body,#root{
@@ -2734,7 +2737,7 @@ v3.0
       <div style={{ position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",
         width:"100%",background:"var(--surface)",
         borderRadius:"24px 24px 0 0",zIndex:801,
-        maxHeight:"80vh",display:"flex",flexDirection:"column",
+        maxHeight:"var(--vh80)",display:"flex",flexDirection:"column",
         boxShadow:"0 -8px 40px rgba(0,0,0,.3)" }}>
         <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",
           padding:"18px 20px 12px",borderBottom:"1px solid var(--border)" }}>
@@ -4273,8 +4276,8 @@ function Sheet({open,onClose,title,children}){
         width:"100%",
         background:"var(--surface)",
         borderRadius:"26px 26px 0 0",
-        padding:"0 16px 36px",
-        zIndex:201,maxHeight:"90vh",
+        padding:"0 16px calc(36px + var(--sab))",
+        zIndex:201,maxHeight:"var(--vh90)",
         display:"flex",flexDirection:"column",
         transition:"transform .32s var(--ease)",
         boxShadow:"0 -8px 40px rgba(0,0,0,.15)"
@@ -4284,7 +4287,7 @@ function Sheet({open,onClose,title,children}){
           <div style={{width:36,height:4,background:"var(--border2)",borderRadius:2}}/>
         </div>
         {title&&<div style={{fontSize:17,fontWeight:700,color:"var(--text)",margin:"10px 0 18px",letterSpacing:"-0.01em"}}>{title}</div>}
-        <div style={{overflowY:"auto",flex:1}}>{children}</div>
+        <div style={{overflowY:"auto",flex:1,overscrollBehavior:"contain",WebkitOverflowScrolling:"touch"}}>{children}</div>
       </div>
     </>
   );
@@ -5629,7 +5632,7 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
   return(
     <>
       <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:200}}/>
-      <div style={{position:"fixed",bottom:0,left:0,right:0,width:"100%",background:"var(--surface)",borderRadius:"24px 24px 0 0",zIndex:201,maxHeight:"90vh",display:"flex",flexDirection:"column"}}>
+      <div style={{position:"fixed",bottom:0,left:0,right:0,width:"100%",background:"var(--surface)",borderRadius:"24px 24px 0 0",zIndex:201,maxHeight:"var(--vh90)",display:"flex",flexDirection:"column"}}>
         <div style={{background:"var(--surface)",borderRadius:"24px 24px 0 0",padding:"16px 16px 0",flexShrink:0,borderBottom:"1px solid rgba(15,23,42,.08)"}}>
           <div style={{width:36,height:3,background:"rgba(15,23,42,0.15)",borderRadius:2,margin:"0 auto 14px"}}/>
           <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
@@ -5727,7 +5730,7 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
       {selectedStudent&&(
         <>
           <div onClick={()=>setSelectedStudent(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:300}}/>
-          <div style={{position:"fixed",bottom:0,left:0,right:0,width:"100%",background:"var(--surface)",borderRadius:"24px 24px 0 0",zIndex:301,padding:"20px 16px 32px",maxHeight:"80vh",overflowY:"auto"}}>
+          <div style={{position:"fixed",bottom:0,left:0,right:0,width:"100%",background:"var(--surface)",borderRadius:"24px 24px 0 0",zIndex:301,padding:"20px 16px calc(32px + var(--sab))",maxHeight:"var(--vh80)",overflowY:"auto"}}>
             <div style={{width:36,height:3,background:"var(--border2)",borderRadius:2,margin:"0 auto 18px"}}/>
             {/* Format toggle: dîk (portre) / berwarî (yatay yaka kartı) */}
             <div style={{display:"flex",gap:6,marginBottom:12,background:"var(--surface2)",borderRadius:10,padding:4}}>
@@ -6674,7 +6677,7 @@ function AdminNewsPanel({lang,toast,adminName}){
         <div onClick={()=>setShowPreview(false)}
           style={{position:"fixed",inset:0,background:"rgba(6,20,24,0.74)",zIndex:900,display:"flex",alignItems:"center",justifyContent:"center",padding:16,backdropFilter:"blur(3px)"}}>
           <div onClick={e=>e.stopPropagation()}
-            style={{background:"var(--surface)",borderRadius:20,maxWidth:540,width:"100%",maxHeight:"88vh",overflowY:"auto",boxShadow:"0 30px 80px rgba(0,0,0,0.5)"}}>
+            style={{background:"var(--surface)",borderRadius:20,maxWidth:540,width:"100%",maxHeight:"var(--vh88)",overflowY:"auto",boxShadow:"0 30px 80px rgba(0,0,0,0.5)"}}>
             <div style={{display:"flex",alignItems:"center",gap:8,padding:"13px 16px",borderBottom:"1px solid var(--border2)",position:"sticky",top:0,background:"var(--surface)",zIndex:2}}>
               <span style={{fontSize:12.5,fontWeight:800,color:"var(--text)"}}>👁 {lang==="en"?"Preview":K("Pêşdîtin")}</span>
               <div style={{display:"flex",gap:4,marginLeft:8}}>
@@ -10885,7 +10888,7 @@ function StatsDetailModal({type,students,teachers,schedule,onClose,t,lang,toast,
   return(
     <>
       <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:200}}/>
-      <div style={{position:"fixed",bottom:0,left:0,right:0,width:"100%",background:"var(--surface)",borderRadius:"24px 24px 0 0",zIndex:201,maxHeight:"88vh",display:"flex",flexDirection:"column"}}>
+      <div style={{position:"fixed",bottom:0,left:0,right:0,width:"100%",background:"var(--surface)",borderRadius:"24px 24px 0 0",zIndex:201,maxHeight:"var(--vh88)",display:"flex",flexDirection:"column"}}>
         <div style={{background:"var(--surface)",borderRadius:"24px 24px 0 0",padding:"16px 16px 14px",flexShrink:0,borderBottom:"1px solid rgba(15,23,42,.08)"}}>
           <div style={{width:36,height:3,background:"rgba(15,23,42,0.15)",borderRadius:2,margin:"0 auto 14px"}}/>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -12506,7 +12509,7 @@ function AttendanceFixModal({ls,date,students,user,lang,toast,onClose}){
   const btn=(on,bg)=>({padding:"7px 10px",borderRadius:9,border:"none",fontWeight:800,fontSize:12,cursor:"pointer",background:on?bg:"var(--bg2)",color:on?"#fff":"var(--text2)"});
   return(<>
     <div onClick={()=>onClose(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:300}}/>
-    <div data-att-fix={docId} style={{position:"fixed",bottom:0,left:0,right:0,maxWidth:640,margin:"0 auto",background:"var(--surface)",borderRadius:"20px 20px 0 0",zIndex:301,maxHeight:"88vh",overflowY:"auto",padding:"16px 16px 24px"}}>
+    <div data-att-fix={docId} style={{position:"fixed",bottom:0,left:0,right:0,maxWidth:640,margin:"0 auto",background:"var(--surface)",borderRadius:"20px 20px 0 0",zIndex:301,maxHeight:"var(--vh88)",overflowY:"auto",padding:"16px 16px calc(24px + var(--sab))"}}>
       <div style={{fontSize:16,fontWeight:800,color:"var(--text)"}}>✍ {W2("Amadebûnê bi destan bike / rast bike","Enter / correct attendance")}</div>
       <div style={{fontSize:12.5,color:"var(--text2)",margin:"4px 0 12px"}}>{ls.name} · {fmtDateTx(date)} {ls.start?"· "+ls.start:""}{meta.teacherName?" · 👩‍🏫 "+meta.teacherName:""}</div>
       {onLeaveL.length>0&&<div style={{fontSize:12,color:"#185FA5",marginBottom:8}}>🏷 {W2("Bi destûr","On leave")}: {onLeaveL.map(x=>x.name).join(", ")}</div>}
@@ -13894,7 +13897,7 @@ function StudentReportModal({student,lang,onClose}){
   return(
     <>
       <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:300}}/>
-      <div data-student-report style={{position:"fixed",bottom:0,left:0,right:0,maxWidth:640,margin:"0 auto",background:"var(--surface)",borderRadius:"20px 20px 0 0",zIndex:301,maxHeight:"88vh",overflowY:"auto",padding:"16px 16px 24px"}}>
+      <div data-student-report style={{position:"fixed",bottom:0,left:0,right:0,maxWidth:640,margin:"0 auto",background:"var(--surface)",borderRadius:"20px 20px 0 0",zIndex:301,maxHeight:"var(--vh88)",overflowY:"auto",padding:"16px 16px 24px"}}>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
           <Avatar name={student.name} color="#0f2f38" size={44} photo={student.photo}/>
           <div style={{flex:1}}><div style={{fontSize:15,fontWeight:800,color:"var(--text)"}}>{student.name}</div><div style={{fontSize:11,color:"var(--text2)"}}>{student.no} · {areaName(student.area,lang)}</div></div>
