@@ -67,7 +67,7 @@ async function routes(ctx) {
   const K1 = '8' + YR + '501', K2 = '8' + YR + '502';
   await put('kids/KD1', { no: K1, name: 'Dilan Aram', area: 'drama', guardianNos: ['9' + YR + '501'] });
   await put('kids/KD2', { no: K2, name: 'Azad Şêx', area: 'drama', guardianNos: ['9' + YR + '502'] });
-  await put('kidClasses/KC', { kind: 'area', name: '1. Sînif', area: 'drama', studentNos: [K1, K2] });
+  await put('kidClasses/KC', { kind: 'area', name: '1. Sînif', area: 'drama', studentNos: [K1, K2], headNos: ['96202602'] });
   const old = new Date(); old.setDate(old.getDate() - 30);
   await put('kidSchedule/KS1', { title: 'Drama', day: new Date(day(7) + 'T12:00:00').getDay(), start: '10:00', end: '11:00', area: 'drama', classId: 'KC', teacher: 'Mamoste Berfîn', createdAt: old });
   for (const k of [21, 14, 7]) await put('kidAttendance/A' + k, { kidId: 'KD2', kidNo: K2, kidName: 'Azad Şêx', type: 'in', date: day(k) });
