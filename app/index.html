@@ -11962,8 +11962,8 @@ function kidScopeFilter(d,scope){
   const sc=new Set((scope||[]).map(String));
   const kids=d.kids.filter(k=>sc.has(String(k.no)));
   const cls=d.cls.filter(c=>(c.studentNos||[]).some(n=>sc.has(String(n))));
-  const cid=new Set(cls.map(c=>c.id)); const kid=new Set(kids.map(k=>k.fireId));
-  return {...d,kids,cls,sched:(d.sched||[]).filter(l=>l.classId&&cid.has(l.classId)),att:(d.att||[]).filter(a=>kid.has(a.kidId))};
+  const cid=new Set(cls.map(c=>c.id||c.fireId)); const kid=new Set(kids.map(k=>k.fireId));
+  return {...d,kids,cls,sched:(d.sched||[]).filter(l=>l.classId&&cid.has(l.classId)),att:(d.att||[]).filter(a=>kid.has(a.kidId)||sc.has(String(a.kidNo||"")))};
 }
 function useKidAlerts({area,scope,enabled=true,noEvals=false}){
   const F=window.__FB; const live=!!(enabled&&F&&F.isConfigured());
