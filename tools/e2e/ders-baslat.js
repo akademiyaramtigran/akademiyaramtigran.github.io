@@ -58,6 +58,7 @@ async function routes(ctx) {
   // Eski "18 ders" formülünün bozduğu istatistik (ilk gün %6 devam, 17 devamsızlık)
   await put('classes/C1', { kind: 'area', area: 'tiyatro', name: '1. Sınıf', studentNos: ['20202601', '20202602', '20202603'], teacherNos: [] });
   await put('kidTeachers/72026001', { no: '72026001', name: 'Mamoste Drama', area: 'drama' });
+  await put('kidClasses/KDC1', { kind: 'area', area: 'zarok', name: '1. Sınıf', studentNos: [], headNos: ['96202612'] });
 
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
@@ -216,10 +217,10 @@ async function routes(ctx) {
   const kp = await login(await mk(), '96202612', 'Head1234');
   await goA(kp, 'schedule'); await kp.waitForTimeout(1500);
   await btn(kp, 'Dersê Zêde Bike'); await kp.waitForTimeout(600);
-  await kp.fill('#khs-title', 'Drama Lîstik'); await kp.selectOption('#khs-teacher', '72026001');
+  await kp.fill('#khs-title', 'Drama Lîstik'); await kp.selectOption('#khs-class', 'KDC1'); await kp.selectOption('#khs-teacher', '72026001');
   await btn(kp, 'Tomar bike'); await kp.waitForTimeout(2500);
   const ks = (await list('kidSchedule')).filter(d => d.fields.title && d.fields.title.stringValue === 'Drama Lîstik');
-  ok('Çocuk dersi kaydedildi: alan drama, öğretmen atanmış', ks.length === 1 && ks[0].fields.area.stringValue === 'drama' && ks[0].fields.teacherNo.stringValue === '72026001');
+  ok('Çocuk dersi kaydedildi: alan drama, öğretmen atanmış', ks.length === 1 && ks[0].fields.area.stringValue === 'zarok' && ks[0].fields.classId.stringValue === 'KDC1' && ks[0].fields.teacherNo.stringValue === '72026001');
   ok('Çocuk programında ders görünür', (await kp.locator('[data-khs-row]').count()) === 1);
 
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));

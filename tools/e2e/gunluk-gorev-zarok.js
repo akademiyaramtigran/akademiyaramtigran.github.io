@@ -42,7 +42,8 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   await put('idx_staff/96000003', { no: '96000003', lvl: 'head', area: 'drama' }); await put('teachers/HK', { id: 'HK', no: '96000003', name: 'Berpirsa Dramayê', area: 'drama', isHead: true }); await signUp('96000003@ogretmen.aat', 'Head1234');
   await put('idx_kidstaff/72026001', { no: '72026001' }); await put('kidTeachers/72026001', { no: '72026001', name: 'Mamoste Hêvî' });
   await put('idx_kidstaff/72026002', { no: '72026002' }); await put('kidTeachers/72026002', { no: '72026002', name: 'Mamoste Berfîn' });
-  await put('kidSchedule/KD1', { title: 'Drama 1', area: 'drama', day: DOW, start: '00:05', end: '23:55', teacherNo: '72026001', teacher: 'Mamoste Hêvî', classId: '' });
+  await put('kidSchedule/KD1', { title: 'Drama 1', area: 'drama', day: DOW, start: '00:05', end: '23:55', teacherNo: '72026001', teacher: 'Mamoste Hêvî', classId: 'KGC1' });
+  await put('kidClasses/KGC1', { kind: 'area', area: 'zarok', name: '1. Sınıf', studentNos: [], headNos: ['96000003'] });
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
   const errs = [];
