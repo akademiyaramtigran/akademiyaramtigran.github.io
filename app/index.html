@@ -7915,6 +7915,7 @@ function KidHeadPanel({user,t,lang,toast,onLogout,onSettings,onDataChange}){
     {key:"classes",label:lang==="en"?"Classes":K("Sinif")},
     {key:"classsend",label:lang==="en"?"Class · Announcement · Homework":K("Sinif · Ragihandin · Erk")},
     {key:"schedule",label:lang==="en"?"Lesson schedule":K("Bernameya Dersan")},
+    {key:"attfix",label:lang==="en"?"Attendance by day":K("Hazirî li gorî rojê")},
     {key:"leaves",label:lang==="en"?"Student leave":K("Destûra Xwendekaran")},
     {key:"evalforms",label:lang==="en"?"Evaluation forms":K("Formên nirxandinê")},
     {key:"reports",label:lang==="en"?"Reports":K("Rapor")},
@@ -7949,6 +7950,7 @@ function KidHeadPanel({user,t,lang,toast,onLogout,onSettings,onDataChange}){
         {tab==="classes"&&<KidHeadClasses area={area} user={user} lang={lang} toast={toast}/>}
         {tab==="classsend"&&<KidHeadClassSend area={area} user={user} kids={kids} guards={guards} lang={lang} toast={toast}/>}
         {tab==="schedule"&&<KidHeadSchedule area={area} user={user} lang={lang} toast={toast}/>}
+        {tab==="attfix"&&<KidHeadAttFix kids={kids} user={user} lang={lang} toast={toast}/>}
         {tab==="leaves"&&<LeavesPanel user={user} students={kids.map(k=>({id:k.fireId,no:k.no,name:k.name,area:k.area}))} area={area} kid={true} lang={lang} toast={toast}/>}
         {tab==="announce"&&(<div>
           <div style={card}>
@@ -8691,6 +8693,40 @@ function AcademyClassBoard({students,teachers,schedule,lang,t,toast,onDataChange
 // Çocuk akademisi: kidClasses + kidSchedule (classId) + kidAttendance ("in" kaydı = geldi)
 // Çocuk akademisi bölüm sorumlusu: KENDİ bölümünün sınıflarını açar / sınıf öğretmeni atar (Öğrenci İşleri sınıf yönetmez)
 // Çocuk akademisi sorumlusu: sınıflara / sınıftan seçilen çocuklara duyuru, ödev, belge ve velilere mesaj
+// Çocuk akademisi bölüm sorumlusu: gün seçip o günün çocuk yoklamasını düzeltir (geldi / gelmedi)
+function KidHeadAttFix({kids,user,lang,toast}){
+  const F=window.__FB; const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const today=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
+  const [date,setDate]=useState(today); const [docs,setDocs]=useState([]); const [busy,setBusy]=useState(false); const [tick,setTick]=useState(0);
+  useEffect(()=>{ let off=false; (async()=>{
+    try{ const s=await F.getDocs(F.query(F.collection(F.db,"kidAttendance"),F.where("date","==",date))); if(!off) setDocs(s.docs.map(d=>({...d.data(),fireId:d.id}))); }catch(e){ console.warn("[kidAttFix]",e&&e.code); }
+  })(); return()=>{off=true}; },[date,tick]);
+  const sorted=kids.slice().sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+  const mine=id=>docs.filter(d=>d.kidId===id);
+  const here=id=>mine(id).some(d=>d.type==="in");
+  async function setPresent(k,on){
+    if(busy) return; setBusy(true);
+    try{
+      if(on) await F.setDoc(F.doc(F.db,"kidAttendance","fix_"+date+"_"+k.fireId),{kidId:k.fireId,kidNo:k.no||"",kidName:k.name||"",guardianNos:k.guardianNos||[],type:"in",date,time:new Date(date+"T12:00:00").toISOString(),by:user.name||"",fixed:true,createdAt:F.serverTimestamp()});
+      else for(const d of mine(k.fireId)) await F.deleteDoc(F.doc(F.db,"kidAttendance",d.fireId));
+      setTick(x=>x+1);
+    }catch(e){ toast("❌ "+((e&&e.code)||e)); }
+    setBusy(false);
+  }
+  const box={background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:14,padding:14,marginBottom:12};
+  return(<div data-kid-attfix="1">
+    <div style={box}>
+      <div style={{fontWeight:800,color:"var(--text)",marginBottom:8}}>✅ {W2("Hazirî li gorî rojê rast bike","Correct attendance by day")}</div>
+      <input type="date" value={date} max={today} onChange={e=>e.target.value&&setDate(e.target.value)} style={{padding:"9px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:14}}/>
+      <div style={{fontSize:12,color:"var(--text2)",marginTop:6}}>{sorted.filter(k=>here(k.fireId)).length}/{sorted.length} {W2("hatine","present")}</div>
+    </div>
+    {sorted.length===0&&<div style={{...box,textAlign:"center",color:"var(--text2)"}}>{W2("Zarok tune.","No children.")}</div>}
+    {sorted.map(k=>{ const on=here(k.fireId); return(<div key={k.fireId} data-kid-att-row={k.fireId} style={{...box,display:"flex",alignItems:"center",gap:10,padding:"10px 14px",marginBottom:8}}>
+      <div style={{flex:1,minWidth:0,fontWeight:700,color:"var(--text)"}}>{k.name}</div>
+      <button disabled={busy} onClick={()=>setPresent(k,!on)} style={{padding:"7px 14px",borderRadius:10,border:"1px solid "+(on?"#1f9d5b":"var(--border2)"),background:on?"#1f9d5b22":"var(--bg2)",color:on?"#1f9d5b":"var(--text2)",fontWeight:800,cursor:"pointer"}}>{on?"🟢 "+W2("Hat","Present"):"⚪ "+W2("Nehat","Absent")}</button>
+    </div>); })}
+  </div>);
+}
 function KidHeadClassSend({area,user,kids,guards,lang,toast}){
   const W=(ku,en)=>lang==="en"?en:K(ku);
   const F=window.__FB; const no=String(user.no||"");
@@ -9377,6 +9413,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   const [kids,setKids]=useState([]);
   const [guards,setGuards]=useState([]);
   const [kteach,setKteach]=useState([]);
+  const [mainT,setMainT]=useState([]);
   const [att,setAtt]=useState([]);
   const [sched,setSched]=useState([]);
   const [anns,setAnns]=useState([]);
@@ -9420,6 +9457,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
     listen(F.collection(F.db,"kids"),setKids);
     listen(F.collection(F.db,"guardians"),setGuards);
     listen(F.collection(F.db,"kidTeachers"),setKteach);
+    listen(F.collection(F.db,"teachers"),setMainT);
     listen(F.query(F.collection(F.db,"kidAttendance"),F.where("date","==",today)),setAtt);
     listen(F.collection(F.db,"kidSchedule"),setSched);
     listen(F.query(F.collection(F.db,"kidAnnouncements"),F.orderBy("createdAt","desc")),setAnns);
@@ -10040,7 +10078,11 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
           <div style={{...box,border:"2px solid var(--accent)"}}>
             <div style={{fontWeight:800,color:"var(--text)"}}>{form.id?"✏️ "+Z("Mamoste biguherîne","Edit teacher"):"➕ "+Z("Mamosteyekî Nû","New Teacher")}</div>
             <div style={grid2}>{fld(Z("Nav û paşnav *","Full name *"),"name")}{fld(Z("E-peyam (agahiyên têketinê)","E-mail (login details)"),"email",{type:"email"})}{fld(Z("Têlefon","Phone"),"phone",{type:"tel"})}<div><label style={lbl}>{Z("Qad","Field")}</label>{areaSel("area",true)}</div></div>
-            {!form.id&&<div style={{marginTop:8}}>{fld(Z("Mamosteyê konservatuarê? Jimara wî/wê (vebijarkî)","Conservatory teacher? Their number (optional)"),"academyNo",{inputMode:"numeric"})}</div>}
+            {!form.id&&<div style={{marginTop:8}}><label style={lbl}>{Z("Mamosteyê konservatuarê? Ji lîsteyê hilbijêre (vebijarkî)","Conservatory teacher? Pick from the list (optional)")}</label>
+              <select value={form.data.academyNo||""} onChange={e=>{ const no=e.target.value; const t=mainT.find(x=>String(x.no)===no); setForm(f=>({...f,data:{...f.data,academyNo:no,...(t?{name:t.name||f.data.name||"",email:t.email||f.data.email||"",phone:t.phone||f.data.phone||"",area:(t.area&&t.area!=="genel")?t.area:(f.data.area||"")}:{})}})); }} style={inp}>
+                <option value="">— {Z("Na, mamosteyekî nû","No, a new teacher")} —</option>
+                {mainT.filter(x=>x.no&&!x.isAdmin&&!x.isPress&&!x.isRegistrar&&!kteach.some(k=>String(k.no)===String(x.no))).sort((a,b)=>(a.name||"").localeCompare(b.name||"")).map(x=><option key={x.fireId||x.no} value={String(x.no)}>{x.name} · {x.no}</option>)}
+              </select></div>}
             {!form.id&&<div style={{...small,marginTop:6}}>{(form.data.academyNo||"").trim()?Z("Hesabê nû nayê vekirin: mamoste bi jimare û şîfreya xwe ya konservatuarê dikeve sepana zarokan.","No new account: the teacher signs in to the kids app with their conservatory number and password."):Z("Jimare û şîfre otomatîk tên çêkirin û bi e-peyamê tên şandin.","Number and password are generated automatically and e-mailed.")}</div>}
             <div style={{display:"flex",gap:8,marginTop:12}}><button disabled={busy} onClick={saveTeacherForm} style={btn()}>{busy?"⏳":"💾 "+Z("Tomar bike","Save")}</button><button onClick={()=>setForm(null)} style={ghost}>{Z("Betal","Cancel")}</button></div>
           </div>)}

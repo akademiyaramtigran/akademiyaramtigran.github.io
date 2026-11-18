@@ -42,6 +42,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-key="' + k + '"],.sm-it[data-key="' + k + '"]').click(), k);
   await put('idx_staff/96202612', { no: '96202612', lvl: 'head', area: 'drama' }); await put('teachers/TK', { id: 'TK', no: '96202612', name: 'Berpirsa Dramayê', isHead: true, area: 'drama' }); await signUp('96202612@ogretmen.aat', 'Head1234');
   for (const [no, nm] of [['92026001', 'Veli Aram'], ['92026002', 'Veli Din']]) { await put('idx_guardians/' + no, { no }); await put('guardians/' + no, { no, name: nm, phone: '0532' }); await signUp(no + '@veli.aat', 'Vel12345'); }
+  await put('idx_kidstaff/96202612', { no: '96202612' });
   await put('kids/K1', { no: '82026001', name: 'Rojîn Zarok', area: 'drama', guardianNos: ['92026001'] });
   await put('kids/K2', { no: '82026002', name: 'Baran Zarok', area: 'drama', guardianNos: ['92026002'] });
   await put('kidClasses/KC1', { kind: 'area', area: 'drama', name: '1. Sınıf', studentNos: ['82026001', '82026002'] });
@@ -82,6 +83,16 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   await p.locator('#ks-title').fill('Peyama dêûbavan'); await p.locator('#ks-body').fill('Civîna dêûbavan'); await send();
   const km = (await col('kidMessages')).filter(x => (x.text || '').startsWith('Peyama dêûbavan'));
   ok('Sınıfın velilerine mesaj: her veliye ayrı (2 veli)', km.length === 2 && new Set(km.map(x => x.guardianNo)).size === 2 && km.every(x => x.from === 'staff'), JSON.stringify(km.map(x => x.guardianNo)));
+  // Çocuk sorumlusu: gün seçip yoklama düzelt (geldi işaretle / geri al)
+  await goA(p, 'attfix'); await p.waitForSelector('[data-kid-att-row="K1"]', { timeout: 15000 });
+  const fixDay = '2026-03-04';
+  await p.locator('[data-kid-attfix] input[type=date]').fill(fixDay); await p.waitForTimeout(1200);
+  await p.evaluate(() => document.querySelector('[data-kid-att-row="K1"] button').click()); await p.waitForTimeout(2000);
+  let ka = await col('kidAttendance');
+  ok('Sorumlu geçmiş güne "geldi" yoklaması ekler', ka.some(x => x.kidId === 'K1' && x.date === fixDay && x.type === 'in' && x.fixed === true), JSON.stringify(ka.map(x => x.date)));
+  await p.evaluate(() => document.querySelector('[data-kid-att-row="K1"] button').click()); await p.waitForTimeout(2000);
+  ka = await col('kidAttendance');
+  ok('Geri alınca o günün yoklaması silinir', !ka.some(x => x.kidId === 'K1' && x.date === fixDay));
   // Zarok veli tarafı
   const zl = async (no) => { const c = await mk(420); const q = await c.newPage(); q.on('pageerror', e => errs.push(no + ': ' + e.message)); q.on('dialog', d => d.accept());
     await q.goto('http://localhost:8765/zarok/app/?emu=1'); await q.waitForSelector('#l-no', { timeout: 30000 }); await q.click('.roles button:nth-child(1)'); await q.fill('#l-no', no); await q.fill('#l-pw', 'Vel12345'); await q.click('.login .btn');
