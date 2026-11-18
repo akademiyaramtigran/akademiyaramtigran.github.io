@@ -59,7 +59,7 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   const G = '9' + YR + '501', KT = '72026001', KN = '8' + YR + '501';
   await put('idx_guardians/' + G, { no: G }); await put('guardians/' + G, { no: G, name: 'Nûrê Aram', phone: '0555' });
   await put('kids/K1', { no: KN, name: 'Dilan Aram', area: 'drama', guardianNos: [G] });
-  await put('kidClasses/KC', { kind: 'area', name: '1. Sînif', area: 'drama', studentNos: [KN], teacherNos: [KT], teacherNames: ['Mamoste Berfîn'] });
+  await put('kidClasses/KC', { kind: 'area', name: '1. Sînif', area: 'drama', studentNos: [KN], teacherNos: [KT], teacherNames: ['Mamoste Berfîn'], headNos: ['96202602'] });
   await signUp(G + '@veli.aat', 'Veli12345');
 
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
@@ -160,13 +160,13 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   const kp = await login('96202602', 'Head1234');
   await go(kp, 'evalforms'); await kp.waitForTimeout(1000);
   await kp.click('[data-new-form]'); await kp.waitForTimeout(500);
-  await kp.fill('[data-ef-title]', 'Nêrîna dêûbavan');
+  await kp.fill('[data-ef-title]', 'Nêrîna dêûbavan'); await kp.selectOption('[data-ef-class]', 'KC');
   await kp.click('[data-ef-dir="g2t"]'); await kp.click('[data-ef-period="once"]'); await kp.waitForTimeout(200);
   await kp.click('[data-ef-add="score"]'); await kp.waitForTimeout(100); await kp.locator('[data-ef-qtext]').last().fill('Têkilî');
   await kp.click('[data-ef-add="score"]'); await kp.waitForTimeout(100); await kp.locator('[data-ef-qtext]').last().fill('Ders');
   await kp.click('[data-ef-publish]'); await kp.waitForTimeout(2000);
   const KF = (await list('evalForms')).find(d => d.fields.title.stringValue === 'Nêrîna dêûbavan');
-  ok('Çocuk formu: veli→öğretmen, bir kez, Drama', !!KF && KF.fields.academy.stringValue === 'kid' && KF.fields.direction.stringValue === 'g2t' && KF.fields.area.stringValue === 'drama');
+  ok('Çocuk formu: veli→öğretmen, bir kez, Drama', !!KF && KF.fields.academy.stringValue === 'kid' && KF.fields.direction.stringValue === 'g2t' && KF.fields.classId.stringValue === 'KC');
   const vc = await mk(390); const vp = await vc.newPage(); vp.on('pageerror', e => errs.push('veli: ' + e.message));
   await vp.goto('http://localhost:8765/zarok/app/?emu=1'); await vp.waitForSelector('#l-no', { timeout: 20000 });
   await vp.click('.roles button:nth-child(1)'); await vp.fill('#l-no', G); await vp.fill('#l-pw', 'Veli12345'); await vp.click('.login .btn');

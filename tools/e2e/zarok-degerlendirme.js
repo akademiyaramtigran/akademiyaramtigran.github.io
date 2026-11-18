@@ -48,8 +48,8 @@ function evalWeek() { const x = new Date(); const y = new Date(x.getFullYear(), 
   for (const [no, nm] of [['92026001', 'Veli Aram'], ['92026002', 'Veli Din']]) { await put('idx_guardians/' + no, { no }); await put('guardians/' + no, { no, name: nm, phone: '0532' }); await signUp(no + '@veli.aat', 'Vel12345'); }
   await put('kids/K1', { no: '82026001', name: 'Rojîn Zarok', area: 'drama', guardianNos: ['92026001'] });
   await put('kids/K2', { no: '82026002', name: 'Baran Zarok', area: 'drama', guardianNos: ['92026002'] });
-  await put('kidClasses/KC1', { kind: 'area', area: 'drama', name: '1. Sınıf', studentNos: ['82026001'], teacherNos: ['72026001'], teacherNames: ['Mamoste Hêvî'] });
-  await put('kidClasses/KC2', { kind: 'area', area: 'drama', name: '2. Sınıf', studentNos: ['82026002'], teacherNos: ['72026002'], teacherNames: ['Mamoste Din'] });
+  await put('kidClasses/KC1', { kind: 'area', area: 'drama', name: '1. Sınıf', studentNos: ['82026001'], teacherNos: ['72026001'], teacherNames: ['Mamoste Hêvî'], headNos: ['96202612'] });
+  await put('kidClasses/KC2', { kind: 'area', area: 'drama', name: '2. Sınıf', studentNos: ['82026002'], teacherNos: ['72026002'], teacherNames: ['Mamoste Din'], headNos: ['96202612'] });
   await put('kidMessages/M1', { guardianNo: '92026001', guardianName: 'Veli Aram', kidId: 'K1', kidName: 'Rojîn Zarok', text: 'Peyama malbata min', from: 'guardian', read: false, createdAt: new Date() });
   await put('kidMessages/M3', { guardianNo: '92026001', guardianName: 'Veli Aram', kidId: 'K1', kidName: 'Rojîn Zarok', text: 'Ji mamosteyê din re', toTeacherNo: '72026002', toName: 'Mamoste Din', from: 'guardian', read: false, createdAt: new Date() });
   await put('kidSchedule/KL1', { id: 'KL1', title: 'Drama Lîstik', area: 'drama', classId: 'KC1', day: new Date().getDay(), start: '10:00', end: '11:00', teacherNo: '72026001' });

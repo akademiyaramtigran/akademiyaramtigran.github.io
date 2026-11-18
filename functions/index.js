@@ -295,6 +295,21 @@ exports.pushEvalForm = onDocumentWritten("evalForms/{id}", async (ev) => {
     docs = uniq(byArea.concat(linked));
   } else if (f.direction === "s2t") {
     docs = (all ? await tokens("aat", "role", "student") : await tokens("aat", "area", area)).filter(d => d.get("role") === "student");
+  } else if ((f.direction === "t2k" || f.direction === "g2t") && f.classId) {
+    // Çocuk Akademisi: form SINIFA göre — t2k: sınıfın öğretmenleri · g2t: sınıftaki çocukların velileri
+    app = "zarok"; link = "/zarok/app/";
+    const db = admin.firestore(); const cd = await db.collection("kidClasses").doc(String(f.classId)).get();
+    if (!cd.exists) return;
+    if (f.direction === "t2k") {
+      const sch = await db.collection("kidSchedule").where("classId", "==", String(f.classId)).get();
+      const tn = new Set((cd.get("teacherNos") || []).map(String)); sch.docs.forEach(d => { if (d.get("teacherNo")) tn.add(String(d.get("teacherNo"))); });
+      if (f.teacherNo) { tn.clear(); tn.add(String(f.teacherNo)); }
+      docs = (await tokens("zarok", "no", [...tn])).filter(d => d.get("role") === "kidteacher");
+    } else {
+      const nos = new Set((cd.get("studentNos") || []).map(String)); const ks = await db.collection("kids").get();
+      const g = [...new Set(ks.docs.filter(d => nos.has(String(d.get("no")))).flatMap(d => (d.get("guardianNos") || []).map(String)))];
+      docs = g.length ? (await tokens("zarok", "no", g)).filter(d => d.get("role") === "guardian") : [];
+    }
   } else if (f.direction === "t2k") {
     app = "zarok"; link = "/zarok/app/";
     const byArea = (await tokens("zarok", "area", area)).filter(d => d.get("role") === "kidteacher");

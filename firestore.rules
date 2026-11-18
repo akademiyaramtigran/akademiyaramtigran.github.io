@@ -81,7 +81,7 @@ service cloud.firestore {
     // Genel sorumlu (bölüm = "genel"): ana akademinin TÜM bölümleri
     function headGeneral() { return headLvl() && headArea() == 'genel'; }
     // Çocuk akademisi bölüm sorumlusu (bölüm = çocuk akademisi dersi)
-    function kidHeadLvl() { return headLvl() && headArea() in ['solfej', 'ziman', 'teori', 'dalcroze', 'drama', 'enstruman']; }
+    function kidHeadLvl() { return headLvl() && headArea() in ['zarok', 'solfej', 'ziman', 'teori', 'dalcroze', 'drama', 'enstruman']; }
     // Bir hedef listesi sorumlunun yetki alanında mı? (genel sorumlu: her bölüm)
     function headTargetsOk(ts) { return ts is list && ts.size() >= 1 && (headArea() == 'genel' || (ts.size() == 1 && ts[0] == headArea())); }
     // Personel yazması (bölüm sorumlusu HARİÇ)
@@ -345,7 +345,7 @@ service cloud.firestore {
     match /studentLeaves/{id} {
       allow read: if isStaff() || kidRead();
       allow create: if leaveOk(request.resource.data) && (isAdmin()
-        || (request.resource.data.kid == true && kidHeadLvl() && request.resource.data.area == headArea())
+        || (request.resource.data.kid == true && kidHeadLvl())
         || (request.resource.data.kid == false && aatHead() && (headGeneral() || request.resource.data.area == headArea())));
       allow delete: if isAdmin() || (headLvl() && resource.data.byNo == prefix());
     }
@@ -545,7 +545,7 @@ service cloud.firestore {
     function formOwnerOk(d) {
       return d.get('ownerNo', '') == prefix() && (
         (aatHead() && d.get('academy', '') == 'aat' && d.get('direction', '') in ['t2s', 's2t'] && (headGeneral() || d.get('area', '') == headArea()))
-        || (kidHeadLvl() && d.get('academy', '') == 'kid' && d.get('direction', '') in ['t2k', 'g2t'] && d.get('area', '') == headArea()));
+        || (kidHeadLvl() && d.get('academy', '') == 'kid' && d.get('direction', '') in ['t2k', 'g2t'] && kidHeadClassId(d.get('classId', ''))));
     }
     function formShapeOk(d) {
       return d.title is string && d.title.size() > 0 && d.title.size() <= 120
@@ -701,14 +701,19 @@ service cloud.firestore {
 
     // Çocuk akademisi programı: yönetici her dersi; çocuk akademisi bölüm sorumlusu yalnız KENDİ dersinin (alan)
     // haftalık derslerini; Öğrenci İşleri yalnız atölye dersini (ws_<sınıf>).
+    // Çocuk akademisinde alan yok: yetki SINIF bazlı. Sınıf sorumlusu = kidClasses/<sınıf>.headNos içindeki bölüm sorumlusu.
+    function kidHeadOf(d) { return kidHeadLvl() && prefix() in d.get('headNos', []); }
+    function kidHeadClassId(cid) {
+      return cid is string && cid != '' && exists(clsDoc('kidClasses', cid)) && kidHeadOf(get(clsDoc('kidClasses', cid)).data);
+    }
     function kidHeadSchedWrite() {
-      return kidHeadLvl() && request.resource.data.get('area', '') == headArea()
-        && (resource == null || resource.data.get('area', '') == headArea());
+      return kidHeadClassId(request.resource.data.get('classId', ''))
+        && (resource == null || kidHeadClassId(resource.data.get('classId', '')));
     }
     match /kidSchedule/{id} {
       allow read: if kidRead() || isGuardian();
       allow create, update: if isAdmin() || kidHeadSchedWrite();
-      allow delete: if isAdmin() || (kidHeadLvl() && resource.data.get('area', '') == headArea());
+      allow delete: if isAdmin() || kidHeadClassId(resource.data.get('classId', ''));
     }
     // Günlük görevlendirme (çocuk akademisi): dersin sorumlusu belirli bir tarih için başka çocuk öğretmenini / kendini görevlendirir
     function kidSchedPath(lf) { return /databases/$(database)/documents/kidSchedule/$(lf); }
@@ -718,19 +723,26 @@ service cloud.firestore {
         && id == request.resource.data.get('lessonFire', '') + '_' + request.resource.data.get('date', '')
         && request.resource.data.get('teacherNo', '') is string && request.resource.data.get('teacherNo', '') != ''
         && exists(kidSchedPath(request.resource.data.get('lessonFire', '')))
-        && get(kidSchedPath(request.resource.data.get('lessonFire', ''))).data.get('area', '') == headArea();
+        && kidHeadClassId(get(kidSchedPath(request.resource.data.get('lessonFire', ''))).data.get('classId', ''));
       allow delete: if kidHeadLvl() && exists(kidSchedPath(resource.data.get('lessonFire', '')))
-        && get(kidSchedPath(resource.data.get('lessonFire', ''))).data.get('area', '') == headArea();
+        && kidHeadClassId(get(kidSchedPath(resource.data.get('lessonFire', ''))).data.get('classId', ''));
     }
     // Sınıflar (1., 2., …): çocuğun sınıfı kids.classLevel; sınıf öğretmeni burada (doc id = L<seviye>)
     // Çocuk sınıfları: çocuk akademisi bölüm sorumlusu KENDİ bölümünün sınıflarını açar / sınıf öğretmeni atar; yönetici hepsini.
     // Öğrenci İşleri sınıf yönetmez (yalnız kayıt, başvuru, kart).
-    function kidHeadClassOk(d) { return kidHeadLvl() && d.get('kind', '') == 'area' && d.get('area', '') == headArea(); }
+    // Sınıfı yönetici açar ve sınıf sorumlusunu (headNos) atar. Sınıf sorumlusu KENDİ sınıfının öğrenci/öğretmen listesini düzenler,
+    // ama sorumluları (headNos), türü ve alanı değiştiremez.
+    function kidHeadClassOk(d) { return kidHeadOf(d); }
+    function kidHeadClassEdit() {
+      return kidHeadOf(resource.data) && request.resource.data.get('headNos', []) == resource.data.get('headNos', [])
+        && request.resource.data.get('kind', '') == resource.data.get('kind', '')
+        && request.resource.data.get('area', '') == resource.data.get('area', '');
+    }
     match /kidClasses/{id} {
       allow read: if kidRead() || isGuardian();
-      allow create: if isAdmin() || kidHeadClassOk(request.resource.data);
-      allow update: if isAdmin() || (kidHeadClassOk(resource.data) && kidHeadClassOk(request.resource.data));
-      allow delete: if isAdmin() || kidHeadClassOk(resource.data);
+      allow create: if isAdmin();
+      allow update: if isAdmin() || kidHeadClassEdit();
+      allow delete: if isAdmin();
     }
     // Çocuk Akademisi anketleri kaldırıldı: okuma/yazma kapalı
     match /kidSurveys/{id}         { allow read, write: if false; }
@@ -751,7 +763,8 @@ service cloud.firestore {
       allow delete: if isRegistrar() || (kidStaff() && resource.data.teacherNo == prefix());
     }
     // Duyuru: çocuk akademisi bölüm sorumlusu YALNIZCA kendi bölümüne, kendi adıyla
-    function kidHeadAnnOk(d) { return kidHeadLvl() && d.get('byNo', '') == prefix() && d.get('area', '') == headArea(); }
+    // (Alan kalktı: genel duyuruyu yalnız Öğrenci İşleri yapar; sınıf sorumlusu duyuruyu kendi sınıfına kidClassPosts ile gönderir)
+    function kidHeadAnnOk(d) { return false; }
     // Çocuk öğretmeni genel duyuru YAZAMAZ: yalnızca kendi sınıflarına (kidClassPosts type "duyuru")
     match /kidAnnouncements/{id} {
       allow read: if kidRead() || isGuardian();

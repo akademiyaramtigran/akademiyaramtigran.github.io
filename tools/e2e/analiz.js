@@ -66,7 +66,7 @@ async function routes(ctx) {
   await signUp('96202602@ogretmen.aat', 'Head1234');
   await put('kids/KD1', { no: K1, name: 'Dilan Aram', area: 'drama', guardianNos: ['9' + YR + '501'] });
   await put('kids/KD2', { no: K2, name: 'Azad Şêx', area: 'drama', guardianNos: ['9' + YR + '502'] });
-  await put('kidClasses/KC', { kind: 'area', name: '1. Sînif', area: 'drama', studentNos: [K1, K2] });
+  await put('kidClasses/KC', { kind: 'area', name: '1. Sînif', area: 'drama', studentNos: [K1, K2], headNos: ['96202602'] });
   await put('kidSchedule/KS1', { title: 'Drama', day: new Date(prev5 + 'T12:00:00').getDay(), start: '10:00', end: '11:00', area: 'drama', classId: 'KC', teacher: 'Mamoste Berfîn', createdAt: new Date(now.getFullYear() - 1, 0, 1) });
   for (const dt of [prev5, prev12]) await put('kidAttendance/A' + dt, { kidId: 'KD2', kidNo: K2, kidName: 'Azad Şêx', type: 'in', date: dt });
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };

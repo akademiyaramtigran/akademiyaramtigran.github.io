@@ -135,15 +135,20 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   const kh = await login(await mk(), '96000003', 'Head1234');
   await topTab(kh, 'Sinif'); await kh.waitForTimeout(1500);
   const lowBtn = (p, t) => p.evaluate(t => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes(t) && x.offsetParent).pop(); b.scrollIntoView({ block: 'center' }); b.click(); }, t);
-  await lowBtn(kh, '➕ Sinifa nû'); await kh.waitForTimeout(400);
-  await kh.locator('input[aria-label="Navê sinifê"]').fill('1. Sînif');
+  // Sınıfı yönetici açar ve sorumlu atar; sorumlu kendi sınıfının öğretmen/çocuk listesini düzenler
+  await put('kidClasses/KCX', { kind: 'area', area: 'zarok', name: '1. Sînif', studentNos: [], teacherNos: [], headNos: ['96000003'] });
+  await kh.waitForTimeout(1500);
+  ok('Çocuk sınıfı: sorumlu YENİ SINIF AÇAMAZ (düğme yok)', (await kh.locator('[data-cls-new]').count()) === 0);
+  await kh.evaluate(() => { const h = [...document.querySelectorAll('div,button')].filter(x => x.offsetParent && x.textContent.trim().startsWith('▸') && x.textContent.includes('1. Sînif'))[0]; (h.closest('[role=button]') || h).click(); });
+  await kh.waitForTimeout(500);
+  await lowBtn(kh, 'Biguherîne'); await kh.waitForTimeout(400);
   await kh.locator('label', { hasText: 'Mamoste Berfîn' }).locator('input[type=checkbox]').check();
   await kh.locator('label', { hasText: 'Dilan Aram' }).locator('input[type=checkbox]').check();
   await kh.locator('label', { hasText: 'Zîlan Aram' }).locator('input[type=checkbox]').check();
   await lowBtn(kh, '💾 Tomar bike'); await kh.waitForTimeout(1500);
   const KC = (await list('kidClasses')).find(d => d.fields.name && d.fields.name.stringValue === '1. Sînif');
   const KCid = KC ? KC.name.split('/').pop() : '';
-  ok('Çocuk sınıfı (sorumlu açtı): kendi bölümü, 2 çocuk + sınıf öğretmeni', KC && KC.fields.kind.stringValue === 'area' && KC.fields.area.stringValue === kidArea && KC.fields.studentNos.arrayValue.values.length === 2
+  ok('Çocuk sınıfı (sorumlu düzenledi): 2 çocuk + sınıf öğretmeni', KC && KC.fields.kind.stringValue === 'area' && KC.fields.area.stringValue === 'zarok' && KC.fields.studentNos.arrayValue.values.length === 2
     && JSON.stringify(KC.fields.teacherNos).includes(KT) && JSON.stringify(KC.fields.teacherNames).includes('Mamoste Berfîn'));
   ok('Sınıf kartında öğretmen ve 2 çocuk', /1\. Sînif \(2 zarok\)/.test(await txt(kh)) && (await txt(kh)).includes('👩‍🏫 Mamoste Berfîn'));
   await put('kidSchedule/KL1', { title: 'Solfeja Zarokan', classId: KCid, teacherNo: KT, teacher: 'Mamoste Berfîn', day: 1, start: '15:00', end: '16:00', area: kidArea, room: '' });
