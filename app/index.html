@@ -5598,6 +5598,7 @@ function EditTeacherSheet({teacher,onClose,t,lang,toast,onSave}){
         No: <span style={{fontFamily:"monospace",fontWeight:600,color:"var(--text)"}}>{teacher.no}</span>
       </div>
       <PrimaryBtn onClick={handleSave} icon="💾">{t.saveTeacher||"Tomar bike"}</PrimaryBtn>
+      <DeviceResetBtn no={teacher.no} lang={lang} toast={toast}/>
     </Sheet>
   );
 }
@@ -7084,6 +7085,7 @@ function EditSpecialCardSheet({card,onClose,t,lang,toast,onSave}){
         No: <span style={{fontFamily:"monospace",fontWeight:600,color:"var(--text)"}}>{card.no}</span>
       </div>
       <PrimaryBtn onClick={handleSave} icon="💾">{t.save||"Tomar bike"}</PrimaryBtn>
+      <DeviceResetBtn no={card.no} lang={lang} toast={toast}/>
     </Sheet>
   );
 }
