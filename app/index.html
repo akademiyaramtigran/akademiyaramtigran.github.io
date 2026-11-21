@@ -14253,6 +14253,9 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     return ms;
   }
   const lateNow=ls=>{ const st=startOf(ls); return st>0 && Date.now()-st>LATE_MS; };
+  // Bugünün dersinde yoklama ancak "Dersi başlat"tan sonra işaretlenir / kaydedilir (geçmiş gün düzeltmesi hariç)
+  const needStart=!!attLesson&&!isPastAtt&&!startOf(attLesson);
+  const needStartMsg=()=>toast("⚠ "+(lang==="en"?"Start the lesson first — attendance can only be taken after “Start lesson”.":K("Pêşî dersê dest pê bike — amadebûn tenê piştî “Dersê Dest Pê Bike” tê girtin.")),5000);
   // Kartla (QR ile) alınan yoklama: işaret hemen kaydedilir (kaydet'e basılmasa da kaybolmaz)
   function cardCheckin(student){
     const ls=attLesson; if(!ls) return {ok:false,reason:"session_not_found"};
@@ -14791,7 +14794,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                   </div>
                   <div style={{display:"flex",gap:5}}>
                     {[{v:"on",icon:"✓",cls:"on"},{v:"late",icon:"⏱",cls:"late"},{v:"off",icon:"✗",cls:"off"}].map(btn=>(
-                      <button key={btn.v} onClick={()=>setAttendance(p=>({...p,[s.id]:btn.v}))}
+                      <button key={btn.v} data-att-mark={btn.v} onClick={()=>{ if(needStart){ needStartMsg(); return; } setAttendance(p=>({...p,[s.id]:btn.v})); }}
                         className={`att-btn${attendance[s.id]===btn.v?" "+btn.cls:""}`}>
                         {btn.icon}
                       </button>
@@ -14801,6 +14804,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
               ))}
                 <AttSaveBtn dk="data-att-save-list" busy={attSaving} onClick={async()=>{
                   if(!attLesson||attSaving) return;
+                  if(needStart){ needStartMsg(); return; }
                   // Yoklama kaydı (raporlar buradan okur) + devam istatistiği. QR açıksa okutanlar
                   // da listeye zaten işlenmiştir; kayıt aynı belgeye yazılır, tekrar kaydetmek güvenlidir.
                   const total=attRoster.length||1;

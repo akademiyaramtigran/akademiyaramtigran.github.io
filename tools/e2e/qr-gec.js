@@ -76,7 +76,7 @@ async function routes(ctx) {
   // Öğrenci ekranı
   await goA(sp, 'attend'); await sp.waitForSelector('[data-stu-att-view]', { timeout: 15000 }); await sp.waitForTimeout(2500);
   const rowSt = await sp.evaluate(() => [...document.querySelectorAll('[data-stu-att-row]')].map(e => e.dataset.st));
-  ok('Rojîn kendi ekranında "geç" görür (gelmedi değil)', rowSt.join() === 'late', rowSt.join());
+  ok('Ders sürerken Rojîn\'in ekranında durum "bekliyor" (ders bitince hesaplanır; "gelmedi" DEĞİL)', rowSt.join() === 'wait', rowSt.join());
   await sp.context().close();
   const sp2 = await loginStu('20202602');
   await goA(sp2, 'attend'); await sp2.waitForSelector('[data-stu-att-view]', { timeout: 15000 }); await sp2.waitForTimeout(2500);
@@ -88,6 +88,10 @@ async function routes(ctx) {
   ok('Ders bitince kayıtlar kesinleşir (Azad "yok" kesin)', !!fin);
   await sp2.waitForFunction(() => { const e = document.querySelector('[data-stu-att-row]'); return e && e.dataset.st === 'off'; }, null, { timeout: 15000 }).then(() => ok('Azad\'ın ekranı canlı "gelmedi" olur ve itiraz düğmesi çıkar', true), () => ok('Azad\'ın ekranı canlı "gelmedi" olur ve itiraz düğmesi çıkar', false));
   await sp2.context().close();
+  const sp3 = await loginStu('20202601'); await goA(sp3, 'attend'); await sp3.waitForSelector('[data-stu-att-view]', { timeout: 15000 }); await sp3.waitForTimeout(2500);
+  const r3 = await sp3.evaluate(() => [...document.querySelectorAll('[data-stu-att-row]')].map(e => e.dataset.st));
+  ok('Ders bitince Rojîn kendi ekranında "geç" görür (gelmedi değil)', r3.join() === 'late', r3.join());
+  await sp3.context().close();
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);
 })().catch(e => { console.error('E2E HATA', e); process.exit(1); });
