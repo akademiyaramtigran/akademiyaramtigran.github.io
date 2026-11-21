@@ -34,6 +34,7 @@ async function routes(ctx) {
   const goA = (pg, k) => pg.evaluate(k => [...document.querySelectorAll('.sm-it[data-key="' + k + '"],.pano-tile[data-key="' + k + '"]')].find(x => x.getClientRects().length).click(), k).then(() => pg.waitForTimeout(1800));
   await put('idx_staff/1000', { no: '1000', lvl: 'admin' }); await put('teachers/TA', { no: '1000', name: 'Rêveber', isAdmin: true, area: 'genel' }); await signUp('1000@ogretmen.aat', 'Admin123');
   await put('idx_staff/96202600', { no: '96202600', lvl: 'head', area: 'genel' }); await put('teachers/TG', { id: 'TG', no: '96202600', name: 'Berpirsê Giştî', isHead: true, area: 'genel' }); await signUp('96202600@ogretmen.aat', 'Head1234');
+  await put('idx_staff/98202601', { no: '98202601', lvl: 'registrar' }); await put('teachers/TR', { id: 'TR', no: '98202601', name: 'Öğrenci İşleri', isRegistrar: true, area: 'genel' }); await signUp('98202601@ogretmen.aat', 'Reg12345');
   await put('idx_staff/50202601', { no: '50202601', lvl: 'teacher' }); await signUp('50202601@ogretmen.aat', 'Tea12345'); await put('teachers/T50', { id: 'T50', fireId: 'T50', no: '50202601', name: 'Mamoste Şano', area: 'tiyatro' });
   await put('idx_staff/50202602', { no: '50202602', lvl: 'teacher' }); await put('teachers/T51', { id: 'T51', fireId: 'T51', no: '50202602', name: 'Mamoste Dengbêj', area: 'muzik' });
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
@@ -75,10 +76,12 @@ async function routes(ctx) {
   let dj = null; if (dl) { dj = JSON.parse(fs.readFileSync(await dl.path(), 'utf8')); }
   ok('Tüm veriyi indir: JSON dosyası iner, koleksiyonlar içinde', !!dj && !!dj.collections && Array.isArray(dj.collections.teachers) && dj.collections.teachers.length >= 4, dj && Object.keys(dj.collections).length + ' koleksiyon, hata: ' + JSON.stringify(dj.errors));
   await ap.context().close();
-  // Genel sorumlu → alan sorumlusu işaretler
-  const gp = await login('96202600', 'Head1234');
-  await goA(gp, 'areaheads');
-  ok('Genel sorumlu "Berpirsên Beşan" bölümünü görür', (await gp.locator('[data-areaheads]').count()) === 1);
+  // Öğrenci İşleri → alan sorumlusu işaretler
+  const gp = await login('98202601', 'Reg12345');
+  await goA(gp, 'qad'); await gp.waitForTimeout(1200);
+  await gp.evaluate(() => { const e = [...document.querySelectorAll('.area-card')].filter(x => x.textContent.includes('Şano')).pop(); e && e.click(); }); await gp.waitForTimeout(1200);
+  await gp.evaluate(() => document.querySelector('[data-area-tab="teachers"]').click()); await gp.waitForTimeout(600);
+  ok('Öğrenci İşleri alan penceresinde Sınıf + Bername sekmesi var', (await gp.locator('[data-area-tab="classes"]').count()) === 1 && (await gp.locator('[data-area-tab="schedule"]').count()) === 1);
   await gp.evaluate(() => document.querySelector('[data-ah-toggle="50202601"]').click());
   const idx = await waitFor(async () => { const d = await getD('idx_staff/50202601'); return d && d.fields.lvl.stringValue === 'head' ? d : null; });
   const td = await getD('teachers/T50');
