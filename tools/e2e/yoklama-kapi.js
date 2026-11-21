@@ -1,5 +1,36 @@
 // Uçtan uca test — çalıştırma: tools/README.md → "E2E"
-// E2E:// E2E: Yoklama kapısı — ders BAŞLATILMADAN işaretlenmez/kaydedilmez; başlatınca kaydedilir (kesin değil); kapatılmayan ders için öğretmene "dersi bitirin" uyarısı
+// E2E: Haftalık değerlendirme + öğretmen kartları — öğretmen öğrencilerini değerlendirir (hatırlatma), yalnız kendi
+//      sınıfına dosyasız duyuru gönderir, Sınıfım = ödev/belge + mesaj; öğrenci öğretmenini isimsiz değerlendirir;
+//      sorumlu raporlarda iki değerlendirmeyi ve anketi görür; yöneticide öğrenci ayrıntısında gerçek haftalık grafik;
+//      öğrenci işlerinde rapor yok.
+const { chromium } = require('playwright-core');
+const fs = require('fs');
+const FBV = require('firebase/package.json').version;
+const P = 'aram2026-a9fd7';
+const NM = require('path').dirname(require.resolve('firebase/package.json')) + '/../';
+const FS = `http://127.0.0.1:8080/v1/projects/${P}/databases/(default)/documents`;
+const H = { 'Content-Type': 'application/json', 'Authorization': 'Bearer owner' };
+const val = v => v instanceof Date ? { timestampValue: v.toISOString() } : typeof v === 'number' ? { integerValue: String(v) } : Array.isArray(v) ? { arrayValue: { values: v.map(val) } } : typeof v === 'boolean' ? { booleanValue: v } : { stringValue: String(v) };
+const put = (path, obj) => fetch(`${FS}/${path}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, val(v)])) }) }).then(r => { if (!r.ok) throw new Error('seed ' + path + ' ' + r.status); });
+const list = col => fetch(`${FS}/${col}?pageSize=100`, { headers: H }).then(r => r.json()).then(j => j.documents || []);
+const signUp = (email, password) => fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=x', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, returnSecureToken: true }) }).then(r => r.json());
+const LOCAL = { 'react.production.min.js': 'react/umd/react.production.min.js', 'react-dom.production.min.js': 'react-dom/umd/react-dom.production.min.js', 'babel.min.js': '@babel/standalone/babel.min.js' };
+async function routes(ctx) {
+  await ctx.route(/^https?:\/\/(?!localhost|127\.0\.0\.1)/, route => {
+    const u = route.request().url();
+    const m = u.match(/gstatic\.com\/firebasejs\/([\d.]+)\/(firebase-[a-z-]+\.js)$/);
+    if (m) {
+      if (m[1] !== FBV) return route.fulfill({ contentType: 'application/javascript', body: `export * from "https://www.gstatic.com/firebasejs/${FBV}/${m[2]}";` });
+      return route.fulfill({ contentType: 'application/javascript', body: fs.readFileSync(NM + 'firebase/' + m[2]) });
+    }
+    const f = Object.keys(LOCAL).find(k => u.endsWith('/' + k));
+    if (f) return route.fulfill({ contentType: 'application/javascript', body: fs.readFileSync(NM + LOCAL[f]) });
+    return route.abort();
+  });
+}
+
+// E2E: Öğrenci İşleri → Çocuk Akademisi → Öğretmenler: ana akademi öğretmenini listeden seçip bağlama
+// E2E: Yoklama kapısı — ders BAŞLATILMADAN işaretlenmez/kaydedilmez; başlatınca kaydedilir (kesin değil); kapatılmayan ders için öğretmene "dersi bitirin" uyarısı
 (async () => {
   const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-key="' + k + '"],.sm-it[data-key="' + k + '"]').click(), k);
   const TD = new Date().toISOString().slice(0, 10); const todayKu = ['Yekşem', 'Dûşem', 'Sêşem', 'Çarşem', 'Pêncşem', 'Înî', 'Şemî'][new Date().getDay()];
