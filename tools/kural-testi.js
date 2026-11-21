@@ -857,6 +857,12 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
   // ── Görev modeli ──
   {
     const gen = as('96202698@ogretmen.aat'), chd = as('96202697@ogretmen.aat'), plain = as('96202696@ogretmen.aat'), kadm = admin;
+    const al = { kind: 'leave-add', text: 'x', byNo: '96202696', by: 'x', at: 1, ts: new Date(), ref: '' };
+    await t('Değişiklik kaydı: personel kendi adına ekler', addDoc(collection(plain, 'auditLog'), al), true);
+    await t('Değişiklik kaydı: başkası adına eklenemez', addDoc(collection(plain, 'auditLog'), { ...al, byNo: '96202697' }), false);
+    await t('Değişiklik kaydı: yönetici dışı okuyamaz', getDocs(collection(plain, 'auditLog')), false);
+    await t('Değişiklik kaydı: yönetici okur', getDocs(collection(kadm, 'auditLog')), true);
+    await t('Değişiklik kaydı: silinemez / değiştirilemez', Promise.all([deleteDoc(doc(kadm, 'auditLog/A1')), setDoc(doc(kadm, 'auditLog/A1'), al)]).then(() => 0), false);
     await t('Ç.genel sorumlu: sınıf açar', setDoc(doc(gen, 'kidClasses/GN1'), { kind: 'area', area: 'zarok', name: 'N', headNos: ['96202697'], studentNos: [] }), true);
     await t('Ç.genel sorumlu: sınıf sorumlusu atar (headNos)', updateDoc(doc(gen, 'kidClasses/GC2'), { headNos: ['96202697'] }), true);
     await t('Ç.genel sorumlu: sınıfı siler', deleteDoc(doc(gen, 'kidClasses/GN1')), true);

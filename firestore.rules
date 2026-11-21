@@ -338,6 +338,15 @@ service cloud.firestore {
     match /qrCodes/{id}           { allow read, write: if tchW(); }
     match /config/{id}            { allow read: if member() && id != 'reportArchive'; allow write: if isRegistrar() && id != 'kidAcademy'; }
     // Çocuk Akademisi görev ayarı: GENEL sorumlular (birden fazla kişi) — yalnız yönetici atar
+    // Değişiklik kaydı: personel yalnız KENDİ adına ekler; yalnız yönetici okur; değiştirilemez / silinemez
+    match /auditLog/{id} {
+      allow read: if isAdmin();
+      allow create: if isStaff() && request.resource.data.byNo == prefix()
+                    && request.resource.data.keys().hasOnly(['kind', 'text', 'byNo', 'by', 'at', 'ref', 'ts'])
+                    && request.resource.data.kind is string && request.resource.data.kind.size() < 40
+                    && request.resource.data.text is string && request.resource.data.text.size() < 400;
+      allow update, delete: if false;
+    }
     match /config/kidAcademy      { allow read: if isStaff(); allow write: if isAdmin(); }
     match /config/reportArchive   { allow read, write: if isStaff(); }
     match /admins/{id}            { allow read: if isStaff(); allow write: if isAdmin(); }

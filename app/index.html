@@ -2399,6 +2399,7 @@ async function fbSaveAttendance(lessonId, teacherId, date, records, lessonFire, 
     await qrMergeRecords(lessonId, teacherId, date, records);   // records yerinde güncellenir (çağıran da görür)
     const ref = window.__FB.doc(window.__FB.db, "attendance", `${lessonId}-${date}`);
     await window.__FB.setDoc(ref, {lessonId,lessonFire:String(lessonFire==null?lessonId:lessonFire),teacherId:teacherId==null?null:teacherId,date,records,updatedAt:window.__FB.serverTimestamp(),...(close?{endedAt:Date.now()}:{})},{merge:true});
+    if(close) logAudit("att-fix","Yoklama düzeltildi: "+lessonId+" · "+date,ref.id);
     return ref.id;
   } catch(e){ console.warn("Attendance save error:", e); return null; }
 }
@@ -2688,11 +2689,19 @@ async function verifyDevice(userNo, currentDeviceId) {
 }
 
 // Admin: kullanıcının cihazını sıfırla
+// Değişiklik kaydı (yoklama düzeltme, izin, cihaz sıfırlama, görev atama…) — auditLog; yalnız yönetici okur
+function logAudit(kind,text,ref){
+  try{ const F=window.__FB; if(!F||!F.isConfigured()||!F.auth||!F.auth.currentUser) return;
+    const no=String((F.auth.currentUser.email||"").split("@")[0]);
+    F.addDoc(F.collection(F.db,"auditLog"),{kind:String(kind).slice(0,39),text:String(text).slice(0,399),byNo:no,by:String((window.__aatMe&&window.__aatMe.name)||no).slice(0,80),at:Date.now(),ts:F.serverTimestamp(),ref:String(ref||"").slice(0,80)}).catch(()=>{});
+  }catch(_){}
+}
 async function resetDeviceForUser(userNo) {
 
   if(!window.__FB || !window.__FB.isConfigured()) return false;
   try {
     await window.__FB.deleteDoc(window.__FB.doc(window.__FB.db, "devices", userNo));
+    logAudit("device","Cihaz kilidi sıfırlandı: "+userNo,userNo);
     return true;
   } catch(e) { console.warn("Device reset error:", e); return false; }
 }
@@ -9027,11 +9036,13 @@ function LeavesPanel({user,students,schedule,area,all=false,kid=false,stuScope=n
         const patch={...base,area:old.area!=null?old.area:base.area,by:old.by||user.name||"",byNo:String(old.byNo||user.no||""),editedBy:user.name||"",editedByNo:myNo,updatedAt:F.serverTimestamp()};
         if(f.scope!=="lesson"){ patch.lessonIds=F.deleteField(); patch.lessonNames=F.deleteField(); }
         await F.updateDoc(F.doc(F.db,"studentLeaves",editId),patch);
+        logAudit("leave-edit","İzin düzeltildi: "+base.studentName+" "+f.from+"→"+f.to+" ("+base.reason+")",editId);
         toast("✅ "+W2("Destûr hate rastkirin","Leave updated")); setEditId(null);
       }else{
         const add={...base,by:user.name||"",byNo:myNo,createdAt:F.serverTimestamp()};
         if(f.scope!=="lesson"){ delete add.lessonIds; delete add.lessonNames; }
         await F.addDoc(F.collection(F.db,"studentLeaves"),add);
+        logAudit("leave-add","İzin girildi: "+base.studentName+" "+f.from+"→"+f.to+" ("+base.reason+")",base.studentNo);
         toast(W2("Destûr hate tomarkirin","Leave saved"));
       }
       setF({no:"",from:today,to:today,reason:"",scope:teacherMode?"lesson":"day",lessons:{}});
@@ -9044,7 +9055,7 @@ function LeavesPanel({user,students,schedule,area,all=false,kid=false,stuScope=n
   }
   async function del(l){
     if(!window.confirm(W2("Destûr were jêbirin?","Delete this leave?"))) return;
-    try{ await F.deleteDoc(F.doc(F.db,"studentLeaves",l.fireId)); }catch(e){ toast("❌ "+((e&&e.code)||e)); }
+    try{ await F.deleteDoc(F.doc(F.db,"studentLeaves",l.fireId)); logAudit("leave-del","İzin silindi: "+(l.studentName||l.studentNo)+" "+l.from+"→"+l.to,l.fireId); }catch(e){ toast("❌ "+((e&&e.code)||e)); }
   }
   const range=l=>l.from===l.to?fmtDateTx(l.from):fmtDateTx(l.from)+" – "+fmtDateTx(l.to);
   return(
@@ -11833,7 +11844,7 @@ function RolesPanel({teachers,lang,toast}){
     return ()=>u.forEach(f=>{try{f();}catch(_){}}); },[]);
   const staff=(teachers||[]).filter(tc=>tc.no&&!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&!(tc.isHead&&isKidArea(tc.area)));
   const byNo=n=>staff.find(x=>String(x.no)===String(n))||{no:n,name:String(n)};
-  async function setGeneral(nos){ setBusy("g"); try{ await F.setDoc(F.doc(F.db,"config","kidAcademy"),{generalNos:nos,updatedAt:F.serverTimestamp()},{merge:true}); }catch(e){ toast("❌ "+((e&&e.code)||e)); } setBusy(""); }
+  async function setGeneral(nos){ setBusy("g"); try{ await F.setDoc(F.doc(F.db,"config","kidAcademy"),{generalNos:nos,updatedAt:F.serverTimestamp()},{merge:true}); logAudit("role-kidgen","Çocuk Akademisi genel sorumluları: "+nos.join(", "),"kidAcademy"); }catch(e){ toast("❌ "+((e&&e.code)||e)); } setBusy(""); }
   async function addGen(no){ const tc=byNo(no); try{ await kidLink(tc,true); }catch(_){} await setGeneral([...new Set([...gen,String(no)])]); setPick(""); toast("✅ "+tc.name); }
   async function rmGen(no){ await setGeneral(gen.filter(x=>x!==String(no))); toast("✅ "+W2("Hate rakirin","Removed")); }
   async function toggle(tc){ const on=!kt.includes(String(tc.no)); setBusy(String(tc.no)); try{ await kidLink(tc,on); toast("✅ "+tc.name); }catch(e){ toast("❌ "+((e&&e.code)||e)); } setBusy(""); }
@@ -11866,6 +11877,7 @@ function AreaHeadsPanel({teachers,user,lang,toast}){
     try{
       await F.updateDoc(F.doc(F.db,"teachers",tc.fireId||tc.id),{isHead:on,updatedAt:F.serverTimestamp()});
       await F.setDoc(F.doc(F.db,"idx_staff",String(tc.no)),on?{no:String(tc.no),lvl:"head",area:String(tc.area),updatedAt:F.serverTimestamp()}:{no:String(tc.no),lvl:"teacher",updatedAt:F.serverTimestamp()});
+      logAudit("role-areahead",(on?"Alan sorumlusu atandı: ":"Alan sorumluluğu kaldırıldı: ")+tc.name+" · "+tc.area,String(tc.no));
       toast("✅ "+tc.name);
     }catch(e){ toast("❌ "+((e&&e.code)||e)); }
     setBusy(""); }
@@ -11877,6 +11889,46 @@ function AreaHeadsPanel({teachers,user,lang,toast}){
       <span style={{flex:1,minWidth:0}}><b>{tc.name}</b> <span style={{fontSize:12,color:"var(--text2)"}}>· {tc.no} · {areaName(tc.area,lang)}</span></span>
       <button type="button" data-ah-toggle={tc.no} className="c-chip" disabled={busy===String(tc.no)} onClick={()=>toggle(tc)} style={{background:tc.isHead?"#0f2f38":undefined,color:tc.isHead?"#fff":undefined}}>{tc.isHead?"✓ ":""}{W2("Berpirs","Head")}</button></div></Card>))}
     {list.length===0&&<Card><div style={{fontSize:13,color:"var(--text2)",textAlign:"center",padding:12}}>{W2("Mamoste nehat dîtin.","No teachers found.")}</div></Card>}
+  </div>);
+}
+/* ── Yönetici: değişiklik kaydı + tüm veriyi indir ── */
+const EXPORT_COLS=["students","teachers","classes","schedule","attendance","studentAtt","studentLeaves","messages","announcements","evalForms","evalResponses","kids","guardians","kidClasses","kidTeachers","kidSchedule","kidAttendance","kidClassPosts","auditLog"];
+function AuditPanel({teachers,lang,toast}){
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const F=window.__FB; const [rows,setRows]=useState([]); const [q,setQ]=useState(""); const [busy,setBusy]=useState(false);
+  useEffect(()=>{ if(!F||!F.isConfigured()) return; let u=()=>{};
+    try{ u=F.onSnapshot(F.query(F.collection(F.db,"auditLog"),F.orderBy("at","desc"),F.limit(300)),sn=>setRows(sn.docs.map(d=>({...d.data(),id:d.id}))),()=>{}); }catch(_){}
+    return ()=>{ try{u();}catch(_){} }; },[]);
+  const nameOf=no=>{ const t2=(teachers||[]).find(x=>String(x.no)===String(no)); return t2?t2.name:String(no); };
+  const shown=rows.filter(r=>matchQ(q,r.text,r.kind,nameOf(r.byNo)));
+  async function exportAll(){
+    setBusy(true);
+    try{
+      const out={exportedAt:new Date().toISOString(),collections:{},errors:{}};
+      for(const c of EXPORT_COLS){
+        try{ const sn=await F.getDocs(F.collection(F.db,c)); out.collections[c]=sn.docs.map(d=>({id:d.id,...JSON.parse(JSON.stringify(d.data(),(k,v)=>v&&typeof v==="object"&&typeof v.toDate==="function"?v.toDate().toISOString():v))})); }
+        catch(e){ out.errors[c]=String((e&&e.code)||e); }
+      }
+      out.collections.config=[];
+      for(const c of ["heads","kidAcademy","zarok","applications"]){ try{ const d=await F.getDoc(F.doc(F.db,"config",c)); if(d.exists()) out.collections.config.push({id:c,...JSON.parse(JSON.stringify(d.data()))}); }catch(e){ out.errors["config/"+c]=String((e&&e.code)||e); } }
+      const blob=new Blob([JSON.stringify(out,null,1)],{type:"application/json"});
+      const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="aat-veri-"+new Date().toISOString().slice(0,10)+".json";
+      document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1500);
+      logAudit("export","Tüm veri indirildi ("+Object.keys(out.collections).length+" koleksiyon)","");
+      toast("✅ "+W2("Hemû dane hat daxistin","All data downloaded"));
+    }catch(e){ toast("❌ "+((e&&e.code)||e)); }
+    setBusy(false);
+  }
+  const fmt=at=>{ try{ return new Date(at).toLocaleString("tr-TR"); }catch(_){ return ""; } };
+  return(<div data-audit-panel>
+    <SectionHeader>🗂 {W2("Qeyda Guhertinan","Change log")}</SectionHeader>
+    <Card style={{marginBottom:12}}>
+      <button type="button" data-export-all className="btn-primary" disabled={busy} onClick={exportAll} style={{padding:"10px 14px",borderRadius:10,border:"none",fontWeight:800,cursor:"pointer"}}>⬇ {busy?"…":W2("Hemû danê daxe (JSON)","Download all data (JSON)")}</button>
+      <div style={{fontSize:12,color:"var(--text2)",marginTop:6}}>{W2("Hemû koleksiyon di yek pelê de tên tomarkirin.","All collections are saved in a single file.")}</div>
+    </Card>
+    <SearchBox value={q} onChange={setQ} lang={lang}/>
+    {shown.map(r=>(<Card key={r.id} style={{marginBottom:6}}><div data-audit-row={r.kind} style={{fontSize:13}}><b>{r.text}</b><div style={{fontSize:11,color:"var(--text2)"}}>{nameOf(r.byNo)} · {fmt(r.at)}</div></div></Card>))}
+    {shown.length===0&&<Card><div style={{fontSize:13,color:"var(--text2)",textAlign:"center",padding:12}}>{W2("Tomar tune.","No records.")}</div></Card>}
   </div>);
 }
 function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDataChange,onSettings,dark,onThemeToggle}){
@@ -11895,6 +11947,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
     // Özel personel kartları (basın · öğrenci işleri · bölüm sorumlusu · kapı). Site arşivi Basın panelinde.
     {key:"press",icon:"📇",label:lang==="en"?"Staff Cards":K("Kartên Taybet")},
     {key:"roles",icon:"🧭",label:lang==="en"?"Roles":K("Peywir")},
+    {key:"audit",icon:"🗂",label:lang==="en"?"Change log":K("Qeyda Guhertinan")},
     {key:"messages",icon:"💬",label:lang==="en"?"Messages":K("Peyam")},
     {key:"reports",icon:"📊",label:lang==="en"?"Reports":K("Rapor")},
     {key:"alerts",icon:"🔔",label:lang==="en"?"Alerts":K("Hişyarî"),badge:alertData.open},
@@ -11964,6 +12017,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
         </div>
 
         {tab==="announcements"&&<AnnouncementsPanel t={t} toast={toast} lang={lang} senderName={adminData.name} senderRole="admin" senderArea={null}/>}
+        {tab==="audit"&&<AuditPanel teachers={teachers} lang={lang} toast={toast}/>}
         {tab==="roles"&&<RolesPanel teachers={teachers} lang={lang} toast={toast}/>}
         {tab==="press"&&<AdminPressPanel teachers={teachers} onDataChange={onDataChange} lang={lang} toast={toast} t={t}/>}
         {tab==="messages"&&<AdminMessagesPanel students={students} teachers={teachers} lang={lang} t={t} toast={toast} adminName={adminData.name}/>}

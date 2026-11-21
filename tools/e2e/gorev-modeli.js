@@ -66,6 +66,14 @@ async function routes(ctx) {
   await ap.evaluate(() => document.querySelector('[data-kgen-rm="50202602"]').click()); await ap.waitForTimeout(2000);
   const cfg2 = await getD('config/kidAcademy');
   ok('Genel sorumlu kaldırılır', !JSON.stringify(cfg2.fields.generalNos).includes('50202602'));
+  await goA(ap, 'audit');
+  const lg = await waitFor(async () => { const j = await fetch(`${FS}/auditLog?pageSize=50`, { headers: H }).then(r => r.json()); return (j.documents || []).length >= 2 ? j.documents : null; });
+  ok('Görev değişiklikleri auditLog\'a yazıldı', !!lg && lg.some(d => d.fields.kind.stringValue === 'role-kidgen'), lg && lg.map(d => d.fields.kind.stringValue).join(','));
+  await ap.waitForSelector('[data-audit-row]', { timeout: 8000 }).catch(() => {});
+  ok('Yönetici "Qeyda Guhertinan" ekranında kayıtları görür', (await ap.locator('[data-audit-row]').count()) >= 2);
+  const [dl] = await Promise.all([ap.waitForEvent('download', { timeout: 30000 }).catch(() => null), ap.evaluate(() => document.querySelector('[data-export-all]').click())]);
+  let dj = null; if (dl) { dj = JSON.parse(fs.readFileSync(await dl.path(), 'utf8')); }
+  ok('Tüm veriyi indir: JSON dosyası iner, koleksiyonlar içinde', !!dj && !!dj.collections && Array.isArray(dj.collections.teachers) && dj.collections.teachers.length >= 4, dj && Object.keys(dj.collections).length + ' koleksiyon, hata: ' + JSON.stringify(dj.errors));
   await ap.context().close();
   // Genel sorumlu → alan sorumlusu işaretler
   const gp = await login('96202600', 'Head1234');
