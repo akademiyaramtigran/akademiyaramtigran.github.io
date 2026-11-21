@@ -57,7 +57,7 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await routes(ctx);
   await ctx.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} });
   const p = await ctx.newPage(); global.__P = p; const errs = []; p.on('pageerror', e => errs.push(e.message));
-  await p.goto('http://localhost:8765/app/?emu=1');
+  await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01');
   await p.waitForSelector('text=Têkeve', { timeout: 60000 });
   await p.getByText('Mamoste', { exact: true }).first().click();
   await p.locator('input.inp').first().fill('13202601');

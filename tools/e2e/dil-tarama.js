@@ -42,7 +42,7 @@ const clean = t => ALLOW.reduce((s, w) => s.split(w).join(''), t);
   const TODAY = new Date().toISOString().slice(0, 10);
   await put('schedule/L1', { id: 'L1', fireId: 'L1', area: 'tiyatro', classId: 'C1', name: 'Lesson One', day: 'Dûşem', start: '10:00', end: '11:00', teacherNo: '50202601', teacherName: 'Teacher One', lessonType: 'main' });
   await put('schedule/L2', { id: 'L2', fireId: 'L2', area: 'tiyatro', classId: 'C1', name: 'Lesson Two', lessonType: 'extra', extraDates: [TODAY], start: '12:00', end: '13:00', teacherNo: '50202601', teacherName: 'Teacher One' });
-  await fetch(`${FS}/attendance/L1-2026-10-19`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { lessonId: { stringValue: 'L1' }, lessonName: { stringValue: 'Lesson One' }, date: { stringValue: '2026-10-19' }, area: { stringValue: 'tiyatro' },
+  await fetch(`${FS}/attendance/L1-2026-10-19`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { endedAt: { integerValue: '1' }, lessonId: { stringValue: 'L1' }, lessonName: { stringValue: 'Lesson One' }, date: { stringValue: '2026-10-19' }, area: { stringValue: 'tiyatro' },
     records: { mapValue: { fields: { '101': { stringValue: 'on' }, '102': { stringValue: 'off' } } } } } }) });
   // Çocuk Akademisi
   await put('idx_kidstaff/72026001', { no: '72026001' }); await put('kidTeachers/72026001', { no: '72026001', name: 'Kid Teacher', area: 'drama' }); await signUp('72026001@zmamoste.aat', 'Kid12345');
@@ -63,7 +63,7 @@ const clean = t => ALLOW.reduce((s, w) => s.split(w).join(''), t);
     t.split('\n').map(x => x.trim()).filter(Boolean).forEach(x => { if (bad(lang, x)) found.push(lang + ' · ' + where + ' · ' + x.slice(0, 140)); }); };
   const L = { tr: { tk: 'Giriş Yap', m: 'Öğretmen', s: 'Öğrenci' }, ku: { tk: 'Têkeve', m: 'Mamoste', s: 'Xwendekar' } };
   const login = async (lang, no, pw, role) => { const ctx = await mk(lang); const p = await ctx.newPage(); p.on('pageerror', e => errs.push(no + ': ' + e.message)); p.on('dialog', d => d.dismiss());
-    await p.goto('http://localhost:8765/app/?emu=1'); await p.waitForSelector('text=' + L[lang].tk, { timeout: 60000 });
+    await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=' + L[lang].tk, { timeout: 60000 });
     await scan(p, lang, 'giriş');
     await p.getByText(L[lang][role], { exact: true }).first().click();
     await p.locator('input.inp').first().fill(no); await p.locator('input[type=password]').first().fill(pw);

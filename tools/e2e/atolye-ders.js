@@ -44,8 +44,8 @@ async function routes(ctx) {
   // Yoklamalar: Rojîn bölüm dersine gelmedi, atölyeye geldi
   const rec = o => ({ mapValue: { fields: Object.fromEntries(Object.entries(o).map(([k, v]) => [k, { stringValue: v }])) } });
   const putRaw = (path, f) => fetch(`${FS}/${path}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: f }) }).then(r => { if (!r.ok) throw new Error('seed ' + path + ' ' + r.status); });
-  await putRaw('attendance/7-2026-10-26', { lessonId: { stringValue: '7' }, classId: { stringValue: 'A1' }, area: { stringValue: 'tiyatro' }, date: { stringValue: '2026-10-26' }, records: rec({ '101': 'off', '102': 'on' }) });
-  await putRaw('attendance/1-2026-11-01', { lessonId: { stringValue: '1' }, classId: { stringValue: 'W1' }, area: { stringValue: 'genel' }, date: { stringValue: '2026-11-01' }, records: rec({ '101': 'on' }) });
+  await putRaw('attendance/7-2026-10-26', { endedAt: { integerValue: '1' }, lessonId: { stringValue: '7' }, classId: { stringValue: 'A1' }, area: { stringValue: 'tiyatro' }, date: { stringValue: '2026-10-26' }, records: rec({ '101': 'off', '102': 'on' }) });
+  await putRaw('attendance/1-2026-11-01', { endedAt: { integerValue: '1' }, lessonId: { stringValue: '1' }, classId: { stringValue: 'W1' }, area: { stringValue: 'genel' }, date: { stringValue: '2026-11-01' }, records: rec({ '101': 'on' }) });
   await put('classes/C1', { kind: 'workshop', name: 'Atolyeya Girtî', area: 'genel', studentNos: ['20202609'], status: 'closed' });
 
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
@@ -54,7 +54,7 @@ async function routes(ctx) {
   const c = await b.newContext({ viewport: { width: 1280, height: 900 } }); await routes(c);
   await c.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} });
   const p = await c.newPage(); p.on('pageerror', e => errs.push(e.message)); p.on('dialog', d => d.accept());
-  await p.goto('http://localhost:8765/app/?emu=1'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
+  await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
   await p.getByText('Mamoste', { exact: true }).first().click();
   await p.locator('input.inp').first().fill('96000001'); await p.locator('input[type=password]').first().fill('Head1234');
   await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000);

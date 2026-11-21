@@ -55,7 +55,7 @@ function evalWeek(d) { const x = d ? new Date(d) : new Date(); const y = new Dat
   await put('schedule/L3', { id: 'L3', fireId: 'L3', area: 'tiyatro', classId: 'C1', name: 'Atolyeya Dengan', lessonType: 'extra', category: 'extra', extraDates: [TODAY], start: '14:00', end: '15:00', teacherNo: '50202601', teacherName: 'Mamoste Şano' });
   await put('schedule/L4', { id: 'L4', fireId: 'L4', area: 'tiyatro', classId: 'C1', name: 'Atolyeya Mêvan', lessonType: 'extra', category: 'workshop', extraDates: [TODAY], start: '09:00', end: '23:00', guestTeacher: 'Hunermend Rêzan' });
   // Yoklama kaydı (gerçek haftalık grafik için) — map alanı elle
-  await fetch(`${FS}/attendance/L1-2026-10-19`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { lessonId: { stringValue: 'L1' }, lessonName: { stringValue: 'Şano Bingeh' }, date: { stringValue: '2026-10-19' },
+  await fetch(`${FS}/attendance/L1-2026-10-19`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { endedAt: { integerValue: '1' }, lessonId: { stringValue: 'L1' }, lessonName: { stringValue: 'Şano Bingeh' }, date: { stringValue: '2026-10-19' },
     records: { mapValue: { fields: { '101': { stringValue: 'on' }, '102': { stringValue: 'off' } } } } } }) });
 
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
@@ -65,7 +65,7 @@ function evalWeek(d) { const x = d ? new Date(d) : new Date(); const y = new Dat
     await c.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} }); return c; };
   const login = async (ctx, no, pw, role) => {
     const p = await ctx.newPage(); p.on('pageerror', e => errs.push(no + ': ' + e.message)); p.on('dialog', d => d.accept());
-    await p.goto('http://localhost:8765/app/?emu=1'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
+    await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
     await p.getByText(role || 'Mamoste', { exact: true }).first().click();
     await p.locator('input.inp').first().fill(no); await p.locator('input[type=password]').first().fill(pw);
     await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000); return p;

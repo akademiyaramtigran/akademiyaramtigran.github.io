@@ -375,6 +375,57 @@ async function stuIndex(needKeys) {
   _stuIdx = { at: Date.now(), map: DV.studentIndex(sn.docs) };
   return _stuIdx.map;
 }
+// Öğrenci izinleri (çocuk olmayan): verilen numaralar için
+async function leavesFor(nos) {
+  const u = [...new Set((nos || []).map(String))], out = [];
+  for (let i = 0; i < u.length; i += 30) {
+    const sn = await admin.firestore().collection("studentLeaves").where("studentNo", "in", u.slice(i, i + 30)).get();
+    sn.docs.forEach(d => { const v = d.data(); if (!v.kid) out.push(v); });
+  }
+  return out;
+}
+// ── "Lütfen dersinizi bitirin": yoklama alınmış ama "Dersi bitir" denmemiş dersler için öğretmene anlık bildirim (her oturum için bir kez) ──
+const NAGTX = { ku: { t: "⏹ Dersê biqedîne", b: "{0} ({1}) — amadebûn hatiye girtin lê ders nehatiye girtin; heta biqedînî nayê hesibandin." },
+  tr: { t: "⏹ Dersinizi bitirin", b: "{0} ({1}) — yoklama alındı ama ders kapatılmadı; bitirene kadar raporlara sayılmaz." },
+  en: { t: "⏹ Please end your lesson", b: "{0} ({1}) — attendance was taken but the lesson is still open; it is not counted until you end it." } };
+exports.unclosedNag = onSchedule({ schedule: "every 30 minutes", timeZone: "Europe/Istanbul" }, async () => {
+  const db = admin.firestore(), today = DV.istToday();
+  const yest = new Date(Date.now() - 864e5).toLocaleDateString("sv-SE", { timeZone: "Europe/Istanbul" });
+  const hm = new Date().toLocaleTimeString("en-GB", { timeZone: "Europe/Istanbul", hour: "2-digit", minute: "2-digit" });
+  if (hm < "07:00" || hm > "22:30") return;
+  for (const day of [yest, today]) {
+    const sn = await db.collection("attendance").where("date", "==", day).get();
+    for (const d of sn.docs) {
+      const a = d.data(); const k = DV.lessonKey(d.id, a); if (!k) continue;
+      const nag = await db.doc("nags/" + d.id).get(); if (nag.exists) continue;
+      const lsd = await db.doc("schedule/" + String(a.lessonFire || k.lessonId)).get(); if (!lsd.exists) continue;
+      const ls = lsd.data(); if (!ls.teacherNo || !DV.nagDue(a, ls, today, hm)) continue;
+      const docs = (await tokens("aat", "no", String(ls.teacherNo))).filter(x => x.get("role") === "teacher");
+      await db.doc("nags/" + d.id).set({ at: FieldValue.serverTimestamp(), teacherNo: String(ls.teacherNo) });
+      if (!docs.length) continue;
+      await push(docs, l => ({ title: (NAGTX[l] || NAGTX.ku).t, body: (NAGTX[l] || NAGTX.ku).b.replace("{0}", ls.name || a.lessonName || "").replace("{1}", k.date) }), "/app/", "aat-nag-" + d.id);
+    }
+  }
+});
+// İzin eklenince / düzenlenince / silinince: o öğrencinin tarih aralığındaki yoklama satırları yeniden hesaplanır (yok ↔ izinli).
+exports.studentLeaveSync = onDocumentWritten("studentLeaves/{id}", async (ev) => {
+  const after = ev.data && ev.data.after && ev.data.after.exists ? ev.data.after.data() : null;
+  const before = ev.data && ev.data.before && ev.data.before.exists ? ev.data.before.data() : null;
+  const db = admin.firestore();
+  const nos = new Set(); const ranges = [];
+  [before, after].forEach(l => { if (l && !l.kid && l.studentNo && l.from && l.to) { nos.add(String(l.studentNo)); ranges.push([l.from, l.to]); } });
+  if (!nos.size) return;
+  const from = ranges.map(r => r[0]).sort()[0], to = ranges.map(r => r[1]).sort().slice(-1)[0];
+  const atts = await db.collection("attendance").where("date", ">=", from).where("date", "<=", to).get();
+  const leaves = await leavesFor([...nos]); const today = DV.istToday();
+  for (const d of atts.docs) {
+    const a = d.data(); if (!DV.lessonKey(d.id, a) || a.teacherAbsent) continue;
+    const idx = await stuIndex(Object.keys(a.records));
+    const rows = DV.buildRows(d.id, a, idx, today, leaves).filter(r => nos.has(String(r.data.studentNo)));
+    if (!rows.length) continue;
+    const b = db.batch(); rows.forEach(r => b.set(db.collection("studentAtt").doc(r.id), { ...r.data, updatedAt: FieldValue.serverTimestamp() })); await b.commit();
+  }
+});
 exports.studentAttSync = onDocumentWritten("attendance/{id}", async (ev) => {
   const after = ev.data && ev.data.after && ev.data.after.exists ? ev.data.after.data() : null;
   const before = ev.data && ev.data.before && ev.data.before.exists ? ev.data.before.data() : null;
@@ -389,7 +440,8 @@ exports.studentAttSync = onDocumentWritten("attendance/{id}", async (ev) => {
   }
   const idx = await stuIndex(Object.keys(after.records));
   const today = DV.istToday();
-  const rows = DV.buildRows(id, after, idx, today);
+  const leaves = await leavesFor(Object.keys(after.records).map(r => (idx.get(String(r)) || {}).no).filter(Boolean));
+  const rows = DV.buildRows(id, after, idx, today, leaves);
   for (let i = 0; i < rows.length; i += 400) {
     const b = db.batch();
     rows.slice(i, i + 400).forEach(r => b.set(db.collection("studentAtt").doc(r.id), { ...r.data, updatedAt: FieldValue.serverTimestamp() }));

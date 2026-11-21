@@ -66,7 +66,7 @@ function evalWeek() { const x = new Date(); const y = new Date(x.getFullYear(), 
   await z0.p.context().close();
   // 2) Yönetici ana uygulamaya girince sorumlular otomatik bağlanır
   const ap = await (await mk(1280)).newPage(); ap.on('pageerror', e => errs.push('A: ' + e.message)); ap.on('dialog', d => d.accept());
-  await ap.goto('http://localhost:8765/app/?emu=1'); await ap.waitForSelector('text=Têkeve', { timeout: 60000 });
+  await ap.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await ap.waitForSelector('text=Têkeve', { timeout: 60000 });
   await ap.getByText('Mamoste', { exact: true }).first().click();
   await ap.locator('input.inp').first().fill('1000'); await ap.locator('input[type=password]').first().fill('Admin123');
   await ap.getByText('Têkeve', { exact: true }).last().click(); await ap.waitForTimeout(12000);

@@ -67,7 +67,7 @@ async function routes(ctx) {
     await c.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} }); return c; };
   const login = async (ctx, no, pw, role) => {
     const p = await ctx.newPage(); p.on('pageerror', e => errs.push(no + ': ' + e.message)); p.on('dialog', d => d.accept());
-    await p.goto('http://localhost:8765/app/?emu=1'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
+    await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
     await p.getByText(role || 'Mamoste', { exact: true }).first().click();
     await p.locator('input.inp').first().fill(no); await p.locator('input[type=password]').first().fill(pw);
     await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000); return p;
@@ -180,7 +180,7 @@ async function routes(ctx) {
   // Dersi bitir: QR kapanır, yoklama kaydedilir (QR ile giren öğrenci dahil), bitiş anı yazılır
   // Öğretmenin uygulaması ders sırasında YENİDEN AÇILIR (bellekteki QR oturumu kaybolur), sonra "Dersi bitir":
   // QR okutan öğrenci veritabanından okunur, "yok" yazılmaz
-  await tp.goto('http://localhost:8765/app/?emu=1'); await tp.waitForTimeout(6000);
+  await tp.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await tp.waitForTimeout(6000);
   if (await tp.getByText('Têkeve', { exact: true }).count()) {   // oturum kalıcı değilse yeniden giriş
     await tp.getByText('Mamoste', { exact: true }).first().click();
     await tp.locator('input.inp').first().fill('50202601'); await tp.locator('input[type=password]').first().fill('Tea12345');

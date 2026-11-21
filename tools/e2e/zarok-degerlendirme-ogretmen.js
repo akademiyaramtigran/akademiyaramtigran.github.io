@@ -66,7 +66,7 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
     await q.waitForSelector('.top', { timeout: 30000 }); await q.waitForTimeout(2500); return q; };
   // 1) Çocuk sorumlusu: form düzenlemede öğretmen seçeneği
   const hp = await (await mk()).newPage(); hp.on('pageerror', e => errs.push('H: ' + e.message)); hp.on('dialog', d => d.accept());
-  await hp.goto('http://localhost:8765/app/?emu=1'); await hp.waitForSelector('text=Têkeve', { timeout: 60000 }); await hp.getByText('Mamoste', { exact: true }).first().click();
+  await hp.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await hp.waitForSelector('text=Têkeve', { timeout: 60000 }); await hp.getByText('Mamoste', { exact: true }).first().click();
   await hp.locator('input.inp').first().fill('96202602'); await hp.locator('input[type=password]').first().fill('Head1234'); await hp.getByText('Têkeve', { exact: true }).last().click(); await hp.waitForTimeout(7000);
   await goA(hp, 'evalforms'); await hp.waitForTimeout(1200); await hp.evaluate(() => document.querySelector('[data-new-form]').click()); await hp.waitForTimeout(800);
   const o = await hp.evaluate(() => { const s = document.querySelector('[data-ef-teacher]'); return s ? [...s.options].map(x => x.value) : null; });

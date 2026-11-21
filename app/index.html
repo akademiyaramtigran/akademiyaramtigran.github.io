@@ -36,6 +36,7 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-visual"/>
+<script>try{ if(/[?&]emu=1/.test(location.search)){ var _m=/[?&]dvcut=(\d{4}-\d{2}-\d{2})/.exec(location.search); if(_m) window.__DV_CUTOFF=_m[1]; } }catch(e){}</script>
 <title>Konservatuara Aram Tîgran</title>
 <link rel="manifest" id="pwa-manifest"/>
 <script>
@@ -2299,6 +2300,27 @@ function LiveRegion({ msg }) {
   );
 }
 
+/*DEVAMCORE-BEGIN*/
+// ── DEVAM ORTAK HESABI (istemci: app/index.html · sunucu: functions/devam.js — iki metin BİREBİR aynı olmalı; tools/devam-testi.js denetler) ──
+// Kural: bir yoklama yalnız KESİNLEŞTİKTEN sonra (öğretmen "Dersi bitir" dedi / sorumlu-yönetici düzeltti-kapattı) raporlara,
+// analize, uyarılara ve öğrenci ekranına sayılır. Devam eden ders görünmez. İzin sonradan girilse bile o günün "yok"u "izinli" olur.
+// bu tarihten ÖNCEKİ yoklamalar (eski kayıtlar) "dersi bitir" olmadan da kesin sayılır (test ortamında geçersiz kılınabilir)
+const DV_CUTOFF = (typeof globalThis !== "undefined" && globalThis.__DV_CUTOFF) || (typeof process !== "undefined" && process.env && process.env.DV_CUTOFF) || "2026-11-22";
+const dvClosed = a => !!(a && (a.endedAt || a.closedBy || String(a.date || "") < DV_CUTOFF));
+const dvPct = (on, late, off) => { const n = (on || 0) + (late || 0) + (off || 0); return n ? Math.round(((on || 0) + (late || 0)) / n * 100) : null; };
+const dvLeaveCovers = (l, date, lessonId) => { if (!l || String(l.from || "") > String(date) || String(date) > String(l.to || "")) return false; const ids = l.lessonIds; return !ids || !ids.length || ids.map(String).includes(String(lessonId)); };
+function dvRecords(a, leaves, noOfKey) {
+  const out = {}, date = String(a.date || "");
+  Object.entries(a.records || {}).forEach(([k, v]) => {
+    if (v === "off") { const no = noOfKey ? noOfKey(k) : null;
+      if (no != null && (leaves || []).some(l => !l.kid && String(l.studentNo) === String(no) && dvLeaveCovers(l, date, a.lessonId))) v = "leave"; }
+    out[k] = v; });
+  return out;
+}
+const dvStatDocs = (docs, leaves, noOfKey) => (docs || []).filter(a => a && a.date && a.records && !a.teacherAbsent && Object.keys(a.records).length && dvClosed(a))
+  .map(a => ({ ...a, records: dvRecords(a, leaves, noOfKey) }));
+const dvOpenDocs = docs => (docs || []).filter(a => a && a.date && a.records && !a.teacherAbsent && Object.keys(a.records).length && !dvClosed(a));
+/*DEVAMCORE-END*/
 /* ─── ATTENDANCE FIREBASE PERSISTENCE ──────────────────────────────────────── */
 // Devam her yerde DOĞRUDAN yoklama belgelerinden (attendance.records) hesaplanır; ayrı istatistik tablosu tutulmaz.
 // Devam ORTAK hesabı: yoklama belgelerinden öğrenci başına ders / gelen / gelmedi / geç / izinli ve %.
@@ -2363,7 +2385,7 @@ async function qrMergeRecords(lessonId, teacherId, date, records){
   Object.entries(qr).forEach(([k,q])=>{ const v=records[k]; if(v!=="on"&&v!=="late"&&v!=="leave") records[k]=q; });
   return records;
 }
-async function fbSaveAttendance(lessonId, teacherId, date, records, lessonFire){
+async function fbSaveAttendance(lessonId, teacherId, date, records, lessonFire, close){   // close=true: geçmiş gün düzeltmesi → yoklama aynı anda KESİNLEŞİR (endedAt)
 
   if(!window.__FB||!window.__FB.isConfigured()) {
     // Fallback: localStorage
@@ -2376,7 +2398,7 @@ async function fbSaveAttendance(lessonId, teacherId, date, records, lessonFire){
   try{
     await qrMergeRecords(lessonId, teacherId, date, records);   // records yerinde güncellenir (çağıran da görür)
     const ref = window.__FB.doc(window.__FB.db, "attendance", `${lessonId}-${date}`);
-    await window.__FB.setDoc(ref, {lessonId,lessonFire:String(lessonFire==null?lessonId:lessonFire),teacherId:teacherId==null?null:teacherId,date,records,updatedAt:window.__FB.serverTimestamp()},{merge:true});
+    await window.__FB.setDoc(ref, {lessonId,lessonFire:String(lessonFire==null?lessonId:lessonFire),teacherId:teacherId==null?null:teacherId,date,records,updatedAt:window.__FB.serverTimestamp(),...(close?{endedAt:Date.now()}:{})},{merge:true});
     return ref.id;
   } catch(e){ console.warn("Attendance save error:", e); return null; }
 }
@@ -7772,7 +7794,7 @@ function HeadGuestAttendance({user,students,schedule,lang,toast}){
     const records={...recs}; list.forEach(st=>{ const v0=records[st.id]; if(v0!=="on"&&v0!=="late"&&v0!=="off") records[st.id]="off"; }); onLeaveL.forEach(st=>{ records[st.id]="leave"; });   // izni kaldırılmış öğrencide eski "leave" işareti kalmaz
     try{
       await F.setDoc(F.doc(F.db,"attendance",docId),{lessonId:String(ls.id),lessonFire:String(ls.fireId||ls.id),lessonName:ls.name||"",classId:ls.classId||"",area:ls.area||"",date:today,
-        records,teacherName:ls.guestTeacher||"",takenBy:user.name||"",takenByNo:String(user.no||""),savedAt:F.serverTimestamp()},{merge:true});
+        records,teacherName:ls.guestTeacher||"",takenBy:user.name||"",takenByNo:String(user.no||""),closedBy:String(user.no||""),savedAt:F.serverTimestamp()},{merge:true});
       setRecs(records); setSaved(true); toast("✅ "+W2("Amadebûn hate tomarkirin","Attendance saved"));
     }catch(e){ toast("❌ "+((e&&e.code)||e)); }
     setBusy(false);
@@ -8888,6 +8910,15 @@ function useLeaves(enabled=true){
 //  lessonIds boşsa izin tüm gün içindir; doluysa yalnızca o derslerin yoklamasında geçerlidir.
 function leaveLessonOk(l,lessonId){ const ids=l.lessonIds||[]; return !ids.length||(lessonId!=null&&ids.map(String).includes(String(lessonId))); }
 function leaveOf(leaves,no,date,kid=false,lessonId=null){ return (leaves||[]).find(l=>!!l.kid===!!kid&&String(l.studentNo)===String(no)&&l.from<=date&&date<=l.to&&leaveLessonOk(l,lessonId))||null; }
+// Rapor / analiz / uyarı için TEK devam kaynağı: kesinleşmiş (dersi bitir) yoklamalar, öğrenci anahtarları birleşik, izinler uygulanmış.
+function useAttCalc(att0,students){
+  const leaves=useLeaves(true);
+  return useMemo(()=>{
+    const idNo=new Map(); (students||[]).forEach(st=>{ if(st.id!=null) idNo.set(String(st.id),String(st.no)); if(st.fireId) idNo.set(String(st.fireId),String(st.no)); });
+    const canon=canonAtt(att0||[],students)||[];
+    return {docs:dvStatDocs(canon,leaves,k=>idNo.get(String(k))),open:dvOpenDocs(canon),all:canon};
+  },[att0,students,leaves]);
+}
 function LeavesPanel({user,students,schedule,area,all=false,kid=false,stuScope=null,lang,toast,readOnly=false}){
   const F=window.__FB;
   const W2=(ku,en)=>lang==="en"?en:K(ku);
@@ -11875,7 +11906,7 @@ function useAlerts({students,teachers,schedule,area,lang,scope,noEvals,noNoatt})
   const termsA=useTerms();
   const ALL=!area, GEN=area==="genel"&&!!scope; // genel sorumlu: yalnız genel dersler ve öğretmenleri
   const from=eduYearStart();
-  const [att,setAtt]=useState([]);
+  const [att,setAtt]=useState([]); const AC=useAttCalc(att,students);
   useEffect(()=>{ if(!live) return; let u=()=>{};
     try{ u=F.onSnapshot(F.query(F.collection(F.db,"attendance"),F.where("date",">=",from)),sn=>setAtt(sn.docs.map(d=>({...d.data(),_id:d.id}))),()=>{}); }catch(_){}
     return ()=>{ try{u();}catch(_){} }; },[live,from]);
@@ -11887,7 +11918,7 @@ function useAlerts({students,teachers,schedule,area,lang,scope,noEvals,noNoatt})
   const list=[];
   // Devamsızlık: öğrenci × ders
   const abs=new Map();
-  att.forEach(d=>{ if(d.teacherAbsent||!d.records||!d.date) return;
+  AC.docs.forEach(d=>{
     Object.entries(d.records).forEach(([sid,v])=>{ if(v!=="off") return; const k=sid+"|"+d.lessonId;
       const x=abs.get(k)||{sid,lid:String(d.lessonId),dates:[],name:d.lessonName||""}; x.dates.push(d.date); abs.set(k,x); }); });
   abs.forEach(x=>{ if(x.dates.length<ALERT_ABS) return; const st=stById.get(x.sid); if(!st||(GEN?!scope.lessonIds.has(x.lid):!inArea(st.area))) return;
@@ -11905,9 +11936,17 @@ function useAlerts({students,teachers,schedule,area,lang,scope,noEvals,noNoatt})
       lessonDates(l,termsA,c0>nf?c0:nf,yday).forEach(dt=>{ if(recd.has(String(l.id)+"-"+dt)) return;
         list.push({key:"noatt_"+l.id+"_"+dt,kind:"noatt",count:1,last:dt,area:l.area||"",who:l.name||"",lesson:l.name||"",teacher:l.teacherName||l.guestTeacher||"",date:dt,lsId:String(l.id)}); }); });
   }
+  // Ders kapatılmadı: yoklama alınmış ama öğretmen "Dersi bitir" dememiş (ders saati geçti) — kapanana kadar rapora/öğrenciye sayılmaz
+  if(live&&!noNoatt){
+    const todayC=ymdLocal(new Date()), nowC=new Date(); const hm=String(nowC.getHours()).padStart(2,"0")+":"+String(nowC.getMinutes()).padStart(2,"0");
+    AC.open.forEach(d=>{ if(d.date>todayC) return; const ls=lsById.get(String(d.lessonId)); if(!ls) return;
+      if(GEN?!scope.lessonIds.has(String(d.lessonId)):!(ALL||(ls&&ls.area===area)||(!ls&&d.area===area))) return;
+      if(d.date===todayC&&(!ls||!ls.end||hm<=ls.end)) return;
+      list.push({key:"noclose_"+d.lessonId+"_"+d.date,kind:"noclose",count:1,last:d.date,area:(ls&&ls.area)||d.area||"",who:(ls&&ls.name)||d.lessonName||"",lesson:(ls&&ls.name)||d.lessonName||"",teacher:(ls&&ls.teacherName)||d.takenBy||"",date:d.date,lsId:String(d.lessonId)}); });
+  }
   // Aylık analiz (biten ay)
   // Öğrenci İşleri (noEvals): yalnız devam
-  const att2=att; 
+  const att2=AC.docs; 
   list.push(...monthlyAlerts({att:att2,sEv,tEv,efR,students,teachers,schedule,clsDocs:clsDocsA,area,scope,noEvals,lang}));
   return list;
 }
@@ -12033,16 +12072,16 @@ function AlertCenter({data,user,lang,toast,noEvals,fixCtx}){
   }
   const manSub={st:W2("Xwendekar","Student"),tc:W2("Mamoste","Teacher"),ls:W2("Ders","Lesson"),cl:W2("Sinif","Class")};
   const manWhy=r=>r.t==="att"?W2("Amadebûn","Attendance")+" %"+r.v:r.t==="ev"?W2("Nirxandin","Evaluation")+" "+r.v.toFixed(1)+"/10":"📉 "+r.v+" "+W2("xal li gorî meha berê","points vs last month");
-  const kindLb={man:W2("Analîza mehane","Monthly analysis"),abs:W2("Bêamadebûn","Absence"),noatt:W2("Amadebûn nehatiye girtin","Attendance not taken"),sev:W2("Nirxandina xwendekar","Student evaluation"),tev:W2("Nirxandina mamoste","Teacher evaluation"),
+  const kindLb={man:W2("Analîza mehane","Monthly analysis"),abs:W2("Bêamadebûn","Absence"),noatt:W2("Amadebûn nehatiye girtin","Attendance not taken"),noclose:W2("Ders nehatiye girtin","Lesson not closed"),sev:W2("Nirxandina xwendekar","Student evaluation"),tev:W2("Nirxandina mamoste","Teacher evaluation"),
     kabs:W2("Zarok · bêamadebûn","Child · absence"),ksev:W2("Nirxandina zarok","Child evaluation"),ktev:W2("Zarok · nirxandina mamoste","Child · teacher evaluation")};
-  const kindIc={man:"chart",abs:"att",noatt:"bell",sev:"star",tev:"user",kabs:"kid",ksev:"kid",ktev:"user"};
+  const kindIc={man:"chart",abs:"att",noatt:"bell",noclose:"bell",sev:"star",tev:"user",kabs:"kid",ksev:"kid",ktev:"user"};
   const aLbl=a=>{ const z=typeof ZAROK_AREA_NAMES!=="undefined"&&ZAROK_AREA_NAMES[a]; return z?(lang==="en"?z[1]:K(z[0])):areaName(a,lang); };
   return(<div data-alert-center="1">
     <Note style={{marginBottom:12}} icon="bell">{lang==="en"?"Alerts are created automatically: "+ALERT_ABS+" or more absences in one lesson (leave and late don't count), or a scheduled lesson whose attendance was not taken. The year starts on 1 September."
       :KF("Hişyarî bixweber çêdibin: di dersekê de {0} caran û zêdetir nehatin (destûr û dereng nayên hesibandin), an dersa bernameyê ya ku amadebûna wê nehatiye girtin. Sal ji 1ê Îlonê dest pê dike.",[ALERT_ABS])}{" "}{W2("Her meh jî analîza meha borî: amadebûn di bin %70 de, nirxandin di bin 5/10 de an li gorî meha berê 15 xal an zêdetir daketin.","Each month also from last month's analysis: attendance below 70%, evaluation below 5/10, or a drop of 15+ points from the previous month.")}</Note>
     <div style={{marginBottom:10}}><Seg value={st} onChange={setSt} items={[["open",W2("Vekirî","Open")+" ("+data.open+")","bell"],["done",W2("Pê re mijûl bûn","Handled"),"check"]]}/></div>
     <div className="c-chips" style={{marginBottom:12}}>
-      {[["all",W2("Hemû","All")],["man",kindLb.man+(n("man")?" ("+n("man")+")":"")],["abs",kindLb.abs+(n("abs")?" ("+n("abs")+")":"")],["noatt",kindLb.noatt+(n("noatt")?" ("+n("noatt")+")":"")]].map(([k,lb])=>
+      {[["all",W2("Hemû","All")],["man",kindLb.man+(n("man")?" ("+n("man")+")":"")],["abs",kindLb.abs+(n("abs")?" ("+n("abs")+")":"")],["noatt",kindLb.noatt+(n("noatt")?" ("+n("noatt")+")":"")],["noclose",kindLb.noclose+(n("noclose")?" ("+n("noclose")+")":"")]].map(([k,lb])=>
         <button key={k} type="button" data-alert-kind={k} className={"c-chip"+(kf===k?" on":"")} onClick={()=>setKf(k)}>{lb}</button>)}
     </div>
     {L.length===0&&<EmptyState icon="bell" text={st==="open"?W2("Hişyariya vekirî tune.","No open alerts."):W2("Tiştek nehatiye nîşankirin.","Nothing handled yet.")}/>}
@@ -12060,13 +12099,14 @@ function AlertCenter({data,user,lang,toast,noEvals,fixCtx}){
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}}>
           <span className="c-tag">{kindLb[x.kind]}</span>
           {grp(x.kind)==="abs"&&<span className="c-tag gold">{x.lesson} · {x.count} {W2("caran nehat","absences")}</span>}
-          {x.kind==="noatt"&&<span className="c-tag gold">📅 {fmtDateTx(x.date)}</span>}
-          {grp(x.kind)!=="abs"&&x.kind!=="noatt"&&<span className="c-tag gold">{x.score.toFixed(1)} / 10</span>}
-          {grp(x.kind)!=="abs"&&x.kind!=="noatt"&&<span className="c-tag">{x.perLabel?(/^\d{4}-\d{2}-\d{2}$/.test(x.perLabel)?evalWeekLabel(x.perLabel):/^\d{4}-\d{2}$/.test(x.perLabel)?(calMonths()[+x.perLabel.slice(5)-1]+" "+x.perLabel.slice(0,4)):W2("Carekê","Once")):evalWeekLabel(x.last)}</span>}
+          {(x.kind==="noatt"||x.kind==="noclose")&&<span className="c-tag gold">📅 {fmtDateTx(x.date)}</span>}
+          {grp(x.kind)!=="abs"&&x.kind!=="noatt"&&x.kind!=="noclose"&&<span className="c-tag gold">{x.score.toFixed(1)} / 10</span>}
+          {grp(x.kind)!=="abs"&&x.kind!=="noatt"&&x.kind!=="noclose"&&<span className="c-tag">{x.perLabel?(/^\d{4}-\d{2}-\d{2}$/.test(x.perLabel)?evalWeekLabel(x.perLabel):/^\d{4}-\d{2}$/.test(x.perLabel)?(calMonths()[+x.perLabel.slice(5)-1]+" "+x.perLabel.slice(0,4)):W2("Carekê","Once")):evalWeekLabel(x.last)}</span>}
         </div>}
         {grp(x.kind)==="abs"&&<div style={{fontSize:12.5,color:"var(--text2)",marginTop:6}}>{x.teacher?"👩‍🏫 "+x.teacher+" · ":""}{x.dates.map(fmtDateTx).join(", ")}</div>}
         {x.kind==="noatt"&&<div style={{fontSize:12.5,color:"var(--text2)",marginTop:6}}>{x.teacher?"👩‍🏫 "+x.teacher+" · ":""}{W2("Ne amadebûn hatiye girtin ne jî “ders nehat kirin” hatiye nîşankirin.","Neither attendance taken nor marked as not held.")}</div>}
-        {x.kind==="noatt"&&!x.ack&&fixLs(x)&&<button type="button" data-alert-fix={x.key} className="c-chip on" style={{marginTop:8,marginRight:6}} onClick={()=>setFix(x)}>✍ {W2("Amadebûnê bike / rast bike","Enter / correct attendance")}</button>}
+        {x.kind==="noclose"&&<div data-noclose-note="1" style={{fontSize:12.5,color:"var(--text2)",marginTop:6}}>{x.teacher?"👩‍🏫 "+x.teacher+" · ":""}{W2("Amadebûn hatiye girtin lê ders nehatiye girtin — heta mamoste “Dersê biqedîne” neke di raporan de nayê hesibandin.","Attendance was taken but the lesson was not closed — it is not counted in reports until the teacher presses “End lesson”.")}</div>}
+        {(x.kind==="noatt"||x.kind==="noclose")&&!x.ack&&fixLs(x)&&<button type="button" data-alert-fix={x.key} className="c-chip on" style={{marginTop:8,marginRight:6}} onClick={()=>setFix(x)}>✍ {W2("Amadebûnê bike / rast bike","Enter / correct attendance")}</button>}
         {grp(x.kind)==="sev"&&<div style={{fontSize:12.5,color:"var(--text2)",marginTop:6}}>👩‍🏫 {x.teacher}{x.note?" — “"+x.note+"”":""}</div>}
         {grp(x.kind)==="tev"&&<div style={{fontSize:12.5,color:"var(--text2)",marginTop:6}}>{x.kind==="ktev"?W2("Dêûbavek (bê nav)","A parent (anonymous)"):W2("Xwendekarekî (bê nav)","A student (anonymous)")}{x.note?" — “"+x.note+"”":""}</div>}
         {x.ack&&<div style={{fontSize:12.5,color:"var(--text)",marginTop:6}}>✓ {x.ack.by}{x.ack.note?": "+x.ack.note:""}</div>}
@@ -12322,7 +12362,7 @@ function TeacherListReport({teachers,lockArea,lang,toast,byName}){
 function StudentAttendanceReport({students,schedule,allSchedule,teachers,allTeachers,docScope,headArea,from,to,lang,toast,byName}){
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   const F=window.__FB;
-  const [att0,setAtt]=useState(null); const att=useMemo(()=>att0&&canonAtt(att0,students),[att0,students]);
+  const [att0,setAtt]=useState(null); const AC=useAttCalc(att0,students); const att=att0&&AC.all;
   useEffect(()=>{ if(!F||!F.isConfigured()){ setAtt([]); return; } let u=()=>{};
     try{ u=F.onSnapshot(F.query(F.collection(F.db,"attendance"),F.where("date",">=",from)),sn=>setAtt(sn.docs.map(d=>d.data())),()=>setAtt([])); }catch(_){ setAtt([]); }
     return ()=>{ try{u();}catch(_){} }; },[from]);
@@ -12335,7 +12375,7 @@ function StudentAttendanceReport({students,schedule,allSchedule,teachers,allTeac
   const SCH=allSchedule||schedule||[], TCH=allTeachers||teachers||[];
   const lsById=new Map(SCH.map(l=>[String(l.id),l]));
   const stById=new Map((students||[]).filter(s=>!s.isAdmin).map(s=>[String(s.id),s]));
-  const docs=(att||[]).filter(d=>d.date&&d.date>=from&&d.date<=to&&!d.teacherAbsent&&d.records&&(!docScope||docScope.has(String(d.lessonId)))&&tf.docOk(d));
+  const docs=AC.docs.filter(d=>d.date>=from&&d.date<=to&&(!docScope||docScope.has(String(d.lessonId)))&&tf.docOk(d));   // yalnız kesinleşmiş dersler, izinler uygulanmış
   const pctOf=x=>{ const n=x.on+x.late+x.off; return n?Math.round((x.on+x.late)/n*100):null; };
   const col=v=>v==null?"var(--text2)":pctColor(v);
   // Derse göre
@@ -12351,6 +12391,7 @@ function StudentAttendanceReport({students,schedule,allSchedule,teachers,allTeac
   const skipped=(att||[]).filter(d=>d.date&&d.date>=from&&d.date<=to&&d.records&&Object.keys(d.records).length).map(d=>{
     const lid=String(d.lessonId), ls=lsById.get(lid); let why="";
     if(d.teacherAbsent) why=W2("Ders nehat kirin (mamoste tunebû)","Lesson not held (teacher absent)");
+    else if(!dvClosed(d)) why=W2("Ders nehatiye girtin — mamoste “Dersê biqedîne” bike (hîn nayê hesibandin)","Lesson not closed — the teacher must press “End lesson” (not counted yet)");
     else if(docScope&&!docScope.has(lid)) why=W2("Ders ne ya vê rapora giştî ye","Lesson is outside this report's scope");
     else if(!tf.docOk(d)) why=W2("Ders di mamoste/ders hilbijartina jorîn de tune","Lesson is not in the selected teacher/lesson filter");
     else if(!Object.entries(d.records).some(([sid,v])=>stById.get(String(sid))&&["on","late","off","leave"].includes(v))) why=W2("Xwendekarên di vê yoklamayê de ne di lîsteya vê raporê de ne (beşeke din / atolye)","The students in this record are not in this report's student list (other department / workshop)");
@@ -12495,7 +12536,7 @@ function AttendanceFixModal({ls,date,students,user,lang,toast,onClose}){
     const records={...recs}; list.forEach(st=>{ const v0=records[st.id]; if(v0!=="on"&&v0!=="late"&&v0!=="off") records[st.id]="off"; }); onLeaveL.forEach(st=>{ records[st.id]="leave"; });   // izni kaldırılmış öğrencide eski "leave" işareti kalmaz
     try{ await F.setDoc(F.doc(F.db,"attendance",docId),{...meta,lessonFire:String(ls.fireId||ls.id),area:ls.area||"",records,
         ...(prev&&prev.teacherAbsent?{teacherAbsent:false,absenceKind:null,absenceNote:null}:{}),
-        takenBy:(user&&user.name)||"",takenByNo:String((user&&user.no)||""),savedAt:F.serverTimestamp()},{merge:true});
+        takenBy:(user&&user.name)||"",takenByNo:String((user&&user.no)||""),closedBy:String((user&&user.no)||""),savedAt:F.serverTimestamp()},{merge:true});
       toast("✅ "+W2("Amadebûn hate tomarkirin","Attendance saved")); onClose(true);
     }catch(e){ toast("❌ "+((e&&e.code)||e)); }
     setBusy(false);
@@ -12748,9 +12789,30 @@ async function deleteLessonAsk(ls,onDataChange,lang){
 function TeacherNoAttCard({teacher,schedule,students,lang,toast}){
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   const mine=(schedule||[]).filter(l=>lessonForTeacher(l,teacher));
-  const items=useAlerts({students:[],teachers:[],schedule:mine,area:null,lang,noEvals:true}).filter(x=>x.kind==="noatt").sort((a,b)=>String(b.date).localeCompare(String(a.date)));
-  const [fix,setFix]=useState(null);
-  if(!items.length) return null;
+  const all=useAlerts({students:[],teachers:[],schedule:mine,area:null,lang,noEvals:true});
+  const items=all.filter(x=>x.kind==="noatt").sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  const open=all.filter(x=>x.kind==="noclose").sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  const [fix,setFix]=useState(null); const [closed,setClosed]=useState({});
+  async function closeIt(x){
+    const F=window.__FB; if(!F||!F.isConfigured()) return;
+    try{ await F.setDoc(F.doc(F.db,"attendance",x.lsId+"-"+x.date),{endedAt:Date.now(),updatedAt:F.serverTimestamp()},{merge:true}); setClosed(c=>({...c,[x.key]:true})); toast("✅ "+W2("Ders hate girtin — amadebûn tê hesibandin","Lesson closed — attendance is now counted")); }
+    catch(e){ toast("❌ "+((e&&e.code)||e)); }
+  }
+  const openShown=open.filter(x=>!closed[x.key]);
+  if(!items.length&&!openShown.length) return null;
+  return(<>
+    {openShown.length>0&&<Card style={{marginBottom:12,border:"1px solid rgba(217,45,32,.4)"}} data-noclose-card="1">
+      <div style={{fontSize:13.5,fontWeight:800,color:"#b42318",marginBottom:4}}>⏹ {W2("Ji kerema xwe dersên xwe biqedîne","Please end your lessons")} ({openShown.length})</div>
+      <div style={{fontSize:12,color:"var(--text2)",marginBottom:6}}>{W2("Amadebûn hatiye girtin lê ders nehatiye girtin; heta tu biqedînî di raporan û li ekrana xwendekaran de nayê hesibandin.","Attendance was taken but the lesson was not closed; it is not counted in reports or on student screens until you end it.")}</div>
+      {openShown.slice(0,8).map(x=>(<div key={x.key} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderTop:"1px solid var(--border2)",fontSize:13,color:"var(--text)"}}>
+        <span style={{flex:1}}>📅 {fmtDateTx(x.date)} · {x.lesson}</span>
+        <button type="button" data-noclose-end={x.key} className="c-chip on" onClick={()=>closeIt(x)}>⏹ {W2("Dersê biqedîne","End lesson")}</button>
+      </div>))}
+    </Card>}
+    {items.length>0&&<NoAttBody items={items} mine={mine} teacher={teacher} students={students} fix={fix} setFix={setFix} lang={lang} toast={toast} W2={W2}/>}
+  </>);
+}
+function NoAttBody({items,mine,teacher,students,fix,setFix,lang,toast,W2}){
   return(<Card style={{marginBottom:12,border:"1px solid rgba(180,83,9,.35)"}} data-noatt-card="1">
     <div style={{fontSize:13.5,fontWeight:800,color:"#b45309",marginBottom:6}}>⚠ {W2("Amadebûna van dersan nehatiye girtin","Attendance not yet entered")} ({items.length})</div>
     {items.slice(0,8).map(x=>(<div key={x.key} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderTop:"1px solid var(--border2)",fontSize:13,color:"var(--text)"}}>
@@ -13494,7 +13556,7 @@ const anTrend=(cur,prev,step)=>cur==null||prev==null?{ic:"➖",d:null}:(cur-prev
 function GeneralAnalysis({students,teachers,schedule,allSchedule,allTeachers,docScope,teachScope,headArea,noEvals,lang,toast,byName,initWho}){
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   const F=window.__FB; const live=!!(F&&F.isConfigured());
-  const [att0,setAtt]=useState([]); const att=useMemo(()=>canonAtt(att0,students),[att0,students]);
+  const [att0,setAtt]=useState([]); const att=useAttCalc(att0,students).docs;   // kesinleşmiş + izinler uygulanmış
   const sEv=EV_NONE, tEv=EV_NONE;
   const efR=useEvalDocs("evalResponses","academy","aat",!noEvals);
   const clsDocs=useClassDocs("classes");
@@ -13887,7 +13949,7 @@ function StudentReportModal({student,lang,onClose}){
   useEffect(()=>{
     const F=window.__FB; if(!F||!F.isConfigured()){ setAtt([]); return; }
     let alive=true;
-    F.getDocs(F.query(F.collection(F.db,"attendance"),F.where("date",">=",eduYearStart()))).then(s=>{ if(alive) setAtt(canonAtt(s.docs.map(d=>d.data()),[student]).filter(d=>!d.teacherAbsent&&d.records&&d.records[student.id]!=null)); }).catch(()=>alive&&setAtt([]));
+    F.getDocs(F.query(F.collection(F.db,"attendance"),F.where("date",">=",eduYearStart()))).then(s=>{ if(alive) setAtt(dvStatDocs(canonAtt(s.docs.map(d=>d.data()),[student]),null,null).filter(d=>d.records[student.id]!=null)); }).catch(()=>alive&&setAtt([]));
     return ()=>{ alive=false; };
   },[student.id,student.no]);
   const weeks=[]; let w=evalWeek(); for(let i=0;i<8;i++){ weeks.unshift(w); w=evalWeekShift(w,-1); }
@@ -14746,7 +14808,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                   attOnLeave.forEach(s=>{ records[s.id]="leave"; });   // izinli: devamsızlık sayılmaz
                   const presentCount=attRoster.filter(s=>records[s.id]!=="off").length;
                   setAttSaving(true);
-                  const ok=await fbSaveAttendance(attLesson.id, teacher.id, attDay, records, attLesson.fireId||attLesson.id);
+                  const ok=await fbSaveAttendance(attLesson.id, teacher.id, attDay, records, attLesson.fireId||attLesson.id, isPastAtt);
                   setAttSaving(false);
                   if(ok===null && window.__FB && window.__FB.isConfigured()){
                     toast("⚠ "+(lang==="en"?"Attendance could not be saved — check the connection and try again":K("Amadebûn nehat tomarkirin — girêdanê kontrol bike û dîsa biceribîne")), 6000);
@@ -15801,7 +15863,7 @@ function StudentAttView({student,lang,toast}){
   const list=(rows||[]).filter(r=>String(r.date||"")>=from).sort((a,b)=>String(b.date).localeCompare(String(a.date))||String(a.lessonName).localeCompare(String(b.lessonName)));
   const todayL=ymdLocal(new Date());
   // Ders sürerken (kesinleşmemiş) "yok" geçicidir: öğretmen Kaydet'e basınca okutmayan herkes yok yazılır; öğrenci henüz okutuyor olabilir
-  const eff=r=>(r.status==="off"&&!r.final&&String(r.date)>=todayL)?"wait":r.status;
+  const eff=r=>(r.status!=="leave"&&!r.final)?"wait":r.status;   // ders kapanmadan (dersi bitir) hiçbir durum sayılmaz
   // Toplam: bütün dersler birlikte (izinli sayılmaz; geç gelen "hazır" sayılır)
   const cs=list.map(eff).filter(x=>x==="on"||x==="late"||x==="off");
   const tt={totalLessons:cs.length,attended:cs.filter(x=>x!=="off").length,absent:cs.filter(x=>x==="off").length,late:cs.filter(x=>x==="late").length,att:0};

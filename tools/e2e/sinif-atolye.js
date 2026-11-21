@@ -65,7 +65,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
     await c.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} }); return c; };
   const login = async (ctx, no, pw, role) => {
     const p = await ctx.newPage(); p.on('pageerror', e => errs.push(no + ': ' + e.message)); p.on('dialog', d => d.accept());
-    await p.goto('http://localhost:8765/app/?emu=1'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
+    await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
     await p.getByText(role || 'Mamoste', { exact: true }).first().click();
     await p.locator('input.inp').first().fill(no); await p.locator('input[type=password]').first().fill(pw);
     await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000); return p;
@@ -131,7 +131,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   ok('Sınıf kartında Atölye etiketi', (await p.locator('[data-ws-badge]').count()) === 1);
   // Haftalık tekrar eden ders (normal akademi mantığı)
   await put('schedule/WS1', { id: 'WS1', fireId: 'WS1', area: 'muzik', name: 'Hafta Sonu Atölyesi', classId: Wid, teacherNo: '50202601', teacherName: 'Mamoste Dilovan', lessonType: 'main', day: 'Şemî', start: '10:00', end: '12:00', loc: '—' });
-  const putAtt = (id, o, recs) => fetch(`${FS}/attendance/${id}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { ...Object.fromEntries(Object.entries(o).map(([k, v]) => [k, { stringValue: v }])), records: { mapValue: { fields: Object.fromEntries(Object.entries(recs).map(([k, v]) => [k, { stringValue: v }])) } } } }) });
+  const putAtt = (id, o, recs) => fetch(`${FS}/attendance/${id}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { endedAt: { integerValue: '1' }, ...Object.fromEntries(Object.entries(o).map(([k, v]) => [k, { stringValue: v }])), records: { mapValue: { fields: Object.fromEntries(Object.entries(recs).map(([k, v]) => [k, { stringValue: v }])) } } } }) });
   await putAtt('WS1-' + TODAY, { lessonId: 'WS1', lessonName: 'Hafta Sonu Atölyesi', area: 'muzik', classId: Wid, date: TODAY }, { S4: 'on' });
   await putAtt('LS1-' + TODAY, { lessonId: 'LS1', lessonName: 'Solfej', area: 'muzik', classId: Aid, date: TODAY }, { S1: 'off', S2: 'late' });
   await p.waitForTimeout(1500);

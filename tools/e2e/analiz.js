@@ -44,7 +44,7 @@ async function routes(ctx) {
   await put('classes/A1', { kind: 'area', name: '1. Sînif', area: 'tiyatro', studentNos: ['20202601', '20202602'] });
   await put('schedule/L1', { id: 11, fireId: 'L1', classId: 'A1', area: 'tiyatro', name: 'Şano 1', lessonType: 'main', day: 'Dûşem', start: '09:00', end: '10:00', teacherNo: '50202601' });
   const rec = o => ({ mapValue: { fields: Object.fromEntries(Object.entries(o).map(([k, v]) => [k, { stringValue: v }])) } });
-  const putAtt = (id, date, r) => fetch(`${FS}/attendance/${id}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { lessonId: { stringValue: '11' }, classId: { stringValue: 'A1' }, area: { stringValue: 'tiyatro' }, date: { stringValue: date }, records: rec(r) } }) });
+  const putAtt = (id, date, r) => fetch(`${FS}/attendance/${id}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { endedAt: { integerValue: '1' }, lessonId: { stringValue: '11' }, classId: { stringValue: 'A1' }, area: { stringValue: 'tiyatro' }, date: { stringValue: date }, records: rec(r) } }) });
   // Geçen ay: Rojîn %100, Baran %50 · Bu ay: Rojîn %0 (📉, risk), Baran %100 (📈); müzik öğrencisi sayılmaz
   await putAtt('p1', prev5, { '101': 'on', '102': 'off' }); await putAtt('p2', prev12, { '101': 'on', '102': 'on' });
   await putAtt('c1', cur1, { '101': 'off', '102': 'on', '103': 'on' }); await putAtt('c2', today, { '101': 'off', '102': 'on', '103': 'on' });
@@ -75,7 +75,7 @@ async function routes(ctx) {
   const login = async (no, pw) => { const c = await b.newContext({ viewport: { width: 1280, height: 900 } }); await routes(c);
     await c.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} });
     const p = await c.newPage(); p.on('pageerror', e => errs.push(no + ': ' + e.message)); p.on('dialog', d => d.accept());
-    await p.goto('http://localhost:8765/app/?emu=1'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
+    await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
     await p.getByText('Mamoste', { exact: true }).first().click();
     await p.locator('input.inp').first().fill(no); await p.locator('input[type=password]').first().fill(pw);
     await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000); return p; };

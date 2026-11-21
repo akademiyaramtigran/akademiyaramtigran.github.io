@@ -137,7 +137,7 @@ function evalWeek() { const x = new Date(); const y = new Date(x.getFullYear(), 
   await putO('evalResponses/KR1', { formId: 'KF1', period: 'once', raterNo: '72026001', raterRole: 'kidteacher', targetNo: '82026001', targetName: 'Rojîn Zarok', area: 'drama', classId: 'KC1', academy: 'kid', direction: 't2k', answers: { q1: 8, q2: 'Gelek jîr e' }, score10: 8 });
   await putO('evalResponses/KR2', { formId: 'KF2', period: 'once', raterNo: '92026001', raterRole: 'guardian', targetNo: '72026001', targetName: 'Mamoste Hêvî', area: 'drama', academy: 'kid', direction: 'g2t', answers: { q1: 9, q2: 'Zarokê me kêfxweş e' }, score10: 9 });
   const hc = await mk(1280); const hp = await hc.newPage(); hp.on('pageerror', e => errs.push('head: ' + e.message)); hp.on('dialog', d => d.accept());
-  await hp.goto('http://localhost:8765/app/?emu=1'); await hp.waitForSelector('text=Têkeve', { timeout: 60000 });
+  await hp.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await hp.waitForSelector('text=Têkeve', { timeout: 60000 });
   await hp.getByText('Mamoste', { exact: true }).first().click(); await hp.locator('input.inp').first().fill('96202612'); await hp.locator('input[type=password]').first().fill('Head1234');
   await hp.getByText('Têkeve', { exact: true }).last().click(); await hp.waitForTimeout(7000);
   await hp.evaluate(() => document.querySelector('.sm-it[data-key="reports"],.pano-tile[data-key="reports"]').click()); await hp.waitForTimeout(1200);

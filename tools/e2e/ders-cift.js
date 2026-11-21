@@ -46,7 +46,7 @@ async function routes(ctx) {
   await put('schedule/LW', { id: 'LW', fireId: 'LW', classId: 'G1', area: 'genel', name: 'Ziman', lessonType: 'main', day: DAY, from: ymd(from), start: '09:30', end: '12:00', teacherNo: '71202602', teacherName: 'Ömer' });
   await put('schedule/LO', { id: 'LO', fireId: 'LO', classId: 'G1', area: 'genel', name: 'Ziman', lessonType: 'extra', extraDates: [PAST], start: '09:30', end: '12:00', teacherNo: '71202602', teacherName: 'Ömer' });
   const rec = o => ({ mapValue: { fields: Object.fromEntries(Object.entries(o).map(([k, v]) => [k, { stringValue: v }])) } });
-  await fetch(`${FS}/attendance/LO-${PAST}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { lessonId: { stringValue: 'LO' }, classId: { stringValue: 'G1' }, area: { stringValue: 'genel' }, date: { stringValue: PAST }, records: rec({ '101': 'on', '102': 'on' }) } }) });
+  await fetch(`${FS}/attendance/LO-${PAST}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { endedAt: { integerValue: '1' }, lessonId: { stringValue: 'LO' }, classId: { stringValue: 'G1' }, area: { stringValue: 'genel' }, date: { stringValue: PAST }, records: rec({ '101': 'on', '102': 'on' }) } }) });
 
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
@@ -55,7 +55,7 @@ async function routes(ctx) {
     await c.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} }); return c; };
   const login = async (ctx, no, pw) => {
     const p = await ctx.newPage(); p.on('pageerror', e => errs.push(no + ': ' + e.message)); p.on('dialog', d => { dialogs.push(d.message()); answer ? d.accept() : d.dismiss(); });
-    await p.goto('http://localhost:8765/app/?emu=1'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
+    await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
     await p.getByText('Mamoste', { exact: true }).first().click();
     await p.locator('input.inp').first().fill(no); await p.locator('input[type=password]').first().fill(pw);
     await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000); return p;

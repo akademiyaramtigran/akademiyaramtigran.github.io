@@ -55,7 +55,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   const sv = d => Object.fromEntries(Object.entries(d.fields).map(([k, v]) => [k, v.stringValue !== undefined ? v.stringValue : v.booleanValue]));
   const col = async c => ((await fetch(`${FS}/${c}?pageSize=100`, { headers: H }).then(r => r.json())).documents || []).map(sv);
   const p = await (await mk()).newPage(); p.on('pageerror', e => errs.push(e.message)); p.on('dialog', d => d.accept());
-  await p.goto('http://localhost:8765/app/?emu=1'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
+  await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
   await p.getByText('Mamoste', { exact: true }).first().click();
   await p.locator('input.inp').first().fill('96202612'); await p.locator('input[type=password]').first().fill('Head1234');
   await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000);

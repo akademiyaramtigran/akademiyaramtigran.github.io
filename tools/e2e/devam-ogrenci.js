@@ -40,7 +40,7 @@ async function routes(ctx) {
   const waitFor = async (f, ms) => { const t0 = Date.now(); for (;;) { const r = await f(); if (r) return r; if (Date.now() - t0 > (ms || 40000)) return null; await new Promise(r => setTimeout(r, 1000)); } };
   // Öğretmen yoklamayı kaydeder (ders belgesi: Rojîn yok, Baran var)
   // records bir harita: put() düz alanlar için; haritayı elle yaz
-  await fetch(`${FS}/attendance/11-${DATE}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { lessonId: { stringValue: '11' }, lessonFire: { stringValue: 'L1' }, lessonName: { stringValue: 'Şano 1' }, area: { stringValue: 'tiyatro' }, date: { stringValue: DATE }, takenBy: { stringValue: 'Mamoste Şano' },
+  await fetch(`${FS}/attendance/11-${DATE}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { endedAt: { integerValue: '1' }, lessonId: { stringValue: '11' }, lessonFire: { stringValue: 'L1' }, lessonName: { stringValue: 'Şano 1' }, area: { stringValue: 'tiyatro' }, date: { stringValue: DATE }, takenBy: { stringValue: 'Mamoste Şano' },
     records: { mapValue: { fields: { 101: { stringValue: 'off' }, 102: { stringValue: 'on' } } } } } }) });
   const r1 = await waitFor(async () => { const r = await rows(); return r.length >= 2 ? r : null; });
   const id1 = '11-' + DATE + '-20202601', id2 = '11-' + DATE + '-20202602';
@@ -51,7 +51,7 @@ async function routes(ctx) {
     await c.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} }); return c; };
   const login = async (ctx, no, pw) => {
     const p = await ctx.newPage(); p.on('pageerror', e => errs.push(no + ': ' + e.message)); p.on('dialog', d => d.accept());
-    await p.goto('http://localhost:8765/app/?emu=1'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
+    await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
     await p.getByText('Xwendekar', { exact: true }).first().click();
     await p.locator('input.inp').first().fill(no); await p.locator('input[type=password]').first().fill(pw);
     await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000); return p;

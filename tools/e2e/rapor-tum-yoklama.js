@@ -58,7 +58,7 @@ async function routes(ctx) {
   // Müzik bölümünde kayıtlı öğretmen, müzik alanlı ders ama TİYATRO sınıfına veriyor (Şan û Solfej)
   await L('L8', 18, { classId: 'A1', area: 'muzik', name: 'Ders H (müzik alanlı, tiyatro sınıfı)', teacherNo: '50202611' });
   await put('lessonSubs/L7_' + day(2), { lessonFire: 'L7', date: day(2), teacherNo: '50202612', teacherName: 'Sinan Yedek', area: 'tiyatro', byNo: '96000001' });
-  const putAtt = (id, lid, fire, cls, area, date, r, extra) => putO('attendance/' + id, { lessonId: lid, lessonFire: fire, classId: cls, area, date, records: r, lessonName: 'x', ...(extra || {}) });
+  const putAtt = (id, lid, fire, cls, area, date, r, extra) => putO('attendance/' + id, { endedAt: 1, lessonId: lid, lessonFire: fire, classId: cls, area, date, records: r, lessonName: 'x', ...(extra || {}) });
   // 2 oturum her derste (kayıt anahtarları: sayısal id, belge kimliği karışık)
   const R1 = { '101': 'on', '102': 'off', S3: 'on', S4: 'late' };
   const R2 = { '101': 'on', '102': 'on', S3: 'off', S4: 'on' };
@@ -79,7 +79,7 @@ async function routes(ctx) {
   const c = await b.newContext({ viewport: { width: 1280, height: 900 } }); await routes(c);
   await c.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} });
   const p = await c.newPage(); p.on('pageerror', e => errs.push(e.message)); p.on('dialog', d => d.accept());
-  await p.goto('http://localhost:8765/app/?emu=1'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
+  await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
   await p.getByText('Mamoste', { exact: true }).first().click();
   await p.locator('input.inp').first().fill('96000001'); await p.locator('input[type=password]').first().fill('Head1234');
   await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000);
@@ -117,7 +117,7 @@ async function routes(ctx) {
   const sc = await (await b.newContext({ viewport: { width: 430, height: 900 } })).newPage();
   await routes(sc.context()); await sc.context().addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} });
   sc.on('pageerror', e => errs.push('stu: ' + e.message));
-  await sc.goto('http://localhost:8765/app/?emu=1'); await sc.waitForSelector('text=Têkeve', { timeout: 60000 });
+  await sc.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await sc.waitForSelector('text=Têkeve', { timeout: 60000 });
   await sc.getByText('Xwendekar', { exact: true }).first().click();
   await sc.locator('input.inp').first().fill('20202602'); await sc.locator('input[type=password]').first().fill('Stu12345');
   await sc.getByText('Têkeve', { exact: true }).last().click(); await sc.waitForTimeout(7000);
