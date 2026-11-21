@@ -12268,13 +12268,14 @@ function AdminReportCenter({students,allStudents,teachers,schedule,allSchedule,a
   const [acad,setAcad]=useState(kidOnly?"kid":(isHead?"aat":null));
   const [area,setArea]=useState("all");
   const [type,setType]=useState(null), [who,setWho]=useState(null), [per,setPer]=useState("year");
+  const [sect,setSect]=useState("rep");   // "rep": 3 rapor (Devam · Değerlendirme · Genel analiz) · "lists": öğrenci / öğretmen listeleri (ayrı bölüm)
   // Bölüm sorumlusu: "Akademi" ya da "Atölye" raporu (atölye öğrencileri akademi raporlarında yer almaz)
   const [wsMode,setWsMode]=useState(false);
   const wsOn=isHead&&wsMode&&headArea!=="genel";
   const [cf,setCf]=useState(()=>eduYearStart()), [ct,setCt]=useState(()=>ymdLocal(new Date()));
   const [arch,setArch]=useState(false);
   const terms=useTerms(); const actTerm=(terms.list||[]).find(x=>x.id===terms.activeId);
-  const reset=()=>{ if(!kidOnly&&!isHead) setAcad(null); setArea("all"); setType(null); setWho(null); setPer("year"); setArch(false); setWsMode(false); };
+  const reset=()=>{ setSect("rep"); if(!kidOnly&&!isHead) setAcad(null); setArea("all"); setType(null); setWho(null); setPer("year"); setArch(false); setWsMode(false); };
   // Alan süzgeci (yönetici / Öğrenci İşleri)
   const SCH=allSchedule||schedule||[], TCH=allTeachers||teachers||[];
   const aS=wsOn?(wsStudents||[]):isHead||area==="all"?students:(students||[]).filter(s=>s.area===area);
@@ -12283,9 +12284,9 @@ function AdminReportCenter({students,allStudents,teachers,schedule,allSchedule,a
   const aT=wsOn||isHead||area==="all"?teachers:(()=>{ const nos=new Set(aSch.map(l=>String(l.teacherNo||""))); return (teachers||[]).filter(x=>x.area===area||nos.has(String(x.no))); })();
   const [from,to]=rwRange(per,actTerm,cf,ct);
   const KID=acad==="kid";
-  const types=[["devam",W2("Amadebûn","Attendance"),"📋"],...(registrar?[]:[["eval",W2("Nirxandin","Evaluation"),"⭐"]]),
-    ["analiz",W2("Analîza giştî","General analysis"),"📊"],
-    ...(!KID?[["list",W2("Lîsteya xwendekaran","Student list"),"🗒"],["tlist",W2("Lîsteya mamosteyan","Teacher list"),"👩‍🏫"]]:[])];
+  const types=sect==="lists"
+    ?(!KID?[["list",W2("Lîsteya xwendekaran","Student list"),"🗒"],["tlist",W2("Lîsteya mamosteyan","Teacher list"),"👩‍🏫"]]:[])
+    :[["devam",W2("Amadebûn","Attendance"),"📋"],...(registrar?[]:[["eval",W2("Nirxandin","Evaluation"),"⭐"]]),["analiz",W2("Analîza giştî","General analysis"),"📊"]];
   const needWho=(!KID||type==="eval")&&type!=="list"&&type!=="tlist";
   const needPer=!KID&&(type==="devam"||type==="eval");
   const ready=acad&&type&&(!needWho||who);
@@ -12296,7 +12297,9 @@ function AdminReportCenter({students,allStudents,teachers,schedule,allSchedule,a
   let n=0;
   return(<div data-report-wizard="1">
     <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-      <div style={{flex:1,fontSize:16,fontWeight:800,color:"var(--text)"}}>📊 {W2("Rapor","Reports")}</div>
+      <div style={{flex:1,fontSize:16,fontWeight:800,color:"var(--text)"}}>{sect==="lists"?"🗒 "+W2("Lîste","Lists"):"📊 "+W2("Rapor","Reports")}</div>
+      {!kidOnly&&<><button type="button" data-rw-sect="rep" className={chip(sect==="rep")} onClick={()=>{ setSect("rep"); setType(null); setWho(null); setArch(false); }}>📊 {W2("Rapor","Reports")}</button>
+        <button type="button" data-rw-sect="lists" className={chip(sect==="lists")} onClick={()=>{ setSect("lists"); setType(null); setWho(null); setArch(false); }}>🗒 {W2("Lîste","Lists")}</button></>}
       {isAdmin&&!kidOnly&&<button type="button" data-rw-archive="1" className={chip(arch)} onClick={()=>setArch(v=>!v)}>🗂 {W2("Arşîv","Archive")}</button>}
       <button type="button" data-rw-new="1" className="c-chip" onClick={reset}>＋ {W2("Raporekî nû","New report")}</button>
     </div>
@@ -12332,7 +12335,7 @@ function AdminReportCenter({students,allStudents,teachers,schedule,allSchedule,a
         <DateInput style={{...selectStyle,width:"100%"}} value={cf} onChange={e=>setCf(e.target.value)}/><DateInput style={{...selectStyle,width:"100%"}} value={ct} onChange={e=>setCt(e.target.value)}/></div>}
       <div style={{fontSize:11.5,color:"var(--text2)",marginTop:4}}>📅 {fmtDateTx(from)} → {fmtDateTx(to)}</div></>}
     </Card>
-    {!ready&&<Note icon="report">{W2("Gav bi gav hilbijêre; rapor li jêr tê amadekirin.","Choose step by step; the report is prepared below.")}</Note>}
+    {!ready&&<Note icon="report">{sect==="lists"&&KID?W2("Lîsteyên Akademiya Zarokan di panela Karûbarên Xwendekaran de ne.","Children's Academy lists are in the Student Affairs panel."):W2("Gav bi gav hilbijêre; rapor li jêr tê amadekirin.","Choose step by step; the report is prepared below.")}</Note>}
     {ready&&!KID&&type==="devam"&&who==="student"&&<StudentAttendanceReport key={area+(wsOn?"~ws":"")+from+to} students={aS} schedule={aSch} allSchedule={SCH} teachers={aT} allTeachers={TCH} docScope={docScope0} headArea={headArea} from={from} to={to} lang={lang} toast={toast} byName={byName}/>}
     {ready&&!KID&&type==="devam"&&who==="teacher"&&<TeacherAttendanceReport key={area+(wsOn?"~ws":"")+from+to} noRange canFix fixCtx={{students:aS,user}} teachers={aT} schedule={aSch} allTeachers={TCH} fromP={from} toP={to} lang={lang} toast={toast}/>}
     {ready&&!KID&&type==="eval"&&<EvalCombinedReport key={who+area+(wsOn?"~ws":"")+from+to} who={who} fromP={from} toP={to} students={aS} teachers={aT} allTeachers={TCH} teachScope={teachScope} headArea={headArea} lang={lang} toast={toast} byName={byName}/>}
@@ -12476,7 +12479,7 @@ function StudentAttendanceReport({students,schedule,allSchedule,teachers,allTeac
   const rows=(students||[]).filter(s=>!s.isAdmin&&(!clsObj||inClass(clsObj,s.no))&&(!inSelLessons||inSelLessons.has(String(s.id)))&&teachOk(s)
       &&(!ql||(s.name||"").toLocaleLowerCase().includes(ql)||String(s.no||"").includes(ql)))
     .map(s=>({s,st:tally[String(s.id)]||{att:0,totalLessons:0,attended:0,absent:0,late:0,leaves:0}}))
-    .sort((a,b)=>((a.st.totalLessons?a.st.att:101)-(b.st.totalLessons?b.st.att:101))||String(a.s.name||"").localeCompare(String(b.s.name||"")));
+    .sort((a,b)=>trCmp(a.s.name,b.s.name));   // alfabetik (arama kutusuyla birlikte)
   const leavesOf=s=>(leaves||[]).filter(l=>!l.kid&&String(l.studentNo)===String(s.no)&&!(l.to<from||l.from>to));
   const leaveTxt=s=>leavesOf(s).map(l=>(l.reason||"")+" ("+fmtDateTx(l.from)+(l.to&&l.to!==l.from?" – "+fmtDateTx(l.to):"")+((l.lessonNames||[]).length?" · "+l.lessonNames.join(", "):"")+")").join("; ");
   const rated=rows.filter(r=>r.st.totalLessons>0);

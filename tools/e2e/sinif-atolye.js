@@ -190,7 +190,9 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   await rcl('[data-rw-scope="ws"]'); await rcl('[data-rw-type="devam"]'); await rcl('[data-rw-view="student"]'); await p.waitForTimeout(800);
   const wsRows = await p.evaluate(() => [...document.querySelectorAll('[data-rep-student]')].map(e => e.dataset.repStudent));
   ok('Atölye kapsamı devam raporu: yalnız atölye öğrencisi', wsRows.includes('20202699') && !wsRows.includes('20202601'), JSON.stringify(wsRows));
-  ok('Atölye kapsamında Devam + Değerlendirme + Genel analiz + öğrenci/öğretmen listesi var', (await p.locator('[data-rw-type="analiz"]').count()) === 1 && (await p.locator('[data-rw-type="eval"]').count()) === 1 && (await p.locator('[data-rw-type="list"]').count()) === 1 && (await p.locator('[data-rw-type="tlist"]').count()) === 1);
+  ok('Atölye kapsamında rapor ekranında yalnız 3 tür: Devam + Değerlendirme + Genel analiz (listeler ayrı bölümde)', (await p.locator('[data-rw-type="analiz"]').count()) === 1 && (await p.locator('[data-rw-type="eval"]').count()) === 1 && (await p.locator('[data-rw-type="devam"]').count()) === 1 && (await p.locator('[data-rw-type="list"]').count()) === 0 && (await p.locator('[data-rw-type="tlist"]').count()) === 0);
+  await rcl('[data-rw-sect="lists"]'); await p.waitForTimeout(500);
+  ok('Listeler bölümünde öğrenci + öğretmen listesi var', (await p.locator('[data-rw-type="list"]').count()) === 1 && (await p.locator('[data-rw-type="tlist"]').count()) === 1);
   await rcl('[data-rw-type="list"]'); await p.waitForTimeout(800);
   const wsList = await p.evaluate(() => (document.querySelector('[data-stu-list]') || { innerText: '' }).innerText);
   ok('Atölye öğrenci listesi: yalnız atölye öğrencisi (Elîf), akademi öğrencisi yok', wsList.includes('Elîf Dem') && !wsList.includes('Rojîn Aram'), wsList.slice(0, 120));
