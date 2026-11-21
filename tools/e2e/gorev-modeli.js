@@ -34,7 +34,7 @@ async function routes(ctx) {
   const goA = (pg, k) => pg.evaluate(k => [...document.querySelectorAll('.sm-it[data-key="' + k + '"],.pano-tile[data-key="' + k + '"]')].find(x => x.getClientRects().length).click(), k).then(() => pg.waitForTimeout(1800));
   await put('idx_staff/1000', { no: '1000', lvl: 'admin' }); await put('teachers/TA', { no: '1000', name: 'Rêveber', isAdmin: true, area: 'genel' }); await signUp('1000@ogretmen.aat', 'Admin123');
   await put('idx_staff/96202600', { no: '96202600', lvl: 'head', area: 'genel' }); await put('teachers/TG', { id: 'TG', no: '96202600', name: 'Berpirsê Giştî', isHead: true, area: 'genel' }); await signUp('96202600@ogretmen.aat', 'Head1234');
-  await put('idx_staff/50202601', { no: '50202601', lvl: 'teacher' }); await put('teachers/T50', { id: 'T50', fireId: 'T50', no: '50202601', name: 'Mamoste Şano', area: 'tiyatro' });
+  await put('idx_staff/50202601', { no: '50202601', lvl: 'teacher' }); await signUp('50202601@ogretmen.aat', 'Tea12345'); await put('teachers/T50', { id: 'T50', fireId: 'T50', no: '50202601', name: 'Mamoste Şano', area: 'tiyatro' });
   await put('idx_staff/50202602', { no: '50202602', lvl: 'teacher' }); await put('teachers/T51', { id: 'T51', fireId: 'T51', no: '50202602', name: 'Mamoste Dengbêj', area: 'muzik' });
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
   const getD = async p => { const r = await fetch(`${FS}/${p}`, { headers: H }); return r.ok ? r.json() : null; };
@@ -69,7 +69,6 @@ async function routes(ctx) {
   await ap.context().close();
   // Genel sorumlu → alan sorumlusu işaretler
   const gp = await login('96202600', 'Head1234');
-  console.log('KEYS', JSON.stringify(await gp.evaluate(() => [...new Set([...document.querySelectorAll('[data-key]')].map(e => e.dataset.key))])), (await gp.evaluate(() => document.body.innerText)).slice(0, 200).replace(/\n/g, ' '));
   await goA(gp, 'areaheads');
   ok('Genel sorumlu "Berpirsên Beşan" bölümünü görür', (await gp.locator('[data-areaheads]').count()) === 1);
   await gp.evaluate(() => document.querySelector('[data-ah-toggle="50202601"]').click());
@@ -79,6 +78,11 @@ async function routes(ctx) {
   await gp.evaluate(() => document.querySelector('[data-ah-toggle="50202601"]').click());
   const back = await waitFor(async () => { const d = await getD('idx_staff/50202601'); return d && d.fields.lvl.stringValue === 'teacher' ? d : null; });
   ok('İşaret kaldırılınca öğretmene döner', !!back);
+  await gp.context().close();
+  // Hem akademi hem Zarok görevli öğretmen: menüde Zarok geçişi
+  await put('idx_kidstaff/50202602', { no: '50202602' }); await signUp('50202602@ogretmen.aat', 'Tea12345');
+  const tp = await login('50202602', 'Tea12345');
+  ok('Zarok bağlantılı öğretmenin menüsünde Zarok geçişi var', (await tp.locator('[data-role-switch="kid"]').count()) >= 1);
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);
 })().catch(e => { console.error('E2E HATA', e); process.exit(1); });

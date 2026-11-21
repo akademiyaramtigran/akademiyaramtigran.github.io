@@ -7751,6 +7751,15 @@ function StaffProfileView({user,roleLabel,icon,lang,t,toast,onLogout,onDataChang
       onSavePass={(newHash)=>{ if(onDataChange) onDataChange("updateTeacher",{...me,pass:newHash,passHash:newHash,_plainPass:""}); }}/>}
   </div>);
 }
+// Aynı kişi hem akademide hem Çocuk Akademisi'nde görevliyse (idx_kidstaff) menüde Zarok sepanına geçiş
+function useKidLinked(no){
+  const [on,setOn]=useState(false);
+  useEffect(()=>{ const F=window.__FB; if(!F||!F.isConfigured()||!no) return; let alive=true;
+    F.getDoc(F.doc(F.db,"idx_kidstaff",String(no))).then(d=>{ if(alive) setOn(d.exists()); }).catch(()=>{});
+    return ()=>{ alive=false; }; },[no]);
+  return on;
+}
+const kidSwitchItem=(lang)=>({icon:"🎼",label:lang==="en"?"Children's Academy app":K("Sepana Akademiya Zarokan"),onClick:()=>{ window.location.href=ZAROK_APP_URL; },attrs:{"data-role-switch":"kid"}});
 function HeadPanel(props){
   if(isKidArea(props.user&&props.user.area)) return <KidHeadPanel {...props}/>;
   return <AatHeadPanel {...props}/>;
@@ -7822,6 +7831,7 @@ function HeadGuestAttendance({user,students,schedule,lang,toast}){
 }
 function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onSettings,onDataChange,onTeachMode}){
   const [menuOpen,setMenuOpen]=useState(isPhoneNow);
+  const kidLinked=useKidLinked(user&&user.no);
   const [tab,setTab]=useState("announce");
   const [lvWs,setLvWs]=useState(false); const [annMode,setAnnMode]=useState("dept"); const W2h=(ku,en)=>lang==="en"?en:K(ku);
   const [msgs,setMsgs]=useState([]);
@@ -7873,7 +7883,7 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
   return(
     <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
       <SideMenu dock={["schedule","reports","messages","announce"]} open={menuOpen} onClose={()=>setMenuOpen(false)} onOpen={()=>setMenuOpen(true)} items={items} activeKey={tab} onSelect={setTab} user={user} roleLabel={roleLabel}
-        extraItems={[...(onTeachMode?[{icon:"👨‍🏫",label:lang==="en"?"Teacher panel (my lessons)":K("Panela Mamoste (dersên min)"),onClick:onTeachMode,attrs:{"data-role-switch":"teacher"}}]:[]),...(onSettings?[{icon:"⚙️",label:t.settings||"Mîheng",onClick:onSettings}]:[]),{icon:"↩",label:t.logout||"Derkeve",onClick:onLogout,danger:true}]}/>
+        extraItems={[...(onTeachMode?[{icon:"👨‍🏫",label:lang==="en"?"Teacher panel (my lessons)":K("Panela Mamoste (dersên min)"),onClick:onTeachMode,attrs:{"data-role-switch":"teacher"}}]:[]),...(kidLinked?[kidSwitchItem(lang)]:[]),...(onSettings?[{icon:"⚙️",label:t.settings||"Mîheng",onClick:onSettings}]:[]),{icon:"↩",label:t.logout||"Derkeve",onClick:onLogout,danger:true}]}/>
       <SpecialPanelHeader user={user} icon="🎓" lang={lang} onLogout={onLogout} onMenu={()=>setMenuOpen(true)} roleLabel={roleLabel}/>
       <div className="scroll-area" style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
         {tab==="announce"&&<>
@@ -14227,6 +14237,7 @@ function TeacherProfileView({teacher,a,lang,t,toast,myStudents,onLogout,onGoStat
 
 /* ─── TEACHER PANEL ─────────────────────────────────────────────────────── */
 function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataChange,onSettings,onHeadMode}){
+  const kidLinkedT=useKidLinked(teacher&&teacher.no);
   // Kayıt kimliği her yolda aynı olsun (yoklama/QR kayıtları teacherId ister)
   if(teacher && teacher.id==null) teacher={...teacher,id:teacher.fireId||teacher.no};
   // Aktif dönem filtresi: dönemsiz dersler + aktif dönemin dersleri görünür
@@ -14711,6 +14722,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
         roleLabel={(lang==="en"?"Teacher":K("Mamoste"))+" · "+areaName(teacher.area,lang)}
         extraItems={[
           ...(onHeadMode?[{icon:"🎓",label:lang==="en"?"Department head panel":K("Panela Berpirs"),onClick:onHeadMode,attrs:{"data-role-switch":"head"}}]:[]),
+          ...(kidLinkedT?[kidSwitchItem(lang)]:[]),
           ...(onSettings?[{icon:"⚙️",label:t.settings||"Mîheng",onClick:onSettings}]:[]),
           {icon:"↩",label:t.logout||"Derkeve",onClick:onLogout,danger:true},
         ]}/>
