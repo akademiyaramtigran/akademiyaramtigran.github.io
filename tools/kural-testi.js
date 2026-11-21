@@ -77,6 +77,7 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
     await setDoc(doc(db, 'idx_staff/96202696'), { no: '96202696', lvl: 'teacher' });
     await setDoc(doc(db, 'kidClasses/GC1'), { kind: 'area', area: 'zarok', name: 'G1', headNos: ['96202697'], studentNos: ['82026001'] });
     await setDoc(doc(db, 'kidClasses/GC2'), { kind: 'area', area: 'zarok', name: 'G2', headNos: [], studentNos: ['82026002'] });
+    await setDoc(doc(db, 'kidClasses/GC3'), { kind: 'area', area: 'zarok', name: 'G3', headNos: ['96202699'], studentNos: ['82026002'] });
     await setDoc(doc(db, 'teachers/GTP'), { id: 'GTP', no: '11202699', name: 'Düz Hoca', area: 'tiyatro' });
     await setDoc(doc(db, 'idx_staff/11202699'), { no: '11202699', lvl: 'teacher', area: 'tiyatro' });
     await setDoc(doc(db, 'kids/K3'), { no: '82026003', name: 'Zarok D', area: 'drama', guardianNos: ['92026001'] });
@@ -874,9 +875,9 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
     await t('Bağlı sınıf sorumlusu: sınıf sorumlusu listesini DEĞİŞTİREMEZ', updateDoc(doc(chd, 'kidClasses/GC1'), { headNos: ['96202697', '96202696'] }), false);
     await t('Bağlı sınıf sorumlusu: sınıf AÇAMAZ', setDoc(doc(chd, 'kidClasses/GN3'), { kind: 'area', area: 'zarok', name: 'N', headNos: ['96202697'] }), false);
     await t('Bağlı sınıf sorumlusu: kendi sınıfına ödev/duyuru yazar', addDoc(collection(chd, 'kidClassPosts'), { classId: 'GC1', className: 'G1', type: 'duyuru', title: 'T', body: 'b', teacherNo: '96202697', teacherName: 'X' }), true);
-    await t('Bağlı sınıf sorumlusu: başka sınıfa duyuru YAZAMAZ', addDoc(collection(chd, 'kidClassPosts'), { classId: 'GC2', className: 'G2', type: 'duyuru', title: 'T', body: 'b', teacherNo: '96202697', teacherName: 'X' }), false);
+    await t('Bağlı sınıf sorumlusu: başka sınıfa duyuru YAZAMAZ', addDoc(collection(chd, 'kidClassPosts'), { classId: 'GC3', className: 'G3', type: 'duyuru', title: 'T', body: 'b', teacherNo: '96202697', teacherName: 'X' }), false);
     await t('Bağlı sınıf sorumlusu: kendi sınıfındaki çocuğa izin işler (classId)', setDoc(doc(chd, 'studentLeaves/GL1'), { studentNo: '82026001', studentId: 'K1', studentName: 'Z', area: 'zarok', from: '2026-10-26', to: '2026-10-27', reason: 'x', by: 'B', byNo: '96202697', kid: true, classId: 'GC1' }), true);
-    await t('Bağlı sınıf sorumlusu: başka sınıfın çocuğuna izin İŞLEYEMEZ', setDoc(doc(chd, 'studentLeaves/GL2'), { studentNo: '82026002', studentId: 'K2', studentName: 'Z', area: 'zarok', from: '2026-10-26', to: '2026-10-27', reason: 'x', by: 'B', byNo: '96202697', kid: true, classId: 'GC2' }), false);
+    await t('Bağlı sınıf sorumlusu: başka sınıfın çocuğuna izin İŞLEYEMEZ', setDoc(doc(chd, 'studentLeaves/GL2'), { studentNo: '82026002', studentId: 'K2', studentName: 'Z', area: 'zarok', from: '2026-10-26', to: '2026-10-27', reason: 'x', by: 'B', byNo: '96202697', kid: true, classId: 'GC3' }), false);
     await t('Bağlı sınıf sorumlusu: akademi öğretmeni bağlayamaz', setDoc(doc(chd, 'idx_kidstaff/11202602'), { no: '11202602' }), false);
     // Ana akademi: genel sorumlu → alan sorumlusu ata
     const genM = as('96202602@ogretmen.aat');
