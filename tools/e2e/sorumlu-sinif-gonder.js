@@ -61,13 +61,19 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   const msgs = async () => ((await fetch(`${FS}/messages?pageSize=100`, { headers: H }).then(r => r.json())).documents || []);
   const sv = d => Object.fromEntries(Object.entries(d.fields).map(([k, v]) => [k, v.stringValue !== undefined ? v.stringValue : v.integerValue !== undefined ? v.integerValue : v.booleanValue]));
   const setSel = (p, q, v) => p.evaluate(([q, v]) => { const s = document.querySelector(q); const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; set.call(s, v); s.dispatchEvent(new Event('change', { bubbles: true })); }, [q, v]);
+  const rcpItems = async pg => { const types = await pg.evaluate(() => [...document.querySelectorAll('[data-head-to] [data-rcp-type]')].map(x => x.dataset.rcpType)); const out = [];
+    for (const ty of types) { await pg.evaluate(t => document.querySelector('[data-head-to] [data-rcp-type="' + t + '"]').click(), ty); await pg.waitForTimeout(150);
+      out.push(...await pg.evaluate(() => [...document.querySelectorAll('[data-head-to] [data-rcp-item]')].map(x => ({ v: x.dataset.rcpItem, t: x.textContent })))); } return out; };
+  const rcpPick = async (pg, match) => { const types = await pg.evaluate(() => [...document.querySelectorAll('[data-head-to] [data-rcp-type]')].map(x => x.dataset.rcpType));
+    for (const ty of types) { await pg.evaluate(t => document.querySelector('[data-head-to] [data-rcp-type="' + t + '"]').click(), ty); await pg.waitForTimeout(150);
+      const ok = await pg.evaluate(m => { const e = [...document.querySelectorAll('[data-head-to] [data-rcp-item]')].find(x => x.dataset.rcpItem === m || x.textContent.includes(m)); if (e) { e.click(); return true; } return false; }, match); if (ok) return true; } return false; };
   const hp = await login('Mamoste', '96000001', 'Head1234');
   await goA(hp, 'messages'); await hp.waitForTimeout(1200);
   await hp.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.includes('Peyamek Nû')).click()); await hp.waitForTimeout(500);
-  const opts = await hp.evaluate(() => [...document.querySelector('[data-head-to]').options].map(o => o.value));
+  const opts = (await rcpItems(hp)).map(o => o.v);
   ok('Sorumlu alıcıları: kendi bölümünün sınıfı var, başka bölümün / genel sınıf yok', opts.includes('cls_C1') && !opts.includes('cls_C2') && !opts.includes('cls_G1'), JSON.stringify(opts));
   // Seçilen öğrenciye özel mesaj
-  await setSel(hp, '[data-head-to]', 'cls_C1'); await hp.waitForTimeout(400);
+  await rcpPick(hp, 'cls_C1'); await hp.waitForTimeout(400);
   await hp.evaluate(() => document.querySelector('[data-hw="pick"]').click()); await hp.waitForTimeout(300);
   await hp.locator('[data-hpick="20202601"] input').check();
   await hp.locator('#hm-subject').fill('Ji bo Rojînê'); await hp.locator('#hm-body').fill('Tenê ji te re');
@@ -76,7 +82,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   ok('Seçilen öğrenciye özel mesaj: yalnız Rojîn (sınıf kimliğiyle)', m.length === 1 && m[0].recipientNo === '20202601' && m[0].classId === 'C1' && m[0].fromType === 'head', JSON.stringify(m.map(x => x.recipientNo)));
   // Bütün sınıfa mesaj
   await hp.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.includes('Peyamek Nû')).click()); await hp.waitForTimeout(500);
-  await setSel(hp, '[data-head-to]', 'cls_C1'); await hp.waitForTimeout(300);
+  await rcpPick(hp, 'cls_C1'); await hp.waitForTimeout(300);
   await hp.locator('#hm-subject').fill('Ji bo sinifê'); await hp.locator('#hm-body').fill('Silav');
   await hp.evaluate(() => [...document.querySelectorAll('button')].filter(x => x.textContent.includes('Bişîne') && x.offsetParent).pop().click()); await hp.waitForTimeout(2800);
   m = (await msgs()).map(sv).filter(x => x.subject === 'Ji bo sinifê');
@@ -116,7 +122,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   // Genel sorumlu: yalnız genel sınıf
   const gp = await login('Mamoste', '96000002', 'Head1234'); await goA(gp, 'messages'); await gp.waitForTimeout(1200);
   await gp.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.includes('Peyamek Nû')).click()); await gp.waitForTimeout(500);
-  const gopts = await gp.evaluate(() => [...document.querySelector('[data-head-to]').options].map(o => o.value));
+  const gopts = (await rcpItems(gp)).map(o => o.v);
   ok('Genel sorumlu alıcıları: yalnız genel sınıf (bölüm sınıfı yok)', gopts.includes('cls_G1') && !gopts.includes('cls_C1') && !gopts.includes('cls_C2'), JSON.stringify(gopts));
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);

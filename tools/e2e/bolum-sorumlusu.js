@@ -127,10 +127,16 @@ async function routes(ctx) {
   ok('Sorumlu öğrenciye cevap verir (replyTo + öğrenci numarası)', rp.length === 1 && rp[0].fields.recipientNo.stringValue === '20202601' && !!rp[0].fields.replyTo);
   await goA(s1, 'messages'); await s1.waitForTimeout(2000);
   ok('Öğrenci sorumlunun cevabını görür', (await txt(s1)).includes('Erê, li odeya provayê ye') || (await txt(s1)).includes('Re: Kostûm'));
+  const rcpItems = async pg => { const types = await pg.evaluate(() => [...document.querySelectorAll('[data-head-to] [data-rcp-type]')].map(x => x.dataset.rcpType)); const out = [];
+    for (const ty of types) { await pg.evaluate(t => document.querySelector('[data-head-to] [data-rcp-type="' + t + '"]').click(), ty); await pg.waitForTimeout(150);
+      out.push(...await pg.evaluate(() => [...document.querySelectorAll('[data-head-to] [data-rcp-item]')].map(x => ({ v: x.dataset.rcpItem, t: x.textContent })))); } return out; };
+  const rcpPick = async (pg, match) => { const types = await pg.evaluate(() => [...document.querySelectorAll('[data-head-to] [data-rcp-type]')].map(x => x.dataset.rcpType));
+    for (const ty of types) { await pg.evaluate(t => document.querySelector('[data-head-to] [data-rcp-type="' + t + '"]').click(), ty); await pg.waitForTimeout(150);
+      const ok = await pg.evaluate(m => { const e = [...document.querySelectorAll('[data-head-to] [data-rcp-item]')].find(x => x.dataset.rcpItem === m || x.textContent.includes(m)); if (e) { e.click(); return true; } return false; }, match); if (ok) return true; } return false; };
   await btn(hp, 'Peyamek Nû'); await hp.waitForTimeout(400);
-  const opts = await hp.locator('[data-head-to] option').allTextContents();
+  const opts = (await rcpItems(hp)).map(o => o.t);
   ok('Mesaj alıcıları: yönetici + yalnızca bölüm öğretmenleri (öğrenci yok)', opts.length === 2 && opts.join('|').includes('Mamoste Şano') && !opts.join('|').includes('Mamoste Muzîk') && !opts.join('|').includes('Rojîn'), opts.join(' | '));
-  await hp.selectOption('[data-head-to]', { label: 'Mamoste Şano' });
+  await rcpPick(hp, 'Mamoste Şano');
   await hp.fill('#hm-subject', 'Lîsteya kostûman'); await hp.fill('#hm-body', 'Pel li pêvekê ye');
   await hp.setInputFiles('input[type=file]', { name: 'kostum.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 x') });
   // Ek dosya deposuna yüklenir: yükleme bitene kadar bekle (bu sırada gönderim engellenir)
