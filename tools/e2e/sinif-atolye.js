@@ -265,6 +265,8 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   const goAtt = async () => { await goA(tm, 'attendance'); await tm.evaluate(() => { }); await tm.waitForTimeout(1500); };
   const pickLs = () => tm.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.includes('Teorî') && x.textContent.includes('📅')); b && b.click(); });
   await goAtt(); await pickLs(); await tm.waitForTimeout(800);
+  // Yoklama kapısı: ders başlatılmadan işaretlenemez
+  await tm.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.includes('Dersê Dest Pê Bike') && x.offsetParent); b && b.click(); }); await tm.waitForTimeout(1500);
   const rowBtn = (cls) => tm.evaluate(c => { const row = [...document.querySelectorAll('div')].filter(d => d.textContent.includes('Rojîn Aram') && d.querySelectorAll('.att-btn').length === 3).pop();
     const bs = [...row.querySelectorAll('.att-btn')]; if (c) { bs[1].click(); return true; } return bs[1].classList.contains('late'); }, cls);
   await rowBtn(true); await tm.waitForTimeout(300);
