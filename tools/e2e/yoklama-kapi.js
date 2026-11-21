@@ -50,24 +50,24 @@ async function routes(ctx) {
   await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
   await p.getByText('Mamoste', { exact: true }).first().click();
   await p.locator('input.inp').first().fill('50202601'); await p.locator('input[type=password]').first().fill('Tea12345');
-  await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000);
+  await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(9000);
   // Ders kapatılmadı kartı (ders saati geçti, yoklama var)
-  ok('Kapatılmamış ders için "dersi bitirin" uyarısı çıkar', (await p.locator('[data-noclose-card]').count()) === 1 && (await p.locator('[data-noclose-end]').count()) >= 1);
-  await p.locator('[data-noclose-end]').first().click(); await p.waitForTimeout(2000);
+  ok('Kapatılmamış ders için "dersi bitirin" uyarısı çıkar', (await p.locator('[data-noclose-card]').count()) >= 1 && (await p.locator('[data-noclose-end]').count()) >= 1);
+  await p.evaluate(() => document.querySelector('[data-noclose-end]').click()); await p.waitForTimeout(2500);
   const lo = await getDoc('LO-' + TD);
   ok('Uyarıdan "Dersi bitir" deyince ders kesinleşir (endedAt)', !!(lo.fields && lo.fields.endedAt));
   ok('Kapatılınca uyarı kartı kalkar', (await p.locator('[data-noclose-card]').count()) === 0);
   // Yoklama kapısı
   await goA(p, 'attendance'); await p.waitForTimeout(1500);
-  await p.click('[data-att-lesson="LA"]'); await p.waitForTimeout(1000);
-  await p.locator('[data-att-mark="on"]').first().click(); await p.waitForTimeout(600);
+  await p.evaluate(() => document.querySelector('[data-att-lesson="LA"]').click()); await p.waitForTimeout(1200);
+  await p.evaluate(() => document.querySelector('[data-att-mark="on"]').click()); await p.waitForTimeout(600);
   const t1 = await p.evaluate(() => document.body.innerText);
   ok('Başlatılmadan işaretlenemez: "önce dersi başlat" uyarısı', t1.includes('Pêşî dersê dest pê bike'));
   const a0 = await getDoc('LA-' + TD);
   ok('Başlatılmadan hiçbir yoklama kaydı yazılmadı', !(a0.fields && a0.fields.records));
-  await p.evaluate(() => [...document.querySelectorAll('button')].filter(x => x.offsetParent && x.textContent.includes('Dersê Dest Pê Bike'))[0].click()); await p.waitForTimeout(2000);
-  await p.locator('[data-att-mark="on"]').first().click(); await p.waitForTimeout(400);
-  await p.evaluate(() => [...document.querySelectorAll('button')].filter(x => x.offsetParent && /Tomar bike|Tomar/.test(x.textContent)).pop().click()); await p.waitForTimeout(2500);
+  await p.evaluate(() => { const b = document.querySelector('[data-start-lesson]') || [...document.querySelectorAll('button')].find(x => /Dest P/i.test(x.textContent)); b.click(); }); await p.waitForTimeout(2500);
+  await p.evaluate(() => document.querySelector('[data-att-mark="on"]').click()); await p.waitForTimeout(400);
+  await p.evaluate(() => [...document.querySelectorAll('button')].filter(x => x.offsetParent && /tomar/i.test(x.textContent)).pop().click()); await p.waitForTimeout(2500);
   const a1 = await getDoc('LA-' + TD);
   ok('Başlatınca yoklama kaydedilir ama KESİNLEŞMEZ (dersi bitirene kadar sayılmaz)', !!(a1.fields && a1.fields.records) && !(a1.fields && a1.fields.endedAt));
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));

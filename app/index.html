@@ -12801,8 +12801,8 @@ function TeacherNoAttCard({teacher,schedule,students,lang,toast}){
   const openShown=open.filter(x=>!closed[x.key]);
   if(!items.length&&!openShown.length) return null;
   return(<>
-    {openShown.length>0&&<Card style={{marginBottom:12,border:"1px solid rgba(217,45,32,.4)"}} data-noclose-card="1">
-      <div style={{fontSize:13.5,fontWeight:800,color:"#b42318",marginBottom:4}}>⏹ {W2("Ji kerema xwe dersên xwe biqedîne","Please end your lessons")} ({openShown.length})</div>
+    {openShown.length>0&&<Card style={{marginBottom:12,border:"1px solid rgba(217,45,32,.4)"}}>
+      <div data-noclose-card="1" style={{fontSize:13.5,fontWeight:800,color:"#b42318",marginBottom:4}}>⏹ {W2("Ji kerema xwe dersên xwe biqedîne","Please end your lessons")} ({openShown.length})</div>
       <div style={{fontSize:12,color:"var(--text2)",marginBottom:6}}>{W2("Amadebûn hatiye girtin lê ders nehatiye girtin; heta tu biqedînî di raporan û li ekrana xwendekaran de nayê hesibandin.","Attendance was taken but the lesson was not closed; it is not counted in reports or on student screens until you end it.")}</div>
       {openShown.slice(0,8).map(x=>(<div key={x.key} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderTop:"1px solid var(--border2)",fontSize:13,color:"var(--text)"}}>
         <span style={{flex:1}}>📅 {fmtDateTx(x.date)} · {x.lesson}</span>
