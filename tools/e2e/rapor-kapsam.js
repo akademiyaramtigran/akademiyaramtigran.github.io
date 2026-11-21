@@ -106,7 +106,7 @@ async function routes(ctx) {
   ok('Sorumlu menüsünde anket yok', !hk.includes('surveys') && hk.includes('reports') && hk.includes('evalforms'), hk.join(','));
   await go(hp, 'reports');
   const ht = await rtabs(hp);
-  ok('Sorumlu rapor türleri: Devam + Değerlendirme + Genel analiz (anket yok)', ht.join(',') === 'devam,eval,analiz,list,tlist', ht.join(','));
+  ok('Sorumlu rapor türleri: Devam + Değerlendirme + Genel analiz (anket yok)', ht.join(',') === 'devam,eval,analiz', ht.join(','));
   await devStu(hp);
   ok('Tiyatro sorumlusu: Rojîn genel ders dahil %50 (3/6), müzik öğrencisi yok', (await pct(hp, '20202601')) === '50%' && (await pct(hp, '20202603')) === null, await pct(hp, '20202601'));
   // Ortak "Giştî" sınıfı seçilince yalnız sorumlunun kendi öğrencileri
@@ -156,7 +156,7 @@ async function routes(ctx) {
   ok('Yönetici: akademi seçimi (Konservatuar / Çocuk Akademisi)', (await ap.locator('[data-rw-acad]').count()) === 2);
   await rwc(ap, '[data-rw-acad="aat"]');
   const at = await rtabs(ap);
-  ok('Yönetici rapor türleri: Devam + Değerlendirme + Genel analiz + öğrenci/öğretmen listesi', at.join(',') === 'devam,eval,analiz,list,tlist', at.join(','));
+  ok('Yönetici rapor türleri: yalnız Devam + Değerlendirme + Genel analiz (listeler ayrı bölüm)', at.join(',') === 'devam,eval,analiz', at.join(','));
   await devStu(ap);
   ok('Yönetici tüm bölümleri görür (tiyatro + müzik öğrencisi)', (await pct(ap, '20202601')) !== null && (await pct(ap, '20202603')) !== null);
   await rwc(ap, '[data-rw-new]', '[data-rw-sect="lists"]', '[data-rw-acad="aat"]', '[data-rw-type="list"]');

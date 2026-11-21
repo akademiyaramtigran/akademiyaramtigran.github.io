@@ -72,10 +72,16 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   // 2) Mesaj: bölüm öğretmeni + genel sorumlu
   await ta.click('[data-hub-tab="messages"]'); await ta.waitForTimeout(800);
   await ta.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.includes('Peyamek Nû')).click()); await ta.waitForTimeout(500);
-  const opts = await ta.evaluate(() => { const s = [...document.querySelectorAll('select')].find(x => [...x.options].some(o => o.value === 'admin')); return s ? [...s.options].map(o => o.value + '|' + o.textContent) : []; });
+  const rcpItems = async (pg, root) => { root = root || '[data-recipient-picker]'; const types = await pg.evaluate(r => [...document.querySelectorAll(r + ' [data-rcp-type]')].map(x => x.dataset.rcpType), root); const out = [];
+    for (const ty of types) { await pg.evaluate(([r, t]) => document.querySelector(r + ' [data-rcp-type="' + t + '"]').click(), [root, ty]); await pg.waitForTimeout(150);
+      out.push(...await pg.evaluate(r => [...document.querySelectorAll(r + ' [data-rcp-item]')].map(x => ({ v: x.dataset.rcpItem, t: x.textContent })), root)); } return out; };
+  const rcpPick = async (pg, match, root) => { root = root || '[data-recipient-picker]'; const types = await pg.evaluate(r => [...document.querySelectorAll(r + ' [data-rcp-type]')].map(x => x.dataset.rcpType), root);
+    for (const ty of types) { await pg.evaluate(([r, t]) => document.querySelector(r + ' [data-rcp-type="' + t + '"]').click(), [root, ty]); await pg.waitForTimeout(150);
+      const ok = await pg.evaluate(([r, m]) => { const e = [...document.querySelectorAll(r + ' [data-rcp-item]')].find(x => x.dataset.rcpItem === m || x.textContent.includes(m)); if (e) { e.click(); return true; } return false; }, [root, match]); if (ok) return true; } return false; };
+  const opts = (await rcpItems(ta)).map(o => o.v + '|' + o.t);
   ok('Alıcılar: yönetici, bölüm sorumlusu, genel sorumlu, bölüm öğretmeni', opts.some(o => o.startsWith('admin|')) && opts.some(o => o.startsWith('head|')) && opts.some(o => o.startsWith('genhead|')) && opts.some(o => /^c_.*Mamoste Drama/.test(o)), opts.join(' ; '));
   const sendTo = async (val, subj) => {
-    await ta.evaluate(v => { const s = [...document.querySelectorAll('select')].find(x => [...x.options].some(o => o.value === 'admin')); const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; set.call(s, v); s.dispatchEvent(new Event('change', { bubbles: true })); }, val);
+    await rcpPick(ta, val);
     await ta.locator('input[placeholder="Sernav..."]').fill(subj); await ta.locator('textarea').first().fill('Silav');
     await ta.evaluate(() => [...document.querySelectorAll('button')].filter(x => x.textContent.includes('Bişîne') && x.offsetParent).pop().click()); await ta.waitForTimeout(2200);
   };

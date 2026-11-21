@@ -199,7 +199,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   await rcl('[data-rw-type="tlist"]'); await p.waitForTimeout(800);
   const wsT = await p.evaluate(() => (document.querySelector('[data-tl-count]') || { innerText: '' }).innerText);
   ok('Atölye öğretmen listesi: atölye derslerine giren öğretmenler', /^[1-9]/.test(wsT.trim()), wsT);
-  await rcl('[data-rw-type="analiz"]'); await rcl('[data-rw-who="student"]'); await p.waitForTimeout(1500);
+  await rcl('[data-rw-sect="rep"]'); await rcl('[data-rw-type="analiz"]'); await rcl('[data-rw-who="student"]'); await p.waitForTimeout(1500);
   ok('Atölye Genel analiz açılır (hata yok)', (await p.locator('[data-rw-type="analiz"].on').count()) === 1);
   await rcl('[data-rw-type="devam"]'); await rcl('[data-rw-view="student"]').catch(() => {});
   // ── İzin: sorumlu Akademi / Atölye seçer; atölye öğrencisine izin yazılır, akademi listesinde görünmez ──
