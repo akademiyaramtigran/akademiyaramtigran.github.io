@@ -78,7 +78,7 @@ function evalWeek(d) { const x = d ? new Date(d) : new Date(); const y = new Dat
   const WK = evalWeek();
   const hp = await login(await mk(), '96202611', 'Head1234');
   await goA(hp, 'leaves'); await hp.waitForTimeout(1200);
-  await hp.selectOption('#lv-student', '20202602');
+  await hp.fill('#lv-student', '20202602'); await hp.click('[data-ss-item="20202602"]');
   await hp.locator('[role=tab]', { hasText: 'Dersên taybet' }).click(); await hp.waitForTimeout(500);
   ok('Öğrencinin bugünkü dersleri seçenek olarak çıkar', (await hp.locator('[data-leave-lesson="L2"]').count()) === 1 && (await hp.locator('[data-leave-lesson="L3"]').count()) === 1);
   await hp.click('[data-leave-lesson="L2"]'); await hp.fill('#lv-reason', 'Randevûya doktor');

@@ -119,7 +119,7 @@ async function routes(ctx) {
 
   // İzin: sorumlu Azad'a bugün izin işler → öğretmen listesinde görünmez
   await goA(hp, 'leaves'); await hp.waitForTimeout(1000);
-  await hp.selectOption('#lv-student', '20202602'); await hp.fill('#lv-reason', 'Nexweşî');
+  await hp.fill('#lv-student', '20202602'); await hp.click('[data-ss-item="20202602"]'); await hp.fill('#lv-reason', 'Nexweşî');
   await btn(hp, 'Destûrê tomar bike'); await hp.waitForTimeout(2000);
   const lvs = await list('studentLeaves');
   ok('İzin kaydedildi (öğrenci, tarih, neden)', lvs.length === 1 && lvs[0].fields.studentNo.stringValue === '20202602' && lvs[0].fields.reason.stringValue === 'Nexweşî');

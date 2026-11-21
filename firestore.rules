@@ -334,20 +334,35 @@ service cloud.firestore {
     // öğrenci yalnızca KENDİ adına QR girişi yazar (silemez)
     // Öğrenci izni: bölüm sorumlusu kendi bölümünün öğrencisine (çocuk akademisi sorumlusu kendi dersinin
     // çocuğuna) izin işler; izinli öğrenci yoklama listesinde görünmez. Yönetici her izni işler/siler.
-    function leaveOk(d) {
-      return d.keys().hasOnly(['studentNo', 'studentId', 'studentName', 'area', 'from', 'to', 'reason', 'by', 'byNo', 'kid', 'createdAt', 'lessonIds', 'lessonNames'])
+    function leaveBase(d) {
+      return d.keys().hasOnly(['studentNo', 'studentId', 'studentName', 'area', 'from', 'to', 'reason', 'by', 'byNo', 'kid', 'createdAt', 'lessonIds', 'lessonNames', 'editedBy', 'editedByNo', 'updatedAt'])
         && d.studentNo is string && d.from is string && d.to is string && d.from <= d.to
         && (!('lessonIds' in d) || (d.lessonIds is list && d.lessonIds.size() <= 20))
         && (!('lessonNames' in d) || (d.lessonNames is list && d.lessonNames.size() <= 20))
         && d.reason is string && d.reason.size() > 0 && d.reason.size() <= 300
-        && d.kid is bool && d.byNo == prefix();
+        && d.kid is bool;
+    }
+    function leaveOk(d) { return leaveBase(d) && d.byNo == prefix(); }
+    // Kapsam: yönetici hepsi · çocuk sorumlusu çocuk izinleri · bölüm sorumlusu kendi bölümü (genel sorumlu hepsi)
+    function leaveScopeOk(d) {
+      return isAdmin()
+        || (d.kid == true && kidHeadLvl())
+        || (d.kid == false && aatHead() && (headGeneral() || d.get('area', '') == headArea()));
+    }
+    // Öğretmen: yalnız DERS BAZLI izin girer (lessonIds dolu); etkisi o dersler içindir (öğretmen zaten kendi dersinin yoklamasını yönetir)
+    function teacherLeaveOk(d) {
+      return isTeacherLvl() && d.kid == false && 'lessonIds' in d && d.lessonIds is list && d.lessonIds.size() >= 1 && d.lessonIds.size() <= 8;
     }
     match /studentLeaves/{id} {
       allow read: if isStaff() || kidRead();
-      allow create: if leaveOk(request.resource.data) && (isAdmin()
-        || (request.resource.data.kid == true && kidHeadLvl())
-        || (request.resource.data.kid == false && aatHead() && (headGeneral() || request.resource.data.area == headArea())));
-      allow delete: if isAdmin() || (headLvl() && resource.data.byNo == prefix());
+      allow create: if leaveOk(request.resource.data) && (leaveScopeOk(request.resource.data) || teacherLeaveOk(request.resource.data));
+      // Düzenleme: izni yazan kişi, kapsamındaki sorumlu ve yönetici; yazan kişi (byNo) değişmez, düzenleyen ayrıca işlenir
+      allow update: if request.resource.data.byNo == resource.data.byNo && request.resource.data.kid == resource.data.kid
+        && request.resource.data.get('area', '') == resource.data.get('area', '')
+        && request.resource.data.get('editedByNo', '') == prefix()
+        && leaveBase(request.resource.data)
+        && (resource.data.byNo == prefix() && request.resource.data.kid == false && teacherLeaveOk(request.resource.data) || leaveScopeOk(resource.data));
+      allow delete: if isAdmin() || (isStaff() && resource.data.byNo == prefix()) || leaveScopeOk(resource.data);
     }
     // Öğrenci QR okutması: yalnız KENDİ adına, açık ve süresi dolmamış bir oturuma, belge kimliği oturumla başlar;
     // ders yoklamasına (records) / ders kaydına DOKUNAMAZ. Ekrandaki dönen kod (son ~90 sn) kural tarafından doğrulanır,

@@ -309,7 +309,7 @@
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, connectFirestoreEmulator, collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, query, orderBy, where, limit, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getFirestore, connectFirestoreEmulator, collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, query, orderBy, where, limit, arrayUnion, deleteField } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
   import { getAuth, setPersistence, browserLocalPersistence, browserSessionPersistence, connectAuthEmulator, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
 
@@ -553,7 +553,7 @@
     uploadNewsMedia,
     uploadAttachment,
     collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
-    onSnapshot, serverTimestamp, query, orderBy, where, limit,
+    onSnapshot, serverTimestamp, query, orderBy, where, limit, deleteField,
     // Auth fonksiyonlarını dışa aç
     signInWithEmailAndPassword, signOut, onAuthStateChanged,
     sendPasswordResetEmail,
@@ -8910,6 +8910,33 @@ function useLeaves(enabled=true){
 //  lessonIds boşsa izin tüm gün içindir; doluysa yalnızca o derslerin yoklamasında geçerlidir.
 function leaveLessonOk(l,lessonId){ const ids=l.lessonIds||[]; return !ids.length||(lessonId!=null&&ids.map(String).includes(String(lessonId))); }
 function leaveOf(leaves,no,date,kid=false,lessonId=null){ return (leaves||[]).find(l=>!!l.kid===!!kid&&String(l.studentNo)===String(no)&&l.from<=date&&date<=l.to&&leaveLessonOk(l,lessonId))||null; }
+// ── Ortak: alfabetik sıra (Türkçe) + arama (ad / numara) ──
+const trCmp=(a,b)=>String(a==null?"":a).localeCompare(String(b==null?"":b),"tr");
+const nameSort=(arr,key)=>arr.slice().sort((a,b)=>trCmp(key?key(a):a.name,key?key(b):b.name));
+const matchQ=(q,...vals)=>{ const t=String(q||"").trim().toLocaleLowerCase("tr"); return !t||vals.some(v=>String(v==null?"":v).toLocaleLowerCase("tr").includes(t)); };
+function SearchBox({value,onChange,lang,placeholder,id,style}){
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  return <input id={id} type="search" data-search-box="1" aria-label={W2("Bigere","Search")} value={value} onChange={e=>onChange(e.target.value)} placeholder={"🔎 "+(placeholder||W2("Nav an jimare","Name or number"))} style={{...inputStyle,marginBottom:8,...(style||{})}}/>;
+}
+// Tek seçimli, aranabilir liste (ad ya da numara ile bulunur; alfabetik)
+function SearchSelect({items,value,onChange,lang,placeholder,id}){
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const [q,setQ]=useState(""); const [open,setOpen]=useState(false);
+  const sel=(items||[]).find(i=>String(i.value)===String(value));
+  const list=nameSort((items||[]).filter(i=>matchQ(q,i.label,i.sub)),i=>i.label).slice(0,80);
+  if(sel&&!open) return(<div data-ss-selected={String(sel.value)} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",border:"1.5px solid var(--border2)",borderRadius:10,background:"var(--surface)"}}>
+    <span style={{flex:1,minWidth:0,fontWeight:700,color:"var(--text)"}}>{sel.label}{sel.sub?<span style={{fontSize:12,color:"var(--text2)",fontWeight:500}}> · {sel.sub}</span>:null}</span>
+    <button type="button" className="c-chip" onClick={()=>{ onChange(""); setOpen(true); setQ(""); }}>{W2("Biguherîne","Change")}</button></div>);
+  return(<div data-search-select="1">
+    <input id={id} value={q} autoComplete="off" onFocus={()=>setOpen(true)} onChange={e=>{ setQ(e.target.value); setOpen(true); }} placeholder={"🔎 "+(placeholder||W2("Nav an jimare binivîse","Type a name or number"))} style={inputStyle}/>
+    {(open||q)&&<div data-ss-list="1" style={{maxHeight:220,overflowY:"auto",border:"1px solid var(--border2)",borderRadius:10,marginTop:6,background:"var(--surface)"}}>
+      {list.map(i=>(<button key={i.value} type="button" data-ss-item={String(i.value)} onClick={()=>{ onChange(String(i.value)); setQ(""); setOpen(false); }}
+        style={{display:"block",width:"100%",textAlign:"left",padding:"9px 12px",border:"none",borderBottom:"1px solid var(--border2)",background:"transparent",color:"var(--text)",cursor:"pointer",fontSize:13.5}}>
+        {i.label}{i.sub?<span style={{fontSize:12,color:"var(--text2)"}}> · {i.sub}</span>:null}</button>))}
+      {list.length===0&&<div style={{padding:12,fontSize:13,color:"var(--text2)"}}>{W2("Tiştek nehat dîtin.","No match.")}</div>}
+    </div>}
+  </div>);
+}
 // Rapor / analiz / uyarı için TEK devam kaynağı: kesinleşmiş (dersi bitir) yoklamalar, öğrenci anahtarları birleşik, izinler uygulanmış.
 function useAttCalc(att0,students){
   const leaves=useLeaves(true);
@@ -8919,22 +8946,25 @@ function useAttCalc(att0,students){
     return {docs:dvStatDocs(canon,leaves,k=>idNo.get(String(k))),open:dvOpenDocs(canon),all:canon};
   },[att0,students,leaves]);
 }
-function LeavesPanel({user,students,schedule,area,all=false,kid=false,stuScope=null,lang,toast,readOnly=false}){
+function LeavesPanel({user,students,schedule,area,all=false,kid=false,stuScope=null,lang,toast,readOnly=false,teacherMode=false}){
   const F=window.__FB;
   const W2=(ku,en)=>lang==="en"?en:K(ku);
   const leaves=useLeaves(true);
   const terms=useTerms();
   const clsDocs=useClassDocs("classes");
   const today=ymdLocal(new Date());
-  const [f,setF]=useState({no:"",from:today,to:today,reason:"",scope:"day",lessons:{}});
-  // Çocuk akademisi: bölümün ders programı (derse özel izin için)
+  const [f,setF]=useState({no:"",from:today,to:today,reason:"",scope:teacherMode?"lesson":"day",lessons:{}});
+  const [editId,setEditId]=useState(null);
+  // Düzenle / sil yetkisi: yönetici hepsi; izni yazan kişi kendi izni; sorumlu kendi kapsamındakileri (kurallar da aynı)
+  const myNo=String((user&&user.no)||"");
+  const canEdit=l=>!readOnly&&(teacherMode?String(l.byNo)===myNo:(!!(user&&(user.isAdmin||user.isHead))||String(l.byNo)===myNo));
   const [kSched,setKSched]=useState([]);
   useEffect(()=>{ if(!kid||readOnly||!area||!F||!F.isConfigured()) return; let u=()=>{};
     try{ u=F.onSnapshot(F.query(F.collection(F.db,"kidSchedule"),F.where("area","==",area)),sn=>setKSched(sn.docs.map(d=>({...d.data(),id:d.id}))),()=>{}); }catch(_){}
     return ()=>{ try{u();}catch(_){} }; },[kid,readOnly,area]);
   const scopeNos=stuScope?new Set(stuScope.map(x=>String(x.no))):null;
-  const mine=leaves.filter(l=>!!l.kid===!!kid&&(all||(scopeNos?scopeNos.has(String(l.studentNo)):l.area===area))).sort((a,b)=>String(b.from).localeCompare(String(a.from)));
-  const studs=(students||[]).filter(s=>s&&s.no).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
+  const mine=leaves.filter(l=>!!l.kid===!!kid&&(teacherMode?String(l.byNo)===myNo||(scopeNos&&scopeNos.has(String(l.studentNo))):(all||(scopeNos?scopeNos.has(String(l.studentNo)):l.area===area)))).sort((a,b)=>String(b.from).localeCompare(String(a.from)));
+  const studs=nameSort((students||[]).filter(s=>s&&s.no));
   const stu=studs.find(x=>String(x.no)===String(f.no))||null;
   // Seçilen öğrencinin, seçilen günlerdeki dersleri (en çok 31 gün)
   const lessonChoices=(()=>{
@@ -8960,11 +8990,28 @@ function LeavesPanel({user,students,schedule,area,all=false,kid=false,stuScope=n
     if(!f.reason.trim()){ toast("⚠ "+W2("Sedema destûrê binivîse","Write the reason for the leave")); return; }
     const picked=lessonChoices.filter(c=>pickedIds.includes(c.id));
     try{
-      await F.addDoc(F.collection(F.db,"studentLeaves"),{studentNo:String(stu.no),studentId:String(stu.id!=null?stu.id:stu.fireId||""),studentName:stu.name||"",area:stu.area||area||"",
-        from:f.from,to:f.to,reason:f.reason.trim().slice(0,300),by:user.name||"",byNo:String(user.no||""),kid:!!kid,createdAt:F.serverTimestamp(),
-        ...(f.scope==="lesson"?{lessonIds:picked.map(c=>c.id),lessonNames:picked.map(c=>(c.name+(c.start?" "+c.start:"")).slice(0,80))}:{})});
-      toast(W2("Destûr hate tomarkirin","Leave saved")); setF({no:"",from:today,to:today,reason:"",scope:"day",lessons:{}});
+      const base={studentNo:String(stu.no),studentId:String(stu.id!=null?stu.id:stu.fireId||""),studentName:stu.name||"",area:stu.area||area||"",
+        from:f.from,to:f.to,reason:f.reason.trim().slice(0,300),kid:!!kid,
+        ...(f.scope==="lesson"?{lessonIds:picked.map(c=>c.id),lessonNames:picked.map(c=>(c.name+(c.start?" "+c.start:"")).slice(0,80))}:{})};
+      if(editId){
+        const old=leaves.find(x=>x.fireId===editId)||{};
+        const patch={...base,area:old.area!=null?old.area:base.area,by:old.by||user.name||"",byNo:String(old.byNo||user.no||""),editedBy:user.name||"",editedByNo:myNo,updatedAt:F.serverTimestamp()};
+        if(f.scope!=="lesson"){ patch.lessonIds=F.deleteField(); patch.lessonNames=F.deleteField(); }
+        await F.updateDoc(F.doc(F.db,"studentLeaves",editId),patch);
+        toast("✅ "+W2("Destûr hate rastkirin","Leave updated")); setEditId(null);
+      }else{
+        const add={...base,by:user.name||"",byNo:myNo,createdAt:F.serverTimestamp()};
+        if(f.scope!=="lesson"){ delete add.lessonIds; delete add.lessonNames; }
+        await F.addDoc(F.collection(F.db,"studentLeaves"),add);
+        toast(W2("Destûr hate tomarkirin","Leave saved"));
+      }
+      setF({no:"",from:today,to:today,reason:"",scope:teacherMode?"lesson":"day",lessons:{}});
     }catch(e){ toast("❌ "+((e&&e.code)||e)); }
+  }
+  function startEdit(l){
+    const ids=(l.lessonIds||[]).map(String);
+    setEditId(l.fireId); setF({no:String(l.studentNo),from:l.from,to:l.to,reason:l.reason||"",scope:ids.length?"lesson":"day",lessons:Object.fromEntries(ids.map(i=>[i,true]))});
+    try{ window.scrollTo({top:0,behavior:"smooth"}); }catch(_){}
   }
   async function del(l){
     if(!window.confirm(W2("Destûr were jêbirin?","Delete this leave?"))) return;
@@ -8980,17 +9027,15 @@ function LeavesPanel({user,students,schedule,area,all=false,kid=false,stuScope=n
         </div>
         <Note style={{marginBottom:16}}>{W2("Xwendekarê bi destûr di wan rojan de di lîsteya amadebûnê ya mamoste de xuya nabe û wek “tunebû” nayê hesibandin. Sedem di raporê de tê nîşandan.","A student on leave does not appear in the teacher's attendance list on those days and is not counted absent. The reason is shown in the report.")}</Note>
         <FieldWrap label={W2("Xwendekar","Student")}>
-          <select id="lv-student" aria-label={W2("Xwendekar","Student")} style={selectStyle} value={f.no} onChange={e=>setF(x=>({...x,no:e.target.value,lessons:{}}))}>
-            <option value="">{W2("Xwendekarekî hilbijêre","Choose a student")}</option>
-            {studs.map(s=><option key={s.no} value={s.no}>{s.name} · {s.no}</option>)}
-          </select>
+          <SearchSelect id="lv-student" lang={lang} items={studs.map(s=>({value:String(s.no),label:s.name,sub:String(s.no)}))} value={f.no} onChange={v=>setF(x=>({...x,no:v,lessons:{}}))} placeholder={W2("Xwendekarekî bigere (nav an jimare)","Find a student (name or number)")}/>
         </FieldWrap>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           <FieldWrap label={W2("Destpêk","From")}><DateInput id="lv-from" value={f.from} onChange={e=>setF(x=>({...x,from:e.target.value,to:x.to<e.target.value?e.target.value:x.to,lessons:{}}))}/></FieldWrap>
           <FieldWrap label={W2("Dawî","Until")}><DateInput id="lv-to" value={f.to} min={f.from||undefined} onChange={e=>setF(x=>({...x,to:e.target.value,lessons:{}}))}/></FieldWrap>
         </div>
         <FieldWrap label={W2("Kîjan ders?","Which lessons?")}>
-          <Seg value={f.scope} onChange={v=>setF(x=>({...x,scope:v}))} items={[["day",W2("Tevahiya rojê","Whole day"),"today"],["lesson",W2("Dersên taybet","Specific lessons"),"cal"]]}/>
+          {!teacherMode&&<Seg value={f.scope} onChange={v=>setF(x=>({...x,scope:v}))} items={[["day",W2("Tevahiya rojê","Whole day"),"today"],["lesson",W2("Dersên taybet","Specific lessons"),"cal"]]}/>}
+          {teacherMode&&<div style={{fontSize:12.5,color:"var(--text2)"}}>{W2("Mamoste tenê ji bo dersên xwe destûr dide.","As a teacher you can grant leave for your own lessons only.")}</div>}
           {f.scope==="lesson"&&<div style={{marginTop:12}} data-leave-lessons="1">
             {!stu?<div style={{fontSize:13,color:"var(--text2)"}}>{W2("Pêşî xwendekar û tarîx hilbijêre.","Choose the student and date first.")}</div>
             :lessonChoices.length===0?<div style={{fontSize:13,color:"var(--text2)"}}>{W2("Di van rojan de dersa vî xwendekarî tune.","This student has no lessons on these days.")}</div>
@@ -9003,7 +9048,8 @@ function LeavesPanel({user,students,schedule,area,all=false,kid=false,stuScope=n
         <FieldWrap label={W2("Sedem","Reason")}>
           <textarea id="lv-reason" aria-label={W2("Sedem","Reason")} style={{...inputStyle,minHeight:80,resize:"vertical"}} maxLength={300} value={f.reason} onChange={e=>setF(x=>({...x,reason:e.target.value}))} placeholder={W2("Sedema destûrê (mînak: nexweşî, rêwîtiya malbatê…)","Reason (e.g. illness, family trip…)")}/>
         </FieldWrap>
-        <PBtn onClick={save} icon="save">{W2("Destûrê tomar bike","Save leave")}</PBtn>
+        <PBtn onClick={save} icon="save">{editId?W2("Rastkirinê tomar bike","Save changes"):W2("Destûrê tomar bike","Save leave")}</PBtn>
+        {editId&&<button type="button" data-leave-edit-cancel="1" className="c-chip" style={{marginTop:8}} onClick={()=>{ setEditId(null); setF({no:"",from:today,to:today,reason:"",scope:teacherMode?"lesson":"day",lessons:{}}); }}>{W2("Betal","Cancel")}</button>}
       </Card>}
       {mine.length===0&&<EmptyState icon="leave" text={W2("Destûr tune.","No leaves.")}/>}
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
@@ -9018,9 +9064,11 @@ function LeavesPanel({user,students,schedule,area,all=false,kid=false,stuScope=n
                 :<span className="c-tag">{W2("Tevahiya rojê","Whole day")}</span>}
             </div>
             <div style={{fontSize:13.5,color:"var(--text)",marginTop:6,whiteSpace:"pre-wrap"}}>{l.reason}</div>
-            <div style={{fontSize:12,color:"var(--text2)",marginTop:4}}>{l.by}</div>
+            <div style={{fontSize:12,color:"var(--text2)",marginTop:4}}>{l.by}{l.editedBy&&l.editedBy!==l.by?" · ✏ "+l.editedBy:""}</div>
           </div>
-          {!readOnly&&String(l.byNo)===String(user&&user.no)&&<button type="button" className="c-iconbtn sm danger" aria-label={W2("Jêbire","Delete")} onClick={()=>del(l)}><Ico n="trash" size={17}/></button>}
+          {canEdit(l)&&<div style={{display:"flex",flexDirection:"column",gap:6}}>
+            <button type="button" data-leave-edit={l.fireId} className="c-iconbtn sm" aria-label={W2("Rast bike","Edit")} onClick={()=>startEdit(l)}><Ico n="edit" size={17}/></button>
+            <button type="button" data-leave-del={l.fireId} className="c-iconbtn sm danger" aria-label={W2("Jêbire","Delete")} onClick={()=>del(l)}><Ico n="trash" size={17}/></button></div>}
         </div>))}
       </div>
     </div>);
@@ -14147,12 +14195,13 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
   // Öğretmen yalnızca SINIFLARININ öğrencilerini görür (aynı alanın diğer öğrencileri görünmez):
   // sınıfa bağlı dersin listesi o sınıftır; sınıfı olmayan dersin listesi boştur.
   const rosterOf=ls=>(ls&&ls.classId)?lessonRoster(ls,students,clsDocs):[];
+  const [stq,setStq]=useState("");
   const myStudents=(()=>{
     const m=new Map();
     mySchedule.forEach(ls=>rosterOf(ls).forEach(s=>m.set(s.id,s)));
     clsDocs.filter(d=>d.kind&&d.status!=="closed"&&(d.teacherNos||[]).map(String).includes(String(teacher.no)))
       .forEach(d=>students.forEach(s=>{ if(!s.isAdmin&&inClass(d,s.no)) m.set(s.id,s); }));
-    return [...m.values()].sort((x,y)=>(x.name||"").localeCompare(y.name||""));
+    return [...m.values()].sort((x,y)=>trCmp(x.name,y.name));
   })();
   // Toplu mesaj hedefleri: öğretmenin sınıfları (sınıf öğretmeni ya da sınıfa ders veren)
   const myClassGroups=(()=>{
@@ -14558,6 +14607,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     {key:"myclass",icon:"🏫",label:lang==="en"?"My Class · Homework · Messages":K("Sinifa Min · Erk · Peyam"),badge:msgUnreadCount},
     {key:"students",icon:"🎓",label:lang==="en"?"My Students":K("Xwendekarên Min")},
     {key:"scanner",icon:"📷",label:t.qrScan},
+    {key:"leaves",icon:"🏷",label:lang==="en"?"Leaves":K("Destûr")},
     {key:"seval",icon:"📝",label:lang==="en"?"Evaluation":K("Nirxandin"),badge:evPending},
     {key:"profile",icon:"👤",label:t.profile},
   ];
@@ -15016,6 +15066,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
         {(view==="myclass"||view==="messages")&&(
           <TeacherClassHub key={view} initial={view==="messages"?"messages":"posts"} teacher={teacher} myStudents={myStudents} classGroups={myClassGroups} msgUnread={msgUnreadCount} lang={lang} t={t} toast={toast}/>
         )}
+        {view==="leaves"&&<LeavesPanel user={teacher} students={myStudents} schedule={mySchedule} stuScope={myStudents} teacherMode lang={lang} toast={toast}/>}
         {view==="students"&&(
           <>
             {/* Student management */}
@@ -15063,8 +15114,10 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                 </div>
               </Card>
             ):(
+              <>
+              <SearchBox value={stq} onChange={setStq} lang={lang} id="my-students-search"/>
               <Card>
-                {myStudents.map((s,i)=>{
+                {myStudents.filter(s=>matchQ(stq,s.name,s.no)).map((s,i)=>{
                   return(
                     <div key={s.id}
                       style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",
@@ -15078,6 +15131,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                   );
                 })}
               </Card>
+              </>
             )}
           </>
         )}

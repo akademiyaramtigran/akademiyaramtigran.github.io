@@ -202,13 +202,13 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   await rcl('[data-rw-type="devam"]'); await rcl('[data-rw-view="student"]').catch(() => {});
   // ── İzin: sorumlu Akademi / Atölye seçer; atölye öğrencisine izin yazılır, akademi listesinde görünmez ──
   await goA(p, 'leaves'); await p.waitForTimeout(1200);
-  const lvOpts = () => p.evaluate(() => { const s = document.querySelector('#lv-student'); return s ? [...s.options].map(o => o.value) : []; });
+  const lvOpts = () => p.evaluate(() => { const s = document.querySelector('#lv-student'); if (s) { s.focus(); s.dispatchEvent(new Event('focus', { bubbles: true })); } return null; }).then(() => p.waitForTimeout(300)).then(() => p.evaluate(() => [...document.querySelectorAll('[data-ss-item]')].map(o => o.dataset.ssItem)));
   const aatOpts = await lvOpts();
   ok('İzin: Akademi seçiliyken yalnız akademi öğrencileri (atölye öğrencisi yok)', aatOpts.includes('20202601') && !aatOpts.includes('20202699'), JSON.stringify(aatOpts));
   await p.evaluate(() => document.querySelector('[data-lv-scope="ws"]').click()); await p.waitForTimeout(800);
   const wsOpts = await lvOpts();
   ok('İzin: Atölye seçilince yalnız atölye öğrencisi', wsOpts.includes('20202699') && !wsOpts.includes('20202601'), JSON.stringify(wsOpts));
-  await p.evaluate(() => { const s = document.querySelector('#lv-student'); const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; set.call(s, '20202699'); s.dispatchEvent(new Event('change', { bubbles: true })); }); await p.waitForTimeout(500);
+  await p.evaluate(() => document.querySelector('[data-ss-item="20202699"]').click()); await p.waitForTimeout(500);
   ok('Devam raporunda "Mamoste (ders durumu)" seçeneği yok', (await p.locator('[data-rw-who="teacher"]').count()) === 0);
 
   // ── 6) Rapor: sınıf filtresi ──
