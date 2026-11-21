@@ -7863,6 +7863,7 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
     {key:"classes",label:GEN?(lang==="en"?"General class":K("Sinifa Giştî")):(lang==="en"?"Classes":K("Sinif"))},
     {key:"schedule",label:lang==="en"?"Lesson schedule":K("Bernameya Dersan")},
     {key:"gatt",label:lang==="en"?"Guest-lesson attendance":K("Amadebûna dersên mêvan")},
+    ...(GEN?[{key:"areaheads",label:lang==="en"?"Department heads":K("Berpirsên Beşan")}]:[]),
     {key:"leaves",label:lang==="en"?"Student leave":K("Destûra Xwendekaran")},
     {key:"evalforms",label:lang==="en"?"Evaluation forms":K("Formên nirxandinê")},
     {key:"reports",label:lang==="en"?"Reports":K("Rapor")},
@@ -7882,6 +7883,7 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
         {tab==="messages"&&<HeadMessagesPanel user={user} inbox={inbox} sent={sent} students={students||[]} teachers={aTeachers.filter(x=>String(x.no)!==myNo)} lang={lang} t={t} toast={toast}/>}
         {tab==="alerts"&&<AlertCenter data={alertData} user={user} lang={lang} toast={toast} fixCtx={GEN?null:{students:[...aStudents,...wsStudents],schedule:schedule||[]}}/>}
         {tab==="evalforms"&&<EvalFormsPanel user={user} academy="aat" area={area} teachers={teachers||[]} pickTeachers={aTeachers} schedule={[...aSchedule,...wsSchedule]} lang={lang} toast={toast}/>}
+        {tab==="areaheads"&&GEN&&<AreaHeadsPanel teachers={teachers||[]} user={user} lang={lang} toast={toast}/>}
         {tab==="gatt"&&<HeadGuestAttendance user={user} students={aStudents} schedule={aSchedule} lang={lang} toast={toast}/>}
         {tab==="leaves"&&<>
           {!GEN&&wsStudents.length>0&&<div className="c-chips" style={{marginBottom:10}}>
@@ -11805,6 +11807,68 @@ function AdminScheduleTab({schedule, teachers, students, fixStudents, lang, t, t
 }
 
 /* ─── ADMIN PANEL ───────────────────────────────────────────────────────── */
+/* ── Görevler: yönetici → Çocuk Akademisi genel sorumlusu + öğretmeni Çocuk Akademisi'ne bağlama ── */
+async function kidLink(tc,on){
+  const F=window.__FB; const no=String(tc.no);
+  if(on){ await F.setDoc(F.doc(F.db,"kidTeachers",no),{no,name:tc.name||"",area:"",academy:true,createdAt:F.serverTimestamp()},{merge:true}); await F.setDoc(F.doc(F.db,"idx_kidstaff",no),{no,updatedAt:F.serverTimestamp()}); }
+  else { await F.deleteDoc(F.doc(F.db,"kidTeachers",no)).catch(()=>{}); await F.deleteDoc(F.doc(F.db,"idx_kidstaff",no)).catch(()=>{}); }
+}
+function RolesPanel({teachers,lang,toast}){
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const F=window.__FB;
+  const [gen,setGen]=useState([]); const [kt,setKt]=useState([]); const [pick,setPick]=useState(""); const [q,setQ]=useState(""); const [busy,setBusy]=useState("");
+  useEffect(()=>{ if(!F||!F.isConfigured()) return; const u=[];
+    try{ u.push(F.onSnapshot(F.doc(F.db,"config","kidAcademy"),d=>setGen(((d.exists()&&d.data().generalNos)||[]).map(String)),()=>{})); }catch(_){}
+    try{ u.push(F.onSnapshot(F.collection(F.db,"kidTeachers"),sn=>setKt(sn.docs.map(d=>d.id)),()=>{})); }catch(_){}
+    return ()=>u.forEach(f=>{try{f();}catch(_){}}); },[]);
+  const staff=(teachers||[]).filter(tc=>tc.no&&!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&!(tc.isHead&&isKidArea(tc.area)));
+  const byNo=n=>staff.find(x=>String(x.no)===String(n))||{no:n,name:String(n)};
+  async function setGeneral(nos){ setBusy("g"); try{ await F.setDoc(F.doc(F.db,"config","kidAcademy"),{generalNos:nos,updatedAt:F.serverTimestamp()},{merge:true}); }catch(e){ toast("❌ "+((e&&e.code)||e)); } setBusy(""); }
+  async function addGen(no){ const tc=byNo(no); try{ await kidLink(tc,true); }catch(_){} await setGeneral([...new Set([...gen,String(no)])]); setPick(""); toast("✅ "+tc.name); }
+  async function rmGen(no){ await setGeneral(gen.filter(x=>x!==String(no))); toast("✅ "+W2("Hate rakirin","Removed")); }
+  async function toggle(tc){ const on=!kt.includes(String(tc.no)); setBusy(String(tc.no)); try{ await kidLink(tc,on); toast("✅ "+tc.name); }catch(e){ toast("❌ "+((e&&e.code)||e)); } setBusy(""); }
+  const rows=nameSort(staff.filter(tc=>matchQ(q,tc.name,tc.no)),tc=>tc.name);
+  return(<div data-roles-panel>
+    <SectionHeader>🧭 {W2("Erk û Peywir","Roles")}</SectionHeader>
+    <Card style={{marginBottom:12}}>
+      <div style={{fontWeight:800,marginBottom:6}}>🎼 {W2("Berpirsê Giştî yê Akademiya Zarokan","Children's Academy general head")}</div>
+      <div style={{fontSize:12,color:"var(--text2)",lineHeight:1.6,marginBottom:8}}>{W2("Çend kes dikarin bin. Ew sinifan vedikin, berpirsên sinifan destnîşan dikin û mamosteyan girê didin.","Several people allowed. They open classes, assign class heads and link teachers.")}</div>
+      {gen.map(n=>(<div key={n} data-kgen={n} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:"1px solid var(--border2)"}}><span style={{flex:1,fontWeight:700}}>{byNo(n).name} <span style={{fontSize:12,color:"var(--text2)"}}>· {n}</span></span><button type="button" data-kgen-rm={n} className="c-chip" disabled={busy==="g"} onClick={()=>rmGen(n)}>{W2("Rake","Remove")}</button></div>))}
+      {gen.length===0&&<div style={{fontSize:12,color:"var(--text2)",padding:"6px 0"}}>{W2("Hê tu kes nehatiye destnîşankirin.","No one assigned yet.")}</div>}
+      <div style={{marginTop:8}}><SearchSelect lang={lang} value={pick} onChange={v=>{ if(v) addGen(v); else setPick(""); }} items={staff.filter(tc=>!gen.includes(String(tc.no))).map(tc=>({value:String(tc.no),label:tc.name,sub:String(tc.no)}))} placeholder={W2("Kes lê zêde bike…","Add a person…")}/></div>
+    </Card>
+    <Card>
+      <div style={{fontWeight:800,marginBottom:6}}>👨‍🏫 {W2("Mamosteyê Akademiya Zarokan","Children's Academy teacher")}</div>
+      <div style={{fontSize:12,color:"var(--text2)",lineHeight:1.6,marginBottom:8}}>{W2("Mamosteyek dikare hem di akademiyê de hem jî di Akademiya Zarokan de ders bide. Roja wî / wê çi ders hebe, ew sepan vedibe.","One person can teach in both academies. The day's schedule decides which app opens.")}</div>
+      <SearchBox value={q} onChange={setQ} lang={lang}/>
+      {rows.map(tc=>{ const on=kt.includes(String(tc.no)); return(<div key={tc.no} data-kt-row={tc.no} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:"1px solid var(--border2)"}}>
+        <span style={{flex:1,minWidth:0}}><b>{tc.name}</b> <span style={{fontSize:12,color:"var(--text2)"}}>· {tc.no}{tc.area?" · "+areaName(tc.area,lang):""}</span></span>
+        <button type="button" data-kt-toggle={tc.no} className="c-chip" disabled={busy===String(tc.no)} onClick={()=>toggle(tc)} style={{background:on?"#16a34a":undefined,color:on?"#fff":undefined}}>{on?"✓ ":""}{W2("Zarok","Kids")}</button></div>); })}
+    </Card>
+  </div>);
+}
+/* ── Genel sorumlu: alan sorumlularını işaretler ── */
+function AreaHeadsPanel({teachers,user,lang,toast}){
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const F=window.__FB; const [q,setQ]=useState(""); const [busy,setBusy]=useState("");
+  const list=(teachers||[]).filter(tc=>tc.no&&tc.area&&tc.area!=="genel"&&!isKidArea(tc.area)&&!tc.isAdmin&&!tc.isPress&&!tc.isRegistrar&&!tc.isGate&&matchQ(q,tc.name,tc.no));
+  async function toggle(tc){ const on=!tc.isHead; setBusy(String(tc.no));
+    try{
+      await F.updateDoc(F.doc(F.db,"teachers",tc.fireId||tc.id),{isHead:on,updatedAt:F.serverTimestamp()});
+      await F.setDoc(F.doc(F.db,"idx_staff",String(tc.no)),on?{no:String(tc.no),lvl:"head",area:String(tc.area),updatedAt:F.serverTimestamp()}:{no:String(tc.no),lvl:"teacher",updatedAt:F.serverTimestamp()});
+      toast("✅ "+tc.name);
+    }catch(e){ toast("❌ "+((e&&e.code)||e)); }
+    setBusy(""); }
+  return(<div data-areaheads>
+    <SectionHeader>🎓 {W2("Berpirsên Beşan","Department heads")}</SectionHeader>
+    <div style={{fontSize:12,color:"var(--text2)",lineHeight:1.6,marginBottom:10}}>{W2("Mamosteyek wekî berpirsê beşa xwe nîşan bike. Ew dikare sinifên xwe ava bike û berpirsên sinifan destnîşan bike.","Mark a teacher as head of their department. They can create their own classes and assign class heads.")}</div>
+    <SearchBox value={q} onChange={setQ} lang={lang}/>
+    {nameSort(list,tc=>tc.name).map(tc=>(<Card key={tc.no} style={{marginBottom:8}}><div data-ah-row={tc.no} style={{display:"flex",alignItems:"center",gap:8}}>
+      <span style={{flex:1,minWidth:0}}><b>{tc.name}</b> <span style={{fontSize:12,color:"var(--text2)"}}>· {tc.no} · {areaName(tc.area,lang)}</span></span>
+      <button type="button" data-ah-toggle={tc.no} className="c-chip" disabled={busy===String(tc.no)} onClick={()=>toggle(tc)} style={{background:tc.isHead?"#0f2f38":undefined,color:tc.isHead?"#fff":undefined}}>{tc.isHead?"✓ ":""}{W2("Berpirs","Head")}</button></div></Card>))}
+    {list.length===0&&<Card><div style={{fontSize:13,color:"var(--text2)",textAlign:"center",padding:12}}>{W2("Mamoste nehat dîtin.","No teachers found.")}</div></Card>}
+  </div>);
+}
 function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDataChange,onSettings,dark,onThemeToggle}){
   const [tab,setTab]=usePanelNav("announcements");
   const [statsModal,setStatsModal]=useState(null);
@@ -11820,6 +11884,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
     {key:"announcements",icon:"📢",label:t.announcements},
     // Özel personel kartları (basın · öğrenci işleri · bölüm sorumlusu · kapı). Site arşivi Basın panelinde.
     {key:"press",icon:"📇",label:lang==="en"?"Staff Cards":K("Kartên Taybet")},
+    {key:"roles",icon:"🧭",label:lang==="en"?"Roles":K("Peywir")},
     {key:"messages",icon:"💬",label:lang==="en"?"Messages":K("Peyam")},
     {key:"reports",icon:"📊",label:lang==="en"?"Reports":K("Rapor")},
     {key:"alerts",icon:"🔔",label:lang==="en"?"Alerts":K("Hişyarî"),badge:alertData.open},
@@ -11889,6 +11954,7 @@ function AdminPanel({admin,students,teachers,schedule,t,lang,toast,onLogout,onDa
         </div>
 
         {tab==="announcements"&&<AnnouncementsPanel t={t} toast={toast} lang={lang} senderName={adminData.name} senderRole="admin" senderArea={null}/>}
+        {tab==="roles"&&<RolesPanel teachers={teachers} lang={lang} toast={toast}/>}
         {tab==="press"&&<AdminPressPanel teachers={teachers} onDataChange={onDataChange} lang={lang} toast={toast} t={t}/>}
         {tab==="messages"&&<AdminMessagesPanel students={students} teachers={teachers} lang={lang} t={t} toast={toast} adminName={adminData.name}/>}
         {tab==="reports"&&<AdminReportCenter user={adminData} students={(students||[]).filter(x=>!wsNosAdm.has(String(x.no)))} teachers={teachers} schedule={schedule} lang={lang} t={t} toast={toast} byName={adminData.name}/>}
