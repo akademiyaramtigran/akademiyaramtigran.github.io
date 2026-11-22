@@ -8582,7 +8582,7 @@ function ClassStudio({cfg,lang,t,toast}){
               <div style={{fontWeight:800,color:"var(--text)",flex:1}}>📅 {W2("Bernameya dersan","Lesson schedule")}</div>
               {!cfg.lessonsReadOnly&&<button onClick={()=>setAddLessonFor(d)} style={btn()}>➕ {W2("Ders zêde bike","Add lesson")}</button>}
             </div>
-            {cfg.lessonsReadOnly&&<div style={{...small,marginBottom:6}}>ℹ️ {W2("Bernameya dersan ji aliyê berpirsên beşan ve tê amadekirin.","The lesson schedule is prepared by the department heads.")}</div>}
+            {cfg.lessonsReadOnly&&<div style={{...small,marginBottom:6}}>ℹ️ {W2("Bernameya dersan ji aliyê Karûbarên Xwendekaran ve tê amadekirin.","The lesson schedule is prepared by Student Affairs.")}</div>}
             {ls.length===0&&<div style={small}>{W2("Hîn ders nehatiye danîn.","No lessons yet.")}</div>}
             {ls.map(l=>{ const ln=cfg.lessonLine(l); return(
               <div key={l.fireId||l.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderTop:"1px solid var(--border2)"}}>
@@ -9234,8 +9234,8 @@ function KidHeadSchedule({area,user,lang,toast}){
       {subFor&&<KidSubSheet ls={subFor} kteach={tOpts} byNo={String((user&&user.no)||"")} byName={(user&&user.name)||""} lang={lang} toast={toast} onClose={()=>setSubFor(null)}/>}
       <div style={card}>
         <div style={{fontSize:14,fontWeight:800,color:"var(--text)",marginBottom:4}}>📅 {W2("Bernameya dersan","Lesson schedule")} · {clsOpts.map(c=>classNameTx(c.name)).join(", ")}</div>
-        <div style={{fontSize:11.5,color:"var(--text2)",lineHeight:1.6,marginBottom:10}}>{W2("Dersan, saetan û mamosteyan tu destnîşan dikî. Mamoste “Dersê dest pê bike” dike û amadebûnê digire.","You set the lessons, times and teachers. The teacher taps “Start lesson” and takes attendance.")}</div>
-        {false&&clsOpts.length>0?<PrimaryBtn onClick={()=>setForm({...blank})} icon="➕">{W2("Dersê Zêde Bike","Add Lesson")}</PrimaryBtn>:<div data-khs-noclass="1" style={{fontSize:12.5,color:"var(--text2)"}}>{W2("Hîn berpirsiyariya sinifekê li ser te nîne.","You are not the head of any class yet.")}</div>}
+        <div style={{fontSize:11.5,color:"var(--text2)",lineHeight:1.6,marginBottom:10}}>{W2("Bernameya dersan ji aliyê Karûbarên Xwendekaran ve tê amadekirin. Tu dikarî bibînî û ji bo rojekê mamosteyekî erk bikî (👥).","The schedule is prepared by Student Affairs. You can view it and assign a substitute teacher for a day (👥).")}</div>
+        {clsOpts.length===0&&<div data-khs-noclass="1" style={{fontSize:12.5,color:"var(--text2)"}}>{W2("Hîn berpirsiyariya sinifekê li ser te nîne.","You are not the head of any class yet.")}</div>}
       </div>
       {weekly.length===0&&<div style={{...card,textAlign:"center",color:"var(--text2)",fontSize:13}}>{W2("Hîn ders nehatiye danîn.","No lessons yet.")}</div>}
       {[1,2,3,4,5,6,0].map(d=>{ const ls=weekly.filter(l=>+l.day===d).sort((a,b)=>String(a.start||"").localeCompare(String(b.start||""))); if(!ls.length) return null;
@@ -10553,7 +10553,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
         {section==="qad"&&(
           <>
             <SectionHeader>🎭 {(t&&t.areas)||"Qadên Hunerê"}</SectionHeader>
-            <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>{lang==="en"?"Open a field to register students and teachers. The lesson schedule is prepared by the department heads; here you can view it.":K("Qadekê veke: xwendekar û mamoste tescîl bike. Bernameya dersan berpirsên beşan amade dikin; li vir tu dikarî bibînî.")}</div>
+            <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>{lang==="en"?"Open a field: register students and teachers, manage the lesson schedule. Common lessons are under “All Students”.":K("Qadekê veke: xwendekar û mamoste tescîl bike, bernameya dersan birêve bibe. Dersên hevpar di bin “Hemû Xwendekar” de ne.")}</div>
             <AdminScheduleTab termsOnly schedule={schedule||[]} teachers={teachers||[]} students={students||[]} lang={lang} t={t||T.ku} toast={toast} onDataChange={onDataChange}/>
             {(()=>{
               const genelArea = AREA_MAP["genel"];
@@ -11649,7 +11649,10 @@ function AdminScheduleTab({schedule, teachers, students, fixStudents, lang, t, t
       {mode==="view"&&<div style={{fontSize:11.5,color:"var(--text2)",marginBottom:10,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,lineHeight:1.6}}>
         ℹ️ {lang==="en"?"The lesson schedule, teacher assignments and “lesson not held” marks are handled by the department heads.":K("Bernameya dersan, erkdariya mamosteyan û nîşana “ders nehat kirin” ji aliyê berpirsên beşan ve tên kirin.")}
       </div>}
-      {mode==="head"&&<div style={{fontSize:11.5,color:"var(--text2)",marginBottom:10,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,lineHeight:1.6}}>
+      {mode==="head"&&!canWrite&&<div style={{fontSize:11.5,color:"var(--text2)",marginBottom:10,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,lineHeight:1.6}}>
+        ℹ️ {lang==="en"?"The schedule is prepared by Student Affairs. If a lesson was not held, mark it with 🚫 and give the reason — the admin sees it in the report.":K("Bernameya dersan ji aliyê Karûbarên Xwendekaran ve tê amadekirin. Heke ders nehat kirin, bi 🚫 nîşan bike û sedemê binivîse — rêveber di raporê de dibîne.")}
+      </div>}
+      {mode==="head"&&canWrite&&<div style={{fontSize:11.5,color:"var(--text2)",marginBottom:10,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,lineHeight:1.6}}>
         ℹ️ {lang==="en"?"Add lessons, set times and assign teachers. If a lesson was not held, mark it with 🚫 and give the reason — the admin sees it in the report.":K("Dersan zêde bike, saetan diyar bike û mamosteyan erk bike. Heke ders nehat kirin, bi 🚫 nîşan bike û sedemê binivîse — rêveber di raporê de dibîne.")}
       </div>}
 

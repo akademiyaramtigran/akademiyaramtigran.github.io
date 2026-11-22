@@ -1615,6 +1615,10 @@ window.AAT_TX={"ku":{},"zza":{},"tr":{"Berpirsê sinifê":"Sınıf sorumlusu","b
 "Amadebûn hatiye girtin lê ders nehatiye girtin; heta tu biqedînî di raporan û li ekrana xwendekaran de nayê hesibandin.":"Yoklama alındı ama ders kapatılmadı; bitirene kadar raporlarda ve öğrenci ekranında sayılmaz.",
 "Dersê biqedîne":"Dersi bitir",
 "Pêşî dersê dest pê bike — amadebûn tenê piştî “Dersê Dest Pê Bike” tê girtin.":"Önce dersi başlatın — yoklama yalnızca “Dersi Başlat”tan sonra alınır.",
+"Di beşên din de jî ders dide":"Diğer alanlarda da ders verir",
+"Bernameya dersan ji aliyê Karûbarên Xwendekaran ve tê amadekirin. Heke ders nehat kirin, bi 🚫 nîşan bike û sedemê binivîse — rêveber di raporê de dibîne.":"Ders programı Öğrenci İşleri tarafından hazırlanır. Ders yapılmadıysa 🚫 ile işaretleyin ve nedenini yazın — yönetici raporda görür.",
+"Bernameya dersan ji aliyê Karûbarên Xwendekaran ve tê amadekirin. Tu dikarî bibînî û ji bo rojekê mamosteyekî erk bikî (👥).":"Ders programı Öğrenci İşleri tarafından hazırlanır. Görebilir ve bir gün için görevli öğretmen atayabilirsiniz (👥).",
+"Bernameya dersan ji aliyê Karûbarên Xwendekaran ve tê amadekirin.":"Ders programı Öğrenci İşleri tarafından hazırlanır.",
 "Mamoste tune.":"Öğretmen yok."}};
 window.AAT_SITE={"ku":{},"zza":{}};
 window.AAT_SITE_AREA={"ku":{},"zza":{}};
