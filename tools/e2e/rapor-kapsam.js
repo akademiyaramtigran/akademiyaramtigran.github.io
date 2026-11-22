@@ -69,7 +69,7 @@ async function routes(ctx) {
   await put('schedule/L3', { id: 13, fireId: 'L3', classId: 'G1', area: 'genel', name: 'Dîroka Hunerê', lessonType: 'main', day: 'Çarşem', start: '09:00', end: '10:00', teacherNo: '50202601' });
   await put('schedule/L4', { id: 14, fireId: 'L4', area: 'muzik', name: 'Piyano', lessonType: 'main', day: 'Pêncşem', start: '09:00', end: '10:00', teacherNo: '50202603' });
   const rec = o => ({ mapValue: { fields: Object.fromEntries(Object.entries(o).map(([k, v]) => [k, { stringValue: v }])) } });
-  const putAtt = (id, lid, cls, area, date, r) => fetch(`${FS}/attendance/${id}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { lessonId: { stringValue: lid }, classId: { stringValue: cls }, area: { stringValue: area }, date: { stringValue: date }, records: rec(r) } }) });
+  const putAtt = (id, lid, cls, area, date, r) => fetch(`${FS}/attendance/${id}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { endedAt: { integerValue: '1' }, lessonId: { stringValue: lid }, classId: { stringValue: cls }, area: { stringValue: area }, date: { stringValue: date }, records: rec(r) } }) });
   // Rojîn: Şano 1'de 3 kez yok; Dîroka Hunerê'de hep var. Jîyan: Dîroka Hunerê'de 3 kez yok
   for (const k of [21, 14, 7]) await putAtt('11-' + k, '11', 'A1', 'tiyatro', day(k), { '101': 'off', '102': 'on' });
   for (const k of [20, 13, 6]) await putAtt('13-' + k, '13', 'G1', 'genel', day(k), { '101': 'on', '103': 'off' });
@@ -88,7 +88,7 @@ async function routes(ctx) {
   const mk = async w => { const c = await b.newContext({ viewport: { width: w || 1280, height: 900 } }); await routes(c);
     await c.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); localStorage.setItem('zarok-lang', 'ku'); } catch (_) {} }); return c; };
   const login = async (no, pw, role) => { const p = await (await mk()).newPage(); p.on('pageerror', e => errs.push(no + ': ' + e.message)); p.on('dialog', d => d.accept());
-    await p.goto('http://localhost:8765/app/?emu=1'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
+    await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
     await p.getByText(role || 'Mamoste', { exact: true }).first().click();
     await p.locator('input.inp').first().fill(no); await p.locator('input[type=password]').first().fill(pw);
     await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000); return p; };
@@ -106,7 +106,7 @@ async function routes(ctx) {
   ok('Sorumlu menüsünde anket yok', !hk.includes('surveys') && hk.includes('reports') && hk.includes('evalforms'), hk.join(','));
   await go(hp, 'reports');
   const ht = await rtabs(hp);
-  ok('Sorumlu rapor türleri: Devam + Değerlendirme + Genel analiz (anket yok)', ht.join(',') === 'devam,eval,analiz,list,tlist', ht.join(','));
+  ok('Sorumlu rapor türleri: Devam + Değerlendirme + Genel analiz (anket yok)', ht.join(',') === 'devam,eval,analiz', ht.join(','));
   await devStu(hp);
   ok('Tiyatro sorumlusu: Rojîn genel ders dahil %50 (3/6), müzik öğrencisi yok', (await pct(hp, '20202601')) === '50%' && (await pct(hp, '20202603')) === null, await pct(hp, '20202601'));
   // Ortak "Giştî" sınıfı seçilince yalnız sorumlunun kendi öğrencileri
@@ -136,7 +136,7 @@ async function routes(ctx) {
   const gEv = await gp.evaluate(() => [...document.querySelectorAll('[data-eval-row]')].map(e => e.dataset.evalRow).sort());
   ok('Genel sorumlu: genel dersin değerlendirmelerinde tüm genel sınıf öğrencileri (Rojîn + Jîyan)', gEv.includes('20202601') && gEv.includes('20202603'), JSON.stringify(gEv));
   // Genel sorumlu: Öğrenci listesi = tüm öğrenciler, yalnız atölye sınıfında olanlar (hafta sonu) hariç
-  await rwc(gp, '[data-rw-new]', '[data-rw-type="list"]');
+  await rwc(gp, '[data-rw-new]', '[data-rw-sect="lists"]', '[data-rw-type="list"]');
   const gRows = await gp.evaluate(() => [...document.querySelectorAll('[data-sl-row]')].map(e => e.dataset.slRow).sort());
   ok('Genel sorumlu öğrenci listesi: tüm bölümlerin öğrencileri var (Rojîn tiyatro + Baran + Jîyan müzik), atölye sınıfındaki Hefte Sonu YOK', gRows.join() === '20202601,20202602,20202603', JSON.stringify(gRows));
   await go(gp, 'reports'); 
@@ -156,29 +156,29 @@ async function routes(ctx) {
   ok('Yönetici: akademi seçimi (Konservatuar / Çocuk Akademisi)', (await ap.locator('[data-rw-acad]').count()) === 2);
   await rwc(ap, '[data-rw-acad="aat"]');
   const at = await rtabs(ap);
-  ok('Yönetici rapor türleri: Devam + Değerlendirme + Genel analiz + öğrenci/öğretmen listesi', at.join(',') === 'devam,eval,analiz,list,tlist', at.join(','));
+  ok('Yönetici rapor türleri: yalnız Devam + Değerlendirme + Genel analiz (listeler ayrı bölüm)', at.join(',') === 'devam,eval,analiz', at.join(','));
   await devStu(ap);
   ok('Yönetici tüm bölümleri görür (tiyatro + müzik öğrencisi)', (await pct(ap, '20202601')) !== null && (await pct(ap, '20202603')) !== null);
-  await rwc(ap, '[data-rw-new]', '[data-rw-acad="aat"]', '[data-rw-type="list"]');
+  await rwc(ap, '[data-rw-new]', '[data-rw-sect="lists"]', '[data-rw-acad="aat"]', '[data-rw-type="list"]');
   const nAll = +(await ap.evaluate(() => document.querySelector('[data-sl-count]').dataset.slCount));
   await rwc(ap, '[data-sl-area="tiyatro"]');
   const nNoT = +(await ap.evaluate(() => document.querySelector('[data-sl-count]').dataset.slCount));
   const slRows = await ap.evaluate(() => [...document.querySelectorAll('[data-sl-row]')].map(e => e.dataset.slRow));
   ok('Yönetici öğrenci listesi: atölye öğrencisi YOK; tiyatro kapatılınca yalnız diğer alanlar (müzik)', nAll === 3 && nNoT === 1 && slRows.sort().join() === '20202603' && (await ap.locator('[data-sl-pdf]').count()) === 1, nAll + ' → ' + nNoT + ' ' + slRows.join());
-  await rwc(ap, '[data-rw-new]', '[data-rw-acad="aat"]', '[data-rw-type="tlist"]');
+  await rwc(ap, '[data-rw-new]', '[data-rw-sect="lists"]', '[data-rw-acad="aat"]', '[data-rw-type="tlist"]');
   const tAll = await ap.evaluate(() => [...document.querySelectorAll('[data-tl-row]')].map(e => e.dataset.tlRow).sort());
   ok('Yönetici öğretmen listesi: bütün bölümlerin öğretmenleri (ad, numara, bölüm) + PDF/Excel', tAll.includes('50202601') && tAll.includes('50202603') && (await ap.locator('[data-tl-pdf]').count()) === 1 && (await ap.locator('[data-tl-csv]').count()) === 1, JSON.stringify(tAll));
   await ap.context().close();
   // 3c) Bölüm sorumlusu: öğretmen listesi yalnız KENDİ bölümü (tiyatro): müzik hocası yok
   const hp2 = await login('96000001', 'Head1234');
   await go(hp2, 'reports');
-  await rwc(hp2, '[data-rw-type="tlist"]');
+  await rwc(hp2, '[data-rw-sect="lists"]', '[data-rw-type="tlist"]');
   const hRows = await hp2.evaluate(() => [...document.querySelectorAll('[data-tl-row]')].map(e => e.dataset.tlRow));
   ok('Bölüm sorumlusu öğretmen listesi: yalnız kendi bölümü (müzik hocası yok), bölüm düğmesi yok', hRows.includes('50202601') && !hRows.includes('50202603') && (await hp2.locator('[data-tl-area]').count()) === 0, JSON.stringify(hRows));
   await hp2.context().close();
   const gp2 = await login('96000002', 'Head1234');
   await go(gp2, 'reports');
-  await rwc(gp2, '[data-rw-type="tlist"]');
+  await rwc(gp2, '[data-rw-sect="lists"]', '[data-rw-type="tlist"]');
   const gRows2 = await gp2.evaluate(() => [...document.querySelectorAll('[data-tl-row]')].map(e => e.dataset.tlRow));
   ok('Genel sorumlu öğretmen listesi: bütün bölümler (tiyatro + müzik hocası), bölüm düğmeleri var', gRows2.includes('50202601') && gRows2.includes('50202603') && (await gp2.locator('[data-tl-area]').count()) >= 2, JSON.stringify(gRows2));
   await gp2.context().close();

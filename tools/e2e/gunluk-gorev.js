@@ -55,7 +55,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
     await c.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} }); return c; };
   const login = async (no, pw, w) => {
     const p = await (await mk(w)).newPage(); p.on('pageerror', e => errs.push(no + ': ' + e.message)); p.on('dialog', d => d.accept());
-    await p.goto('http://localhost:8765/app/?emu=1'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
+    await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
     await p.getByText('Mamoste', { exact: true }).first().click();
     await p.locator('input.inp').first().fill(no); await p.locator('input[type=password]').first().fill(pw);
     await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000); return p;
@@ -81,6 +81,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   const sees = await tb.evaluate(() => document.body.innerText.includes('Şano 1'));
   ok('Görevli öğretmen dersi (yalnız o gün) görür', sees);
   await tb.evaluate(() => { const bt = [...document.querySelectorAll('button')].find(x => x.textContent.includes('Şano 1')); bt && bt.click(); }); await tb.waitForTimeout(1000);
+  await tb.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.includes('Dersê Dest Pê Bike') && x.offsetParent); b && b.click(); }); await tb.waitForTimeout(1500);
   await tb.evaluate(() => { const row = [...document.querySelectorAll('div')].filter(d => d.textContent.includes('Rojîn Aram') && d.querySelectorAll('.att-btn').length === 3).pop(); row.querySelectorAll('.att-btn')[0].click(); });
   await tb.evaluate(() => { const bt = document.querySelector('[data-att-save-list]') || [...document.querySelectorAll('button')].find(x => /^(Tomar bike|Kaydet|Tomar)$/.test(x.textContent.trim())); bt.click(); });
   await tb.waitForTimeout(2500);

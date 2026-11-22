@@ -74,7 +74,7 @@ const S = v => ({ stringValue: v }), A = a => ({ arrayValue: { values: a } }), M
   r = await probe(p2); ok('Çocuk sitesi: zararlı haber/arşiv/belge şablonu → betik çalışmaz', verdict(r), JSON.stringify(r));
   // 3) Öğrenci işleri paneli (başvuru belgeleri, öğrenci adı, yazdırma)
   const c3 = await mk(); const p3 = await c3.newPage(); p3.on('dialog', d => d.accept());
-  await p3.goto('http://localhost:8765/app/?emu=1'); await p3.waitForSelector('text=Têkeve', { timeout: 60000 });
+  await p3.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p3.waitForSelector('text=Têkeve', { timeout: 60000 });
   await p3.getByText('Mamoste', { exact: true }).first().click();
   await p3.locator('input.inp').first().fill('98202601'); await p3.locator('input[type=password]').first().fill('Reg12345');
   await p3.getByText('Têkeve', { exact: true }).last().click(); await p3.waitForTimeout(8000);
@@ -101,7 +101,7 @@ const S = v => ({ stringValue: v }), A = a => ({ arrayValue: { values: a } }), M
   const hidden = await Promise.all(p4.frames().filter(f => f !== p4.mainFrame()).map(f => f.evaluate(() => getComputedStyle(document.documentElement).display).catch(() => 'none')));
   ok('Başka siteye gömülen uygulamalar gizlenir (clickjacking)', hidden.length === 2 && hidden.every(d => d === 'none'), hidden.join(','));
   // 5) Kaba kuvvet: 5 hatalı denemeden sonra kilit
-  const c5 = await mk(); const p5 = await c5.newPage(); await p5.goto('http://localhost:8765/app/?emu=1'); await p5.waitForSelector('text=Têkeve', { timeout: 60000 });
+  const c5 = await mk(); const p5 = await c5.newPage(); await p5.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p5.waitForSelector('text=Têkeve', { timeout: 60000 });
   await p5.getByText('Mamoste', { exact: true }).first().click();
   for (let i = 0; i < 6; i++) { await p5.locator('input.inp').first().fill('98202601'); await p5.locator('input[type=password]').first().fill('yanlis' + i); await p5.getByText('Têkeve', { exact: true }).last().click(); await p5.waitForTimeout(1800); }
   ok('5 hatalı denemeden sonra hesap kilitlenir', /kilî|locked/i.test(await p5.evaluate(() => document.body.innerText)));

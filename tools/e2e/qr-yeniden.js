@@ -62,7 +62,7 @@ async function routes(ctx) {
   const codesOf = async sid => ((await get('qrCodes/' + sid)).fields.codes.arrayValue.values || []).map(v => v.stringValue);
 
   const tc = await (await mk()).newPage(); tc.on('pageerror', e => errs.push('T: ' + e.message)); tc.on('dialog', d => d.accept());
-  await tc.goto('http://localhost:8765/app/?emu=1'); await tc.waitForSelector('text=Têkeve', { timeout: 60000 });
+  await tc.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await tc.waitForSelector('text=Têkeve', { timeout: 60000 });
   await tc.getByText('Mamoste', { exact: true }).first().click();
   await tc.locator('input.inp').first().fill('50202601'); await tc.locator('input[type=password]').first().fill('Tea12345');
   await tc.getByText('Têkeve', { exact: true }).last().click(); await tc.waitForTimeout(7000);

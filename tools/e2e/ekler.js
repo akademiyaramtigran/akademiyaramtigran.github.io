@@ -44,7 +44,7 @@ async function routes(ctx) {
     await c.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} }); return c; };
   const login = async (ctx, no, pw, role) => {
     const p = await ctx.newPage(); p.on('pageerror', e => errs.push(no + ': ' + e.message)); p.on('dialog', d => d.accept());
-    await p.goto('http://localhost:8765/app/?emu=1'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
+    await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
     await p.getByText(role || 'Mamoste', { exact: true }).first().click();
     await p.locator('input.inp').first().fill(no); await p.locator('input[type=password]').first().fill(pw);
     await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000); return p;
@@ -84,8 +84,9 @@ async function routes(ctx) {
   // ── 2) Öğretmen: Baran'a özel mesaj + Word eki ──
   await tp.click('[data-hub-tab="messages"]'); await tp.waitForTimeout(800);
   await btnTx(tp, 'Peyamek Nû'); await tp.waitForTimeout(400);
-  await tp.evaluate(() => { const s = [...document.querySelectorAll('select')].find(x => [...x.options].some(o => o.textContent.includes('Baran Şêx'))); const v = [...s.options].find(o => o.textContent.includes('Baran Şêx')).value;
-    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, v); s.dispatchEvent(new Event('change', { bubbles: true })); });
+  { const root = '[data-recipient-picker]'; const types = await tp.evaluate(r => [...document.querySelectorAll(r + ' [data-rcp-type]')].map(x => x.dataset.rcpType), root); let done = false;
+    for (const ty of types) { await tp.evaluate(([r, t]) => document.querySelector(r + ' [data-rcp-type="' + t + '"]').click(), [root, ty]); await tp.waitForTimeout(200);
+      done = await tp.evaluate(r => { const e = [...document.querySelectorAll(r + ' [data-rcp-item]')].find(x => x.textContent.includes('Baran Şêx')); if (e) { e.click(); return true; } return false; }, root); if (done) break; } }
   await tp.locator('input[placeholder="Sernav..."]').fill('Belgeya te'); await tp.locator('textarea').first().fill('Ev belge ji te re ye');
   ok('Öğretmen mesaj ekranında belge ekleme var', (await tp.locator('[data-tmsg-attach] input[type=file]').count()) === 1);
   await tp.locator('[data-tmsg-attach] input[type=file]').setInputFiles([docx]);

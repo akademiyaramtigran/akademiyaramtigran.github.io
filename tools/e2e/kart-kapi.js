@@ -58,7 +58,7 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   const errs = [];
   const login = async (ctx, no, pw) => {
     const p = await ctx.newPage(); p.on('pageerror', e => errs.push(no + ': ' + e.message)); p.on('dialog', d => d.accept());
-    await p.goto('http://localhost:8765/app/?emu=1'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
+    await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
     await p.getByText('Mamoste', { exact: true }).first().click();
     await p.locator('input.inp').first().fill(no); await p.locator('input[type=password]').first().fill(pw);
     await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000); return p;

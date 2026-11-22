@@ -57,7 +57,7 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await routes(ctx);
   await ctx.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} });
   const p = await ctx.newPage(); global.__P = p; const errs = []; p.on('pageerror', e => errs.push(e.message));
-  await p.goto('http://localhost:8765/app/?emu=1');
+  await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01');
   await p.waitForSelector('text=Têkeve', { timeout: 60000 });
   await p.getByText('Mamoste', { exact: true }).first().click();
   await p.locator('input.inp').first().fill('13202601');
@@ -94,7 +94,7 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   // Öğrenci İşleri çocuk tarafında yalnız başvuru + kayıt (çocuk, veli, öğretmen) + kart: yoklama / duyuru / mesaj / program / sınıf bölüm sorumlularında
   const regTabs = await p.evaluate(() => [...document.querySelectorAll('button')].filter(b => b.offsetParent).map(b => b.textContent));
   const has = w => regTabs.some(t => t.includes(w));
-  ok('Öğrenci İşleri Zarok sekmeleri: Serlêdan · Zarok · Dêûbav · Mamoste (yoklama, duyuru, mesaj, program, sınıf yok)', has('Serlêdan') && has('Zarok') && has('Dêûbav') && has('Mamoste') && !has('Amadebûn') && !has('Ragihandin') && !has('Bername') && !has('Sinif'), regTabs.filter(t => t.length < 30).slice(0, 14).join(' | '));
+  ok('Öğrenci İşleri Zarok sekmeleri: Serlêdan · Zarok · Dêûbav · Mamoste + Sinif + Bername (yoklama, duyuru, mesaj yok)', has('Serlêdan') && has('Zarok') && has('Dêûbav') && has('Mamoste') && !has('Amadebûn') && !has('Ragihandin') && has('Bername') && has('Sinif'), regTabs.filter(t => t.length < 30).slice(0, 14).join(' | '));
   // Başvuru: akademiyle aynı mantık — Öğrenci İşleri istenen belgeyi tanımlar, veli her belgeyi yükler
   await p.bringToFront();
   await clickText(p, '📋 Serlêdan'); await p.waitForTimeout(400);

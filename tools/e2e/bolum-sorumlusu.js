@@ -49,7 +49,7 @@ async function routes(ctx) {
     await c.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} }); return c; };
   const login = async (ctx, no, pw, role) => {
     const p = await ctx.newPage(); p.on('pageerror', e => errs.push(no + ': ' + e.message)); p.on('dialog', d => d.accept());
-    await p.goto('http://localhost:8765/app/?emu=1'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
+    await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
     await p.getByText(role || 'Mamoste', { exact: true }).first().click();
     await p.locator('input.inp').first().fill(no); await p.locator('input[type=password]').first().fill(pw);
     await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000); return p;
@@ -83,7 +83,7 @@ async function routes(ctx) {
   // 2) Sorumlu girer: yalnızca Duyuru / Mesaj / Rapor
   const hp = await login(await mk(), hno, hpass);
   const keys = await hp.evaluate(() => [...document.querySelectorAll('.sm-it[data-key]')].map(e => e.dataset.key).join(','));
-  ok('Sorumlu paneli: duyuru, mesaj, ders programı, misafir ders yoklaması, izin, rapor, profil, uyarılar, sınıf (anket yok)', keys.split(',').sort().join(',') === 'alerts,announce,classes,evalforms,gatt,leaves,messages,profile,reports,schedule', keys);
+  ok('Sorumlu paneli: duyuru, mesaj, ders programı (salt okunur), misafir ders yoklaması, izin, rapor, profil, uyarılar (sınıf açma yok)', keys.split(',').sort().join(',') === 'alerts,announce,evalforms,gatt,leaves,messages,profile,reports,schedule', keys);
   // Duyuru (kendi bölümüne kilitli) + belge
   const t0 = await txt(hp);
   ok('Duyuru hedefi kendi bölümüne kilitli', t0.includes('Kilkkirî') && t0.includes('Şano'));
@@ -97,7 +97,7 @@ async function routes(ctx) {
   // Rapor: yalnızca bölüm sekmeleri
   await goA(hp, 'reports'); await hp.waitForTimeout(1200);
   const rt1 = await hp.evaluate(() => [...document.querySelectorAll('[data-rw-type]')].map(e => e.dataset.rwType).join(','));
-  ok('Rapor: sorumluda Devam + Değerlendirme + Genel analiz (çocuk akademisi / arşiv yok)', rt1 === 'devam,eval,analiz,list,tlist' && (await hp.locator('[data-rw-acad],[data-rw-archive]').count()) === 0, rt1);
+  ok('Rapor: sorumluda Devam + Değerlendirme + Genel analiz (çocuk akademisi / arşiv yok)', rt1 === 'devam,eval,analiz' && (await hp.locator('[data-rw-acad],[data-rw-archive]').count()) === 0, rt1);
 
   // 3) Öğrenciler: tiyatro öğrencisi duyuruyu görür, müzik öğrencisi görmez; tiyatro öğrencisi sorumluya yazar
   const s1 = await login(await mk(430), '20202601', 'Stu12345', 'Xwendekar');
@@ -127,10 +127,16 @@ async function routes(ctx) {
   ok('Sorumlu öğrenciye cevap verir (replyTo + öğrenci numarası)', rp.length === 1 && rp[0].fields.recipientNo.stringValue === '20202601' && !!rp[0].fields.replyTo);
   await goA(s1, 'messages'); await s1.waitForTimeout(2000);
   ok('Öğrenci sorumlunun cevabını görür', (await txt(s1)).includes('Erê, li odeya provayê ye') || (await txt(s1)).includes('Re: Kostûm'));
+  const rcpItems = async pg => { const types = await pg.evaluate(() => [...document.querySelectorAll('[data-head-to] [data-rcp-type]')].map(x => x.dataset.rcpType)); const out = [];
+    for (const ty of types) { await pg.evaluate(t => document.querySelector('[data-head-to] [data-rcp-type="' + t + '"]').click(), ty); await pg.waitForTimeout(150);
+      out.push(...await pg.evaluate(() => [...document.querySelectorAll('[data-head-to] [data-rcp-item]')].map(x => ({ v: x.dataset.rcpItem, t: x.textContent })))); } return out; };
+  const rcpPick = async (pg, match) => { const types = await pg.evaluate(() => [...document.querySelectorAll('[data-head-to] [data-rcp-type]')].map(x => x.dataset.rcpType));
+    for (const ty of types) { await pg.evaluate(t => document.querySelector('[data-head-to] [data-rcp-type="' + t + '"]').click(), ty); await pg.waitForTimeout(150);
+      const ok = await pg.evaluate(m => { const e = [...document.querySelectorAll('[data-head-to] [data-rcp-item]')].find(x => x.dataset.rcpItem === m || x.textContent.includes(m)); if (e) { e.click(); return true; } return false; }, match); if (ok) return true; } return false; };
   await btn(hp, 'Peyamek Nû'); await hp.waitForTimeout(400);
-  const opts = await hp.locator('[data-head-to] option').allTextContents();
+  const opts = (await rcpItems(hp)).map(o => o.t);
   ok('Mesaj alıcıları: yönetici + yalnızca bölüm öğretmenleri (öğrenci yok)', opts.length === 2 && opts.join('|').includes('Mamoste Şano') && !opts.join('|').includes('Mamoste Muzîk') && !opts.join('|').includes('Rojîn'), opts.join(' | '));
-  await hp.selectOption('[data-head-to]', { label: 'Mamoste Şano' });
+  await rcpPick(hp, 'Mamoste Şano');
   await hp.fill('#hm-subject', 'Lîsteya kostûman'); await hp.fill('#hm-body', 'Pel li pêvekê ye');
   await hp.setInputFiles('input[type=file]', { name: 'kostum.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 x') });
   // Ek dosya deposuna yüklenir: yükleme bitene kadar bekle (bu sırada gönderim engellenir)

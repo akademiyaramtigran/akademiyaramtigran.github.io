@@ -67,13 +67,14 @@ async function routes(ctx) {
     await c.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} }); return c; };
   const login = async (ctx, no, pw, role) => {
     const p = await ctx.newPage(); p.on('pageerror', e => errs.push(no + ': ' + e.message)); p.on('dialog', d => d.accept());
-    await p.goto('http://localhost:8765/app/?emu=1'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
+    await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
     await p.getByText(role || 'Mamoste', { exact: true }).first().click();
     await p.locator('input.inp').first().fill(no); await p.locator('input[type=password]').first().fill(pw);
     await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000); return p;
   };
   const txt = p => p.evaluate(() => document.body.innerText);
   const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-key="' + k + '"],.sm-it[data-key="' + k + '"]').click(), k);
+  const saveLs = p => p.evaluate(() => { let el = document.querySelector('#ls-date'); while (el && !([...el.querySelectorAll('button')].some(b => b.textContent.includes('💾')))) el = el.parentElement; const b = [...el.querySelectorAll('button')].filter(x => x.textContent.includes('💾')).pop(); b.click(); });
   const btn = (p, t) => p.evaluate(t => { const e = [...document.querySelectorAll('button')].filter(x => x.offsetParent && x.textContent.includes(t)).pop(); if (!e) throw new Error('düğme yok: ' + t); e.click(); }, t);
   const get = path => fetch(`${FS}/${path}`, { headers: H }).then(r => r.json());
 
@@ -83,26 +84,32 @@ async function routes(ctx) {
   ok('Sorumlu menüsünde "Ders programı" var', keys.split(',').includes('schedule'), keys);
   await goA(hp, 'schedule'); await hp.waitForTimeout(1200);
   ok('Sorumlu programında dönem yönetimi yok', !(await txt(hp)).includes('Demsalê Zêde Bike'));
-  await hp.click('[data-add-lesson]'); await hp.waitForTimeout(700);
-  ok('Ders eklerken bölüm kilitli', await hp.evaluate(() => [...document.querySelectorAll('select')].some(s => s.disabled && s.value === 'tiyatro')));
-  const todayKu = await hp.evaluate(() => ["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"][new Date().getDay()]);
-  await hp.locator('select:has(option[value="C1"])').selectOption('C1');
-  await hp.locator('input[placeholder="Armoni – Gr. A"]').fill('Şano Pratîk');
+  ok('Sorumlu programında ders ekleme / düzenleme yok (salt okunur)', (await hp.locator('[data-add-lesson]').count()) === 0);
+  // Ders programını Öğrenci İşleri hazırlar
+  const rq = await login(await mk(), '98202601', 'Reg12345');
+  await goA(rq, 'qad'); await rq.waitForTimeout(1200);
+  await rq.evaluate(() => { const e = [...document.querySelectorAll('.area-card')].filter(x => x.textContent.includes('Şano')).pop(); e && e.click(); }); await rq.waitForTimeout(1200);
+  await rq.evaluate(() => document.querySelector('[data-area-tab="schedule"]').click()); await rq.waitForTimeout(1200);
+  await rq.click('[data-add-lesson]'); await rq.waitForTimeout(700);
+  ok('Ders eklerken bölüm kilitli', await rq.evaluate(() => [...document.querySelectorAll('select')].some(s => s.value === 'tiyatro')));
+  const todayKu = await rq.evaluate(() => ["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"][new Date().getDay()]);
+  await rq.locator('select:has(option[value="C1"])').selectOption('C1');
+  await rq.locator('input[placeholder="Armoni – Gr. A"]').fill('Şano Pratîk');
   // Takvim uygulama dilinde (Kurmancî ay adları)
-  await hp.click('#ls-date'); await hp.waitForTimeout(400);
-  const ct = await hp.evaluate(() => (document.querySelector('[data-cal]') || {}).innerText || '');
+  await rq.click('#ls-date'); await rq.waitForTimeout(400);
+  const ct = await rq.evaluate(() => (document.querySelector('[data-cal]') || {}).innerText || '');
   ok('Takvim Kurmancî açılır (ay adları)', /Çile|Sibat|Adar|Nîsan|Gulan|Hezîran|Tîrmeh|Tebax|Îlon|Çiriya|Berfanbar/.test(ct) && !/October|January|Ekim/.test(ct), ct.slice(0, 40));
-  await hp.click('[data-cal] [data-day="' + new Date().toISOString().slice(0, 10) + '"]'); await hp.waitForTimeout(300);
-  await hp.locator('select:has(option[value="50202601"])').selectOption('50202601');
-  await btn(hp, '💾'); await hp.waitForTimeout(2500);
+  await rq.click('[data-cal] [data-day="' + new Date().toISOString().slice(0, 10) + '"]'); await rq.waitForTimeout(300);
+  await rq.locator('select:has(option[value="50202601"])').selectOption('50202601');
+  await saveLs(rq); await rq.waitForTimeout(2500);
   const sch = (await list('schedule')).filter(d => d.fields.name && d.fields.name.stringValue === 'Şano Pratîk');
-  ok('Tek günlük ders kaydedildi (takvimden bugün): bölüm tiyatro, öğretmen atanmış', sch.length === 1 && sch[0].fields.area.stringValue === 'tiyatro' && sch[0].fields.teacherNo.stringValue === '50202601' && JSON.stringify(sch[0].fields.extraDates || {}).includes(new Date().toISOString().slice(0, 10)));
+  ok('Tek günlük ders kaydedildi (takvimden bugün): bölüm tiyatro, öğretmen atanmış', sch.length === 1 && sch[0].fields.area.stringValue === 'tiyatro' && sch[0].fields.teacherNo.stringValue === '50202601' && JSON.stringify(sch[0].fields.extraDates || {}).includes(new Date().toISOString().slice(0, 10)), JSON.stringify(sch.map(d => d.fields)).slice(0, 300));
   const LID = sch[0] && (sch[0].fields.id.integerValue || sch[0].fields.id.doubleValue || sch[0].fields.id.stringValue);
   // Takvimden gün + "her hafta tekrarlansın"
-  await hp.click('[data-add-lesson]'); await hp.waitForTimeout(700);
-  await hp.locator('select:has(option[value="C1"])').selectOption('C1');
-  await hp.locator('input[placeholder="Armoni – Gr. A"]').fill('Şano Hefteyî');
-  await hp.click('[data-weekly] input'); await btn(hp, '💾'); await hp.waitForTimeout(2500);
+  await rq.click('[data-add-lesson]'); await rq.waitForTimeout(700);
+  await rq.locator('select:has(option[value="C1"])').selectOption('C1');
+  await rq.locator('input[placeholder="Armoni – Gr. A"]').fill('Şano Hefteyî');
+  await rq.click('[data-weekly] input'); await saveLs(rq); await rq.waitForTimeout(2500);
   const rx = (await list('schedule')).filter(d => d.fields.name && d.fields.name.stringValue === 'Şano Hefteyî');
   ok('Her hafta tekrarlanan ders: gün takvimden, başlangıç tarihi kayıtlı', rx.length === 1 && rx[0].fields.lessonType.stringValue === 'main' && rx[0].fields.day.stringValue === todayKu && !!rx[0].fields.from);
   // İkinci ders: 20 dk önce başlamış (geç sayımı için)
@@ -114,12 +121,12 @@ async function routes(ctx) {
   const rp = await login(await mk(), '98202601', 'Reg12345');
   await goA(rp, 'qad'); await rp.waitForTimeout(1500);
   await rp.evaluate(() => { const e = [...document.querySelectorAll('.area-card')].filter(x => x.textContent.includes('Şano')).pop(); e && e.click(); }); await rp.waitForTimeout(1500);
-  ok('Öğrenci İşleri alan penceresinde Bername sekmesi ve ders ekleme yok; öğrenci + öğretmen sekmeleri var', (await rp.locator('[data-area-tab="schedule"]').count()) === 0 && (await rp.locator('[data-add-lesson]').count()) === 0 && (await rp.locator('[data-area-tab="students"]').count()) >= 1 && (await rp.locator('[data-area-tab="teachers"]').count()) >= 1);
+  ok('Öğrenci İşleri alan penceresinde Bername + Sinif + öğrenci + öğretmen sekmeleri var', (await rp.locator('[data-area-tab="schedule"]').count()) === 1 && (await rp.locator('[data-area-tab="classes"]').count()) === 1 && (await rp.locator('[data-area-tab="students"]').count()) >= 1 && (await rp.locator('[data-area-tab="teachers"]').count()) >= 1);
   await rp.context().close();
 
   // İzin: sorumlu Azad'a bugün izin işler → öğretmen listesinde görünmez
   await goA(hp, 'leaves'); await hp.waitForTimeout(1000);
-  await hp.selectOption('#lv-student', '20202602'); await hp.fill('#lv-reason', 'Nexweşî');
+  await hp.fill('#lv-student', '20202602'); await hp.click('[data-ss-item="20202602"]'); await hp.fill('#lv-reason', 'Nexweşî');
   await btn(hp, 'Destûrê tomar bike'); await hp.waitForTimeout(2000);
   const lvs = await list('studentLeaves');
   ok('İzin kaydedildi (öğrenci, tarih, neden)', lvs.length === 1 && lvs[0].fields.studentNo.stringValue === '20202602' && lvs[0].fields.reason.stringValue === 'Nexweşî');
@@ -180,7 +187,7 @@ async function routes(ctx) {
   // Dersi bitir: QR kapanır, yoklama kaydedilir (QR ile giren öğrenci dahil), bitiş anı yazılır
   // Öğretmenin uygulaması ders sırasında YENİDEN AÇILIR (bellekteki QR oturumu kaybolur), sonra "Dersi bitir":
   // QR okutan öğrenci veritabanından okunur, "yok" yazılmaz
-  await tp.goto('http://localhost:8765/app/?emu=1'); await tp.waitForTimeout(6000);
+  await tp.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await tp.waitForTimeout(6000);
   if (await tp.getByText('Têkeve', { exact: true }).count()) {   // oturum kalıcı değilse yeniden giriş
     await tp.getByText('Mamoste', { exact: true }).first().click();
     await tp.locator('input.inp').first().fill('50202601'); await tp.locator('input[type=password]').first().fill('Tea12345');
@@ -213,16 +220,12 @@ async function routes(ctx) {
   ok('Rapor yoklamadan: QR ile gelen öğrenci %100, ders yapılmadı işareti sayılmaz', (await rpct('20202603')) === '100%' && (await rpct('20202601')) === '100%', (await rpct('20202603')) + ' / ' + (await rpct('20202601')));
   ok('İzinli öğrenci devamsız sayılmaz (ders sayısına girmez)', (await rpct('20202602')) === '—' || (await rpct('20202602')) === '', await rpct('20202602'));
 
-  // 6) Çocuk akademisi sorumlusu: kendi dersinin programını yazar
+  // 6) Çocuk akademisi sınıf sorumlusu: programı yalnız GÖRÜR (Öğrenci İşleri yazar)
+  await put('kidSchedule/KS1', { fireId: 'KS1', title: 'Drama Lîstik', day: new Date().getDay(), start: '10:00', end: '11:00', area: 'zarok', classId: 'KDC1', teacherNo: '72026001', teacher: 'Mamosteya Zarokan' });
   const kp = await login(await mk(), '96202612', 'Head1234');
-  await goA(kp, 'schedule'); await kp.waitForTimeout(1500);
-  await btn(kp, 'Dersê Zêde Bike'); await kp.waitForTimeout(600);
-  await kp.fill('#khs-title', 'Drama Lîstik'); await kp.selectOption('#khs-class', 'KDC1'); await kp.selectOption('#khs-teacher', '72026001');
-  await btn(kp, 'Tomar bike'); await kp.waitForTimeout(2500);
-  const ks = (await list('kidSchedule')).filter(d => d.fields.title && d.fields.title.stringValue === 'Drama Lîstik');
-  ok('Çocuk dersi kaydedildi: alan drama, öğretmen atanmış', ks.length === 1 && ks[0].fields.area.stringValue === 'zarok' && ks[0].fields.classId.stringValue === 'KDC1' && ks[0].fields.teacherNo.stringValue === '72026001');
-  ok('Çocuk programında ders görünür', (await kp.locator('[data-khs-row]').count()) === 1);
-
+  await goA(kp, 'schedule'); await kp.waitForTimeout(2000);
+  ok('Çocuk sorumlusu programda ders ekleme düğmesi YOK', !(await txt(kp)).includes('Dersê Zêde Bike'));
+  ok('Çocuk programında (salt okunur) ders görünür', (await kp.locator('[data-khs-row]').count()) === 1);
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);
 })().catch(e => { console.error('E2E HATA', e); process.exit(1); });

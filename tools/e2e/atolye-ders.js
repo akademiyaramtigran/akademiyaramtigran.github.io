@@ -31,6 +31,7 @@ async function routes(ctx) {
   await put('idx_staff/96000001', { no: '96000001', lvl: 'head', area: 'tiyatro' });
   await put('teachers/H1', { id: 'H1', no: '96000001', name: 'Berpirsa Şanoyê', area: 'tiyatro', isHead: true });
   await signUp('96000001@ogretmen.aat', 'Head1234');
+  await put('idx_staff/98202601', { no: '98202601', lvl: 'registrar' }); await put('teachers/TR', { no: '98202601', name: 'Karûbar', isRegistrar: true, area: 'genel' }); await signUp('98202601@ogretmen.aat', 'Reg12345');
   await put('idx_staff/50202601', { no: '50202601', lvl: 'teacher' });
   await put('teachers/T50', { id: 'T50', no: '50202601', name: 'Mamoste Şano', area: 'tiyatro' });
   await put('teachers/T51', { id: 'T51', no: '50202602', name: 'Mamoste Muzîk', area: 'muzik' });
@@ -44,8 +45,8 @@ async function routes(ctx) {
   // Yoklamalar: Rojîn bölüm dersine gelmedi, atölyeye geldi
   const rec = o => ({ mapValue: { fields: Object.fromEntries(Object.entries(o).map(([k, v]) => [k, { stringValue: v }])) } });
   const putRaw = (path, f) => fetch(`${FS}/${path}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: f }) }).then(r => { if (!r.ok) throw new Error('seed ' + path + ' ' + r.status); });
-  await putRaw('attendance/7-2026-10-26', { lessonId: { stringValue: '7' }, classId: { stringValue: 'A1' }, area: { stringValue: 'tiyatro' }, date: { stringValue: '2026-10-26' }, records: rec({ '101': 'off', '102': 'on' }) });
-  await putRaw('attendance/1-2026-11-01', { lessonId: { stringValue: '1' }, classId: { stringValue: 'W1' }, area: { stringValue: 'genel' }, date: { stringValue: '2026-11-01' }, records: rec({ '101': 'on' }) });
+  await putRaw('attendance/7-2026-10-26', { endedAt: { integerValue: '1' }, lessonId: { stringValue: '7' }, classId: { stringValue: 'A1' }, area: { stringValue: 'tiyatro' }, date: { stringValue: '2026-10-26' }, records: rec({ '101': 'off', '102': 'on' }) });
+  await putRaw('attendance/1-2026-11-01', { endedAt: { integerValue: '1' }, lessonId: { stringValue: '1' }, classId: { stringValue: 'W1' }, area: { stringValue: 'genel' }, date: { stringValue: '2026-11-01' }, records: rec({ '101': 'on' }) });
   await put('classes/C1', { kind: 'workshop', name: 'Atolyeya Girtî', area: 'genel', studentNos: ['20202609'], status: 'closed' });
 
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
@@ -53,12 +54,14 @@ async function routes(ctx) {
   const errs = [];
   const c = await b.newContext({ viewport: { width: 1280, height: 900 } }); await routes(c);
   await c.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} });
-  const p = await c.newPage(); p.on('pageerror', e => errs.push(e.message)); p.on('dialog', d => d.accept());
-  await p.goto('http://localhost:8765/app/?emu=1'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
+  let p = await c.newPage(); p.on('pageerror', e => errs.push(e.message)); p.on('dialog', d => d.accept());
+  await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
   await p.getByText('Mamoste', { exact: true }).first().click();
-  await p.locator('input.inp').first().fill('96000001'); await p.locator('input[type=password]').first().fill('Head1234');
+  await p.locator('input.inp').first().fill('98202601'); await p.locator('input[type=password]').first().fill('Reg12345');
   await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000);
-  await p.evaluate(() => document.querySelector('.sm-it[data-key="schedule"]').click()); await p.waitForTimeout(1000);
+  await p.evaluate(() => document.querySelector('.sm-it[data-key="qad"]').click()); await p.waitForTimeout(1200);
+  await p.evaluate(() => [...document.querySelectorAll('.area-card')].filter(x => x.textContent.includes('Şano')).pop().click()); await p.waitForTimeout(1200);
+  await p.evaluate(() => document.querySelector('[data-area-tab="schedule"]').click()); await p.waitForTimeout(1200);
   await p.click('[data-sched-tab="ws"]'); await p.waitForTimeout(600);   // atölye dersleri kendi alanında eklenir
   await p.evaluate(() => document.querySelector('[data-add-lesson]').click()); await p.waitForTimeout(1200);
   const opts = await p.evaluate(() => { const s = [...document.querySelectorAll('select')].find(x => [...x.options].some(o => o.textContent.includes('Sinifekê hilbijêre'))); return s ? [...s.options].map(o => o.value + '|' + o.textContent) : []; });
@@ -77,6 +80,14 @@ async function routes(ctx) {
   ok('Haftalık ders kaydedildi (atölye sınıfına bağlı, alan = tiyatro)', !!wk && wk.fields.classId.stringValue === 'W1' && wk.fields.area.stringValue === 'tiyatro' && wk.fields.lessonType.stringValue === 'main', wk ? JSON.stringify(Object.keys(wk.fields)) : (await p.evaluate(() => document.body.innerText)).slice(-300));
   const ws = docs.find(d => d.name.endsWith('/ws_W1'));
   ok('Atölyenin kendi günlük dersi yerinde', !!ws && ws.fields.lessonType.stringValue === 'extra');
+  // Raporlar: bölüm sorumlusu olarak yeniden gir
+  await c.close(); const c2 = await b.newContext({ viewport: { width: 1280, height: 900 } }); await routes(c2);
+  await c2.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} });
+  p = await c2.newPage(); p.on('pageerror', e => errs.push(e.message)); p.on('dialog', d => d.accept());
+  await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
+  await p.getByText('Mamoste', { exact: true }).first().click();
+  await p.locator('input.inp').first().fill('96000001'); await p.locator('input[type=password]').first().fill('Head1234');
+  await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000);
   // Rapor: "Dersên di raporê de" ve alan satırı sorumluda yok; atölye dersi öğretmen/ders seçimiyle süzülür
   await p.evaluate(() => document.querySelector('.sm-it[data-key="reports"]').click()); await p.waitForTimeout(2500);
   const rwc = async (pg, ...qs) => { for (const q of qs) { await pg.evaluate(q => { const b = document.querySelector(q); if (!b) throw new Error('rapor adımı yok: ' + q); b.click(); }, q); await pg.waitForTimeout(800); } };

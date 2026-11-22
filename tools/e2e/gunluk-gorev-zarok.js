@@ -50,7 +50,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   const mk = async (w) => { const c = await b.newContext({ viewport: { width: w || 1280, height: 900 } }); await routes(c);
     await c.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} }); return c; };
   const hc = await mk(); const hp = await hc.newPage(); hp.on('pageerror', e => errs.push(e.message)); hp.on('dialog', d => d.accept());
-  await hp.goto('http://localhost:8765/app/?emu=1'); await hp.waitForSelector('text=Têkeve', { timeout: 60000 });
+  await hp.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await hp.waitForSelector('text=Têkeve', { timeout: 60000 });
   await hp.getByText('Mamoste', { exact: true }).first().click();
   await hp.locator('input.inp').first().fill('96000003'); await hp.locator('input[type=password]').first().fill('Head1234');
   await hp.getByText('Têkeve', { exact: true }).last().click(); await hp.waitForTimeout(7000);

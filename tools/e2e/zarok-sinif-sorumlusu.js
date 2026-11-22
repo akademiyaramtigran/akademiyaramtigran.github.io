@@ -56,7 +56,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   const c = await b.newContext({ viewport: { width: 430, height: 900 } }); await routes(c);
   await c.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} });
   const p = await c.newPage(); p.on('pageerror', e => errs.push(e.message)); p.on('dialog', d => d.accept());
-  await p.goto('http://localhost:8765/app/?emu=1'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
+  await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
   await p.getByText('Mamoste', { exact: true }).first().click();
   await p.locator('input.inp').first().fill('96202612'); await p.locator('input[type=password]').first().fill('Head1234');
   await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000);
@@ -65,15 +65,11 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   const t0 = await p.evaluate(() => document.body.innerText);
   ok('Program: başka sınıfın dersi GÖRÜNMEZ (yalnız kendi sınıfı)', !t0.includes('Ders ya 2'));
   ok('Program: başlangıçta kendi sınıfında ders yok', (await p.locator('[data-khs-row]').count()) === 0);
-  await p.evaluate(() => [...document.querySelectorAll('button')].filter(x => x.offsetParent && x.textContent.includes('Dersê Zêde Bike'))[0].click()); await p.waitForTimeout(500);
-  const opts = await p.evaluate(() => [...document.querySelectorAll('#khs-class option')].map(o => o.value).join(','));
-  ok('Ders formunda yalnız kendi sınıfı seçilebilir', opts === ',KC1' || opts === 'KC1', opts);
-  await p.locator('#khs-title').fill('Ders ya 1'); await p.selectOption('#khs-class', 'KC1'); await p.selectOption('#khs-teacher', '72026001');
-  await p.evaluate(() => [...document.querySelectorAll('button')].filter(x => x.offsetParent && x.textContent.includes('Tomar bike')).pop().click()); await p.waitForTimeout(2000);
-  const ks = (await fetch(`${FS}/kidSchedule?pageSize=100`, { headers: H }).then(r => r.json())).documents || [];
-  const mine = ks.find(d => d.fields.title && d.fields.title.stringValue === 'Ders ya 1');
-  ok('Sınıf sorumlusu kendi sınıfına ders ekledi (area=zarok, classId=KC1)', !!mine && mine.fields.classId.stringValue === 'KC1' && mine.fields.area.stringValue === 'zarok');
-  ok('Eklenen dersin düzenle/sil düğmesi görünür', (await p.locator('[data-khs-row] button').count()) === 3);
+  ok('Sınıf sorumlusu programda ders EKLEYEMEZ (ders programını Öğrenci İşleri yazar)', !(await p.evaluate(() => document.body.innerText)).includes('Dersê Zêde Bike'));
+  await fetch(`${FS}/kidSchedule/KS9`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { title: { stringValue: 'Ders ya 1' }, classId: { stringValue: 'KC1' }, area: { stringValue: 'zarok' }, day: { integerValue: '1' }, start: { stringValue: '10:00' }, end: { stringValue: '11:00' } } }) });
+  await p.reload(); await p.waitForTimeout(6000); await goA(p, 'schedule'); await p.waitForTimeout(1500);
+  ok('Kendi sınıfının dersi görünür (salt okunur)', (await p.locator('[data-khs-row]').count()) === 1);
+  ok('Dersin düzenle/sil düğmeleri YOK (yalnız görev ataması)', (await p.locator('[data-khs-row] button:not([hidden])').count()) === 1);
   // Sınıflar: yalnız kendi sınıfı, yeni sınıf açma yok
   await goA(p, 'classes'); await p.waitForTimeout(1200);
   const t1 = await p.evaluate(() => document.body.innerText);

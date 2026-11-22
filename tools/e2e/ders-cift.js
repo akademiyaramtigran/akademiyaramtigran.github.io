@@ -46,7 +46,7 @@ async function routes(ctx) {
   await put('schedule/LW', { id: 'LW', fireId: 'LW', classId: 'G1', area: 'genel', name: 'Ziman', lessonType: 'main', day: DAY, from: ymd(from), start: '09:30', end: '12:00', teacherNo: '71202602', teacherName: 'Ömer' });
   await put('schedule/LO', { id: 'LO', fireId: 'LO', classId: 'G1', area: 'genel', name: 'Ziman', lessonType: 'extra', extraDates: [PAST], start: '09:30', end: '12:00', teacherNo: '71202602', teacherName: 'Ömer' });
   const rec = o => ({ mapValue: { fields: Object.fromEntries(Object.entries(o).map(([k, v]) => [k, { stringValue: v }])) } });
-  await fetch(`${FS}/attendance/LO-${PAST}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { lessonId: { stringValue: 'LO' }, classId: { stringValue: 'G1' }, area: { stringValue: 'genel' }, date: { stringValue: PAST }, records: rec({ '101': 'on', '102': 'on' }) } }) });
+  await fetch(`${FS}/attendance/LO-${PAST}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { endedAt: { integerValue: '1' }, lessonId: { stringValue: 'LO' }, classId: { stringValue: 'G1' }, area: { stringValue: 'genel' }, date: { stringValue: PAST }, records: rec({ '101': 'on', '102': 'on' }) } }) });
 
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
@@ -55,7 +55,7 @@ async function routes(ctx) {
     await c.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} }); return c; };
   const login = async (ctx, no, pw) => {
     const p = await ctx.newPage(); p.on('pageerror', e => errs.push(no + ': ' + e.message)); p.on('dialog', d => { dialogs.push(d.message()); answer ? d.accept() : d.dismiss(); });
-    await p.goto('http://localhost:8765/app/?emu=1'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
+    await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
     await p.getByText('Mamoste', { exact: true }).first().click();
     await p.locator('input.inp').first().fill(no); await p.locator('input[type=password]').first().fill(pw);
     await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000); return p;
@@ -78,9 +78,11 @@ async function routes(ctx) {
   ok('Bugün yalnız bugünün dersi listelenir', JSON.stringify(todayBtns) === '["LW"]', JSON.stringify(todayBtns));
   await tp.context().close();
 
-  // 2) Genel sorumlu (genel sınıfın programı onda): aynı sınıfa aynı gün ve saatte ders eklenirken uyarı (iptal → eklenmez)
-  const rp = await login(await mk(), '96000002', 'Head1234');
-  await rp.evaluate(() => document.querySelector('.sm-it[data-key="schedule"],.pano-tile[data-key="schedule"]').click()); await rp.waitForTimeout(1500);
+  // 2) Genel sorumlu (genel sınıfın programını Öğrenci İşleri yazar): aynı sınıfa aynı gün ve saatte ders eklenirken uyarı (iptal → eklenmez)
+  const rp = await login(await mk(), '98202601', 'Reg12345');
+  await rp.evaluate(() => document.querySelector('.sm-it[data-key="qad"],.pano-tile[data-key="qad"]').click()); await rp.waitForTimeout(1200);
+  await rp.evaluate(() => [...document.querySelectorAll('.area-card')].find(x => x.textContent.includes('Hemû Xwendekar')).click()); await rp.waitForTimeout(1200);
+  await rp.evaluate(() => document.querySelector('[data-area-tab="schedule"]').click()); await rp.waitForTimeout(1500);
   await rp.click('[data-add-lesson]'); await rp.waitForTimeout(1000);
   await rp.locator('select:has(option[value="G1"])').selectOption('G1');
   await rp.locator('input[placeholder="Armoni – Gr. A"]').fill('Ziman Dubare');

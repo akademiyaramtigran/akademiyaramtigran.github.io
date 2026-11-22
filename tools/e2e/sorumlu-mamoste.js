@@ -52,7 +52,7 @@ async function routes(ctx) {
     await c.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} }); return c; };
   const login = async (no, pw, role, w) => {
     const p = await (await mk(w)).newPage(); p.on('pageerror', e => errs.push(no + ': ' + e.message)); p.on('dialog', d => d.accept());
-    await p.goto('http://localhost:8765/app/?emu=1'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
+    await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
     await p.getByText(role || 'Mamoste', { exact: true }).first().click();
     await p.locator('input.inp').first().fill(no); await p.locator('input[type=password]').first().fill(pw);
     await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000); return p;
@@ -97,9 +97,7 @@ async function routes(ctx) {
     ok('Öğretmen panelinden sorumlu paneline geri döner', (await hp.locator('[data-role-switch="teacher"]').count()) >= 0 && (await txt(hp)).includes('Berpirs'));
     // Ders programı: öğretmen seçeneklerinde sorumlu (Berpirs) da var
     await goA(hp, 'schedule'); await hp.waitForTimeout(1500);
-    await hp.click('[data-add-lesson]'); await hp.waitForTimeout(800);
-    const opts = await hp.evaluate(() => { const s = [...document.querySelectorAll('select')].find(x => [...x.options].some(o => o.value === '50202601')); return s ? [...s.options].map(o => o.value + '|' + o.textContent) : []; });
-    ok('Ders atama listesinde sorumlu "(Berpirs)" etiketiyle çıkar', opts.some(o => o.startsWith('96000001|') && o.includes('Berpirs')), JSON.stringify(opts).slice(0, 250));
+    ok('Sorumlu programda ders ekleyemez (program Öğrenci İşleri\'nde)', (await hp.locator('[data-add-lesson]').count()) === 0);
     await hp.context().close();
   }
   // Öğretmen → bölüm sorumlusuna mesaj

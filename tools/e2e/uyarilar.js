@@ -40,7 +40,7 @@ async function routes(ctx) {
   await put('schedule/L1', { id: 'L1', fireId: 'L1', area: 'tiyatro', name: 'Şano 1', lessonType: 'main', day: 'Dûşem', start: '09:00', end: '10:00', teacherNo: '50202601', teacherName: 'Mamoste Şano' });
   await put('schedule/LM', { id: 'LM', fireId: 'LM', area: 'muzik', name: 'Piyano', lessonType: 'main', day: 'Dûşem', start: '11:00', end: '12:00' });
   const rec = o => ({ mapValue: { fields: Object.fromEntries(Object.entries(o).map(([k, v]) => [k, { stringValue: v }])) } });
-  const putAtt = (id, lid, date, r) => fetch(`${FS}/attendance/${id}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { lessonId: { stringValue: lid }, date: { stringValue: date }, records: rec(r) } }) });
+  const putAtt = (id, lid, date, r) => fetch(`${FS}/attendance/${id}`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { endedAt: { integerValue: '1' }, lessonId: { stringValue: lid }, date: { stringValue: date }, records: rec(r) } }) });
   // Rojîn: Şano 1'de 3 kez gelmedi; Baran: 2 gelmedi + 1 izinli + 1 geç → uyarı yok; Jîyan (müzik): 3 kez
   await putAtt('L1-a', 'L1', day(21), { '101': 'off', '102': 'off', '103': 'on' });
   await putAtt('L1-b', 'L1', day(14), { '101': 'off', '102': 'leave' });
@@ -82,7 +82,7 @@ async function routes(ctx) {
   const mk = async () => { const c = await b.newContext({ viewport: { width: 1280, height: 900 } }); await routes(c);
     await c.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} }); return c; };
   const login = async (no, pw) => { const p = await (await mk()).newPage(); p.on('pageerror', e => errs.push(no + ': ' + e.message)); p.on('dialog', d => d.accept());
-    await p.goto('http://localhost:8765/app/?emu=1'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
+    await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
     await p.getByText('Mamoste', { exact: true }).first().click();
     await p.locator('input.inp').first().fill(no); await p.locator('input[type=password]').first().fill(pw);
     await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000); return p; };

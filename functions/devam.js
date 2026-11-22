@@ -29,14 +29,37 @@ function studentIndex(docs) {
 const istToday = (ms) => new Date(ms == null ? Date.now() : ms).toLocaleDateString("sv-SE", { timeZone: "Europe/Istanbul" });
 // Yoklama KESİNLEŞTİ mi? Ders bitirildi (endedAt) ya da gün geçti. Ders sürerken öğretmen "Kaydet"e basınca okutmayan herkes
 // geçici olarak "yok" yazılır — bu kesin değildir, öğrenciye "gelmedi" bildirimi gitmez / ekranda "bekliyor" görünür.
-function isFinal(att, today) { return !!(att && (att.endedAt || String(att.date || "") < (today || istToday()))); }
+// (Yeni kural: gün geçmesi artık kesinleştirmez — öğretmen "Dersi bitir" demeli; eski kayıtlar DV_CUTOFF öncesi sayılır.)
+/*DEVAMCORE-BEGIN*/
+// ── DEVAM ORTAK HESABI (istemci: app/index.html · sunucu: functions/devam.js — iki metin BİREBİR aynı olmalı; tools/devam-testi.js denetler) ──
+// Kural: bir yoklama yalnız KESİNLEŞTİKTEN sonra (öğretmen "Dersi bitir" dedi / sorumlu-yönetici düzeltti-kapattı) raporlara,
+// analize, uyarılara ve öğrenci ekranına sayılır. Devam eden ders görünmez. İzin sonradan girilse bile o günün "yok"u "izinli" olur.
+// bu tarihten ÖNCEKİ yoklamalar (eski kayıtlar) "dersi bitir" olmadan da kesin sayılır (test ortamında geçersiz kılınabilir)
+const DV_CUTOFF = (typeof globalThis !== "undefined" && globalThis.__DV_CUTOFF) || (typeof process !== "undefined" && process.env && process.env.DV_CUTOFF) || "2026-11-22";
+const dvClosed = a => !!(a && (a.endedAt || a.closedBy || String(a.date || "") < DV_CUTOFF));
+const dvPct = (on, late, off) => { const n = (on || 0) + (late || 0) + (off || 0); return n ? Math.round(((on || 0) + (late || 0)) / n * 100) : null; };
+const dvLeaveCovers = (l, date, lessonId) => { if (!l || String(l.from || "") > String(date) || String(date) > String(l.to || "")) return false; const ids = l.lessonIds; return !ids || !ids.length || ids.map(String).includes(String(lessonId)); };
+function dvRecords(a, leaves, noOfKey) {
+  const out = {}, date = String(a.date || "");
+  Object.entries(a.records || {}).forEach(([k, v]) => {
+    if (v === "off") { const no = noOfKey ? noOfKey(k) : null;
+      if (no != null && (leaves || []).some(l => !l.kid && String(l.studentNo) === String(no) && dvLeaveCovers(l, date, a.lessonId))) v = "leave"; }
+    out[k] = v; });
+  return out;
+}
+const dvStatDocs = (docs, leaves, noOfKey) => (docs || []).filter(a => a && a.date && a.records && !a.teacherAbsent && Object.keys(a.records).length && dvClosed(a))
+  .map(a => ({ ...a, records: dvRecords(a, leaves, noOfKey) }));
+const dvOpenDocs = docs => (docs || []).filter(a => a && a.date && a.records && !a.teacherAbsent && Object.keys(a.records).length && !dvClosed(a));
+/*DEVAMCORE-END*/
+function isFinal(att) { return dvClosed(att); }
 
 // Belgeden satırlar: [{ id, data }]
-function buildRows(attId, att, idx, today) {
+function buildRows(attId, att, idx, today, leaves) {
   const k = lessonKey(attId, att); if (!k || att.teacherAbsent) return [];
   const fin = isFinal(att, today);
   const rows = [];
-  for (const [sid, v] of Object.entries(att.records)) {
+  const recs = dvRecords({ ...att, date: k.date, lessonId: k.lessonId }, leaves, sid => { const st = idx.get(String(sid)); return st ? st.no : null; });
+  for (const [sid, v] of Object.entries(recs)) {
     const status = STATUS[v]; const st = idx.get(String(sid));
     if (!status || !st) continue;
     rows.push({
@@ -64,4 +87,13 @@ const TXD = {
 };
 const txd = (lang, k, a) => String((TXD[lang] || TXD.ku)[k]).replace("{0}", a == null ? "" : a);
 
-module.exports = { lessonKey, studentIndex, buildRows, notifyChanges, isFinal, istToday, txd, STATUS };
+// "Lütfen dersinizi bitirin" hatırlatması gerekiyor mu? (yoklama var, ders kapanmamış, ders saati + 15 dk geçti ya da gün geçti)
+function nagDue(att, ls, today, hm) {
+  if (!att || !ls || att.teacherAbsent || !att.records || !Object.keys(att.records).length || dvClosed(att)) return false;
+  if (String(att.date) > today) return false;
+  if (String(att.date) < today) return true;
+  const e = String(ls.end || ""); if (!/^\d{1,2}:\d{2}$/.test(e) || !/^\d{1,2}:\d{2}$/.test(String(hm))) return false;
+  const [h, m] = e.split(":").map(Number), [ch, cm] = String(hm).split(":").map(Number);
+  return ch * 60 + cm >= h * 60 + m + 15;
+}
+module.exports = { nagDue, lessonKey, studentIndex, buildRows, notifyChanges, isFinal, istToday, txd, STATUS, dvClosed, dvPct, dvLeaveCovers, dvRecords, dvStatDocs, dvOpenDocs, DV_CUTOFF };
