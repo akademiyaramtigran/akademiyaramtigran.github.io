@@ -89,6 +89,18 @@ async function routes(ctx) {
   await gp.evaluate(() => document.querySelector('[data-ah-toggle="50202601"]').click());
   const back = await waitFor(async () => { const d = await getD('idx_staff/50202601'); return d && d.fields.lvl.stringValue === 'teacher' ? d : null; });
   ok('İşaret kaldırılınca öğretmene döner', !!back);
+  const rk = await gp.evaluate(() => [...new Set([...document.querySelectorAll('.sm-it[data-key],.pano-tile[data-key]')].map(e => e.dataset.key))].join(','));
+  ok('Öğrenci İşleri ana menüsünde Sınıf · Ders programı · Görevler var', ['sinif', 'program', 'gorev'].every(k => rk.split(',').includes(k)), rk);
+  await goA(gp, 'sinif');
+  ok('Sınıflar bölümü: alan seçici + sınıf yönetimi', (await gp.locator('[data-hub-area]').count()) === 1 && (await gp.evaluate(() => document.body.innerText)).includes('Sinifa'));
+  await goA(gp, 'program');
+  ok('Ders programı bölümünde ders ekleme düğmesi var (Öİ yazar)', (await gp.locator('[data-add-lesson]').count()) === 1);
+  await goA(gp, 'gorev');
+  await gp.evaluate(() => document.querySelector('[data-reg-roles] [data-ah-toggle="50202601"]').click());
+  const idx2 = await waitFor(async () => { const d = await getD('idx_staff/50202601'); return d && d.fields.lvl.stringValue === 'head' ? d : null; });
+  ok('Görevler bölümünden alan sorumlusu atanır', !!idx2);
+  await gp.evaluate(() => document.querySelector('[data-reg-roles] [data-ah-toggle="50202601"]').click());
+  await waitFor(async () => { const d = await getD('idx_staff/50202601'); return d && d.fields.lvl.stringValue === 'teacher' ? d : null; });
   await gp.context().close();
   // Hem akademi hem Zarok görevli öğretmen: menüde Zarok geçişi
   await put('idx_kidstaff/50202602', { no: '50202602' }); await signUp('50202602@ogretmen.aat', 'Tea12345');

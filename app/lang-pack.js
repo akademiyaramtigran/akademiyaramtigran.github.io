@@ -1619,6 +1619,13 @@ window.AAT_TX={"ku":{},"zza":{},"tr":{"Berpirsê sinifê":"Sınıf sorumlusu","b
 "Bernameya dersan ji aliyê Karûbarên Xwendekaran ve tê amadekirin. Heke ders nehat kirin, bi 🚫 nîşan bike û sedemê binivîse — rêveber di raporê de dibîne.":"Ders programı Öğrenci İşleri tarafından hazırlanır. Ders yapılmadıysa 🚫 ile işaretleyin ve nedenini yazın — yönetici raporda görür.",
 "Bernameya dersan ji aliyê Karûbarên Xwendekaran ve tê amadekirin. Tu dikarî bibînî û ji bo rojekê mamosteyekî erk bikî (👥).":"Ders programı Öğrenci İşleri tarafından hazırlanır. Görebilir ve bir gün için görevli öğretmen atayabilirsiniz (👥).",
 "Bernameya dersan ji aliyê Karûbarên Xwendekaran ve tê amadekirin.":"Ders programı Öğrenci İşleri tarafından hazırlanır.",
+"Kurteya hemû dersan":"Tüm derslerin özeti",
+"Beşdar bû":"Katıldı",
+"Rêje":"Oran",
+"Qadekê (an “Hemû Xwendekar” ji bo sinifên hevpar) hilbijêre. Sinifên akademiyê an atolyeyê ava bike, mamoste û xwendekaran bi sinifê ve girê bide.":"Bir alan seçin (ortak sınıflar için “Tüm Öğrenciler”). Akademi veya atölye sınıfı oluşturun, sınıf öğretmenini ve öğrencileri bağlayın.",
+"Qadekê hilbijêre, paşê ders zêde bike: sinif, mamoste, roj û saet diyar bike.":"Bir alan seçin, sonra ders ekleyin: sınıfı, öğretmeni, günü ve saati belirleyin.",
+"Hemû Xwendekar (hevpar)":"Tüm Öğrenciler (ortak)",
+"Mamosteyek wekî berpirsê beşa xwe nîşan bike. Berpirs amadebûn, destûr, peyam û raporan birêve dibe; bernameyê tenê Karûbarên Xwendekaran diguherîne.":"Bir öğretmeni kendi alanının sorumlusu olarak işaretleyin. Sorumlu yoklama, izin, mesaj ve raporları yönetir; ders programını yalnızca Öğrenci İşleri değiştirir.",
 "Mamoste tune.":"Öğretmen yok."}};
 window.AAT_SITE={"ku":{},"zza":{}};
 window.AAT_SITE_AREA={"ku":{},"zza":{}};

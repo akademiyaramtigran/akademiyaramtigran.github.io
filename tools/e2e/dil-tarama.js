@@ -74,7 +74,7 @@ const clean = t => ALLOW.reduce((s, w) => s.split(w).join(''), t);
     const keys = await p.evaluate(() => [...new Set([...document.querySelectorAll('.sm-it[data-key],.pano-tile[data-key],[data-tab]')].map(e => e.dataset.key || e.dataset.tab))]);
     for (const k of keys) {
       const ok = await click(p, '.sm-it[data-key="' + k + '"],.pano-tile[data-key="' + k + '"],[data-tab="' + k + '"]'); if (!ok) continue;
-      await p.waitForTimeout(700); await scan(p, lang, who + ' · ' + k);
+      await p.waitForTimeout(700); await scan(p, lang, who + ' · ' + k); if (process.env.DBGT) console.log('TAB', lang, who, k, errs.length);
       if (k === 'reports') {
         for (const seq of [['[data-rw-acad="aat"]', '[data-rw-type="devam"]', '[data-rw-who="student"]'], ['[data-rw-view="student"]'], ['[data-rw-who="teacher"]'],
           ['[data-rw-type="eval"]', '[data-rw-who="student"]'], ['[data-rw-type="analiz"]', '[data-rw-who="student"]'], ['[data-rw-new]', '[data-rw-acad="kid"]', '[data-rw-type="devam"]'],
