@@ -1628,6 +1628,12 @@ window.AAT_TX={"ku":{},"zza":{},"tr":{"Berpirsê sinifê":"Sınıf sorumlusu","b
 "Mamosteyek wekî berpirsê beşa xwe nîşan bike. Berpirs amadebûn, destûr, peyam û raporan birêve dibe; bernameyê tenê Karûbarên Xwendekaran diguherîne.":"Bir öğretmeni kendi alanının sorumlusu olarak işaretleyin. Sorumlu yoklama, izin, mesaj ve raporları yönetir; ders programını yalnızca Öğrenci İşleri değiştirir.",
 "Dersan ji tabê “Bername” ve têne rêvebirin.":"Dersler “Bername” sekmesinden yönetilir.",
 "Mamosteyek wekî berpirsê beşa xwe nîşan bike. Berpirs bernameya beşa xwe, amadebûn, destûr, peyam û raporan birêve dibe.":"Bir öğretmeni kendi alanının sorumlusu olarak işaretleyin. Sorumlu kendi alanının ders programını, yoklama, izin, mesaj ve raporlarını yönetir.",
+"Hûrgulî — her ders":"Ayrıntı — her ders",
+"Hûrgulî (ders û tarîx)":"Ayrıntı (ders ve tarih)",
+"Hemû ders — hûrgulî":"Tüm dersler — ayrıntı",
+"Nirxandin — bersivên her pirsê":"Değerlendirme — her sorunun cevabı",
+"Her nirxandin û bersiv":"Her değerlendirme ve cevapları",
+"Navgîna her pirsê":"Soru başına ortalama",
 "Mamoste tune.":"Öğretmen yok."}};
 window.AAT_SITE={"ku":{},"zza":{}};
 window.AAT_SITE_AREA={"ku":{},"zza":{}};
