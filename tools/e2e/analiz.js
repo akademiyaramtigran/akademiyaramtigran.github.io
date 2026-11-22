@@ -87,7 +87,7 @@ async function routes(ctx) {
   const hp = await login('96000001', 'Head1234');
   await go(hp, 'reports');
   const tabs = await hp.evaluate(() => [...document.querySelectorAll('[data-rw-type]')].map(e => e.dataset.rwType).join(','));
-  ok('Sorumlu rapor türleri: Devam · Değerlendirme · Genel analiz', tabs === 'devam,eval,analiz,list,tlist', tabs);
+  ok('Sorumlu rapor türleri: Devam · Değerlendirme · Genel analiz', tabs === 'devam,eval,analiz', tabs);
   await rwc(hp, '[data-rw-type="analiz"]', '[data-rw-who="student"]'); await hp.waitForTimeout(1500);
   const r1 = await row(hp, '101'), r2 = await row(hp, '102');
   ok('Öğrenci: Rojîn bu ay %0 📉, değerlendirme 4.0 📉, risk ⚠', !!r1 && r1.includes('0%') && r1.includes('📉') && r1.includes('4.0') && r1.includes('⚠'), r1);

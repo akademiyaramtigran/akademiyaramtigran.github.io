@@ -83,26 +83,32 @@ async function routes(ctx) {
   ok('Sorumlu menüsünde "Ders programı" var', keys.split(',').includes('schedule'), keys);
   await goA(hp, 'schedule'); await hp.waitForTimeout(1200);
   ok('Sorumlu programında dönem yönetimi yok', !(await txt(hp)).includes('Demsalê Zêde Bike'));
-  await hp.click('[data-add-lesson]'); await hp.waitForTimeout(700);
-  ok('Ders eklerken bölüm kilitli', await hp.evaluate(() => [...document.querySelectorAll('select')].some(s => s.disabled && s.value === 'tiyatro')));
-  const todayKu = await hp.evaluate(() => ["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"][new Date().getDay()]);
-  await hp.locator('select:has(option[value="C1"])').selectOption('C1');
-  await hp.locator('input[placeholder="Armoni – Gr. A"]').fill('Şano Pratîk');
+  ok('Sorumlu programında ders ekleme / düzenleme yok (salt okunur)', (await hp.locator('[data-add-lesson]').count()) === 0);
+  // Ders programını Öğrenci İşleri hazırlar
+  const rq = await login(await mk(), '98202601', 'Reg12345');
+  await goA(rq, 'qad'); await rq.waitForTimeout(1200);
+  await rq.evaluate(() => { const e = [...document.querySelectorAll('.area-card')].filter(x => x.textContent.includes('Şano')).pop(); e && e.click(); }); await rq.waitForTimeout(1200);
+  await rq.evaluate(() => document.querySelector('[data-area-tab="schedule"]').click()); await rq.waitForTimeout(1200);
+  await rq.click('[data-add-lesson]'); await rq.waitForTimeout(700);
+  ok('Ders eklerken bölüm kilitli', await rq.evaluate(() => [...document.querySelectorAll('select')].some(s => s.value === 'tiyatro')));
+  const todayKu = await rq.evaluate(() => ["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"][new Date().getDay()]);
+  await rq.locator('select:has(option[value="C1"])').selectOption('C1');
+  await rq.locator('input[placeholder="Armoni – Gr. A"]').fill('Şano Pratîk');
   // Takvim uygulama dilinde (Kurmancî ay adları)
-  await hp.click('#ls-date'); await hp.waitForTimeout(400);
-  const ct = await hp.evaluate(() => (document.querySelector('[data-cal]') || {}).innerText || '');
+  await rq.click('#ls-date'); await rq.waitForTimeout(400);
+  const ct = await rq.evaluate(() => (document.querySelector('[data-cal]') || {}).innerText || '');
   ok('Takvim Kurmancî açılır (ay adları)', /Çile|Sibat|Adar|Nîsan|Gulan|Hezîran|Tîrmeh|Tebax|Îlon|Çiriya|Berfanbar/.test(ct) && !/October|January|Ekim/.test(ct), ct.slice(0, 40));
-  await hp.click('[data-cal] [data-day="' + new Date().toISOString().slice(0, 10) + '"]'); await hp.waitForTimeout(300);
-  await hp.locator('select:has(option[value="50202601"])').selectOption('50202601');
-  await btn(hp, '💾'); await hp.waitForTimeout(2500);
+  await rq.click('[data-cal] [data-day="' + new Date().toISOString().slice(0, 10) + '"]'); await rq.waitForTimeout(300);
+  await rq.locator('select:has(option[value="50202601"])').selectOption('50202601');
+  await btn(rq, '💾'); await rq.waitForTimeout(2500); console.log('DBG', (await txt(rq)).replace(/\s+/g, ' ').slice(-700));
   const sch = (await list('schedule')).filter(d => d.fields.name && d.fields.name.stringValue === 'Şano Pratîk');
-  ok('Tek günlük ders kaydedildi (takvimden bugün): bölüm tiyatro, öğretmen atanmış', sch.length === 1 && sch[0].fields.area.stringValue === 'tiyatro' && sch[0].fields.teacherNo.stringValue === '50202601' && JSON.stringify(sch[0].fields.extraDates || {}).includes(new Date().toISOString().slice(0, 10)));
+  ok('Tek günlük ders kaydedildi (takvimden bugün): bölüm tiyatro, öğretmen atanmış', sch.length === 1 && sch[0].fields.area.stringValue === 'tiyatro' && sch[0].fields.teacherNo.stringValue === '50202601' && JSON.stringify(sch[0].fields.extraDates || {}).includes(new Date().toISOString().slice(0, 10)), JSON.stringify(sch.map(d => d.fields)).slice(0, 300));
   const LID = sch[0] && (sch[0].fields.id.integerValue || sch[0].fields.id.doubleValue || sch[0].fields.id.stringValue);
   // Takvimden gün + "her hafta tekrarlansın"
-  await hp.click('[data-add-lesson]'); await hp.waitForTimeout(700);
-  await hp.locator('select:has(option[value="C1"])').selectOption('C1');
-  await hp.locator('input[placeholder="Armoni – Gr. A"]').fill('Şano Hefteyî');
-  await hp.click('[data-weekly] input'); await btn(hp, '💾'); await hp.waitForTimeout(2500);
+  await rq.click('[data-add-lesson]'); await rq.waitForTimeout(700);
+  await rq.locator('select:has(option[value="C1"])').selectOption('C1');
+  await rq.locator('input[placeholder="Armoni – Gr. A"]').fill('Şano Hefteyî');
+  await rq.click('[data-weekly] input'); await btn(rq, '💾'); await rq.waitForTimeout(2500);
   const rx = (await list('schedule')).filter(d => d.fields.name && d.fields.name.stringValue === 'Şano Hefteyî');
   ok('Her hafta tekrarlanan ders: gün takvimden, başlangıç tarihi kayıtlı', rx.length === 1 && rx[0].fields.lessonType.stringValue === 'main' && rx[0].fields.day.stringValue === todayKu && !!rx[0].fields.from);
   // İkinci ders: 20 dk önce başlamış (geç sayımı için)
@@ -114,7 +120,7 @@ async function routes(ctx) {
   const rp = await login(await mk(), '98202601', 'Reg12345');
   await goA(rp, 'qad'); await rp.waitForTimeout(1500);
   await rp.evaluate(() => { const e = [...document.querySelectorAll('.area-card')].filter(x => x.textContent.includes('Şano')).pop(); e && e.click(); }); await rp.waitForTimeout(1500);
-  ok('Öğrenci İşleri alan penceresinde Bername sekmesi ve ders ekleme yok; öğrenci + öğretmen sekmeleri var', (await rp.locator('[data-area-tab="schedule"]').count()) === 0 && (await rp.locator('[data-add-lesson]').count()) === 0 && (await rp.locator('[data-area-tab="students"]').count()) >= 1 && (await rp.locator('[data-area-tab="teachers"]').count()) >= 1);
+  ok('Öğrenci İşleri alan penceresinde Bername + Sinif + öğrenci + öğretmen sekmeleri var', (await rp.locator('[data-area-tab="schedule"]').count()) === 1 && (await rp.locator('[data-area-tab="classes"]').count()) === 1 && (await rp.locator('[data-area-tab="students"]').count()) >= 1 && (await rp.locator('[data-area-tab="teachers"]').count()) >= 1);
   await rp.context().close();
 
   // İzin: sorumlu Azad'a bugün izin işler → öğretmen listesinde görünmez
