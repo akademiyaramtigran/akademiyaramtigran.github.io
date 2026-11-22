@@ -156,14 +156,15 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   ok('Çocuk sınıfına ders bağlı (sorumlunun programı)', KL && KL.fields.classId.stringValue === KCid);
 
   // ── 5) Ana akademi: Müzik alanında sınıf oluştur (öğrenci seç + sınıf öğretmeni) ──
-  const ph = await login(await mk(), '96000001', 'Head1234');
-  await topTab(ph, 'Sinif'); await ph.waitForTimeout(1500);
+  const ph = await login(await mk(), '98202601', 'Reg12345');   // sınıfları Öğrenci İşleri açar
+  await ph.evaluate(() => document.querySelector('.sm-it[data-key="qad"],.pano-tile[data-key="qad"]').click()); await ph.waitForTimeout(1200);
+  await ph.evaluate(() => [...document.querySelectorAll('.area-card')].filter(x => x.textContent.includes('Muzîk')).pop().click()); await ph.waitForTimeout(1200);
+  await ph.evaluate(() => document.querySelector('[data-area-tab="classes"]').click()); await ph.waitForTimeout(1500);
   const s5 = await txt(ph);
   ok('Ana akademi: sınıfsız öğrenciler listelenir', s5.includes('Bê sinif') && s5.includes('Rojîn Aram') && s5.includes('Baran Şêx'));
   await clickText(ph, '➕ Sinifa nû'); await ph.waitForTimeout(400);
   await ph.locator('input[aria-label="Navê sinifê"]').fill('1. Sînif');
-  await ph.locator('label', { hasText: 'Mamoste Dilovan' }).locator('input[type=checkbox]').check();
-  await ph.locator('label', { hasText: 'Rojîn Aram' }).locator('input[type=checkbox]').check();
+  for (const n of ['Mamoste Dilovan', 'Rojîn Aram']) await ph.evaluate(n => { const l = [...document.querySelectorAll('label')].filter(x => x.textContent.includes(n) && x.querySelector('input[type=checkbox]')).pop(); const i = l.querySelector('input'); if (!i.checked) i.click(); }, n);
   await clickText(ph, '💾 Tomar bike'); await ph.waitForTimeout(1500);
   const M1 = (await list('classes')).find(d => d.fields.name && d.fields.name.stringValue === '1. Sînif');
   const M1id = M1 ? M1.name.split('/').pop() : '';
