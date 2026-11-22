@@ -1654,10 +1654,10 @@ html.aat-in .c-check{display:flex;align-items:center;gap:12px;min-height:44px;cu
 html.aat-in .c-backbar{display:flex;align-items:center;gap:12px;margin-bottom:14px}
 html.aat-in .c-backbar-t{flex:1;min-width:0;font-size:17px;font-weight:700;color:#102A31;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 html.aat-in .c-iconbtn{width:44px;height:44px;border-radius:22px;background:#F2F4F4;border:0;color:#102A31;display:inline-flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;cursor:pointer}
-html.aat-in .c-iconbtn.sm{width:36px;height:36px;border-radius:18px;background:transparent}
+html.aat-in .c-iconbtn.smb{width:36px;height:36px;border-radius:18px;background:transparent}
 html.aat-in .c-iconbtn.danger{color:#B42318}
 html.aat-in .c-iconbtn:not(.sm).danger{background:#FDECEA}
-html.aat-in .c-iconbtn.sm:hover{background:#F2F4F4}
+html.aat-in .c-iconbtn.smb:hover{background:#F2F4F4}
 html.aat-in .c-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap}
 html.aat-in .c-chips.scroll{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;margin-bottom:12px}
 html.aat-in .c-chips.scroll::-webkit-scrollbar{display:none}
@@ -4083,7 +4083,7 @@ function MsgRow({icon,tone,title,time,subject,preview,unread,onClick,onDelete,la
       </span>
       {unread&&<span className="c-dot" aria-label={lang==="en"?"Unread":K("Nexwandî")}/>}
     </button>
-    {onDelete&&<button type="button" className="c-iconbtn sm danger" aria-label={lang==="en"?"Delete":K("Jêbire")} onClick={onDelete}><Ico n="trash" size={17}/></button>}
+    {onDelete&&<button type="button" className="c-iconbtn smb danger" aria-label={lang==="en"?"Delete":K("Jêbire")} onClick={onDelete}><Ico n="trash" size={17}/></button>}
   </div>;
 }
 function EmptyState({icon,text,children}){
@@ -4105,7 +4105,7 @@ function AttachBox({files,onPick,onRemove,label,lang,busy}){
       <div key={f.id} className="c-file"><Ico n="file" size={18}/>
         <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</span>
         <span style={{fontSize:12,color:"var(--text2)"}}>{f.size}</span>
-        <button type="button" className="c-iconbtn sm" aria-label={lang==="en"?"Remove":K("Rake")} onClick={()=>onRemove(f.id)}><Ico n="close" size={15}/></button>
+        <button type="button" className="c-iconbtn smb" aria-label={lang==="en"?"Remove":K("Rake")} onClick={()=>onRemove(f.id)}><Ico n="close" size={15}/></button>
       </div>))}
   </div>;
 }
@@ -6269,7 +6269,7 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
               <div key={i} className="c-file"><Ico n="file" size={18}/>
                 <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.name}</span>
                 <span style={{fontSize:12,color:"var(--text2)"}}>{a.size}</span>
-                {safeHref(a.url)&&<a href={safeHref(a.url)} download={a.name} rel="noopener" className="c-iconbtn sm" aria-label={lang==="en"?"Download":K("Dakêşe")}><Ico n="download" size={16}/></a>}
+                {safeHref(a.url)&&<a href={safeHref(a.url)} download={a.name} rel="noopener" className="c-iconbtn smb" aria-label={lang==="en"?"Download":K("Dakêşe")}><Ico n="download" size={16}/></a>}
               </div>
             ))}
           </div>
@@ -6356,7 +6356,7 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
                   </span>
                   {isUnread&&<span className="c-dot"/>}
                 </div>
-                {msg.fireId&&<button type="button" data-msg-del={msg.fireId} className="c-iconbtn sm danger" aria-label={lang==="en"?"Delete":K("Jêbire")} onClick={()=>delMsgT(msg)}><Ico n="trash" size={17}/></button>}
+                {msg.fireId&&<button type="button" data-msg-del={msg.fireId} className="c-iconbtn smb danger" aria-label={lang==="en"?"Delete":K("Jêbire")} onClick={()=>delMsgT(msg)}><Ico n="trash" size={17}/></button>}
               </div>
             );
           })}
@@ -8844,7 +8844,7 @@ function KidHeadClassSend({area,user,kids,guards,lang,toast}){
     <div style={{fontWeight:800,color:"var(--text)",margin:"14px 0 6px"}}>📋 {W("Yên min şandî","Sent by me")} ({sentL.length})</div>
     {sentL.map(p=>(<div key={p.fireId} data-ks-sent={p.fireId} className="card" style={{display:"flex",gap:10,alignItems:"flex-start"}}>
       <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,color:"var(--text)"}}>{(KINDS.find(x=>x[0]===p.type)||[,,"📢"])[2]} {p.title}</div><div style={{fontSize:12.5,color:"var(--text2)"}}>🏫 {p.className}{(p.studentNos||[]).length?" · "+p.studentNos.length+" "+W("zarok","children"):""}</div></div>
-      <button type="button" className="c-iconbtn sm danger" aria-label="🗑" onClick={()=>del(p)}><Ico n="trash" size={17}/></button></div>))}
+      <button type="button" className="c-iconbtn smb danger" aria-label="🗑" onClick={()=>del(p)}><Ico n="trash" size={17}/></button></div>))}
   </div>);
 }
 function KidHeadClasses({area,user,lang,toast}){
@@ -9121,9 +9121,9 @@ function LeavesPanel({user,students,schedule,area,all=false,kid=false,stuScope=n
             <div style={{fontSize:13.5,color:"var(--text)",marginTop:6,whiteSpace:"pre-wrap"}}>{l.reason}</div>
             <div style={{fontSize:12,color:"var(--text2)",marginTop:4}}>{l.by}{l.editedBy&&l.editedBy!==l.by?" · ✏ "+l.editedBy:""}</div>
           </div>
-          {canEdit(l)&&<div style={{display:"flex",flexDirection:"column",gap:6}}>
-            <button type="button" data-leave-edit={l.fireId} className="c-iconbtn sm" aria-label={W2("Rast bike","Edit")} onClick={()=>startEdit(l)}><Ico n="edit" size={17}/></button>
-            <button type="button" data-leave-del={l.fireId} className="c-iconbtn sm danger" aria-label={W2("Jêbire","Delete")} onClick={()=>del(l)}><Ico n="trash" size={17}/></button></div>}
+          {canEdit(l)&&<div data-leave-actions style={{display:"flex",flexDirection:"column",gap:6,flexShrink:0,width:36,minWidth:36}}>
+            <button type="button" data-leave-edit={l.fireId} className="c-iconbtn smb" aria-label={W2("Rast bike","Edit")} onClick={()=>startEdit(l)}><Ico n="edit" size={17}/></button>
+            <button type="button" data-leave-del={l.fireId} className="c-iconbtn smb danger" aria-label={W2("Jêbire","Delete")} onClick={()=>del(l)}><Ico n="trash" size={17}/></button></div>}
         </div>))}
       </div>
     </div>);
@@ -10842,7 +10842,7 @@ function HeadClassAnnounce({user,lang,toast}){
     <div style={{fontWeight:800,color:"var(--text)",margin:"14px 0 6px"}}>📋 {W("Yên min şandî","Sent by me")} ({sentL.length})</div>
     {sentL.map(p=>(<div key={p.fireId} data-hann-sent={p.fireId} className="card" style={{display:"flex",gap:10,alignItems:"flex-start"}}>
       <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,color:"var(--text)"}}>{p.title}</div><div style={{fontSize:12.5,color:"var(--text2)"}}>🏫 {p.className}</div><div style={{fontSize:13.5,color:"var(--text)",whiteSpace:"pre-wrap",marginTop:4}}>{p.body}</div></div>
-      <button type="button" className="c-iconbtn sm danger" aria-label="🗑" onClick={()=>del(p)}><Ico n="trash" size={17}/></button></div>))}
+      <button type="button" className="c-iconbtn smb danger" aria-label="🗑" onClick={()=>del(p)}><Ico n="trash" size={17}/></button></div>))}
   </div>);
 }
 
@@ -11010,7 +11010,7 @@ function AnnouncementsPanel({t,toast,lang,senderName,senderRole,senderArea,sende
                     <div key={mi} className="c-file"><Ico n="file" size={17}/>
                       <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</span>
                       <span style={{fontSize:12,color:"var(--text2)"}}>{m.size}</span>
-                      {safeHref(m.url)&&<a href={safeHref(m.url)} rel="noopener" download={m.name} className="c-iconbtn sm" aria-label={lang==="en"?"Download":K("Dakêşe")} onClick={e=>e.stopPropagation()}><Ico n="download" size={16}/></a>}
+                      {safeHref(m.url)&&<a href={safeHref(m.url)} rel="noopener" download={m.name} className="c-iconbtn smb" aria-label={lang==="en"?"Download":K("Dakêşe")} onClick={e=>e.stopPropagation()}><Ico n="download" size={16}/></a>}
                     </div>))}
                 </div>
               ):(
@@ -11024,7 +11024,7 @@ function AnnouncementsPanel({t,toast,lang,senderName,senderRole,senderArea,sende
                 <span style={{fontSize:12,color:"var(--text2)"}}>{ann.time}</span>
               </div>
             </div>
-            <button type="button" className="c-iconbtn sm danger" aria-label={lang==="en"?"Delete":K("Jêbire")} onClick={()=>delAnn(ann)}><Ico n="trash" size={17}/></button>
+            <button type="button" className="c-iconbtn smb danger" aria-label={lang==="en"?"Delete":K("Jêbire")} onClick={()=>delAnn(ann)}><Ico n="trash" size={17}/></button>
           </div>
           );
         })}
@@ -13300,7 +13300,7 @@ function TeacherAnnounceView({teacher, anns, setAnns, classGroups, lang, toast})
                   <div style={{fontSize:15,fontWeight:700,color:"var(--text)",marginTop:2}}>{ann.title}</div>
                   <div style={{fontSize:14,color:"var(--text)",lineHeight:1.55,marginTop:4,whiteSpace:"pre-wrap"}}>{ann.msg}</div>
                 </div>
-                {ann.fireId&&<button type="button" data-ann-del={ann.fireId} className="c-iconbtn sm danger" aria-label={lang==="en"?"Delete":K("Jêbire")} onClick={async e=>{ e.stopPropagation(); if(!window.confirm(lang==="en"?"Delete this announcement?":K("Ev ragihandin were jêbirin?"))) return; try{ await window.__FB.deleteAnnouncementForMe(ann.fireId); toast("🗑 "+(lang==="en"?"Deleted":K("Hate jêbirin"))); }catch(er){ toast("❌ "+((er&&er.code)||er)); } }}><Ico n="trash" size={17}/></button>}
+                {ann.fireId&&<button type="button" data-ann-del={ann.fireId} className="c-iconbtn smb danger" aria-label={lang==="en"?"Delete":K("Jêbire")} onClick={async e=>{ e.stopPropagation(); if(!window.confirm(lang==="en"?"Delete this announcement?":K("Ev ragihandin were jêbirin?"))) return; try{ await window.__FB.deleteAnnouncementForMe(ann.fireId); toast("🗑 "+(lang==="en"?"Deleted":K("Hate jêbirin"))); }catch(er){ toast("❌ "+((er&&er.code)||er)); } }}><Ico n="trash" size={17}/></button>}
               </div>
             );
           })}
@@ -13344,7 +13344,7 @@ function TeacherAnnounceView({teacher, anns, setAnns, classGroups, lang, toast})
                     <span style={{fontSize:12,color:"var(--text2)"}}>{p.createdAt&&p.createdAt.toDate?fmtDateTx(p.createdAt.toDate().toISOString()):""}</span>
                   </div>
                 </div>
-                <button type="button" className="c-iconbtn sm danger" aria-label={lang==="en"?"Delete":K("Jêbire")} onClick={()=>delPost(p)}><Ico n="trash" size={17}/></button>
+                <button type="button" className="c-iconbtn smb danger" aria-label={lang==="en"?"Delete":K("Jêbire")} onClick={()=>delPost(p)}><Ico n="trash" size={17}/></button>
               </div>
             ))}
           </div>
