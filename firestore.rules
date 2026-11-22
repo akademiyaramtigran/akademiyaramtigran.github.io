@@ -257,8 +257,9 @@ service cloud.firestore {
     match /schedule/{id} {
       allow read: if member();
       // Ders programı: yönetici (hepsi) + bölüm sorumlusu (kendi bölümü; genel sorumlu hepsi). Atölye dersini (ws_) de bölüm sorumlusu yazar; Öğrenci İşleri program yazmaz.
-      // Görev modeli v2: ders programını YALNIZ Öğrenci İşleri (ve yönetici) yazar; sorumlular okur / yoklama alır
-      allow create, update, delete: if isRegistrar();
+      // Ders programı: Öğrenci İşleri + yönetici (hepsi) ve bölüm sorumlusu (kendi bölümü; genel sorumlu genel alan)
+      allow create, update: if isRegistrar() || headSchedWrite();
+      allow delete: if isRegistrar() || (aatHead() && resource.data.get('area', '') == headArea());
     }
     // Sınıflar: öğrencinin sınıfı students.classLevel; sınıf öğretmeni burada (doc id = <alan>_<seviye>)
     // Sınıflar: bölüm sorumlusu KENDİ bölümünün sınıflarını açar / düzenler (genel sorumlu: bütün bölümlerin + genel sınıflar);
@@ -760,7 +761,8 @@ service cloud.firestore {
     }
     match /kidSchedule/{id} {
       allow read: if kidRead() || isGuardian();
-      allow create, update, delete: if isRegistrar();
+      allow create, update: if isRegistrar() || kidHeadSchedWrite();
+      allow delete: if isRegistrar() || kidHeadClassId(resource.data.get('classId', ''));
     }
     // Günlük görevlendirme (çocuk akademisi): dersin sorumlusu belirli bir tarih için başka çocuk öğretmenini / kendini görevlendirir
     function kidSchedPath(lf) { return /databases/$(database)/documents/kidSchedule/$(lf); }
