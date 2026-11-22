@@ -70,18 +70,21 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
     await p.locator('input.inp').first().fill(no); await p.locator('input[type=password]').first().fill(pw);
     await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000); return p;
   };
+  const regTab = async (pg, areaText, tab) => { await pg.evaluate(() => document.querySelector('.sm-it[data-key="qad"],.pano-tile[data-key="qad"]').click()); await pg.waitForTimeout(1200);
+    await pg.evaluate(a => [...document.querySelectorAll('.area-card')].filter(x => x.textContent.includes(a)).pop().click(), areaText); await pg.waitForTimeout(1200);
+    await pg.evaluate(t => document.querySelector('[data-area-tab="' + t + '"]').click(), tab); await pg.waitForTimeout(1200); };
   const topTab = (p, t) => p.evaluate(t => { const mv = [...document.querySelectorAll('.sm-it,.pano-tile')].filter(x => x.getClientRects().length); const m = mv.find(x => x.textContent.trim() === t) || mv.find(x => x.textContent.includes(t)); if (m) { m.click(); return; } const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes(t)).find(x => { if (x.matches('.sm-it,.pano-tile')) return true; const r = x.getBoundingClientRect(); return r.top > 60 && r.top < 240; }); b.scrollIntoView(); b.click(); }, t);
   const txt = p => p.evaluate(() => document.body.innerText);
   const getDocF = path => fetch(`${FS}/${path}`, { headers: H }).then(r => r.json());
   const cls = async n => (await list('classes')).find(d => d.fields.name && d.fields.name.stringValue === n);
   const idOf = d => d ? d.name.split('/').pop() : '';
-  const check = (p, name) => p.locator('label', { hasText: name }).locator('input[type=checkbox]').check();
+  const check = (p, name) => p.evaluate(n => { const l = [...document.querySelectorAll('label')].filter(x => x.textContent.includes(n) && x.querySelector('input[type=checkbox]')).pop(); const i = l.querySelector('input'); if (!i.checked) i.click(); }, name);
   const cardBtn = (p, cardText, btnText) => p.evaluate(([c, t]) => { const card = [...document.querySelectorAll('div')].filter(d => d.textContent.includes(c) && [...d.querySelectorAll('button')].some(x => x.textContent.includes(t))).pop();
     [...card.querySelectorAll('button')].find(x => x.textContent.includes(t)).click(); }, [cardText, btnText]);
 
   // ── 1) Alan sınıfı: Müzik · 1. Sınıf ──
-  let p = await login(await mk(), '96000001', 'Head1234');
-  await topTab(p, 'Sinif'); await p.waitForTimeout(1500);
+  let p = await login(await mk(), '98202601', 'Reg12345');   // sınıfları Öğrenci İşleri açar
+  await regTab(p, 'Muzîk', 'classes'); await p.waitForTimeout(500);
   ok('Alan sorumlusu: sınıfsız öğrenciler (yalnız kendi alanı)', /Bê sinif \(3\)/.test(await txt(p)));
   await clickText(p, '➕ Sinifa nû'); await p.waitForTimeout(300);
   await p.locator('input[aria-label="Navê sinifê"]').fill('1. Sînif');
@@ -102,8 +105,8 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   ok('Sınıf kartında ders programı görünür', /Solfej/.test(await txt(p)) && /1 ders di bernameyê de/.test(await txt(p)));
 
   // ── 3) Genel sınıf: tüm alanlardan öğrenci ──
-  const pg = await login(await mk(), '96000002', 'Head1234');
-  await topTab(pg, 'Sinifa Giştî'); await pg.waitForTimeout(1500);
+  const pg = await login(await mk(), '98202601', 'Reg12345');
+  await regTab(pg, 'Hemû Xwendekar', 'classes'); await pg.waitForTimeout(500);
   await clickText(pg, '➕ Sinifa giştî ya nû'); await pg.waitForTimeout(300);
   await pg.locator('input[aria-label="Navê sinifê"]').fill('Koro');
   await check(pg, 'Mamoste Dilovan'); await check(pg, 'Rojîn Aram'); await check(pg, 'Jîyan Roj');
@@ -122,7 +125,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   // ── 4) Atölye sınıfı: bölüm sorumlusu normal sınıf açar ve "Atölye" işaretler → öğrencileri otomatik atölye öğrencisi olur ──
   await clickText(p, '➕ Sinifa nû'); await p.waitForTimeout(300);
   await p.locator('input[aria-label="Navê sinifê"]').fill('Hafta Sonu');
-  await p.locator('input[data-class-ws]').check();
+  await p.evaluate(() => { const i = document.querySelector('input[data-class-ws]'); if (!i.checked) i.click(); });
   await check(p, 'Mamoste Dilovan'); await check(p, 'Elîf Dem');
   ok('Atölye formunda yalnız sınıfsız öğrenciler (1. Sînif\'teki Rojîn yok)', (await p.locator('label', { hasText: 'Rojîn Aram' }).count()) === 0 && (await p.locator('label', { hasText: 'Elîf Dem' }).count()) === 1);
   await clickText(p, '💾 Tomar bike'); await p.waitForTimeout(2000);
@@ -138,7 +141,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   
   await clickText(p, '➕ Sinifa nû'); await p.waitForTimeout(300);
   ok('Akademi sınıfı formunda atölye öğrencisi görünmez', (await p.locator('label', { hasText: 'Elîf Dem' }).count()) === 0);
-  await clickText(p, 'Betal').catch(() => {}); await p.reload(); await p.waitForTimeout(6000);
+  await clickText(p, 'Betal').catch(() => {}); await p.context().close(); p = await login(await mk(), '96000001', 'Head1234');
 
   // ── 5a) Sorumlunun program ekranı: atölye dersleri de görünür; bu hafta + gelecek hafta, biten ders arşiv/hafta seçimiyle ──
   const addDays = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
@@ -171,9 +174,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   ok('"Hemû": biten ders arşivde görünür', (await txt(pw)).includes('Atolyeya Borî'));
 
   // Ekleme formları kendi alanına özel: atölye alanında yalnız atölye sınıfı + tür seçimi yok; ana alanda atölye türü / atölye sınıfı yok
-  await pw.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => /Dersekî Nû/.test(x.textContent) && x.offsetParent); b && b.click(); }); await pw.waitForTimeout(900);
-  const wsForm = await pw.evaluate(() => ({ cat: document.querySelectorAll('[data-cat]').length, opts: [...document.querySelectorAll('select')].flatMap(x => [...x.options].map(o => o.textContent)).filter(t => /Sînif|Hafta Sonu/.test(t)) }));
-  ok('Atölye alanı ekleme formu: tür seçimi yok, yalnız atölye sınıfı', wsForm.cat === 0 && wsForm.opts.length >= 1 && wsForm.opts.every(t => /Hafta Sonu/.test(t)), JSON.stringify(wsForm));
+  ok('Sorumlu atölye / ana programda ders EKLEYEMEZ (yalnız Öğrenci İşleri yazar)', (await pw.locator('[data-add-lesson]').count()) === 0 && !(await pw.evaluate(() => [...document.querySelectorAll('button')].some(x => /Dersekî Nû/.test(x.textContent) && x.offsetParent))));
 
   // ── 5b) Bölüm sorumlusu raporu: Kapsam = Atölye (devam + değerlendirme), akademi raporunda atölye öğrencisi yok ──
   await goA(p, 'reports'); await p.waitForTimeout(1200);
