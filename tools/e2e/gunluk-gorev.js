@@ -81,6 +81,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   const sees = await tb.evaluate(() => document.body.innerText.includes('Şano 1'));
   ok('Görevli öğretmen dersi (yalnız o gün) görür', sees);
   await tb.evaluate(() => { const bt = [...document.querySelectorAll('button')].find(x => x.textContent.includes('Şano 1')); bt && bt.click(); }); await tb.waitForTimeout(1000);
+  await tb.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.includes('Dersê Dest Pê Bike') && x.offsetParent); b && b.click(); }); await tb.waitForTimeout(1500);
   await tb.evaluate(() => { const row = [...document.querySelectorAll('div')].filter(d => d.textContent.includes('Rojîn Aram') && d.querySelectorAll('.att-btn').length === 3).pop(); row.querySelectorAll('.att-btn')[0].click(); });
   await tb.evaluate(() => { const bt = document.querySelector('[data-att-save-list]') || [...document.querySelectorAll('button')].find(x => /^(Tomar bike|Kaydet|Tomar)$/.test(x.textContent.trim())); bt.click(); });
   await tb.waitForTimeout(2500);

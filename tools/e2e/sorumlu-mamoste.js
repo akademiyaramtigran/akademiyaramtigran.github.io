@@ -97,9 +97,7 @@ async function routes(ctx) {
     ok('Öğretmen panelinden sorumlu paneline geri döner', (await hp.locator('[data-role-switch="teacher"]').count()) >= 0 && (await txt(hp)).includes('Berpirs'));
     // Ders programı: öğretmen seçeneklerinde sorumlu (Berpirs) da var
     await goA(hp, 'schedule'); await hp.waitForTimeout(1500);
-    await hp.click('[data-add-lesson]'); await hp.waitForTimeout(800);
-    const opts = await hp.evaluate(() => { const s = [...document.querySelectorAll('select')].find(x => [...x.options].some(o => o.value === '50202601')); return s ? [...s.options].map(o => o.value + '|' + o.textContent) : []; });
-    ok('Ders atama listesinde sorumlu "(Berpirs)" etiketiyle çıkar', opts.some(o => o.startsWith('96000001|') && o.includes('Berpirs')), JSON.stringify(opts).slice(0, 250));
+    ok('Sorumlu programda ders ekleyemez (program Öğrenci İşleri\'nde)', (await hp.locator('[data-add-lesson]').count()) === 0);
     await hp.context().close();
   }
   // Öğretmen → bölüm sorumlusuna mesaj
