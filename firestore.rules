@@ -496,7 +496,8 @@ service cloud.firestore {
       allow create, update: if attLessonOk(id) || attHeadOk() || attAbsentOnlyOk() || stuQrOk(id);
       // Silme yalnız yönetici + öğrenci işleri (ders silinirken kayıtları); öğretmen geçmiş yoklamayı silip izini kaybettiremez
       // Silme: yönetici; bölüm sorumlusu kendi bölümünün (genel sorumlu hepsinin) ders kayıtlarını (ders silinirken);
-      allow delete: if isAdmin()
+      // Görev modeli v2: dersi silen Öğrenci İşleri de kayıtlarını siler
+      allow delete: if isRegistrar()
         || (aatHead() && resource.data.get('area', '') == headArea());
     }
     // Mesajlar: personel hepsini okur/yazar. Öğrenci yalnızca KENDİNE gelen özel mesajı

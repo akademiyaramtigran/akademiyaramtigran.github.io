@@ -78,9 +78,11 @@ async function routes(ctx) {
   ok('Bugün yalnız bugünün dersi listelenir', JSON.stringify(todayBtns) === '["LW"]', JSON.stringify(todayBtns));
   await tp.context().close();
 
-  // 2) Genel sorumlu (genel sınıfın programı onda): aynı sınıfa aynı gün ve saatte ders eklenirken uyarı (iptal → eklenmez)
-  const rp = await login(await mk(), '96000002', 'Head1234');
-  await rp.evaluate(() => document.querySelector('.sm-it[data-key="schedule"],.pano-tile[data-key="schedule"]').click()); await rp.waitForTimeout(1500);
+  // 2) Genel sorumlu (genel sınıfın programını Öğrenci İşleri yazar): aynı sınıfa aynı gün ve saatte ders eklenirken uyarı (iptal → eklenmez)
+  const rp = await login(await mk(), '98202601', 'Reg12345');
+  await rp.evaluate(() => document.querySelector('.sm-it[data-key="qad"],.pano-tile[data-key="qad"]').click()); await rp.waitForTimeout(1200);
+  await rp.evaluate(() => [...document.querySelectorAll('.area-card')].find(x => x.textContent.includes('Hemû Xwendekar')).click()); await rp.waitForTimeout(1200);
+  await rp.evaluate(() => document.querySelector('[data-area-tab="schedule"]').click()); await rp.waitForTimeout(1500);
   await rp.click('[data-add-lesson]'); await rp.waitForTimeout(1000);
   await rp.locator('select:has(option[value="G1"])').selectOption('G1');
   await rp.locator('input[placeholder="Armoni – Gr. A"]').fill('Ziman Dubare');

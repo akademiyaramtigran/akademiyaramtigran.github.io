@@ -177,9 +177,9 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
   await t('İtiraz: öğretmen itirazı okur', getDoc(doc(teacher, 'attObjections/L1-2026-11-02-10202601')), true);
   await t('İtiraz: öğretmen itiraz YAZAMAZ', setDoc(doc(teacher, 'attObjections/L1-2026-11-02-10202602'), oD({ studentNo: '10202602' })), false);
   await t('Öğretmen yoklama kaydı SİLEMEZ', deleteDoc(doc(teacher, 'attendance/s0_S2')), false);
-  await t('Öğrenci işleri normal ders yoklama kaydı SİLEMEZ (yalnız atölye)', deleteDoc(doc(as('98202601@ogretmen.aat'), 'attendance/sx_DEL')), false);
+  await t('Öğrenci işleri normal ders yoklama kaydı SİLER [v2: ders silinirken] (yalnız atölye)', deleteDoc(doc(as('98202601@ogretmen.aat'), 'attendance/sx_DEL')), true);
   await env.withSecurityRulesDisabled(async c => { await setDoc(doc(c.firestore(), 'attendance/wsx-2026-11-02'), { lessonId: 'wsx', area: 'genel', classId: 'ws_k1', date: '2026-11-02', records: {} }); });
-  await t('Öğrenci işleri atölye yoklama kaydını SİLEMEZ (bölüm sorumlusu siler)', deleteDoc(doc(as('98202601@ogretmen.aat'), 'attendance/wsx-2026-11-02')), false);
+  await t('Öğrenci işleri atölye yoklama kaydını SİLER [v2: ders silinirken] (bölüm sorumlusu siler)', deleteDoc(doc(as('98202601@ogretmen.aat'), 'attendance/wsx-2026-11-02')), true);
   await t('Yönetici yoklama kaydı siler', deleteDoc(doc(admin, 'attendance/sx_DEL')), true);
   await t('Öğrenci KENDİ QR kaydını okur', getDoc(doc(student, 'attendance/s1_S1')), true);
   await t('Öğrenci BAŞKASININ yoklamasını OKUYAMAZ', getDoc(doc(student, 'attendance/s0_S2')), false);

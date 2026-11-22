@@ -5764,7 +5764,7 @@ function AreaDetailModal({areaKey,students,teachers,schedule,onClose,t,lang,toas
           )}
           {tab==="classes"&&regMode&&<AcademyClassBoard headArea={areaKey} students={students} teachers={teachers} schedule={schedule} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>}
           {tab==="schedule"&&(
-            <AdminScheduleTab mode={schedMode}  fixedArea={areaKey} schedule={schedule} teachers={teachers} students={students} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>
+            <AdminScheduleTab mode={schedMode} canWrite={regMode} fixedArea={areaKey} schedule={schedule} teachers={teachers} students={students} lang={lang} t={t} toast={toast} onDataChange={onDataChange}/>
           )}
         </div>
       </div>
@@ -10721,7 +10721,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
       </div>
 
       {activeArea&&(
-        <AreaDetailModal areaKey={activeArea} students={students||[]} teachers={teachers||[]} schedule={schedule||[]} onClose={()=>setActiveArea(null)} t={t||T.ku} lang={lang} toast={toast} onDataChange={onDataChange} schedMode="full" regMode/>
+        <AreaDetailModal areaKey={activeArea} students={students||[]} teachers={teachers||[]} schedule={schedule||[]} onClose={()=>setActiveArea(null)} t={t||T.ku} lang={lang} toast={toast} onDataChange={onDataChange} schedMode="head" regMode/>
       )}
       {regCreds&&(
         <Sheet open={true} onClose={()=>setRegCreds(null)} title={L("regDone")}>
@@ -11368,8 +11368,9 @@ function HeadFixByDay({schedule,students,user,lang,toast}){
     {fix&&<AttendanceFixModal ls={fix} date={date} students={students||[]} user={user} lang={lang} toast={toast} onClose={()=>setFix(null)}/>}
   </details>);
 }
-function AdminScheduleTab({schedule, teachers, students, fixStudents, lang, t, toast, onDataChange, fixedArea=null, termsOnly=false, mode="full", byName="", byNo=""}) {
-  const canEdit = mode!=="view"&&mode!=="head", canAbsence = mode!=="view"&&!(mode==="head"&&fixedArea==="genel"), canTerms = mode!=="head";
+function AdminScheduleTab({schedule, teachers, students, fixStudents, lang, t, toast, onDataChange, fixedArea=null, termsOnly=false, mode="full", byName="", byNo="", canWrite=false}) {
+  // mode="head": sorumlu görünümü (salt okunur) · canWrite: Öğrenci İşleri aynı görünümle programı YAZAR
+  const canEdit = mode!=="view"&&(mode!=="head"||canWrite), canAbsence = mode!=="view"&&!(mode==="head"&&(fixedArea==="genel"||canWrite)), canTerms = mode!=="head";
   const [subFor,setSubFor]=useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [editingLesson, setEditingLesson] = useState(null);
