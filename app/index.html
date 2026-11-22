@@ -105,6 +105,11 @@
       bar.appendChild(msg); bar.appendChild(btn);
       (document.body||document.documentElement).appendChild(bar);
     }
+    // Yeni sürüm devreye girince: uygulama arka plandaysa (gizliyse) bir sonraki açılışta kendiliğinden yenilenir; açıksa banner kalır
+    (function(){ var had=!!navigator.serviceWorker.controller, pend=false;
+      navigator.serviceWorker.addEventListener('controllerchange', function(){ if(!had){ had=true; return; } pend=true; if(document.hidden){ try{ location.reload(); }catch(e){} } else showUpdateBanner(); });
+      document.addEventListener('visibilitychange', function(){ if(!document.hidden && pend){ try{ location.reload(); }catch(e){} } });
+    })();
     navigator.serviceWorker.register('./sw.js')
       .then(reg=>{
         window._swReg = reg;
@@ -1833,7 +1838,8 @@ function LangSelect({value,onChange}){
   const C=dark?{bg:"#16313a",pop:"#132a32",line:"rgba(231,199,123,.28)",ink:"#eef2f1",sel:"rgba(231,199,123,.14)",hov:"rgba(255,255,255,.06)",chip:"#22414b",chipInk:"#e7c77b",gold:"#e7c77b"}
                 :{bg:"#FBF8F1",pop:"#FFFDF8",line:"rgba(156,125,51,.32)",ink:"#1d2b33",sel:"rgba(184,146,63,.13)",hov:"rgba(15,47,56,.05)",chip:"#EFE6D2",chipInk:"#5f4b1d",gold:"#9c7d33"};
   const place=()=>{ const r=btn.current.getBoundingClientRect(), w=Math.max(r.width,240), vw=document.documentElement.clientWidth;
-    setPos({left:Math.min(Math.max(8,r.right-w),vw-w-8),top:r.bottom+8,width:w}); };
+    const vh=window.innerHeight, below=vh-r.bottom-16, up=r.top-16, flip=below<300&&up>below;   // alta sığmıyorsa yukarı aç
+    setPos({left:Math.min(Math.max(8,r.right-w),vw-w-8),width:w,...(flip?{bottom:vh-r.top+8,maxH:Math.max(160,up)}:{top:r.bottom+8,maxH:Math.max(160,below)})}); };
   const toggle=()=>{ if(open){setOpen(false);return;} place(); setAct(Math.max(0,AAT_LANGS.indexOf(value))); setOpen(true); };
   const pick=v=>{ setOpen(false); if(v!==value) onChange(v); try{btn.current.focus();}catch(_){} };
   useEffect(()=>{
@@ -1865,9 +1871,9 @@ function LangSelect({value,onChange}){
       <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" style={{opacity:.6,transition:"transform .2s",transform:open?"rotate(180deg)":"none"}}>
         <path d="M2 4.5l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>
     </button>
-    {open&&pos&&(
+    {open&&pos&&ReactDOM.createPortal(
       <ul ref={menu} role="listbox" aria-label="Ziman · Dil · Language" onKeyDown={onKey}
-        style={{position:"fixed",left:pos.left,top:pos.top,minWidth:pos.width,zIndex:2147483000,margin:0,padding:6,listStyle:"none",borderRadius:16,
+        style={{position:"fixed",left:pos.left,top:pos.top,bottom:pos.bottom,maxHeight:pos.maxH,overflowY:"auto",minWidth:pos.width,zIndex:2147483000,margin:0,padding:6,listStyle:"none",borderRadius:16,
           background:C.pop,border:"1px solid "+C.line,boxShadow:"0 18px 44px rgba(15,47,56,.18), 0 2px 6px rgba(15,47,56,.08)"}}>
         <li role="presentation" style={{padding:"8px 12px 6px",fontSize:10.5,fontWeight:700,letterSpacing:".14em",textTransform:"uppercase",color:C.gold}}>Ziman · Dil · Language</li>
         {AAT_LANGS.map((k,i)=>{ const on=k===value; return(
@@ -1882,7 +1888,7 @@ function LangSelect({value,onChange}){
             <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" style={{color:"#b8923f",visibility:on?"visible":"hidden"}}>
               <path d="M3 8.5l3.2 3L13 4.8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </li>); })}
-      </ul>
+      </ul>,document.body
     )}
   </>);
 }
@@ -10330,6 +10336,26 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   );
 }
 
+/* ── Öğrenci İşleri: alan sorumlusu atama (bütün alanların öğretmenleri, arama + alan süzgeci) ── */
+function RegistrarRoles({teachers,lang,toast}){
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const [q,setQ]=useState(""); const [af,setAf]=useState("all"); const [busy,setBusy]=useState("");
+  const list=nameSort((teachers||[]).filter(tc=>tc.no&&tc.area&&tc.area!=="genel"&&!isKidArea(tc.area)&&canTeach(tc)&&(af==="all"||tc.area===af)&&matchQ(q,tc.name,tc.no)),tc=>tc.name);
+  const toggle=async tc=>{ setBusy(String(tc.no)); try{ await setAreaHead(tc,!tc.isHead); toast("✅ "+tc.name); }catch(e){ toast("❌ "+((e&&e.code)||e)); } setBusy(""); };
+  return(<div data-reg-roles>
+    <SectionHeader>🧭 {W2("Berpirsên Beşan","Department heads")}</SectionHeader>
+    <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>{W2("Mamosteyek wekî berpirsê beşa xwe nîşan bike. Berpirs yoklama, destûr, peyam û raporan birêve dibe; bernameyê tenê Karûbarên Xwendekaran diguherîne.","Mark a teacher as head of their department. Heads manage attendance, leave, messages and reports; only Student Affairs edits the schedule.")}</div>
+    <SearchBox value={q} onChange={setQ} lang={lang}/>
+    <select value={af} onChange={e=>setAf(e.target.value)} style={{width:"100%",padding:"10px 12px",border:"1px solid var(--border2)",borderRadius:10,fontSize:13.5,background:"var(--surface)",color:"var(--text)",margin:"8px 0 12px"}}>
+      <option value="all">{W2("Hemû qad","All fields")}</option>
+      {AREAS.filter(a=>a.key!=="genel").map(a=>(<option key={a.key} value={a.key}>{a.icon} {areaName(a.key,lang)}</option>))}
+    </select>
+    {list.map(tc=>(<Card key={tc.no} style={{marginBottom:8}}><div style={{display:"flex",alignItems:"center",gap:8}}>
+      <span style={{flex:1,minWidth:0}}><b>{tc.name}</b> <span style={{fontSize:12,color:"var(--text2)"}}>· {tc.no} · {areaName(tc.area,lang)}{(tc.extraAreas||[]).length?" + "+tc.extraAreas.map(a=>areaName(a,lang)).join(", "):""}</span></span>
+      <button type="button" data-ah-toggle={String(tc.no)} className="c-chip" disabled={busy===String(tc.no)} onClick={()=>toggle(tc)} style={{background:tc.isHead?"#0f2f38":undefined,color:tc.isHead?"#fff":undefined}}>{tc.isHead?"✓ ":""}{W2("Berpirs","Head")}</button></div></Card>))}
+    {list.length===0&&<Card><div style={{fontSize:13,color:"var(--text2)",textAlign:"center",padding:12}}>{W2("Mamoste nehat dîtin.","No teachers found.")}</div></Card>}
+  </div>);
+}
 function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,onDataChange}){
   // ── Bölümler: serledan | qad (kayıt + program + dönem) | sinif | anket | rapor | zarok ──
   const [section,setSection]=useState("serledan");
@@ -10341,8 +10367,12 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
   const regTabs=[
     {key:"serledan",icon:"📋",label:lang==="en"?"Applications":K("Serlêdan")},
     {key:"qad",icon:"🎭",label:lang==="en"?"Art Fields · Registration":K("Qad · Tescîl")},
+    {key:"sinif",icon:"🏫",label:lang==="en"?"Classes":K("Sinif")},
+    {key:"program",icon:"📅",label:lang==="en"?"Lesson schedule":K("Bernameya Dersan")},
+    {key:"gorev",icon:"🧭",label:lang==="en"?"Roles":K("Peywir")},
     {key:"zarok",icon:"🎼",label:lang==="en"?"Children's Academy":K("Akademiya Zarokan")},
   ];
+  const [hubArea,setHubArea]=useState("genel");
   const [activeArea,setActiveArea]=useState(null);
   const [cfg,setCfg]=useState({open:false,startDate:"",endDate:"",note:""});
   const [cfgLoaded,setCfgLoaded]=useState(false);
@@ -10541,7 +10571,7 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
 
   return(
     <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
-      <SideMenu dock={["serledan","qad","zarok"]} open={menuOpen} onClose={()=>setMenuOpen(false)} onOpen={()=>setMenuOpen(true)} items={regTabs} activeKey={section}
+      <SideMenu dock={["serledan","qad","sinif","program"]} open={menuOpen} onClose={()=>setMenuOpen(false)} onOpen={()=>setMenuOpen(true)} items={regTabs} activeKey={section}
         onSelect={setSection} user={user}
         roleLabel={lang==="en"?"Student Affairs":K("Karûbarên Xwendekaran")}
         extraItems={[{icon:"↩",label:(t&&t.logout)||"Derkeve",onClick:onLogout,danger:true}]}/>
@@ -10598,6 +10628,20 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
           </>
         )}
 
+        {(section==="sinif"||section==="program")&&(<>
+          <SectionHeader>{section==="sinif"?"🏫 "+(lang==="en"?"Classes":K("Sinif")):"📅 "+(lang==="en"?"Lesson schedule":K("Bernameya Dersan"))}</SectionHeader>
+          <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>{section==="sinif"
+            ?(lang==="en"?"Pick a field (or “All students” for common classes). Create academy or workshop classes, assign class teachers and students.":K("Qadekê (an “Hemû Xwendekar” ji bo sinifên hevpar) hilbijêre. Sinifên akademiyê an atolyeyê ava bike, mamoste û xwendekaran bi sinifê ve girê bide."))
+            :(lang==="en"?"Pick a field, then add lessons: choose the class, the teacher, day and time.":K("Qadekê hilbijêre, paşê ders zêde bike: sinif, mamoste, roj û saet diyar bike."))}</div>
+          <select data-hub-area aria-label="Qad" value={hubArea} onChange={e=>setHubArea(e.target.value)} style={{width:"100%",padding:"11px 12px",border:"1px solid var(--border2)",borderRadius:10,fontSize:14,background:"var(--surface)",color:"var(--text)",marginBottom:12}}>
+            <option value="genel">🏫 {lang==="en"?"All students (common)":K("Hemû Xwendekar (hevpar)")}</option>
+            {AREAS.filter(a=>a.key!=="genel").map(a=>(<option key={a.key} value={a.key}>{a.icon} {areaName(a.key,lang)}</option>))}
+          </select>
+          {section==="sinif"
+            ?<AcademyClassBoard key={"cb-"+hubArea} headArea={hubArea} students={students||[]} teachers={teachers||[]} schedule={schedule||[]} lang={lang} t={t||T.ku} toast={toast} onDataChange={onDataChange}/>
+            :<AdminScheduleTab key={"sc-"+hubArea} mode="head" canWrite fixedArea={hubArea} schedule={schedule||[]} teachers={teachers||[]} students={students||[]} lang={lang} t={t||T.ku} toast={toast} onDataChange={onDataChange}/>}
+        </>)}
+        {section==="gorev"&&<RegistrarRoles teachers={teachers||[]} lang={lang} toast={toast}/>}
         {section==="zarok"&&<ZarokAdminPanel lang={lang} toast={toast} user={user}/>}
         {section!=="serledan"?null:(<>
 
@@ -14156,6 +14200,8 @@ function StudentReportModal({student,lang,onClose}){
   const weeks=[]; let w=evalWeek(); for(let i=0;i<8;i++){ weeks.unshift(w); w=evalWeekShift(w,-1); }
   const per={}; (att||[]).forEach(d=>{ const k=wkOfDate(d.date); const v=d.records[student.id]; const x=per[k]||(per[k]={on:0,late:0,off:0,leave:0}); if(x[v]!=null) x[v]++; });
   const bars=weeks.map(k=>{ const x=per[k]; const tot=x?x.on+x.late+x.off:0; return {k,x,tot,pct:tot?Math.round((x.on+x.late)/tot*100):null}; });
+  const sum={on:0,late:0,off:0,leave:0}; (att||[]).forEach(d=>{ const v=d.records[student.id]; if(sum[v]!=null) sum[v]++; });
+  const sumN=sum.on+sum.late+sum.off, sumPct=sumN?Math.round((sum.on+sum.late)/sumN*100):null;
   const recent=(att||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,12);
   const ic={on:"✅",late:"⏱",off:"❌",leave:"🏷"};
   const M=calMonths();
@@ -14168,6 +14214,14 @@ function StudentReportModal({student,lang,onClose}){
           <div style={{flex:1}}><div style={{fontSize:15,fontWeight:800,color:"var(--text)"}}>{student.name}</div><div style={{fontSize:11,color:"var(--text2)"}}>{student.no} · {areaName(student.area,lang)}</div></div>
           <button onClick={onClose} aria-label="✕" style={{border:"none",background:"var(--bg2)",borderRadius:"50%",width:34,height:34,cursor:"pointer",color:"var(--text)"}}>✕</button>
         </div>
+        <Card style={{marginBottom:10}}>
+          <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:8}}>🧮 {W2("Kurteya hemû dersan","Summary — all lessons")}</div>
+          {att===null?<div style={{fontSize:12,color:"var(--text2)"}}>⏳</div>:<div data-att-summary style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
+            {[[sum.on+sum.late,W2("Beşdar bû","Attended"),"var(--green,#16a34a)"],[sum.off,W2("Tunebû","Absent"),"var(--red,#dc2626)"],[sum.leave,W2("Destûrî","Excused"),"#b8923f"],[sumPct==null?"—":sumPct+"%",W2("Rêje","Rate"),"var(--text)"]].map(([v,l,c],i)=>(
+              <div key={i} className="c-stat"><div className="c-stat-v" style={{color:c}}>{v}</div><div className="c-stat-l">{l}</div></div>))}
+          </div>}
+          {att!==null&&<div style={{fontSize:11,color:"var(--text2)",marginTop:6}}>{W2("Hemû ders","Total lessons")}: {sumN+sum.leave} · {W2("Dereng","Late")}: {sum.late}</div>}
+        </Card>
         <Card style={{marginBottom:10}}>
           <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:8}}>📈 {W2("Amadebûn — 8 hefteyên dawî","Attendance — last 8 weeks")}</div>
           {att===null?<div style={{fontSize:12,color:"var(--text2)"}}>⏳</div>:<>
