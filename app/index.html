@@ -12611,7 +12611,7 @@ function StudentAttendanceReport({students,schedule,allSchedule,teachers,allTeac
   const tf=useTeacherLessonFilter({students,teachers,schedule,allSchedule,allTeachers,clsDocs,docScope});
   const [view,setView]=useState("lesson");
   const [clsF,setClsF]=useState("all"), [q,setQ]=useState("");
-  const [openL,setOpenL]=useState(null), [detail,setDetail]=useState(null);
+  const [openL,setOpenL]=useState(null), [detail,setDetail]=useState(null), [openS,setOpenS]=useState(null);
   const SCH=allSchedule||schedule||[], TCH=allTeachers||teachers||[];
   const lsById=new Map(SCH.map(l=>[String(l.id),l]));
   const stById=new Map((students||[]).filter(s=>!s.isAdmin).map(s=>[String(s.id),s]));
@@ -12652,6 +12652,7 @@ function StudentAttendanceReport({students,schedule,allSchedule,teachers,allTeac
     .sort((a,b)=>trCmp(a.s.name,b.s.name));   // alfabetik (arama kutusuyla birlikte)
   const leavesOf=s=>(leaves||[]).filter(l=>!l.kid&&String(l.studentNo)===String(s.no)&&!(l.to<from||l.from>to));
   const leaveTxt=s=>leavesOf(s).map(l=>(l.reason||"")+" ("+fmtDateTx(l.from)+(l.to&&l.to!==l.from?" – "+fmtDateTx(l.to):"")+((l.lessonNames||[]).length?" · "+l.lessonNames.join(", "):"")+")").join("; ");
+  const detRows=s=>studentLessonRows(docs,String(s.id),s.no,lsById,leaves);
   const rated=rows.filter(r=>r.st.totalLessons>0);
   const avg=rated.length?Math.round(rated.reduce((a,r)=>a+r.st.att,0)/rated.length):null;
   const risk=rated.filter(r=>r.st.att<70).length;
@@ -12672,6 +12673,9 @@ function StudentAttendanceReport({students,schedule,allSchedule,teachers,allTeac
       downloadCSV("amadebun-ders-"+from+"_"+to+".csv",out); }
     else { const out=[[W2("Xwendekar","Student"),"No",W2("Ders","Lessons"),W2("Hat","Present"),W2("Dereng","Late"),W2("Nehat","Absent"),W2("Destûrî","Leave"),"%",W2("Destûr","Leave notes")]];
       rows.forEach(r=>out.push([r.s.name,r.s.no,r.st.totalLessons,r.st.attended,r.st.late,r.st.absent,r.st.leaves,r.st.totalLessons?r.st.att:"",leaveTxt(r.s)]));
+      out.push([]); out.push([W2("Hûrgulî — her ders","Details — every lesson")]);
+      out.push([W2("Xwendekar","Student"),"No",W2("Tarîx","Date"),W2("Ders","Lesson"),W2("Mamoste","Teacher"),W2("Rewş","Status"),W2("Sedema destûrê","Leave reason")]);
+      rows.forEach(r=>detRows(r.s).sort((a,b)=>String(a.date).localeCompare(String(b.date))).forEach(d=>out.push([r.s.name,r.s.no,d.date,d.lesson,d.teacher,attStTx(d.st,lang),d.reason])));
       downloadCSV("amadebun-xwendekar-"+from+"_"+to+".csv",out); }
     logReportArchive({type:"csv",label:"CSV · "+W2("Amadebûn","Attendance")+" · "+periodTx,by:byName||""}); toast("⬇ CSV");
   }
@@ -12679,7 +12683,8 @@ function StudentAttendanceReport({students,schedule,allSchedule,teachers,allTeac
     const H=x=>String(x==null?"":x).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"})[c]);
     const body=view==="lesson"
       ?"<table><tr><th>"+H(W2("Tarîx","Date"))+"</th><th>"+H(W2("Ders","Lesson"))+"</th><th>"+H(W2("Mamoste","Teacher"))+"</th><th>%</th><th>"+H(W2("Nehat","Absent"))+"</th><th>"+H(W2("Dereng","Late"))+"</th><th>"+H(W2("Destûrî","Leave"))+"</th></tr>"+sessRows.map(r=>"<tr><td style='white-space:nowrap'>"+H(fmtDateTx(r.date))+"</td><td>"+H(r.name)+"</td><td>"+H(r.teacher)+"</td><td>"+(r.pct==null?"—":r.pct+"%")+"</td><td>"+H(r.off)+"</td><td>"+H(r.late)+"</td><td>"+H(r.leave)+"</td></tr>").join("")+"</table>"
-      :"<table><tr><th>"+H(W2("Xwendekar","Student"))+"</th><th>No</th><th>"+H(W2("Ders","Lessons"))+"</th><th>✓</th><th>⏱</th><th>✗</th><th>🏷</th><th>%</th></tr>"+rows.map(r=>"<tr><td>"+H(r.s.name)+"</td><td>"+H(r.s.no)+"</td><td>"+r.st.totalLessons+"</td><td>"+r.st.attended+"</td><td>"+r.st.late+"</td><td>"+r.st.absent+"</td><td>"+r.st.leaves+"</td><td>"+(r.st.totalLessons?r.st.att+"%":"—")+"</td></tr>").join("")+"</table>";
+      :"<table><tr><th>"+H(W2("Xwendekar","Student"))+"</th><th>No</th><th>"+H(W2("Ders","Lessons"))+"</th><th>✓</th><th>⏱</th><th>✗</th><th>🏷</th><th>%</th></tr>"+rows.map(r=>"<tr><td>"+H(r.s.name)+"</td><td>"+H(r.s.no)+"</td><td>"+r.st.totalLessons+"</td><td>"+r.st.attended+"</td><td>"+r.st.late+"</td><td>"+r.st.absent+"</td><td>"+r.st.leaves+"</td><td>"+(r.st.totalLessons?r.st.att+"%":"—")+"</td></tr>").join("")+"</table>"
+        +rows.filter(r=>detRows(r.s).length).map(r=>"<h3 style='margin:16px 0 4px'>"+H(r.s.name)+" · "+H(r.s.no)+"</h3><table><tr><th>"+H(W2("Tarîx","Date"))+"</th><th>"+H(W2("Ders","Lesson"))+"</th><th>"+H(W2("Mamoste","Teacher"))+"</th><th>"+H(W2("Rewş","Status"))+"</th><th>"+H(W2("Sedema destûrê","Leave reason"))+"</th></tr>"+detRows(r.s).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date))).map(d=>"<tr><td style='white-space:nowrap'>"+H(fmtDateTx(d.date))+"</td><td>"+H(d.lesson)+"</td><td>"+H(d.teacher)+"</td><td>"+H(ATT_ST[d.st][0]+" "+attStTx(d.st,lang))+"</td><td>"+H(d.reason)+"</td></tr>").join("")+"</table>").join("");
     openPrintHTML("<!doctype html><html><head><meta charset='utf-8'><title>"+H(W2("Raporê amadebûnê","Attendance report"))+"</title><style>body{font-family:system-ui,sans-serif;padding:20px;color:#102A31}table{border-collapse:collapse;width:100%;font-size:12px}th,td{border:1px solid #d0d5dd;padding:5px 7px;text-align:left}th{background:#f2f4f7}</style></head><body><h2>"+H(BRAND())+" · "+H(W2("Raporê amadebûnê","Attendance report"))+"</h2><div>"+H(periodTx)+(clsObj?" · "+H(classLabel(clsObj,lang)):"")+(tf.teachObj?" · "+H(tf.teachObj.name):"")+"</div><br>"+body+"<script>setTimeout(()=>print(),300)<\/script></body></html>");
     logReportArchive({type:"liste",label:W2("Amadebûn","Attendance")+" · "+periodTx,by:byName||""});
   }
@@ -12734,7 +12739,7 @@ function StudentAttendanceReport({students,schedule,allSchedule,teachers,allTeac
       <Card>
         {rows.length===0&&<div style={{textAlign:"center",padding:14,color:"var(--text2)",fontSize:13}}>{W2("Xwendekar tune.","No students.")}</div>}
         {rows.map(({s,st})=>{ const a=AREA_MAP[s.area]||AREA_MAP["genel"]||{color:"#0f2f38"};
-          return(<div key={s.id} data-rep-student={s.no} onClick={()=>setDetail(s)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",cursor:"pointer",borderBottom:"1px solid #EEF1F2"}}>
+          return(<React.Fragment key={s.id}><div data-rep-student={s.no} onClick={()=>setDetail(s)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",cursor:"pointer",borderBottom:"1px solid #EEF1F2"}}>
             <Avatar name={s.name} color={a.color} size={36} photo={s.photo}/>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:14,fontWeight:600,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</div>
@@ -12742,7 +12747,9 @@ function StudentAttendanceReport({students,schedule,allSchedule,teachers,allTeac
               {(st.leaves>0||leavesOf(s).length>0)&&<div data-rep-leave style={{fontSize:10.5,color:"#185FA5"}} title={leaveTxt(s)}>🏷 {W2("Destûrî","On leave")}{st.leaves?": "+st.leaves+" "+W2("ders","lessons"):""}{leaveTxt(s)?" · "+leaveTxt(s):""}</div>}
             </div>
             <div className="c-pct" style={{color:attColorOf(st)}}>{attTextOf(st)}</div>
-          </div>); })}
+          </div>
+          {(<div key={"d"+s.id}><button type="button" data-rep-detail-toggle={s.no} onClick={()=>setOpenS(openS===s.id?null:s.id)} style={{background:"none",border:"none",color:"var(--accent)",fontSize:12,fontWeight:700,cursor:"pointer",padding:"2px 0 6px 48px"}}>{openS===s.id?"▾ ":"▸ "}{W2("Hûrgulî (ders û tarîx)","Details (lessons & dates)")} ({detRows(s).length})</button>
+            {openS===s.id&&<div data-rep-detail={s.no} style={{padding:"0 0 8px 48px"}}><AttDetailList rows={detRows(s)} lang={lang}/></div>}</div>)}</React.Fragment>); })}
       </Card>
     </>}
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:10}}>
@@ -12753,7 +12760,7 @@ function StudentAttendanceReport({students,schedule,allSchedule,teachers,allTeac
       <summary style={{cursor:"pointer",fontWeight:800,color:"var(--text)",padding:"10px 0"}}>🏷 {W2("Tomarên destûrê","Leave records")}</summary>
       <LeavesPanel readOnly students={[]} area={headArea||""} all={!headArea} stuScope={headArea==="genel"?students:null} lang={lang} toast={toast}/>
     </details>
-    {detail&&<StudentReportModal student={detail} lang={lang} onClose={()=>setDetail(null)}/>}
+    {detail&&<StudentReportModal student={detail} lang={lang} teachers={TCH} lessons={SCH} onClose={()=>setDetail(null)}/>}
   </div>);
 }
 
@@ -13801,6 +13808,8 @@ function GeneralAnalysis({students,teachers,schedule,allSchedule,allTeachers,doc
   const [att0,setAtt]=useState([]); const att=useAttCalc(att0,students).docs;   // kesinleşmiş + izinler uygulanmış
   const sEv=EV_NONE, tEv=EV_NONE;
   const efR=useEvalDocs("evalResponses","academy","aat",!noEvals);
+  const efForms=useEvalForms(null,null);
+  const leavesAll=useLeaves(true);
   const clsDocs=useClassDocs("classes");
   const terms=useTerms();
   const SCH=allSchedule||schedule||[], TCH=allTeachers||teachers||[];
@@ -13900,6 +13909,12 @@ function GeneralAnalysis({students,teachers,schedule,allSchedule,allTeachers,doc
     if(who==="lesson"||who==="class"){ const docs=att.filter(d=>d.date>=cF&&d.date<=cT&&!d.teacherAbsent&&d.records&&(!docScope||docScope.has(String(d.lessonId)))&&(who==="lesson"?String(d.lessonId)===r.k:(((lsById.get(String(d.lessonId))||{}).classId)||d.classId)===r.k));
       const per=new Map(); docs.forEach(d=>Object.entries(d.records).forEach(([sid,v])=>{ if(!stById.has(String(sid))) return; const x=per.get(sid)||{on:0,late:0,off:0,leave:0}; if(x[v]!=null) x[v]++; per.set(sid,x); }));
       out.lines=[...per.entries()].map(([sid,x])=>({name:(stById.get(String(sid))||{}).name||sid,sub:"",pct:pctOf(x),off:x.off,late:x.late,leave:x.leave})).sort((a,b)=>(a.pct==null?101:a.pct)-(b.pct==null?101:b.pct)); }
+    if(who==="student"){ const stu=stById.get(r.k);
+      out.sess=stu?studentLessonRows(att.filter(d=>d.date>=cF&&d.date<=cT&&!d.teacherAbsent&&(!docScope||docScope.has(String(d.lessonId)))),String(stu.id),stu.no,lsById,leavesAll):[];
+      out.evs=stu&&!noEvals?efR.filter(x=>x.direction==="t2s"&&String(x.targetNo)===String(stu.no)&&x.score10!=null&&efRespDate(x)>=cF&&efRespDate(x)<=cT&&(!teachScope||teachScope.has(String(x.raterNo)))).map(x=>{ const f=efForms.find(y=>y.fireId===x.formId);
+        return {date:efRespDate(x),title:(f&&f.title)||"",score10:Number(x.score10),rater:tName(x.raterNo),items:evalAnswerItems(x,f)}; }).sort((a,b)=>String(b.date).localeCompare(String(a.date))):[]; }
+    if(who==="teacher"&&!noEvals) out.evs=efR.filter(x=>x.direction==="s2t"&&String(x.targetNo)===String(r.k)&&x.score10!=null&&efRespDate(x)>=cF&&efRespDate(x)<=cT).map(x=>{ const f=efForms.find(y=>y.fireId===x.formId);
+        return {date:efRespDate(x),title:(f&&f.title)||"",score10:Number(x.score10),rater:"",items:evalAnswerItems(x,f)}; }).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
     if(who==="student") out.notes=cur.N.st.filter(n=>n.k===r.k);
     if(who==="teacher") out.notes=cur.N.tc.filter(n=>n.k===r.k);
     out.notes=out.notes.sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,8);
@@ -13923,6 +13938,8 @@ function GeneralAnalysis({students,teachers,schedule,allSchedule,allTeachers,doc
 <p style="font-size:13px"><b>${H(W2("Amadebûn","Attendance"))}:</b> ${r.att==null?"—":r.att+"%"} ${tr(r.tA)}${noEvals?"":` · <b>${H(W2("Nirxandin","Evaluation"))}:</b> ${r.ev==null?"—":r.ev.toFixed(1)+"/10"} ${tr(r.tE)}`}</p>
 <div style="font-size:12px;font-weight:700;margin-top:10px">${H(W2("6 mehên dawî — stûn: amadebûn %, xet: nirxandin","Last 6 months — bars: attendance %, line: evaluation"))}</div>${chartSVG(d.sr)}
 ${lines?`<table><thead><tr><th>${H(who==="student"||who==="teacher"?W2("Ders","Lesson"):W2("Xwendekar","Student"))}</th><th>%</th><th>${H(W2("Nehat","Absent"))}</th><th>${H(W2("Dereng","Late"))}</th><th>${H(W2("Destûr","Leave"))}</th></tr></thead><tbody>${lines}</tbody></table>`:""}
+${d.sess&&d.sess.length?`<div style="font-size:12px;font-weight:700;margin-top:14px">${H(W2("Hemû ders — hûrgulî","All lessons — details"))}</div><table><thead><tr><th>${H(W2("Tarîx","Date"))}</th><th>${H(W2("Ders","Lesson"))}</th><th>${H(W2("Rewş","Status"))}</th><th>${H(W2("Sedema destûrê","Leave reason"))}</th></tr></thead><tbody>${d.sess.map(x=>`<tr><td>${H(fmtDateTx(x.date))}</td><td>${H(x.lesson)}${x.teacher?`<div style="font-size:10px;color:#667085">${H(x.teacher)}</div>`:""}</td><td>${H(ATT_ST[x.st][0]+" "+attStTx(x.st,lang))}</td><td>${H(x.reason)}</td></tr>`).join("")}</tbody></table>`:""}
+${d.evs&&d.evs.length?`<div style="font-size:12px;font-weight:700;margin-top:14px">${H(W2("Nirxandin — bersivên her pirsê","Evaluation — answer to every question"))}</div>`+d.evs.map(e=>`<div style="margin-top:8px;font-size:12px"><b>${H(e.title)}</b> · ${e.score10.toFixed(1)}/10 · ${H(fmtDateTx(e.date))}${e.rater?" · "+H(e.rater):""}${e.items.map(it=>`<div>• ${H(it.label)}${it.sc!=null?": <b>"+it.sc+"/10</b>":""}${it.note?` <i>“${H(it.note)}”</i>`:""}</div>`).join("")}</div>`).join(""):""}
 ${d.notes.length?`<div style="font-size:12px;font-weight:700;margin-top:14px">${H(W2("Nîşeyên dawî","Latest notes"))}</div>`+d.notes.map(n=>`<div style="font-size:12px;color:#444;font-style:italic;margin-top:4px">${H(evalShortDate(n.date))}${n.by?" · "+H(n.by):""}${n.sc!=null?" · "+n.sc:""} — “${H(n.note)}”</div>`).join(""):""}
 </div><div class="np"><button onclick="window.print()" style="padding:10px 18px;background:#0f2f38;color:#fff;border:none;border-radius:8px;font-weight:700">📄 PDF / ${H(W2("Çap bike","Print"))}</button></div></body></html>`);
     logReportArchive({type:"analiz",label:ttl+" · "+periodLabel,by:byName||""});
@@ -13967,6 +13984,8 @@ ${d.notes.length?`<div style="font-size:12px;font-weight:700;margin-top:14px">${
           <span style={{flex:1}}><b>{x.name}</b>{x.sub?<span style={{color:"var(--text2)"}}> · {x.sub}</span>:null}</span>
           <span style={{color:"var(--text2)"}}>❌ {x.off}{x.late?" · ⏱ "+x.late:""}{x.leave?" · 🏷 "+x.leave:""}</span>
           <b style={{color:col(x.pct),minWidth:42,textAlign:"right"}}>{x.pct==null?"—":x.pct+"%"}</b></div>))}</div>}
+        {who==="student"&&det.sess&&det.sess.length>0&&<div data-an-sessions="1" style={{marginTop:10}}><div style={{fontSize:12,fontWeight:800,color:"var(--text)",marginBottom:4}}>📋 {W2("Hemû ders — hûrgulî","All lessons — details")} ({det.sess.length})</div><AttDetailList rows={det.sess} lang={lang} max={260}/></div>}
+        {det.evs&&det.evs.length>0&&<div data-an-evs="1" style={{marginTop:10}}><div style={{fontSize:12,fontWeight:800,color:"var(--text)",marginBottom:4}}>📝 {W2("Nirxandin — bersivên her pirsê","Evaluation — answer to every question")}</div><EvalAnswerList entries={det.evs} lang={lang} showRater={who==="student"}/></div>}
         {det.notes.length>0&&<div style={{marginTop:8}}><div style={{fontSize:12,fontWeight:800,color:"var(--text)"}}>{W2("Nîşeyên dawî","Latest notes")}</div>
           {det.notes.map((n,i)=><div key={i} data-an-note="1" style={{fontSize:12,color:"var(--text2)",fontStyle:"italic",marginTop:3}}>{evalShortDate(n.date)}{n.by?" · 👩‍🏫 "+n.by:""}{n.sc!=null?" · "+n.sc:""} — “{n.note}”</div>)}</div>}
         <button data-an-cardpdf="1" onClick={()=>pdfCard(r)} style={{marginTop:10,width:"100%",padding:10,borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:13,cursor:"pointer"}}>📄 {W2("Karne (PDF)","Report card (PDF)")}</button>
@@ -14173,6 +14192,9 @@ function EvalCombinedReport({who,students,teachers,allTeachers,lang,toast,headAr
         <span style={{fontSize:18,fontWeight:800,color:col(r.avg)}}>{r.avg==null?"—":r.avg.toFixed(1)}</span>
       </button>
       {openK===r.no&&<div data-eval-detail={r.no} style={{padding:"0 12px 12px"}}>
+        <div style={{fontSize:12,fontWeight:800,color:"var(--text)",margin:"2px 0 4px"}}>{W2("Her nirxandin û bersiv","Every evaluation & its answers")}</div>
+        <EvalAnswerList lang={lang} showRater={isS} entries={r.list.map(e=>({date:e.date,title:e.title,score10:e.score10,rater:isS?e.teacherName:"",items:e.items}))}/>
+        <div style={{fontSize:12,fontWeight:800,color:"var(--text)",margin:"8px 0 2px"}}>{W2("Navgîna her pirsê","Average per question")}</div>
         {r.byQ.map(q=>(<div key={q.label} style={{padding:"6px 0",borderTop:"1px solid var(--border2)"}}>
           <div style={{display:"flex",justifyContent:"space-between",gap:8,fontSize:12.5,color:"var(--text)"}}><span style={{fontWeight:700}}>{q.label}</span><b style={{color:col(q.avg)}}>{q.avg==null?"":q.avg.toFixed(1)}</b></div>
           {q.notes.map((n,j)=><div key={j} data-eval-note="1" style={{fontSize:12,color:"var(--text2)",fontStyle:"italic",marginTop:3}}>{n.date?evalShortDate(n.date)+" · ":""}{n.by?"👩‍🏫 "+n.by+" · ":""}{n.sc!=null?n.sc+" — ":""}“{n.note}”</div>)}
@@ -14185,13 +14207,56 @@ function EvalCombinedReport({who,students,teachers,allTeachers,lang,toast,headAr
 }
 const evalShortDate=d=>{ const p=String(d||"").split("-").map(Number); if(p.length<3||!p[0]) return String(d||""); const M=calMonths(); return p[2]+" "+String(M[p[1]-1]||"").slice(0,3)+" "+p[0]; };
 // ── Öğrenci ayrıntısı (rapor): GERÇEK haftalık devam grafiği + son dersler + öğretmen değerlendirmeleri ──
-function StudentReportModal({student,lang,onClose}){
+// ── Rapor ayrıntıları: öğrencinin hangi dersine nasıl katıldığı (+ izin nedeni) ve değerlendirme cevapları ──
+const ATT_ST={on:["✅","Beşdar bû","Present","#15803d"],late:["⏱","Dereng","Late","#b45309"],off:["❌","Nehat","Absent","#b42318"],leave:["🏷","Destûrî","Excused","#185FA5"]};
+const attStTx=(v,lang)=>{ const x=ATT_ST[v]; return x?(lang==="en"?x[2]:K(x[1])):""; };
+function leaveReasonFor(leaves,stuNo,date,lessonId){
+  const l=(leaves||[]).find(l=>!l.kid&&String(l.studentNo)===String(stuNo)&&l.from<=date&&l.to>=date&&(!(l.lessonIds||[]).length||(l.lessonIds||[]).map(String).includes(String(lessonId))));
+  return l?(l.reason||""):"";
+}
+// Öğrencinin kesinleşmiş dersleri: [{date,lesson,teacher,st,reason}] (yeniden eskiye)
+function studentLessonRows(docs,stuId,stuNo,lsById,leaves){
+  const out=[]; (docs||[]).forEach(d=>{ const v=d.records&&d.records[stuId]; if(!ATT_ST[v]) return; const ls=lsById&&lsById.get(String(d.lessonId));
+    out.push({date:d.date,lesson:(ls&&ls.name)||d.lessonName||String(d.lessonId),teacher:(ls&&(ls.teacherName||ls.guestTeacher))||d.teacherName||"",st:v,reason:v==="leave"?leaveReasonFor(leaves,stuNo,d.date,d.lessonId):""}); });
+  return out.sort((a,b)=>String(b.date).localeCompare(String(a.date))||String(a.lesson).localeCompare(String(b.lesson)));
+}
+// Bir değerlendirme cevabı → soru soru [{label,sc,note}]
+function evalAnswerItems(r,f){
+  const qs=(f&&f.questions)||[];
+  return qs.map(q=>{ const v=r.answers&&r.answers[q.id]; const n=(r.notes&&r.notes[q.id])||"";
+    return q.type==="score"?{label:q.text,sc:Number(v)>=1?Number(v):null,note:n}:{label:q.text,sc:null,note:v?String(v):""}; }).filter(x=>x.sc!=null||x.note);
+}
+function AttDetailList({rows,lang,max=300}){
   const W2=(ku,en)=>lang==="en"?en:K(ku);
-  const [att,setAtt]=useState(null), [evs,setEvs]=useState([]);
+  if(!rows.length) return <div style={{fontSize:12,color:"var(--text2)"}}>{W2("Hîn tomar tune.","No records yet.")}</div>;
+  return(<div data-att-detail="1" style={{maxHeight:max,overflowY:"auto"}}>{rows.map((d,i)=>(<div key={i} data-att-detail-row={d.st} style={{fontSize:12,color:"var(--text)",padding:"5px 0",borderTop:i?"0.5px solid var(--border)":"none"}}>
+    <div style={{display:"flex",gap:8,alignItems:"baseline"}}><span>{ATT_ST[d.st][0]}</span><span style={{flex:1,minWidth:0}}><b>{d.lesson}</b>{d.teacher?<span style={{color:"var(--text2)"}}> · {d.teacher}</span>:null}</span>
+      <span style={{color:ATT_ST[d.st][3],fontWeight:700}}>{attStTx(d.st,lang)}</span><span style={{color:"var(--text2)"}}>{fmtDateTx(d.date)}</span></div>
+    {d.st==="leave"&&<div data-leave-reason="1" style={{color:"#185FA5",marginLeft:24}}>🏷 {W2("Sedema destûrê","Leave reason")}: {d.reason||"—"}</div>}
+  </div>))}</div>);
+}
+function EvalAnswerList({entries,lang,showRater=true}){
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  if(!entries.length) return <div style={{fontSize:12,color:"var(--text2)"}}>{W2("Hîn nirxandin tune.","No evaluations yet.")}</div>;
+  return(<div data-eval-answers="1">{entries.map((e,i)=>(<div key={i} data-eval-answer style={{padding:"7px 0",borderTop:i?"0.5px solid var(--border)":"none",fontSize:12}}>
+    <div style={{display:"flex",gap:8,alignItems:"baseline"}}><b style={{flex:1}}>{e.title||W2("Form","Form")}</b>{e.score10!=null&&<b>{Number(e.score10).toFixed(1)}/10</b>}<span style={{color:"var(--text2)"}}>{e.date?fmtDateTx(e.date):""}</span></div>
+    {showRater&&e.rater&&<div style={{color:"var(--text2)"}}>👩‍🏫 {e.rater}</div>}
+    {e.items.map((it,j)=>(<div key={j} style={{display:"flex",gap:8,marginTop:2}}><span style={{flex:1,color:"var(--text)"}}>• {it.label}</span>
+      {it.sc!=null&&<b data-eval-score style={{minWidth:34,textAlign:"right"}}>{it.sc}/10</b>}</div>)).concat(e.items.filter(it=>it.note).map((it,j)=>(<div key={"n"+j} style={{color:"var(--text2)",fontStyle:"italic",marginLeft:10}}>“{it.note}”</div>)))}
+  </div>))}</div>);
+}
+function StudentReportModal({student,lang,onClose,teachers=[],lessons=[]}){
+  const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const [att0,setAtt]=useState(null), [evs,setEvs]=useState([]);
+  const AC=useAttCalc(att0||[],[student]);
+  const att=att0===null?null:AC.docs.filter(d=>d.records&&d.records[student.id]!=null);   // kesinleşmiş + izinler uygulanmış (raporla aynı hesap)
+  const leavesAll=useLeaves(true);
+  const efResp=useEvalDocs("evalResponses","targetNo",String(student.no||""));
+  const efForms=useEvalForms(null,null);
   useEffect(()=>{
     const F=window.__FB; if(!F||!F.isConfigured()){ setAtt([]); return; }
     let alive=true;
-    F.getDocs(F.query(F.collection(F.db,"attendance"),F.where("date",">=",eduYearStart()))).then(s=>{ if(alive) setAtt(dvStatDocs(canonAtt(s.docs.map(d=>d.data()),[student]),null,null).filter(d=>d.records[student.id]!=null)); }).catch(()=>alive&&setAtt([]));
+    F.getDocs(F.query(F.collection(F.db,"attendance"),F.where("date",">=",eduYearStart()))).then(s=>{ if(alive) setAtt(s.docs.map(d=>d.data())); }).catch(()=>alive&&setAtt([]));
     return ()=>{ alive=false; };
   },[student.id,student.no]);
   const weeks=[]; let w=evalWeek(); for(let i=0;i<8;i++){ weeks.unshift(w); w=evalWeekShift(w,-1); }
@@ -14199,7 +14264,10 @@ function StudentReportModal({student,lang,onClose}){
   const bars=weeks.map(k=>{ const x=per[k]; const tot=x?x.on+x.late+x.off:0; return {k,x,tot,pct:tot?Math.round((x.on+x.late)/tot*100):null}; });
   const sum={on:0,late:0,off:0,leave:0}; (att||[]).forEach(d=>{ const v=d.records[student.id]; if(sum[v]!=null) sum[v]++; });
   const sumN=sum.on+sum.late+sum.off, sumPct=sumN?Math.round((sum.on+sum.late)/sumN*100):null;
-  const recent=(att||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,12);
+  const allRows=studentLessonRows(att||[],String(student.id),student.no,new Map((lessons||[]).map(l=>[String(l.id),l])),leavesAll);
+  const efEntries=efResp.filter(r=>r.direction==="t2s"&&String(r.targetNo)===String(student.no)).map(r=>{ const f=efForms.find(x=>x.fireId===r.formId);
+    return {date:efRespDate(r),title:(f&&f.title)||"",score10:r.score10!=null?Number(r.score10):null,rater:((teachers||[]).find(t=>String(t.no)===String(r.raterNo))||{}).name||"",items:evalAnswerItems(r,f)}; })
+    .sort((a,b)=>String(b.date).localeCompare(String(a.date)));
   const ic={on:"✅",late:"⏱",off:"❌",leave:"🏷"};
   const M=calMonths();
   return(
@@ -14233,14 +14301,13 @@ function StudentReportModal({student,lang,onClose}){
           <div style={{fontSize:10,color:"var(--text2)",marginTop:6}}>{W2("Stûna gewr: wê heftê ders tune bû.","Grey bar: no lessons that week.")}</div></>}
         </Card>
         <Card style={{marginBottom:10}}>
-          <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:6}}>📋 {W2("Dersên dawî","Recent lessons")}</div>
-          {att&&recent.length===0&&<div style={{fontSize:12,color:"var(--text2)"}}>{W2("Hîn tomar tune.","No records yet.")}</div>}
-          {recent.map((d,i)=>(<div key={i} style={{display:"flex",gap:8,fontSize:12,color:"var(--text)",padding:"4px 0",borderTop:i?"0.5px solid var(--border)":"none"}}>
-            <span>{ic[d.records[student.id]]||"•"}</span><span style={{flex:1}}>{d.lessonName||""}</span><span style={{color:"var(--text2)"}}>{fmtDateTx(d.date)}</span></div>))}
+          <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:6}}>📋 {W2("Hemû ders — hûrgulî","All lessons — details")} ({att===null?"…":allRows.length})</div>
+          {att!==null&&<AttDetailList rows={allRows} lang={lang}/>}
         </Card>
         <Card>
           <div style={{fontSize:12,fontWeight:700,color:"var(--text)",marginBottom:6}}>📝 {W2("Nirxandinên mamosteyan","Teacher evaluations")}</div>
-          {evs.length===0&&<div style={{fontSize:12,color:"var(--text2)"}}>{W2("Hîn nirxandin tune.","No evaluations yet.")}</div>}
+          {efEntries.length>0&&<EvalAnswerList entries={efEntries} lang={lang}/>}
+          {evs.length===0&&efEntries.length===0&&<div style={{fontSize:12,color:"var(--text2)"}}>{W2("Hîn nirxandin tune.","No evaluations yet.")}</div>}
           {evs.slice().sort((a,b)=>String(b.wk).localeCompare(String(a.wk))).map((d,i)=>(
             <div key={i} style={{fontSize:12,color:"var(--text)",padding:"5px 0",borderTop:i?"0.5px solid var(--border)":"none"}}>
               <b>{evalWeekLabel(d.wk)}</b> · 👩‍🏫 {d.teacherName||""} · <b>{(evalAvg(d.c)||0).toFixed(1)}</b>
