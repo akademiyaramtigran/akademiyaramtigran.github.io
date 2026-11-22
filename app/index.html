@@ -10344,7 +10344,7 @@ function RegistrarRoles({teachers,lang,toast}){
   const toggle=async tc=>{ setBusy(String(tc.no)); try{ await setAreaHead(tc,!tc.isHead); toast("✅ "+tc.name); }catch(e){ toast("❌ "+((e&&e.code)||e)); } setBusy(""); };
   return(<div data-reg-roles>
     <SectionHeader>🧭 {W2("Berpirsên Beşan","Department heads")}</SectionHeader>
-    <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>{W2("Mamosteyek wekî berpirsê beşa xwe nîşan bike. Berpirs yoklama, destûr, peyam û raporan birêve dibe; bernameyê tenê Karûbarên Xwendekaran diguherîne.","Mark a teacher as head of their department. Heads manage attendance, leave, messages and reports; only Student Affairs edits the schedule.")}</div>
+    <div style={{fontSize:11.5,color:"var(--text2)",marginBottom:10,lineHeight:1.6}}>{W2("Mamosteyek wekî berpirsê beşa xwe nîşan bike. Berpirs amadebûn, destûr, peyam û raporan birêve dibe; bernameyê tenê Karûbarên Xwendekaran diguherîne.","Mark a teacher as head of their department. Heads manage attendance, leave, messages and reports; only Student Affairs edits the schedule.")}</div>
     <SearchBox value={q} onChange={setQ} lang={lang}/>
     <select value={af} onChange={e=>setAf(e.target.value)} style={{width:"100%",padding:"10px 12px",border:"1px solid var(--border2)",borderRadius:10,fontSize:13.5,background:"var(--surface)",color:"var(--text)",margin:"8px 0 12px"}}>
       <option value="all">{W2("Hemû qad","All fields")}</option>
