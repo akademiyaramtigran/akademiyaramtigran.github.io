@@ -84,7 +84,7 @@ async function routes(ctx) {
   ok('Sorumlu menüsünde "Ders programı" var', keys.split(',').includes('schedule'), keys);
   await goA(hp, 'schedule'); await hp.waitForTimeout(1200);
   ok('Sorumlu programında dönem yönetimi yok', !(await txt(hp)).includes('Demsalê Zêde Bike'));
-  ok('Sorumlu programında ders ekleme / düzenleme yok (salt okunur)', (await hp.locator('[data-add-lesson]').count()) === 0);
+  ok('Sorumlu programında ders ekleme düğmesi var (kendi alanı)', (await hp.locator('[data-add-lesson]').count()) === 1);
   // Ders programını Öğrenci İşleri hazırlar
   const rq = await login(await mk(), '98202601', 'Reg12345');
   await goA(rq, 'qad'); await rq.waitForTimeout(1200);
@@ -224,8 +224,8 @@ async function routes(ctx) {
   await put('kidSchedule/KS1', { fireId: 'KS1', title: 'Drama Lîstik', day: new Date().getDay(), start: '10:00', end: '11:00', area: 'zarok', classId: 'KDC1', teacherNo: '72026001', teacher: 'Mamosteya Zarokan' });
   const kp = await login(await mk(), '96202612', 'Head1234');
   await goA(kp, 'schedule'); await kp.waitForTimeout(2000);
-  ok('Çocuk sorumlusu programda ders ekleme düğmesi YOK', !(await txt(kp)).includes('Dersê Zêde Bike'));
-  ok('Çocuk programında (salt okunur) ders görünür', (await kp.locator('[data-khs-row]').count()) === 1);
+  ok('Çocuk sınıf sorumlusu programda ders ekleyebilir', (await txt(kp)).includes('Dersê Zêde Bike'));
+  ok('Çocuk programında ders görünür', (await kp.locator('[data-khs-row]').count()) === 1);
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);
 })().catch(e => { console.error('E2E HATA', e); process.exit(1); });

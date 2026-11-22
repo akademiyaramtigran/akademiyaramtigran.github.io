@@ -563,8 +563,8 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
   await t('B.sorumlusu: yoklama okur', getDocs(collection(head, 'attendance')), true);
   await t('B.sorumlusu: ders belgesi olmayan (lessonFire yok) yoklama yazamaz', addDoc(collection(head, 'attendance'), { studentNo: '10202601' }), false);
   // Ders programı: bölüm sorumlusu kendi bölümünün derslerini yönetir; Öğrenci İşleri yalnız atölye dersini
-  await t('B.sorumlusu: kendi bölümüne ders ekler [v2: artık YAZAMAZ]', setDoc(doc(head, 'schedule/SH1'), { area: 'tiyatro', name: 'Şano', teacherNo: '11202601' }), false);
-  await t('B.sorumlusu: kendi dersinin öğretmenini değiştirir [v2: artık YAZAMAZ]', updateDoc(doc(head, 'schedule/SH1'), { teacherNo: '21202601' }), false);
+  await t('B.sorumlusu: kendi bölümüne ders ekler', setDoc(doc(head, 'schedule/SH1'), { area: 'tiyatro', name: 'Şano', teacherNo: '11202601' }), true);
+  await t('B.sorumlusu: kendi dersinin öğretmenini değiştirir', updateDoc(doc(head, 'schedule/SH1'), { teacherNo: '21202601' }), true);
   await t('B.sorumlusu: dersi başka bölüme TAŞIYAMAZ', updateDoc(doc(head, 'schedule/SH1'), { area: 'muzik' }), false);
   await t('B.sorumlusu: başka bölüme ders EKLEYEMEZ', setDoc(doc(head, 'schedule/SH2'), { area: 'muzik', name: 'x' }), false);
   await t('B.sorumlusu: bölümsüz ders EKLEYEMEZ', addDoc(collection(head, 'schedule'), { name: 'x' }), false);
@@ -576,12 +576,12 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
   await setDoc(doc(admin, 'schedule/SR1'), { area: 'muzik', name: 'x' });
   await t('Öğrenci İşleri haftalık ders SİLEMEZ [v2: artık Öİ yazar]', deleteDoc(doc(as('98202601@ogretmen.aat'), 'schedule/SR1')), true);
   await t('Öğrenci İşleri atölye dersini yazamaz (ws_) [v2: artık Öİ yazar]', setDoc(doc(as('98202601@ogretmen.aat'), 'schedule/ws_W1'), { area: 'genel', name: 'Atolye', lessonType: 'extra' }), true);
-  await t('Tiyatro sorumlusu kendi atölye dersini yazar (ws_) [v2: artık YAZAMAZ]', setDoc(doc(as('96202601@ogretmen.aat'), 'schedule/ws_W2'), { area: 'tiyatro', name: 'Atolye', lessonType: 'extra' }), false);
+  await t('Tiyatro sorumlusu kendi atölye dersini yazar (ws_)', setDoc(doc(as('96202601@ogretmen.aat'), 'schedule/ws_W2'), { area: 'tiyatro', name: 'Atolye', lessonType: 'extra' }), true);
   await t('Yönetici her bölüme ders yazar', setDoc(doc(admin, 'schedule/SA1'), { area: 'dans', name: 'x' }), true);
   await t('Genel sorumlu: başka bölüme ders YAZAMAZ (yalnız genel alan)', setDoc(doc(as('96202602@ogretmen.aat'), 'schedule/SG1'), { area: 'dans', name: 'x' }), false);
-  await t('Genel sorumlu: GENEL alana ders yazar [v2: artık YAZAMAZ]', setDoc(doc(as('96202602@ogretmen.aat'), 'schedule/SG2'), { area: 'genel', name: 'Ortak' }), false);
+  await t('Genel sorumlu: GENEL alana ders yazar', setDoc(doc(as('96202602@ogretmen.aat'), 'schedule/SG2'), { area: 'genel', name: 'Ortak' }), true);
   await t('Genel sorumlu: başka bölümün dersini SİLEMEZ', deleteDoc(doc(as('96202602@ogretmen.aat'), 'schedule/SA1')), false);
-  await t('B.sorumlusu: kendi dersini siler [v2: artık YAZAMAZ]', deleteDoc(doc(head, 'schedule/SH1')), false);
+  await t('B.sorumlusu: kendi dersini siler', deleteDoc(doc(head, 'schedule/SH1')), true);
   // Ders yapılmadı işareti (attendance): yalnız kendi bölümü, yalnız işaret alanları
   await env.withSecurityRulesDisabled(async c => { const db = c.firestore();
     await setDoc(doc(db, 'schedule/SH9'), { area: 'tiyatro', name: 'Şano', teacherNo: '11202601' });
@@ -721,14 +721,14 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
   await t('Ç.sorumlu: çocukları okur (rapor)', getDocs(collection(kh, 'kids')), true);
   await t('Ç.sorumlu: veli mesajlarını okur', getDocs(collection(kh, 'kidMessages')), true);
   await env.withSecurityRulesDisabled(async c => { const db = c.firestore(); await setDoc(doc(db, 'kidClasses/KHL1'), { kind: 'general', area: 'zarok', name: 'S1', headNos: ['96202603'], studentNos: [] }); await setDoc(doc(db, 'kidClasses/KHL2'), { kind: 'general', area: 'zarok', name: 'S2', headNos: ['96202699'], studentNos: [] }); });
-  await t('Ç.sorumlu: kendi sınıfının programına ders yazar [v2: artık YAZAMAZ]', setDoc(doc(kh, 'kidSchedule/KH1'), { area: 'zarok', title: 'Drama', day: 1, start: '15:00', end: '16:00', classId: 'KHL1' }), false);
-  await t('Ç.sorumlu: kendi sınıfının dersini günceller [v2: artık YAZAMAZ]', updateDoc(doc(kh, 'kidSchedule/KH1'), { teacherNo: '72026001', teacher: 'M' }), false);
+  await t('Ç.sorumlu: kendi sınıfının programına ders yazar', setDoc(doc(kh, 'kidSchedule/KH1'), { area: 'zarok', title: 'Drama', day: 1, start: '15:00', end: '16:00', classId: 'KHL1' }), true);
+  await t('Ç.sorumlu: kendi sınıfının dersini günceller', updateDoc(doc(kh, 'kidSchedule/KH1'), { teacherNo: '72026001', teacher: 'M' }), true);
   await t('Ç.sorumlu: başka sınıfın programını YAZAMAZ', setDoc(doc(kh, 'kidSchedule/KH2'), { area: 'zarok', title: 'S', classId: 'KHL2' }), false);
   await t('Ç.sorumlu: sınıfsız ders YAZAMAZ', setDoc(doc(kh, 'kidSchedule/KH3'), { area: 'zarok', title: 'S' }), false);
   await t('Ç.sorumlu: dersini başka sınıfa taşıyamaz', updateDoc(doc(kh, 'kidSchedule/KH1'), { classId: 'KHL2' }), false);
   await t('Ç.sorumlu: başka sınıfın dersini SİLEMEZ', deleteDoc(doc(kh, 'kidSchedule/KS1')), false);
   await t('Ç.sorumlu: ana akademi programını YAZAMAZ', setDoc(doc(kh, 'schedule/KX1'), { area: 'drama', name: 'x' }), false);
-  await t('Ç.sorumlu: kendi dersini siler [v2: artık YAZAMAZ]', deleteDoc(doc(kh, 'kidSchedule/KH1')), false);
+  await t('Ç.sorumlu: kendi dersini siler', deleteDoc(doc(kh, 'kidSchedule/KH1')), true);
   await t('Öğrenci İşleri çocuk haftalık dersi YAZAMAZ [v2: artık Öİ yazar]', setDoc(doc(as('98202601@ogretmen.aat'), 'kidSchedule/KR1'), { area: 'drama', title: 'x' }), true);
   await t('Öğrenci İşleri çocuk atölye dersini YAZAMAZ (ws_) [v2: artık Öİ yazar]', setDoc(doc(as('98202601@ogretmen.aat'), 'kidSchedule/ws_KW1'), { classId: 'KW1', title: 'Atolye', date: '2026-11-01' }), true);
   // Aşama C: çocuk sınıfı + günlük görevlendirme + yoklama yetkisi
@@ -867,7 +867,7 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
     await t('Ç.genel sorumlu: sınıf sorumlusu atar (headNos) [v2: artık YAZAMAZ]', updateDoc(doc(gen, 'kidClasses/GC2'), { headNos: ['96202697'] }), false);
     await t('Ç.genel sorumlu: sınıfı siler [v2: artık YAZAMAZ]', deleteDoc(doc(gen, 'kidClasses/GN1')), false);
     await t('Ç.genel sorumlu: akademi öğretmenini bağlar (idx_kidstaff + kidTeachers)', Promise.all([setDoc(doc(gen, 'idx_kidstaff/11202601'), { no: '11202601' }), setDoc(doc(gen, 'kidTeachers/11202601'), { no: '11202601', name: 'M', academy: true })]), true);
-    await t('Ç.genel sorumlu: her sınıfa ders yazar [v2: artık YAZAMAZ]', setDoc(doc(gen, 'kidSchedule/GS1'), { classId: 'GC2', area: 'zarok', title: 'T', day: 1, start: '10:00', end: '11:00' }), false);
+    await t('Ç.genel sorumlu: her sınıfa ders yazar', setDoc(doc(gen, 'kidSchedule/GS1'), { classId: 'GC2', area: 'zarok', title: 'T', day: 1, start: '10:00', end: '11:00' }), true);
     await t('Ç.genel sorumlu: genel duyuru gönderir', addDoc(collection(gen, 'kidAnnouncements'), { title: 'D', body: 'b', by: 'x', byNo: '96202698' }), true);
     await t('Ç.genel sorumlu: çocukları okur', getDocs(collection(gen, 'kids')), true);
     await t('Bağsız öğretmen: sınıf AÇAMAZ', setDoc(doc(plain, 'kidClasses/GN2'), { kind: 'area', area: 'zarok', name: 'N', headNos: [], studentNos: [] }), false);
@@ -875,7 +875,7 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
     await t('Yönetici olmayan: config/kidAcademy (genel sorumlu) YAZAMAZ', setDoc(doc(plain, 'config/kidAcademy'), { generalNos: ['96202696'] }), false);
     await t('Öğrenci işleri: config/kidAcademy YAZAMAZ', setDoc(doc(as('98202601@ogretmen.aat'), 'config/kidAcademy'), { generalNos: ['98202601'] }), false);
     await t('Yönetici: genel sorumlu atar (config/kidAcademy)', setDoc(doc(kadm, 'config/kidAcademy'), { generalNos: ['96202698', '96202695'] }), true);
-    await t('Bağlı sınıf sorumlusu (öğretmen hesabı): kendi sınıfına ders yazar [v2: artık YAZAMAZ]', setDoc(doc(chd, 'kidSchedule/GS3'), { classId: 'GC1', area: 'zarok', title: 'T', day: 2, start: '10:00', end: '11:00' }), false);
+    await t('Bağlı sınıf sorumlusu (öğretmen hesabı): kendi sınıfına ders yazar', setDoc(doc(chd, 'kidSchedule/GS3'), { classId: 'GC1', area: 'zarok', title: 'T', day: 2, start: '10:00', end: '11:00' }), true);
     await t('Bağlı sınıf sorumlusu: başka sınıfa ders YAZAMAZ', setDoc(doc(chd, 'kidSchedule/GS4'), { classId: 'GC2b', area: 'zarok', title: 'T' }), false);
     await t('Bağlı sınıf sorumlusu: kendi sınıfının öğretmenlerini günceller', updateDoc(doc(chd, 'kidClasses/GC1'), { teacherNos: ['72026001'], teacherNames: ['M'] }), true);
     await t('Bağlı sınıf sorumlusu: sınıf sorumlusu listesini DEĞİŞTİREMEZ', updateDoc(doc(chd, 'kidClasses/GC1'), { headNos: ['96202697', '96202696'] }), false);

@@ -174,7 +174,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   ok('"Hemû": biten ders arşivde görünür', (await txt(pw)).includes('Atolyeya Borî'));
 
   // Ekleme formları kendi alanına özel: atölye alanında yalnız atölye sınıfı + tür seçimi yok; ana alanda atölye türü / atölye sınıfı yok
-  ok('Sorumlu atölye / ana programda ders EKLEYEMEZ (yalnız Öğrenci İşleri yazar)', (await pw.locator('[data-add-lesson]').count()) === 0 && !(await pw.evaluate(() => [...document.querySelectorAll('button')].some(x => /Dersekî Nû/.test(x.textContent) && x.offsetParent))));
+  ok('Sorumlu kendi programında ders ekleyebilir (atölye + ana)', (await pw.locator('[data-add-lesson]').count()) >= 1);
 
   // ── 5b) Bölüm sorumlusu raporu: Kapsam = Atölye (devam + değerlendirme), akademi raporunda atölye öğrencisi yok ──
   await goA(p, 'reports'); await p.waitForTimeout(1200);
