@@ -81,6 +81,7 @@ async function routes(ctx) {
   // Sorumlu: öğretmenin izni kendi bölümünde görünür; düzenler ve siler
   const hp = await login('96202601', 'Head1234');
   await goA(hp, 'leaves'); await hp.waitForTimeout(1500);
+  ok('Düzenle / sil düğmeleri EKRANDA görünür (taşmıyor)', await hp.evaluate(() => { const b = document.querySelector('[data-leave-edit]'), d = document.querySelector('[data-leave-del]'); const ok = x => { const r = x.getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth && r.width > 20; }; return !!b && !!d && ok(b) && ok(d) && getComputedStyle(b).position !== 'fixed'; }));
   ok('Sorumlu: öğretmenin işlediği izni listede görür', (await hp.locator('[data-leave-row]').count()) === 1);
   await hp.evaluate(() => document.querySelector('[data-leave-edit]').click()); await hp.waitForTimeout(800);
   await hp.fill('#lv-reason', 'Sorumlu düzeltti'); await saveBtn(hp); await hp.waitForTimeout(2500);
