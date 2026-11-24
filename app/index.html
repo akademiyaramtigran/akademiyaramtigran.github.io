@@ -16293,7 +16293,7 @@ function StudentAttView({student,lang,toast}){
   const list=(rows||[]).filter(r=>String(r.date||"")>=from).sort((a,b)=>String(b.date).localeCompare(String(a.date))||String(a.lessonName).localeCompare(String(b.lessonName)));
   const todayL=ymdLocal(new Date());
   // Ders sürerken (kesinleşmemiş) "yok" geçicidir: öğretmen Kaydet'e basınca okutmayan herkes yok yazılır; öğrenci henüz okutuyor olabilir
-  const eff=r=>(r.status!=="leave"&&!r.final)?"wait":r.status;   // ders kapanmadan (dersi bitir) hiçbir durum sayılmaz
+  const eff=r=>(r.status!=="leave"&&!r.final&&!dvClosed({date:r.date}))?"wait":r.status;   // ders kapanmadan (dersi bitir) hiçbir durum sayılmaz; kesinleşme tarihinden ÖNCEKİ dersler (eski satırlarda final bayrağı yok) kapalıdır
   // Toplam: bütün dersler birlikte (izinli sayılmaz; geç gelen "hazır" sayılır)
   const cs=list.map(eff).filter(x=>x==="on"||x==="late"||x==="off");
   const tt={totalLessons:cs.length,attended:cs.filter(x=>x!=="off").length,absent:cs.filter(x=>x==="off").length,late:cs.filter(x=>x==="late").length,att:0};
