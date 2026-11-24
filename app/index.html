@@ -12795,6 +12795,8 @@ function StudentAttendanceReport({students,schedule,allSchedule,teachers,allTeac
   // Kaydı olup bu raporda SAYILMAYAN yoklamalar ve nedeni (rapor ile öğrenci ekranı arasındaki farkı görünür kılar)
   const skipped=(att||[]).filter(d=>d.date&&d.date>=from&&d.date<=to&&d.records&&Object.keys(d.records).length).map(d=>{
     const lid=String(d.lessonId), ls=lsById.get(lid); let why="";
+    // Raporun ders programında olmayan (başka bölümün) dersleri "sayılmadı" listesine girmez: bu rapor onları hiç kapsamaz
+    if(schedule&&!docScope&&!schedule.some(l=>String(l.id)===lid)) return null;
     if(d.teacherAbsent) why=W2("Ders nehat kirin (mamoste tunebû)","Lesson not held (teacher absent)");
     else if(!dvClosed(d)) why=W2("Ders nehatiye girtin — mamoste “Dersê biqedîne” bike (hîn nayê hesibandin)","Lesson not closed — the teacher must press “End lesson” (not counted yet)");
     else if(docScope&&!docScope.has(lid)) why=W2("Ders ne ya vê rapora giştî ye","Lesson is outside this report's scope");
