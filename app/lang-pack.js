@@ -1659,6 +1659,17 @@ window.AAT_TX={"ku":{},"zza":{},"tr":{"Berpirsê sinifê":"Sınıf sorumlusu","b
 "Berpirsên nehatin dîtin (sinif bê berpirs tê çêkirin)":"Bulunamayan sorumlular (sınıf sorumlusuz açılır)",
 "Nav di du sinifan de":"İki sınıfta geçen ad",
 "Şîfre tenê niha xuya dibin — lîsteyê daxe an çap bike.":"Şifreler yalnızca şimdi görünür — listeyi indirin veya yazdırın.",
+"Şîfreya hemû dêûbavan ê were nûkirin; şîfreyên kevn êdî naxebitin. Lîsteya nû tenê niha tê nîşandan.":"Tüm velilerin şifresi yenilenecek; eski şifreler artık çalışmaz. Yeni liste yalnızca şimdi gösterilir.",
+"şîfre hate nûkirin":"şifre yenilendi",
+"Têketina dêûbavan (jimara + şîfre)":"Veli girişi (numara + şifre)",
+"Lîsteyên hesaban (zarok · mamoste · şîfre)":"Hesap listeleri (çocuk · öğretmen · şifre)",
+"Şîfre piştî çêkirinê nayê xwendin; ji bo lîsteya bi şîfre divê şîfre bêne nûkirin. Mamosteyên konservatuarê bi jimare û şîfreya xwe ya konservatuarê dikevin.":"Şifre oluşturulduktan sonra okunamaz; şifreli liste için şifrelerin yenilenmesi gerekir. Konservatuvar öğretmenleri kendi konservatuvar numarası ve şifresiyle girer.",
+"Lîsteya zarok + mamoste (Excel)":"Çocuk + öğretmen listesi (Excel)",
+"Lîsteya zarok + mamoste (PDF)":"Çocuk + öğretmen listesi (PDF)",
+"Şîfreya hemû dêûbavan nû bike û lîsteyê daxe":"Tüm velilerin şifresini yenile ve listeyi indir",
+"hesab":"hesap",
+"Şîfreya dêûbav":"Veli şifresi",
+"Şîfreya nû binivîse (herî kêm 8 tîp û hejmarek). Vala bihêle = otomatîk.":"Yeni şifreyi yazın (en az 8 karakter ve bir rakam). Boş bırakırsanız otomatik üretilir.",
 "Mamoste tune.":"Öğretmen yok."}};
 window.AAT_SITE={"ku":{},"zza":{}};
 window.AAT_SITE_AREA={"ku":{},"zza":{}};
