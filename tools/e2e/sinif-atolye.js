@@ -239,9 +239,11 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   const tp = await login(await mk(430), '50202601', 'Tea12345');
   await tp.evaluate(() => [...document.querySelectorAll('.pano-tile[data-key="students"],.sm-it[data-key="students"]')].filter(x => x.getClientRects().length).pop().click());
   await tp.waitForTimeout(1500);
-  await tp.getByText('Sinifên Min').first().waitFor({ timeout: 10000 }).catch(() => {});
-  const t8 = await txt(tp);
-  ok('Öğretmen: Sinifên Min (alan + genel, kapanan atölye yok)', t8.includes('Sinifên Min') && t8.includes('Muzîk · 1. Sînif') && t8.includes('🌐 Koro') && !t8.includes('Atolyeya Deng'), t8.split('\n').filter(l => /Sinif|Koro|Atolye|Sînif/.test(l)).join(' / '));
+  await tp.locator('[data-ms-classes],[data-ms-oneclass]').first().waitFor({ timeout: 10000 }).catch(() => {});
+  let t8 = await txt(tp);
+  ok('Öğretmen: sınıf seçici (alan + genel, kapanan atölye yok)', t8.includes('Muzîk · 1. Sînif') && t8.includes('Koro') && !t8.includes('Atolyeya Deng'), t8.split('\n').filter(l => /Sinif|Koro|Atolye|Sînif/.test(l)).join(' / '));
+  const chipIds = await tp.locator('[data-ms-class]').evaluateAll(es => es.map(e => e.dataset.msClass));
+  for (const id of chipIds) { await tp.click('[data-ms-class="' + id + '"]'); await tp.waitForTimeout(400); t8 += '\n' + await txt(tp); }
   ok('Öğretmenin öğrenci listesi sınıflarından (başka alandan Jîyan var, sınıfsız Baran yok)', t8.includes('Jîyan Roj') && t8.includes('Rojîn Aram') && !t8.includes('Baran Şêx'));
 
   // ── 8b) Toplu mesaj yalnızca seçilen sınıfın öğrencilerine (alanın tamamına değil) ──
