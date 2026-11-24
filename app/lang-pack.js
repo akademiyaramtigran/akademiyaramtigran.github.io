@@ -1647,6 +1647,18 @@ window.AAT_TX={"ku":{},"zza":{},"tr":{"Berpirsê sinifê":"Sınıf sorumlusu","b
 "Mamosteyên nehatin dîtin (dersên wan nayên zêdekirin)":"Bulunamayan öğretmenler (dersleri eklenmez)",
 "Lihevketin":"Çakışmalar",
 "Têxe":"İçe aktar",
+"hesabê nû yê dêûbav tên çêkirin":"yeni veli girişi oluşturulacak",
+"(berê hebû)":"(zaten kayıtlıydı)",
+"Jimara têketinê (jimara zarokê)":"Giriş numarası (çocuk numarası)",
+"Hesabên dêûbavan":"Veli girişleri",
+"Têketina dêûbavan (jimara zarokê + şîfre)":"Veli girişleri (çocuk numarası + şifre)",
+"Zarok û sinifan bi carekê ve têxe (sinif · navê zarokê · berpirs)":"Çocukları, sınıfları ve sınıf sorumlularını tek seferde içe aktar",
+"Her rêzek: sinif;nav û paşnav;berpirsê sinifê. Pelê (.csv/.txt) bar bike an lîsteyê di qutiyê de bi cih bike. Her zarok hesabê dêûbav (jimara zarokê + şîfre) distîne. Sinif tune be tê çêkirin, berpirs bi navê xwe ya yekem tê hevgirtin. Zarokê ku berê tomar bûye dubare nayê çêkirin.":"Her satır: sınıf;ad soyad;sınıf sorumlusu. Dosya (.csv/.txt) yükleyin ya da listeyi kutuya yapıştırın. Her çocuk veli girişi (çocuk numarası + şifre) alır. Olmayan sınıf açılır, sorumlu ilk adıyla eşleştirilir. Zaten kayıtlı çocuk yeniden oluşturulmaz.",
+"Pelê bar bike (.csv / .txt)":"Dosya yükle (.csv / .txt)",
+"hesabê nû":"yeni giriş",
+"Berpirsên nehatin dîtin (sinif bê berpirs tê çêkirin)":"Bulunamayan sorumlular (sınıf sorumlusuz açılır)",
+"Nav di du sinifan de":"İki sınıfta geçen ad",
+"Şîfre tenê niha xuya dibin — lîsteyê daxe an çap bike.":"Şifreler yalnızca şimdi görünür — listeyi indirin veya yazdırın.",
 "Mamoste tune.":"Öğretmen yok."}};
 window.AAT_SITE={"ku":{},"zza":{}};
 window.AAT_SITE_AREA={"ku":{},"zza":{}};
