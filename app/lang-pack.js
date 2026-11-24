@@ -1670,6 +1670,8 @@ window.AAT_TX={"ku":{},"zza":{},"tr":{"Berpirsê sinifê":"Sınıf sorumlusu","b
 "hesab":"hesap",
 "Şîfreya dêûbav":"Veli şifresi",
 "Şîfreya nû binivîse (herî kêm 8 tîp û hejmarek). Vala bihêle = otomatîk.":"Yeni şifreyi yazın (en az 8 karakter ve bir rakam). Boş bırakırsanız otomatik üretilir.",
+"Şîfreyê bi destê xwe binivîse (herî kêm 8 tîp û hejmarek) an bi «Otomatîk» çêke.":"Şifreyi kendiniz yazın (en az 8 karakter ve bir rakam) ya da «Otomatik» ile üretin.",
+"Otomatîk":"Otomatik",
 "Mamoste tune.":"Öğretmen yok."}};
 window.AAT_SITE={"ku":{},"zza":{}};
 window.AAT_SITE_AREA={"ku":{},"zza":{}};

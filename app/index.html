@@ -9813,6 +9813,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   const [sibPick,setSibPick]=useState(null);     // kardeş eşleştirme: {kidId, q, other}
   const [sForm,setSForm]=useState({day:1,start:"15:00",end:"16:00",title:"",area:"",teacherNo:"",room:"",classId:""});
   const [editLs,setEditLs]=useState(null);       // düzenlenen haftalık ders (içe aktarılanlar dahil)
+  const [pwAsk,setPwAsk]=useState(null);         // şifre yenileme kartı {no,role,name,email,pass}
   const kidCls=useClassDocs("kidClasses",live);
   // Kartta yazan sınıf: çocuğun açık sınıfları (atölyeler hariç)
   const kidClassOf=k=>kidCls.filter(d=>d.kind&&d.kind!=="workshop"&&d.status!=="closed"&&inClass(d,k.no)).map(d=>d.name).join(" · ");
@@ -10030,12 +10031,13 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
       toast(Z("✅ Hate tomarkirin","✅ Saved")); setForm(null); }catch(e){ err(e); }
   }
   // Şifre yenile: sunucu yeni şifreyi doğrudan yazar (eski şifre gerekmez)
-  async function resetPass(no,role,name,email){
-    // Kendi şifrenizi yazabilirsiniz (en az 8 karakter + rakam); boş bırakırsanız otomatik üretilir
-    const typed=window.prompt(Z("Şîfreya nû binivîse (herî kêm 8 tîp û hejmarek). Vala bihêle = otomatîk.","Type the new password (at least 8 characters incl. a digit). Leave blank = auto-generate."),"");
-    if(typed===null) return;
-    const custom=String(typed).trim();
+  // Şifre yenile: önce uygulama içi kart açılır (şifreyi elle yazın veya "Otomatik" ile üretin)
+  function resetPass(no,role,name,email){ setPwAsk({no,role,name,email,pass:""}); }
+  async function doResetPass(){
+    const a=pwAsk; if(!a||busy) return;
+    const custom=String(a.pass||"").trim();
     if(custom&&(custom.length<8||!/[0-9]/.test(custom))){ toast(Z("⚠ Şîfre: herî kêm 8 tîp û hejmarek","⚠ Password: at least 8 characters including a digit")); return; }
+    const {no,role,name,email}=a; setPwAsk(null);
     setBusy(true);
     try{
       const pass=custom||genAutoPassword();
@@ -10264,6 +10266,20 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
             {ic} {lb}{badge>0&&<span style={{marginLeft:6,background:"#dc2626",color:"#fff",borderRadius:9,padding:"0 6px",fontSize:11}}>{badge}</span>}
           </button>))}
       </div>
+
+      {pwAsk&&(
+        <div data-pw-card="1" style={{...box,border:"2px solid var(--accent)"}}>
+          <div style={{fontWeight:800,color:"var(--text)"}}>🔑 {Z("Şîfreya nû","New password")} · {pwAsk.name||""} <span style={small}>#{pwAsk.no}</span></div>
+          <div style={{...small,margin:"6px 0"}}>{Z("Şîfreyê bi destê xwe binivîse (herî kêm 8 tîp û hejmarek) an bi «Otomatîk» çêke.","Type the password yourself (at least 8 characters incl. a digit) or generate one with “Auto”.")}</div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            <input data-pw-input="1" style={{...inp,flex:"1 1 200px",marginBottom:0}} type="text" autoComplete="off" autoCapitalize="off" autoCorrect="off" spellCheck={false} value={pwAsk.pass} onChange={e=>{const v=e.target.value;setPwAsk(a=>({...a,pass:v}));}} placeholder={Z("Şîfreya nû","New password")}/>
+            <button type="button" data-pw-auto="1" onClick={()=>setPwAsk(a=>({...a,pass:genAutoPassword()}))} style={ghost}>🎲 {Z("Otomatîk","Auto")}</button>
+          </div>
+          <div style={{display:"flex",gap:8,marginTop:10}}>
+            <button type="button" data-pw-save="1" disabled={busy} onClick={doResetPass} style={btn()}>💾 {Z("Tomar bike","Save")}</button>
+            <button type="button" onClick={()=>setPwAsk(null)} style={ghost}>{Z("Betal","Cancel")}</button>
+          </div>
+        </div>)}
 
       {creds&&(
         <div style={{...box,border:"2px solid #16a34a"}}>

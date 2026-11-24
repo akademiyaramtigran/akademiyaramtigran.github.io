@@ -171,6 +171,8 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await p.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.trim() === '🔑' && x.offsetParent)
     .find(x => { let r = x; const keys = e => [...e.querySelectorAll('button')].filter(y => y.textContent.trim() === '🔑').length;
       while (r.parentElement && keys(r.parentElement) === 1) r = r.parentElement; return r.textContent.includes('Mamoste Hêvî'); }); b.click(); });
+  // Şifre kartı açılır: elle yazmadan (boş) kaydet → otomatik şifre üretilir
+  await p.waitForSelector('[data-pw-card]', { timeout: 20000 }); await p.evaluate(() => document.querySelector('[data-pw-save]').click());
   await p.waitForSelector('text=Şîfreya nû', { timeout: 20000 }); await p.waitForTimeout(500);
   t = await p.evaluate(() => document.body.innerText);
   const npass = (t.match(/Şîfre:\s*(\S+)/) || [])[1];

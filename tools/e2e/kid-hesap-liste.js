@@ -41,7 +41,7 @@ const login = (email, password) => fetch('http://127.0.0.1:9099/identitytoolkit.
   const c = await b.newContext({ viewport: { width: 1280, height: 900 } }); await routes(c);
   await c.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} });
   const p = await c.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
-  p.on('dialog', d => d.type() === 'prompt' ? d.accept(globalThis.__PW || '') : d.accept());
+  p.on('dialog', d => d.accept());
   await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
   await p.getByText('Mamoste', { exact: true }).first().click();
   await p.locator('input.inp').first().fill('98202601'); await p.locator('input[type=password]').first().fill('Reg12345');
@@ -53,17 +53,20 @@ const login = (email, password) => fetch('http://127.0.0.1:9099/identitytoolkit.
   await tab(/Zarok$/); await p.waitForTimeout(1500);
   const nKeys = await p.evaluate(() => document.querySelectorAll('[data-kid-pw]').length);
   ok('Her çocuk kartında veli şifresi (🔑) düğmesi var', nKeys === 3, String(nKeys));
-  globalThis.__PW = 'Benim12345';
-  await p.evaluate(() => document.querySelector('[data-kid-pw="82026001"]').click());
+  const setPw = async (no, pw) => { await p.evaluate(n => document.querySelector('[data-kid-pw="' + n + '"]').click(), no); await p.waitForSelector('[data-pw-input]', { timeout: 15000 }); await p.locator('[data-pw-input]').fill(pw); await p.evaluate(() => document.querySelector('[data-pw-save]').click()); };
+  await setPw('82026001', 'Benim12345');
   const l1 = await waitFor(async () => (await login('82026001@veli.aat', 'Benim12345')).idToken, 30000);
   ok('Yazdığın şifreyle veli girer (Ada Bir)', !!l1);
   ok('Eski şifre artık çalışmaz', !!(await login('82026001@veli.aat', 'Eski12345')).error);
   // kısa şifre reddedilir
-  globalThis.__PW = 'kisa';
-  await p.waitForTimeout(1500); await p.evaluate(() => document.querySelector('[data-kid-pw="82026002"]').click()); await p.waitForTimeout(1500);
+  await p.waitForTimeout(1500); await setPw('82026002', 'kisa'); await p.waitForTimeout(1500);
   ok('Kısa şifre kabul edilmez (hesap değişmez)', !!(await login('82026002@veli.aat', 'Eski12345')).idToken);
   // 2) Dêûbav sekmesi: listeler + toplu yenileme
-  globalThis.__PW = '';
+  await p.evaluate(() => { const c = [...document.querySelectorAll('[data-pw-card] button')].find(b => /Betal|Cancel|Iptal/.test(b.textContent)); if (c) c.click(); });
+  // Otomatik düğmesi şifre alanını doldurur
+  await p.evaluate(() => document.querySelector('[data-kid-pw="82026003"]').click()); await p.waitForSelector('[data-pw-auto]'); await p.evaluate(() => document.querySelector('[data-pw-auto]').click()); await p.waitForTimeout(300);
+  ok('Otomatik düğmesi şifre alanını doldurur (en az 8 karakter)', await p.evaluate(() => document.querySelector('[data-pw-input]').value.length >= 8));
+  await p.evaluate(() => { const c = [...document.querySelectorAll('[data-pw-card] button')].find(b => /Betal/.test(b.textContent)); if (c) c.click(); });
   await tab(/Dêûbav$/); await p.waitForTimeout(1200);
   await p.evaluate(() => { document.querySelector('[data-kid-acc-lists]').open = true; }); await p.waitForTimeout(300);
   const has = await p.evaluate(() => !!document.querySelector('[data-acc-list-csv]') && !!document.querySelector('[data-acc-list-pdf]') && !!document.querySelector('[data-acc-reset-all]'));
