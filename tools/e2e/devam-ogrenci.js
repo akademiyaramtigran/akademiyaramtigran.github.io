@@ -49,9 +49,9 @@ async function routes(ctx) {
   const errs = [];
   const mk = async (w) => { const c = await b.newContext({ viewport: { width: w || 430, height: 900 } }); await routes(c);
     await c.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} }); return c; };
-  const login = async (ctx, no, pw) => {
+  const login = async (ctx, no, pw, cut) => {
     const p = await ctx.newPage(); p.on('pageerror', e => errs.push(no + ': ' + e.message)); p.on('dialog', d => d.accept());
-    await p.goto('http://localhost:8765/app/?emu=1&dvcut=2000-01-01'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
+    await p.goto('http://localhost:8765/app/?emu=1&dvcut=' + (cut || '2000-01-01')); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
     await p.getByText('Xwendekar', { exact: true }).first().click();
     await p.locator('input.inp').first().fill(no); await p.locator('input[type=password]').first().fill(pw);
     await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(7000); return p;
@@ -85,6 +85,15 @@ async function routes(ctx) {
   const ids2 = await sp2.evaluate(() => [...document.querySelectorAll('[data-stu-att-row]')].map(e => e.dataset.stuAttRow));
   ok('Baran yalnız kendi kaydını görür', ids2.join() === id2, ids2.join());
   await sp2.context().close();
+  // Eski satır: kesinleşme tarihinden ÖNCEKİ ders, kayıtta final bayrağı yok → "yoklama bekleniyor" DEĞİL, gerçek durumu görünür
+  await put('studentAtt/OLD1', { studentNo: '20202601', lessonId: '11', lessonFire: 'L1', lessonName: 'Eski Ders', area: 'tiyatro', date: '2026-11-10', status: 'off', final: false, teacherName: 'X' });
+  await put('studentAtt/NEW1', { studentNo: '20202601', lessonId: '11', lessonFire: 'L1', lessonName: 'Yeni Ders', area: 'tiyatro', date: '2026-11-25', status: 'off', final: false, teacherName: 'X' });
+  const sp3 = await login(await mk(430), '20202601', 'Stu12345', '2026-11-22');
+  await goA(sp3, 'attend'); await sp3.waitForSelector('[data-stu-att-view]', { timeout: 15000 }); await sp3.waitForTimeout(2500);
+  const st3 = await sp3.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-stu-att-row]')].map(e => [e.dataset.stuAttRow, e.dataset.st])));
+  ok('Kesinleşme tarihinden ÖNCEKİ eski ders (final bayrağı yok) gerçek durumunu gösterir, "bekliyor" kalmaz', st3['OLD1'] === 'off', JSON.stringify(st3));
+  ok('Tarihten SONRAKİ kesinleşmemiş ders hâlâ "bekliyor" (dersi bitir şart)', st3['NEW1'] === 'wait', JSON.stringify(st3));
+  await sp3.context().close();
   // "Ders yapılmadı" günü öğrenci kaydını kaldırır
   await fetch(`${FS}/attendance/11-${DATE}?updateMask.fieldPaths=teacherAbsent`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { teacherAbsent: { booleanValue: true } } }) });
   const gone = await waitFor(async () => (await rows()).filter(r => r.lessonId === '11' && r.date === DATE).length === 0);
