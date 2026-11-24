@@ -30,7 +30,7 @@ async function routes(ctx) {
 }
 
 // E2E: Öğrenci İşleri → Çocuk Akademisi → Öğretmenler: ana akademi öğretmenini listeden seçip bağlama
-// E2E: Yoklama kapısı — ders BAŞLATILMADAN işaretlenmez/kaydedilmez; başlatınca kaydedilir (kesin değil); kapatılmayan ders için öğretmene "dersi bitirin" uyarısı
+// E2E: Yoklama akışı — "dersi başlat / bitir" YOK; kaydedilen her yoklama geçerli; işaretleme + Kaydet doğrudan çalışır
 (async () => {
   const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-key="' + k + '"],.sm-it[data-key="' + k + '"]').click(), k);
   const TD = new Date().toISOString().slice(0, 10); const todayKu = ['Yekşem', 'Dûşem', 'Sêşem', 'Çarşem', 'Pêncşem', 'Înî', 'Şemî'][new Date().getDay()];
@@ -51,25 +51,23 @@ async function routes(ctx) {
   await p.getByText('Mamoste', { exact: true }).first().click();
   await p.locator('input.inp').first().fill('50202601'); await p.locator('input[type=password]').first().fill('Tea12345');
   await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(9000);
-  // Ders kapatılmadı kartı (ders saati geçti, yoklama var)
-  ok('Kapatılmamış ders için "dersi bitirin" uyarısı çıkar', (await p.locator('[data-noclose-card]').count()) >= 1 && (await p.locator('[data-noclose-end]').count()) >= 1);
-  await p.evaluate(() => document.querySelector('[data-noclose-end]').click()); await p.waitForTimeout(2500);
-  const lo = await getDoc('LO-' + TD);
-  ok('Uyarıdan "Dersi bitir" deyince ders kesinleşir (endedAt)', !!(lo.fields && lo.fields.endedAt));
-  ok('Kapatılınca uyarı kartı kalkar', (await p.locator('[data-noclose-card]').count()) === 0);
-  // Yoklama kapısı
+  // Kaydedilen her yoklama geçerli: "dersi bitirin" uyarısı / kapatılmamış ders kavramı YOK
+  ok('Kaydedilmiş ama "bitirilmemiş" ders için uyarı kartı çıkmaz (kapatılmamış ders yok)', (await p.locator('[data-noclose-card]').count()) === 0 && (await p.locator('[data-noclose-end]').count()) === 0);
+  // Yoklama ekranı: dersi başlat / bitir düğmeleri YOK; işaretleme ve kaydetme doğrudan çalışır
   await goA(p, 'attendance'); await p.waitForTimeout(1500);
   await p.evaluate(() => document.querySelector('[data-att-lesson="LA"]').click()); await p.waitForTimeout(1200);
+  ok('"Dersi başlat" düğmesi yok', (await p.locator('[data-start-lesson]').count()) === 0 && !(await p.evaluate(() => document.body.innerText)).includes('Dersê Dest Pê Bike'));
+  ok('"Dersi bitir" düğmesi yok', (await p.locator('[data-end-lesson]').count()) === 0);
+  ok('Bugünün dersi için durum paneli + QR düğmeleri var (liste ders saatinde hazır)', (await p.locator('[data-att-today]').count()) === 1 && (await p.locator('[data-att-open-qr]').count()) === 1 && (await p.locator('[data-att-scan]').count()) === 1);
   await p.evaluate(() => document.querySelector('[data-att-mark="on"]').click()); await p.waitForTimeout(600);
   const t1 = await p.evaluate(() => document.body.innerText);
-  ok('Başlatılmadan işaretlenemez: "önce dersi başlat" uyarısı', t1.includes('Pêşî dersê dest pê bike'));
+  ok('Başlatmadan işaretlenir: "önce dersi başlat" uyarısı çıkmaz', !t1.includes('Pêşî dersê dest pê bike'));
   const a0 = await getDoc('LA-' + TD);
-  ok('Başlatılmadan hiçbir yoklama kaydı yazılmadı', !(a0.fields && a0.fields.records));
-  await p.evaluate(() => { const b = document.querySelector('[data-start-lesson]') || [...document.querySelectorAll('button')].find(x => /Dest P/i.test(x.textContent)); b.click(); }); await p.waitForTimeout(2500);
-  await p.evaluate(() => document.querySelector('[data-att-mark="on"]').click()); await p.waitForTimeout(400);
+  ok('Kaydet\'e basılmadan kayıt yazılmaz', !(a0.fields && a0.fields.records));
   await p.evaluate(() => [...document.querySelectorAll('button')].filter(x => x.offsetParent && /tomar/i.test(x.textContent)).pop().click()); await p.waitForTimeout(2500);
   const a1 = await getDoc('LA-' + TD);
-  ok('Başlatınca yoklama kaydedilir ama KESİNLEŞMEZ (dersi bitirene kadar sayılmaz)', !!(a1.fields && a1.fields.records) && !(a1.fields && a1.fields.endedAt));
+  const rj = JSON.stringify(a1.fields && a1.fields.records || {});
+  ok('Yoklamayı kaydet deyince kayıt işlenir (başlat/bitir gerekmez); işaretlenen "geldi", işaretlenmeyen "yok" yazılır', (rj.match(/"on"/g) || []).length === 1 && (rj.match(/"off"/g) || []).length === 1, rj);
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);
 })().catch(e => { console.error('E2E HATA', e); process.exit(1); });

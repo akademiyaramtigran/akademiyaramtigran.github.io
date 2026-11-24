@@ -53,7 +53,6 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   const waitFor = async (f, ms) => { const t0 = Date.now(); for (;;) { const r = await f(); if (r) return r; if (Date.now() - t0 > (ms || 25000)) return null; await new Promise(r => setTimeout(r, 700)); } };
   const A = await open('72026011', 'Ayse12345');
   // 1) Program: yalnız kendi dersi, günlük
-  await A.waitForSelector('[data-tday-list]', { timeout: 20000 }).catch(async e => { console.log('DBG', errs.join(' | '), (await A.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ').slice(0, 400)); throw e; });
   let tx = await A.evaluate(() => document.querySelector('[data-tday-list]').innerText);
   ok('Program (bugün): yalnız KENDİ dersi görünür', tx.includes('Ders Ayse Bugun'), tx.replace(/\s+/g, ' ').slice(0, 80));
   ok('Başka öğretmenin dersi görünmez', !tx.includes('Ders Berfin Bugun'));
@@ -78,7 +77,6 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await toMsg(B); await B.waitForSelector('[data-room-conv]', { timeout: 20000 });
   const bt = await B.evaluate(() => document.body.innerText);
   ok('Alıcı öğretmen yazışmayı mesaj listesinde görür', bt.includes('Mamoste Ayşe') && bt.includes('Silav Berfin'));
-  await B.evaluate(() => document.querySelector('[data-room-conv]').click()); await B.waitForSelector('#t-room-reply', { timeout: 10000 }).catch(async e => { console.log('DBG2', errs.join(' | '), (await B.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ').slice(0, 500)); throw e; });
   await B.fill('#t-room-reply', 'Erê, sibe 10:00'); await B.click('#t-room-reply-send');
   await waitFor(async () => (await list('kidStaffMsgs')).length === 2);
   ok('Alıcı yanıtlar (iki mesaj, aynı özel yazışma)', (await list('kidStaffMsgs')).length === 2);

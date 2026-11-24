@@ -68,7 +68,6 @@ async function routes(ctx) {
   await tc.getByText('Têkeve', { exact: true }).last().click(); await tc.waitForTimeout(7000);
   await goA(tc, 'attendance'); await tc.waitForTimeout(1500);
   await tc.click('[data-att-lesson="LQ"]'); await tc.waitForTimeout(1200);
-  await btn(tc, 'Dersê Dest Pê Bike'); await tc.waitForTimeout(2000);
   // 1. oturum
   await btn(tc, 'QR ya dersê'); await tc.waitForTimeout(2500);
   const s1 = await openSessions(); const SID1 = s1[0];

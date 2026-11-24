@@ -92,7 +92,7 @@ async function routes(ctx) {
   await goA(sp3, 'attend'); await sp3.waitForSelector('[data-stu-att-view]', { timeout: 15000 }); await sp3.waitForTimeout(2500);
   const st3 = await sp3.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-stu-att-row]')].map(e => [e.dataset.stuAttRow, e.dataset.st])));
   ok('Kesinleşme tarihinden ÖNCEKİ eski ders (final bayrağı yok) gerçek durumunu gösterir, "bekliyor" kalmaz', st3['OLD1'] === 'off', JSON.stringify(st3));
-  ok('Tarihten SONRAKİ kesinleşmemiş ders hâlâ "bekliyor" (dersi bitir şart)', st3['NEW1'] === 'wait', JSON.stringify(st3));
+  ok('Kayıtlı her ders geçerli: kesinleşme tarihi ne olursa olsun "bekliyor" yok, gerçek durum görünür', st3['NEW1'] === 'off' && !Object.values(st3).includes('wait'), JSON.stringify(st3));
   await sp3.context().close();
   // "Ders yapılmadı" günü öğrenci kaydını kaldırır
   await fetch(`${FS}/attendance/11-${DATE}?updateMask.fieldPaths=teacherAbsent`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { teacherAbsent: { booleanValue: true } } }) });

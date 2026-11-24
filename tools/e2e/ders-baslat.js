@@ -105,6 +105,8 @@ async function routes(ctx) {
   const sch = (await list('schedule')).filter(d => d.fields.name && d.fields.name.stringValue === 'Şano Pratîk');
   ok('Tek günlük ders kaydedildi (takvimden bugün): bölüm tiyatro, öğretmen atanmış', sch.length === 1 && sch[0].fields.area.stringValue === 'tiyatro' && sch[0].fields.teacherNo.stringValue === '50202601' && JSON.stringify(sch[0].fields.extraDates || {}).includes(new Date().toISOString().slice(0, 10)), JSON.stringify(sch.map(d => d.fields)).slice(0, 300));
   const LID = sch[0] && (sch[0].fields.id.integerValue || sch[0].fields.id.doubleValue || sch[0].fields.id.stringValue);
+  { const n = new Date(Date.now() - 60000), hm = n.getDate() === new Date().getDate() ? String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0') : '00:00';
+    await fetch(`${FS}/schedule/${sch[0].name.split('/').pop()}?updateMask.fieldPaths=start&updateMask.fieldPaths=end`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { start: { stringValue: hm }, end: { stringValue: '23:59' } } }) }); }   // geç sayımı programdaki başlangıç saatinden
   // Takvimden gün + "her hafta tekrarlansın"
   await rq.click('[data-add-lesson]'); await rq.waitForTimeout(700);
   await rq.locator('select:has(option[value="C1"])').selectOption('C1');
@@ -113,9 +115,8 @@ async function routes(ctx) {
   const rx = (await list('schedule')).filter(d => d.fields.name && d.fields.name.stringValue === 'Şano Hefteyî');
   ok('Her hafta tekrarlanan ders: gün takvimden, başlangıç tarihi kayıtlı', rx.length === 1 && rx[0].fields.lessonType.stringValue === 'main' && rx[0].fields.day.stringValue === todayKu && !!rx[0].fields.from);
   // İkinci ders: 20 dk önce başlamış (geç sayımı için)
-  await put('schedule/LB', { id: 'LB', fireId: 'LB', area: 'tiyatro', classId: 'C1', name: 'Şano Dereng', day: todayKu, start: '08:00', end: '09:00', teacherNo: '50202601', teacherName: 'Mamoste Şano', lessonType: 'main' });
+  await put('schedule/LB', { id: 'LB', fireId: 'LB', area: 'tiyatro', classId: 'C1', name: 'Şano Dereng', day: todayKu, start: '00:00', end: '23:59', teacherNo: '50202601', teacherName: 'Mamoste Şano', lessonType: 'main' });
   const today = new Date().toISOString().slice(0, 10);
-  await put('attendance/LB-' + today, { lessonId: 'LB', area: 'tiyatro', date: today, startedAt: Date.now() - 20 * 60000 });
 
   // 2) Öğrenci İşleri: ders programı YOK (yalnız kayıt: öğrenciler + öğretmenler); program bölüm sorumlusunda
   const rp = await login(await mk(), '98202601', 'Reg12345');
@@ -134,18 +135,14 @@ async function routes(ctx) {
   const tp = await login(await mk(), '50202601', 'Tea12345');
   await goA(tp, 'attendance'); await tp.waitForTimeout(1500);
   await tp.click('[data-att-lesson="' + LID + '"]'); await tp.waitForTimeout(1200);
-  ok('Başlamamış derste "Dersê Dest Pê Bike" düğmesi', (await txt(tp)).includes('Dersê Dest Pê Bike'));
-  await btn(tp, 'Dersê Dest Pê Bike'); await tp.waitForTimeout(2000);
-  ok('Ders başladı göstergesi', (await tp.locator('[data-lesson-started]').count()) === 1);
-  const a1 = await get('attendance/' + LID + '-' + today);
-  ok('Başlangıç anı kaydedildi (startedAt)', a1.fields && !!a1.fields.startedAt);
+  ok('"Dersê Dest Pê Bike" düğmesi YOK; bugünün dersi için durum paneli var', !(await txt(tp)).includes('Dersê Dest Pê Bike') && (await tp.locator('[data-att-today]').count()) === 1);
   await tp.click('[data-att-scan]'); await tp.waitForTimeout(800);
   await tp.fill('input[aria-label=card-code]', 'AAT1:' + TOK1); await btn(tp, 'Kontrol'); await tp.waitForTimeout(2500);
   const a2 = await get('attendance/' + LID + '-' + today);
   ok('Kartla okutulan öğrenci "on" (zamanında) kaydedildi', JSON.stringify(a2.fields && a2.fields.records || {}).includes('"on"'));
   // Geç: 20 dk önce başlamış ders
   await tp.click('[data-att-lesson="LB"]'); await tp.waitForTimeout(2000);
-  ok('Önceden başlamış ders "başladı" görünür', (await tp.locator('[data-lesson-started]').count()) === 1);
+  ok('Programdaki ders için durum paneli görünür (başlat düğmesi yok)', (await tp.locator('[data-att-today]').count()) === 1);
   ok('İzinli öğrenci listede yok, izinli notu var', (await tp.locator('[data-on-leave]').count()) === 1 && (await tp.locator('.att-btn').count()) === 6 && !(await tp.evaluate(() => [...document.querySelectorAll('.att-btn')].some(b => (b.closest('div[style]') || {}).textContent && b.closest('div').parentElement.textContent.includes('Azad Can')))));
   await tp.click('[data-att-scan]'); await tp.waitForTimeout(800);
   await tp.fill('input[aria-label=card-code]', 'AAT1:' + TOK1); await btn(tp, 'Kontrol'); await tp.waitForTimeout(2500);
@@ -194,10 +191,10 @@ async function routes(ctx) {
     await tp.getByText('Têkeve', { exact: true }).last().click(); await tp.waitForTimeout(7000); }
   await goA(tp, 'attendance'); await tp.waitForTimeout(1200);
   await tp.click('[data-att-lesson="' + LID + '"]'); await tp.waitForTimeout(1500);
-  await tp.click('[data-end-lesson]'); await tp.waitForTimeout(3500);
+  await tp.click('[data-att-save-list]'); await tp.waitForTimeout(3500);
   const ae = await get('attendance/' + LID + '-' + today);
   const recs = JSON.stringify(ae.fields && ae.fields.records || {});
-  ok('Uygulama yeniden açılsa da Dersi bitir: QR ile giren öğrenci "geldi" (yok yazılmadı)', !!(ae.fields && ae.fields.endedAt) && /"103":\{"stringValue":"(on|late)"\}/.test(recs) && (await tp.locator('[data-lesson-ended]').count()) === 1, recs);
+  ok('Uygulama yeniden açılsa da Yoklamayı kaydet: QR ile giren öğrenci "geldi" (yok yazılmadı), başlat/bitir gerekmez', /"103":\{"stringValue":"(on|late)"\}/.test(recs), recs);
   // 4) Sorumlu: "ders yapılmadı" işaretler (neden + açıklama) → yönetici raporu
   await goA(hp, 'announce'); await hp.waitForTimeout(500); await goA(hp, 'schedule'); await hp.waitForTimeout(1500);
   // "Ders yapılmadı": yoklaması alınmış dersi değil, ayrı haftalık dersi (Şano Dereng) işaretle

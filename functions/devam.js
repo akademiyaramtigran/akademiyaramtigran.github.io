@@ -27,16 +27,14 @@ function studentIndex(docs) {
 
 // Bugünün tarihi (İstanbul) — YYYY-MM-DD
 const istToday = (ms) => new Date(ms == null ? Date.now() : ms).toLocaleDateString("sv-SE", { timeZone: "Europe/Istanbul" });
-// Yoklama KESİNLEŞTİ mi? Ders bitirildi (endedAt) ya da gün geçti. Ders sürerken öğretmen "Kaydet"e basınca okutmayan herkes
-// geçici olarak "yok" yazılır — bu kesin değildir, öğrenciye "gelmedi" bildirimi gitmez / ekranda "bekliyor" görünür.
-// (Yeni kural: gün geçmesi artık kesinleştirmez — öğretmen "Dersi bitir" demeli; eski kayıtlar DV_CUTOFF öncesi sayılır.)
+// Yoklama geçerli mi? Kaydedilen her yoklama geçerlidir (aşağıdaki ortak çekirdek) — "dersi başlat / bitir" kalktı.
 /*DEVAMCORE-BEGIN*/
 // ── DEVAM ORTAK HESABI (istemci: app/index.html · sunucu: functions/devam.js — iki metin BİREBİR aynı olmalı; tools/devam-testi.js denetler) ──
-// Kural: bir yoklama yalnız KESİNLEŞTİKTEN sonra (öğretmen "Dersi bitir" dedi / sorumlu-yönetici düzeltti-kapattı) raporlara,
-// analize, uyarılara ve öğrenci ekranına sayılır. Devam eden ders görünmez. İzin sonradan girilse bile o günün "yok"u "izinli" olur.
-// bu tarihten ÖNCEKİ yoklamalar (eski kayıtlar) "dersi bitir" olmadan da kesin sayılır (test ortamında geçersiz kılınabilir)
-const DV_CUTOFF = (typeof globalThis !== "undefined" && globalThis.__DV_CUTOFF) || (typeof process !== "undefined" && process.env && process.env.DV_CUTOFF) || "2026-11-22";
-const dvClosed = a => !!(a && (a.endedAt || a.closedBy || String(a.date || "") < DV_CUTOFF));
+// Kural: KAYDEDİLEN her yoklama geçerlidir (raporlara, analize, uyarılara ve öğrenci ekranına sayılır) — "dersi başlat / bitir" yoktur;
+// öğretmen listeyi / QR'ı ders saatinde açar, "Yoklamayı kaydet" dediğinde işlenir, sonradan düzeltme sürer. İzin sonradan girilse bile o günün "yok"u "izinli" olur.
+// Gelmeyen öğrenci gelmedi olarak kalır (yoklama kaydı olmayan ders hiç sayılmaz). dvcut / DV_CUTOFF artık kullanılmaz (geriye dönük uyum için sabit durur).
+const DV_CUTOFF = "2000-01-01";
+const dvClosed = a => !!a;
 const dvPct = (on, late, off) => { const n = (on || 0) + (late || 0) + (off || 0); return n ? Math.round(((on || 0) + (late || 0)) / n * 100) : null; };
 const dvLeaveCovers = (l, date, lessonId) => { if (!l || String(l.from || "") > String(date) || String(date) > String(l.to || "")) return false; const ids = l.lessonIds; return !ids || !ids.length || ids.map(String).includes(String(lessonId)); };
 function dvRecords(a, leaves, noOfKey) {

@@ -1672,6 +1672,7 @@ window.AAT_TX={"ku":{},"zza":{},"tr":{"Berpirsê sinifê":"Sınıf sorumlusu","b
 "Şîfreya nû binivîse (herî kêm 8 tîp û hejmarek). Vala bihêle = otomatîk.":"Yeni şifreyi yazın (en az 8 karakter ve bir rakam). Boş bırakırsanız otomatik üretilir.",
 "Şîfreyê bi destê xwe binivîse (herî kêm 8 tîp û hejmarek) an bi «Otomatîk» çêke.":"Şifreyi kendiniz yazın (en az 8 karakter ve bir rakam) ya da «Otomatik» ile üretin.",
 "Otomatîk":"Otomatik",
+"Lîste û QR ya dizivire di dema dersê de bi xwe vedibin. Bi “Amadebûnê tomar bike” tê tomarkirin; QR piştî dersê tê girtin. Piştre jî dikarî rast bikî.":"Liste ve dönen QR ders saatinde kendiliğinden açılır. “Yoklamayı kaydet” ile işlenir; QR ders saati geçince kapanır. Sonradan yine düzeltebilirsiniz.",
 "Mamoste tune.":"Öğretmen yok."}};
 window.AAT_SITE={"ku":{},"zza":{}};
 window.AAT_SITE_AREA={"ku":{},"zza":{}};
