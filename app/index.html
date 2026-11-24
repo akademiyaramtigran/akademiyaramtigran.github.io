@@ -9542,6 +9542,113 @@ function TeacherClassHub({teacher,myStudents,classGroups,lang,t,toast,initial,ms
     </div>);
 }
 
+/* ── Çocuk Akademisi: ders programını toplu içe aktar (sınıf;gün;başlangıç;bitiş;ders;öğretmenler) ── */
+const KID_PROG_PRESET_MUZIK=`A+;Şemî;09:50;10:30;Stranbêjî;Mesûd
+A+;Şemî;10:40;11:20;Ziman;Hesen
+A+;Şemî;11:30;12:10;Ziman;Hesen
+A-1;Şemî;09:00;09:40;Ziman;Hesen
+A-1;Şemî;09:50;10:30;Titulars;Eda
+A-1;Şemî;10:40;11:20;Stranbêjî;Mesûd
+A-1;Şemî;11:30;12:10;Dalcroze;Evîndar
+A-2;Şemî;09:00;09:40;Titulars;Eda
+A-2;Şemî;09:50;10:30;Ziman;Hesen
+A-2;Şemî;10:40;11:20;Dalcroze;Evîndar
+A-2;Şemî;11:30;12:10;Stranbêjî;Mesûd
+B-1;Şemî;09:00;09:40;Solfej;Derya
+B-1;Şemî;09:50;10:30;Teorî;Aram
+B-1;Şemî;10:40;11:20;Amûr;Sarya,Müslüm,Apo,Nergiz,Xoşyar,Adar
+B-1;Şemî;11:30;12:10;Ziman;Sedat
+B-2;Şemî;09:00;09:40;Teorî;Aram
+B-2;Şemî;09:50;10:30;Amûr;Welat,Xoşyar,Müslüm
+B-2;Şemî;10:40;11:20;Ziman;Sedat
+B-2;Şemî;11:30;12:10;Solfej;Derya
+B-3;Şemî;09:00;09:40;Ziman;Sedat
+B-3;Şemî;09:50;10:30;Solfej;Derya
+B-3;Şemî;10:40;11:20;Teorî;Aram
+B-3;Şemî;11:30;12:10;Amûr;Welat,Sarya,Adar,Apo,Nergiz
+D-1;Şemî;13:00;13:40;Amûr;Müslüm,Nergiz,Hêlin,Apo,Xoşyar,Bawer,Welat,Xebat
+D-1;Şemî;13:50;14:30;Solfej;Evîndar
+D-1;Şemî;14:40;15:20;Ziman;Hesen
+D-1;Şemî;15:30;16:10;Teorî;Yunus
+E-2;Şemî;13:00;13:40;Solfej;Evîndar
+E-2;Şemî;13:50;14:30;Amûr;Xebat,Müslüm,Hêlin,Xoşyar,Adar,Bawer,Sarya
+E-2;Şemî;14:40;15:20;Teorî;Yunus
+E-2;Şemî;15:30;16:10;Ziman;Sedat
+E-1;Şemî;13:00;13:40;Ziman;Hesen
+E-1;Şemî;13:50;14:30;Teorî;Yunus
+E-1;Şemî;14:40;15:20;Amûr;Xebat,Müslüm,Hêlin,Welat,Sarya
+E-1;Şemî;15:30;16:10;Solfej;Adar
+F-1;Şemî;13:00;13:40;Teorî;Ferhat
+F-1;Şemî;13:50;14:30;Ziman;Hesen
+F-1;Şemî;14:40;15:20;Solfej;Adar
+F-1;Şemî;15:30;16:10;Amûr;Xebat,Müslüm,Welat,Xoşyar,Bawer,Sarya
+A+;Şemî;13:00;13:40;Stranbêjî;Mesûd
+A+;Şemî;13:50;14:30;Ziman;Sedat
+A+;Şemî;14:40;15:20;Ziman;Sedat`;
+const kidNz=s=>String(s||"").toLocaleLowerCase("tr").replace(/[ûúùü]/g,"u").replace(/[îıíì]/g,"i").replace(/[êéèë]/g,"e").replace(/[çć]/g,"c").replace(/[şś]/g,"s").replace(/[ğ]/g,"g").replace(/[öô]/g,"o").replace(/[âá]/g,"a").replace(/[^a-z0-9+\-]/g,"");
+const KID_DAY_MAP={"yekşem":0,"pazar":0,"sunday":0,"dûşem":1,"pazartesi":1,"monday":1,"sêşem":2,"salı":2,"sali":2,"tuesday":2,"çarşem":3,"çarşamba":3,"carsamba":3,"wednesday":3,"pêncşem":4,"perşembe":4,"persembe":4,"thursday":4,"înî":5,"cuma":5,"friday":5,"şemî":6,"cumartesi":6,"saturday":6};
+function parseKidProgram(text){
+  const rows=[]; const bad=[];
+  String(text||"").split(/\r?\n/).forEach((ln,i)=>{ const t=ln.trim(); if(!t||t.startsWith("#")) return;
+    const p=t.split(/[;\t]/).map(x=>x.trim());
+    const day=KID_DAY_MAP[String(p[1]||"").toLocaleLowerCase("tr")];
+    if(p.length<6||day==null||!/^\d{1,2}:\d{2}$/.test(p[2])||!/^\d{1,2}:\d{2}$/.test(p[3])||!p[0]||!p[4]){ bad.push(i+1); return; }
+    const pad=x=>x.length===4?"0"+x:x;
+    rows.push({cls:p[0],day,start:pad(p[2]),end:pad(p[3]),title:p[4],teachers:p[5].split(/[,\/]/).map(x=>x.trim()).filter(Boolean)}); });
+  return {rows,bad};
+}
+function KidProgramImport({kteach,kidCls,sched,lang,toast,user}){
+  const F=window.__FB; const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const [text,setText]=useState(""); const [map,setMap]=useState({}); const [busy,setBusy]=useState(false); const [done,setDone]=useState(null);
+  const {rows,bad}=useMemo(()=>parseKidProgram(text),[text]);
+  const names=[...new Set(rows.flatMap(r=>r.teachers))];
+  const cands=n=>{ const k=kidNz(n); const exact=(kteach||[]).filter(t=>kidNz(t.name)===k); if(exact.length) return exact; return (kteach||[]).filter(t=>kidNz(String(t.name||"").split(/\s+/)[0])===k); };
+  const pick=n=>{ if(map[n]!==undefined) return map[n]; const c=cands(n); return c.length===1?String(c[0].no):""; };
+  const clsNames=[...new Set(rows.map(r=>r.cls))];
+  const clsOf=n=>(kidCls||[]).find(c=>c.kind&&c.kind!=="workshop"&&c.status!=="closed"&&kidNz(c.name)===kidNz(n));
+  const missing=names.filter(n=>!pick(n));
+  // Çakışma: aynı öğretmen aynı gün+saatte iki ayrı sınıfta
+  const conflicts=(()=>{ const m=new Map(), out=[]; rows.forEach(r=>r.teachers.forEach(n=>{ const no=pick(n); if(!no) return; const k=no+"|"+r.day+"|"+r.start; const x=m.get(k); if(x&&x!==r.cls) out.push(n+" · "+r.start+" · "+x+" / "+r.cls); else m.set(k,r.cls); })); return out; })();
+  const entries=rows.flatMap(r=>r.teachers.map(n=>({...r,tno:pick(n),tname:n}))).filter(e=>e.tno);
+  const exists=e=>(sched||[]).some(s=>String(s.classId)===String((clsOf(e.cls)||{}).id)&&+s.day===e.day&&s.start===e.start&&s.title===e.title&&String(s.teacherNo)===String(e.tno));
+  const fresh=entries.filter(e=>!(clsOf(e.cls)&&exists(e)));
+  async function run(){
+    if(busy||!fresh.length&&!clsNames.some(n=>!clsOf(n))) return;
+    if(!window.confirm(W2("Sinif û ders werin zêdekirin?","Add classes and lessons?")+"\n"+clsNames.filter(n=>!clsOf(n)).length+" "+W2("sinifên nû","new classes")+" · "+fresh.length+" "+W2("ders","lessons"))) return;
+    setBusy(true); setDone(null);
+    try{
+      const ids={}; let nc=0, nl=0;
+      for(const n of clsNames){ const ex=clsOf(n); const tn=[...new Map(entries.filter(e=>e.cls===n).map(e=>[String(e.tno),(kteach||[]).find(t=>String(t.no)===String(e.tno))||{}])).entries()];
+        const tnos=tn.map(x=>x[0]), tnames=tn.map(x=>x[1].name||"");
+        if(ex){ ids[n]=ex.id; const un=[...new Set([...(ex.teacherNos||[]).map(String),...tnos])]; await F.updateDoc(F.doc(F.db,"kidClasses",ex.id),{teacherNos:un,teacherNames:un.map(no=>((kteach||[]).find(t=>String(t.no)===no)||{}).name||""),updatedAt:F.serverTimestamp()}); }
+        else{ const ref=F.doc(F.collection(F.db,"kidClasses")); ids[n]=ref.id; await F.setDoc(ref,{kind:"area",name:n.slice(0,80),workshop:false,area:"zarok",studentNos:[],teacherNos:tnos,teacherNames:tnames,headNos:[],createdAt:F.serverTimestamp(),updatedAt:F.serverTimestamp()}); nc++; } }
+      for(const e of fresh){ const t=(kteach||[]).find(x=>String(x.no)===String(e.tno))||{};
+        await F.addDoc(F.collection(F.db,"kidSchedule"),{day:e.day,start:e.start,end:e.end,title:e.title.slice(0,80),area:"zarok",teacherNo:String(e.tno),teacher:t.name||e.tname,room:"",classId:ids[e.cls],createdAt:F.serverTimestamp()}); nl++; }
+      logAudit("prog-import","Çocuk Akademisi programı içe aktarıldı: "+nc+" sınıf, "+nl+" ders","kidSchedule");
+      setDone({nc,nl}); toast("✅ "+nc+" "+W2("sinif","classes")+" · "+nl+" "+W2("ders","lessons"));
+    }catch(e){ toast("❌ "+((e&&e.code)||e)); }
+    setBusy(false);
+  }
+  const box={background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,padding:12,marginBottom:12};
+  const inp={width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:13,boxSizing:"border-box",fontFamily:"monospace"};
+  return(<details data-kid-prog-import style={box}>
+    <summary style={{cursor:"pointer",fontWeight:800,color:"var(--text)"}}>📥 {W2("Bernameyê bi carekê ve têxe (sinif · roj · saet · ders · mamoste)","Import the schedule in one go (class · day · time · lesson · teachers)")}</summary>
+    <div style={{fontSize:12,color:"var(--text2)",lineHeight:1.6,margin:"8px 0"}}>{W2("Her rêzek: sinif;roj;destpêk;dawî;ders;mamoste (gelek mamoste bi vîrgûlê). Sinifê tune be tê çêkirin; mamoste bi navê xwe ya yekem tên hevgirtin. Dersa ku gelek mamoste hene ji bo her mamosteyî rêzek dibe.","Each line: class;day;start;end;lesson;teachers (several teachers separated by commas). Missing classes are created; teachers are matched by first name. A lesson with several teachers becomes one entry per teacher.")}</div>
+    <button type="button" data-prog-preset="1" onClick={()=>setText(KID_PROG_PRESET_MUZIK)} style={{padding:"8px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12.5,cursor:"pointer",marginBottom:8}}>🎵 {W2("Bernameya Muzîkê ya Şemiyê (2026/2027) bar bike","Load the Music Unit Saturday schedule (2026/2027)")}</button>
+    <textarea data-prog-text="1" value={text} onChange={e=>setText(e.target.value)} rows={6} style={inp} placeholder="A+;Şemî;09:50;10:30;Stranbêjî;Mesûd"/>
+    {text.trim()&&<div data-prog-preview="1" style={{marginTop:10,fontSize:13,color:"var(--text)",lineHeight:1.7}}>
+      <div><b>{clsNames.length}</b> {W2("sinif","classes")} ({clsNames.filter(n=>!clsOf(n)).length} {W2("nû","new")}) · <b>{rows.length}</b> {W2("ders","lessons")} → <b data-prog-count={fresh.length}>{fresh.length}</b> {W2("tomar (her mamoste rêzek)","entries (one per teacher)")}</div>
+      {bad.length>0&&<div style={{color:"#b42318"}}>⚠ {W2("Rêzên şaş","Invalid lines")}: {bad.slice(0,12).join(", ")}</div>}
+      {names.length>0&&<div style={{marginTop:6}}><b>{W2("Mamoste","Teachers")}</b>: {names.map(n=>{ const c=cands(n); const cur=pick(n); return(<span key={n} data-prog-teacher={n} style={{display:"inline-flex",alignItems:"center",gap:4,margin:"2px 8px 2px 0"}}>
+        <span style={{color:cur?"#15803d":"#b42318",fontWeight:700}}>{cur?"✓":"✗"} {n}</span>
+        {(c.length!==1)&&<select value={cur} onChange={e=>setMap(m=>({...m,[n]:e.target.value}))} style={{fontSize:12,padding:"2px 4px"}}><option value="">—</option>{(c.length?c:(kteach||[])).map(t=><option key={t.no} value={t.no}>{t.name}</option>)}</select>}</span>); })}</div>}
+      {missing.length>0&&<div style={{color:"#b42318"}}>⚠ {W2("Mamosteyên nehatin dîtin (dersên wan nayên zêdekirin)","Teachers not found (their lessons are skipped)")}: {missing.join(", ")}</div>}
+      {conflicts.length>0&&<div data-prog-conflicts={conflicts.length} style={{color:"#b45309"}}>⚠ {W2("Lihevketin","Conflicts")}: {conflicts.slice(0,6).join(" | ")}</div>}
+      <button type="button" data-prog-run="1" disabled={busy||(!fresh.length&&!clsNames.some(n=>!clsOf(n)))} onClick={run} style={{marginTop:8,width:"100%",padding:12,borderRadius:10,border:"none",background:"#0f2f38",color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer"}}>{busy?"⏳":"📥 "+W2("Têxe","Import")}</button>
+      {done&&<div data-prog-done={done.nl} style={{marginTop:8,color:"#15803d",fontWeight:700}}>✅ {done.nc} {W2("sinifên nû","new classes")} · {done.nl} {W2("ders","lessons")}</div>}
+    </div>}
+  </details>);
+}
 function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   const PRESS=mode==="press";
   const REG=!!(user&&user.isRegistrar)&&!PRESS;
@@ -10258,6 +10365,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
       </div>)}
 
       {tab==="sched"&&(<div>
+        <KidProgramImport kteach={kteach} kidCls={kidCls} sched={sched} lang={lang} toast={toast} user={user}/>
         <div style={box}>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:8}}>
             <select style={inp} value={sForm.day} onChange={e=>setSForm(f=>({...f,day:e.target.value}))}>{DAYS.map((d,i)=><option key={i} value={i}>{d}</option>)}</select>

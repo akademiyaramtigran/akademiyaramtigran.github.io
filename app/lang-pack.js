@@ -1637,6 +1637,16 @@ window.AAT_TX={"ku":{},"zza":{},"tr":{"Berpirsê sinifê":"Sınıf sorumlusu","b
 "Têketina dêûbav":"Veli girişi",
 "Dêûbav bi jimara zarokê û şîfreyeke otomatîk têdikevin — navê dêûbav û têlefon nayê xwestin.":"Veliler çocuğun numarası ve otomatik bir şifreyle giriş yapar — veli adı ve telefon istenmez.",
 "Xwişk/bira ye — hesabê malbatê yê heyî bikar bîne":"Kardeş — mevcut aile girişini kullan",
+"Sinif û ders werin zêdekirin?":"Sınıflar ve dersler eklensin mi?",
+"sinifên nû":"yeni sınıf",
+"Bernameyê bi carekê ve têxe (sinif · roj · saet · ders · mamoste)":"Programı tek seferde içe aktar (sınıf · gün · saat · ders · öğretmen)",
+"Her rêzek: sinif;roj;destpêk;dawî;ders;mamoste (gelek mamoste bi vîrgûlê). Sinifê tune be tê çêkirin; mamoste bi navê xwe ya yekem tên hevgirtin. Dersa ku gelek mamoste hene ji bo her mamosteyî rêzek dibe.":"Her satır: sınıf;gün;başlangıç;bitiş;ders;öğretmenler (birden fazla öğretmen virgülle). Olmayan sınıf açılır; öğretmenler ilk adlarıyla eşleştirilir. Birden fazla öğretmenli ders, öğretmen başına bir kayıt olur.",
+"Bernameya Muzîkê ya Şemiyê (2026/2027) bar bike":"Müzik Birimi cumartesi programını (2026/2027) yükle",
+"tomar (her mamoste rêzek)":"kayıt (öğretmen başına bir satır)",
+"Rêzên şaş":"Hatalı satırlar",
+"Mamosteyên nehatin dîtin (dersên wan nayên zêdekirin)":"Bulunamayan öğretmenler (dersleri eklenmez)",
+"Lihevketin":"Çakışmalar",
+"Têxe":"İçe aktar",
 "Mamoste tune.":"Öğretmen yok."}};
 window.AAT_SITE={"ku":{},"zza":{}};
 window.AAT_SITE_AREA={"ku":{},"zza":{}};
