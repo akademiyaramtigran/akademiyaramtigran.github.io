@@ -68,6 +68,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   ok('Sınıf sorumlusu programda ders ekleyebilir (kendi sınıfı)', (await p.evaluate(() => document.body.innerText)).includes('Dersê Zêde Bike'));
   await fetch(`${FS}/kidSchedule/KS9`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { title: { stringValue: 'Ders ya 1' }, classId: { stringValue: 'KC1' }, area: { stringValue: 'zarok' }, day: { integerValue: '1' }, start: { stringValue: '10:00' }, end: { stringValue: '11:00' } } }) });
   await p.reload(); await p.waitForTimeout(6000); await goA(p, 'schedule'); await p.waitForTimeout(1500);
+  await p.waitForSelector('[data-khs-row]', { timeout: 25000 }).catch(() => {});
   ok('Kendi sınıfının dersi görünür (salt okunur)', (await p.locator('[data-khs-row]').count()) === 1);
   ok('Dersin düzenle/sil düğmeleri görünür (görev + düzenle + sil)', (await p.locator('[data-khs-row] button:not([hidden])').count()) === 3);
   // Sınıflar: yalnız kendi sınıfı, yeni sınıf açma yok
