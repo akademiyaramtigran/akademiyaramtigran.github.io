@@ -8883,7 +8883,7 @@ function KidClassStudio({kids,kteach,sched,areaLabel,user,lang,toast,headNo=null
     lessonLine:l=>({title:l.title||"",sub:(l.date?l.date:dayName(+l.day||0))+" · "+(l.start||"")+"–"+(l.end||"")+(l.teacher?" · 👩‍🏫 "+l.teacher:"")+(l.room?" · 📍 "+l.room:"")}),
     deleteLesson:l=>F.deleteDoc(F.doc(F.db,"kidSchedule",l.fireId)).catch(e=>toast("❌ "+(e.code||e.message))),
     renderAddLesson:(cls,close)=><KidLessonSheet cls={cls} kteach={kteach} lang={lang} toast={toast} onClose={close}/>,
-    renderEditLesson:null,
+    renderEditLesson:(l,close)=>{ const c={id:l.classId,name:l.title||"",kind:"area",area:"zarok"}; return <KidLessonSheet cls={c} lesson={l} kteach={kteach} lang={lang} toast={toast} onClose={close}/>; },
     // Atölye dersi: kidSchedule/ws_{sınıf} — yalnız o tarihte (date) görünür
     saveWorkshopLesson:async(classId,w)=>{
       const id="ws_"+classId;
@@ -9262,16 +9262,25 @@ function KidHeadSchedule({area,user,lang,toast}){
     </div>);
 }
 // Çocuk sınıfına haftalık ders
-function KidLessonSheet({cls,kteach,lang,toast,onClose}){
+function KidLessonSheet({cls,kteach,lang,toast,onClose,lesson=null}){
   const F=window.__FB;
   const W2=(ku,en)=>lang==="en"?en:K(ku);
-  const [f,setF]=useState({day:1,start:"15:00",end:"16:00",title:cls.name||"",teacherNo:String((cls.teacherNos||[])[0]||""),room:""});
+  // lesson verilirse düzenleme kipi (içe aktarılan dersler dahil): mevcut belge güncellenir
+  const [f,setF]=useState(lesson?{day:+lesson.day||0,start:lesson.start||"",end:lesson.end||"",title:lesson.title||"",teacherNo:String(lesson.teacherNo||""),room:lesson.room||""}
+    :{day:1,start:"15:00",end:"16:00",title:cls.name||"",teacherNo:String((cls.teacherNos||[])[0]||""),room:""});
   const inp={width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:14,boxSizing:"border-box",fontFamily:"inherit",minHeight:42,marginBottom:8};
   async function save(){
     if(!f.title.trim()){ toast("⚠ "+W2("Navê dersê pêwîst e","Lesson name required")); return; }
+    if(!f.start||!f.end||f.end<=f.start){ toast("⚠ "+W2("Saeta destpêk û dawiyê kontrol bike","Check the start and end time")); return; }
     const t2=(kteach||[]).find(x=>String(x.no)===String(f.teacherNo));
-    try{ await F.addDoc(F.collection(F.db,"kidSchedule"),{day:+f.day,start:f.start,end:f.end,title:f.title.trim().slice(0,80),area:cls.kind==="area"?cls.area:"",
-        teacherNo:f.teacherNo||"",teacher:t2?t2.name:"",room:f.room.trim().slice(0,40),classId:cls.id,createdAt:F.serverTimestamp()});
+    try{
+      if(lesson&&lesson.fireId){
+        await F.updateDoc(F.doc(F.db,"kidSchedule",lesson.fireId),{day:+f.day,start:f.start,end:f.end,title:f.title.trim().slice(0,80),
+          teacherNo:f.teacherNo||"",teacher:t2?t2.name:"",room:f.room.trim().slice(0,40),updatedAt:F.serverTimestamp()});
+      }else{
+        await F.addDoc(F.collection(F.db,"kidSchedule"),{day:+f.day,start:f.start,end:f.end,title:f.title.trim().slice(0,80),area:cls.kind==="area"?cls.area:"",
+          teacherNo:f.teacherNo||"",teacher:t2?t2.name:"",room:f.room.trim().slice(0,40),classId:cls.id,createdAt:F.serverTimestamp()});
+      }
       toast("✅ "+W2("Hate tomarkirin","Saved")); onClose(); }
     catch(e){ toast("❌ "+(e.code||e.message)); }
   }
@@ -9285,7 +9294,7 @@ function KidLessonSheet({cls,kteach,lang,toast,onClose}){
       <input aria-label={W2("Navê dersê","Lesson name")} style={inp} value={f.title} maxLength={80} onChange={e=>setF(x=>({...x,title:e.target.value}))} placeholder={W2("Navê dersê","Lesson name")}/>
       <select aria-label={W2("Mamoste","Teacher")} style={inp} value={f.teacherNo} onChange={e=>setF(x=>({...x,teacherNo:e.target.value}))}><option value="">— {W2("Mamoste","Teacher")}</option>{(kteach||[]).map(t2=><option key={t2.no} value={t2.no}>{t2.name}</option>)}</select>
       <input aria-label={W2("Ode","Room")} style={inp} value={f.room} maxLength={40} onChange={e=>setF(x=>({...x,room:e.target.value}))} placeholder={W2("Ode","Room")}/>
-      <PrimaryBtn onClick={save} icon="💾">{W2("Dersê Zêde Bike","Add Lesson")}</PrimaryBtn>
+      <PrimaryBtn onClick={save} icon="💾">{lesson?W2("Tomar bike","Save"):W2("Dersê Zêde Bike","Add Lesson")}</PrimaryBtn>
     </Sheet>);
 }
 
@@ -9750,6 +9759,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   const [appG,setAppG]=useState({});             // başvuru kabulü: hangi veliye bağlanacak {appId: veliNo|"new"}
   const [sibPick,setSibPick]=useState(null);     // kardeş eşleştirme: {kidId, q, other}
   const [sForm,setSForm]=useState({day:1,start:"15:00",end:"16:00",title:"",area:"",teacherNo:"",room:"",classId:""});
+  const [editLs,setEditLs]=useState(null);       // düzenlenen haftalık ders (içe aktarılanlar dahil)
   const kidCls=useClassDocs("kidClasses",live);
   // Kartta yazan sınıf: çocuğun açık sınıfları (atölyeler hariç)
   const kidClassOf=k=>kidCls.filter(d=>d.kind&&d.kind!=="workshop"&&d.status!=="closed"&&inClass(d,k.no)).map(d=>d.name).join(" · ");
@@ -10434,6 +10444,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
       </div>)}
 
       {tab==="sched"&&(<div>
+        {editLs&&<KidLessonSheet cls={kidCls.find(c=>c.id===editLs.classId)||{id:editLs.classId,name:editLs.title||"",kind:"area",area:"zarok"}} lesson={editLs} kteach={kteach} lang={lang} toast={toast} onClose={()=>setEditLs(null)}/>}
         <KidProgramImport kteach={kteach} kidCls={kidCls} sched={sched} lang={lang} toast={toast} user={user}/>
         <div style={box}>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:8}}>
@@ -10455,7 +10466,10 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
             {ls.map(s=>(
               <div key={s.fireId} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,fontSize:13,color:"var(--text)",padding:"4px 0"}}>
                 <span style={{minWidth:0}}>🕒 {s.start}–{s.end} · <b>{s.title}</b> <span style={small}>{[areaLabel(s.area),s.teacher,s.room,(kidCls.find(c=>c.id===s.classId)||{}).name].filter(Boolean).join(" · ")}</span></span>
-                <button onClick={()=>F.deleteDoc(F.doc(F.db,"kidSchedule",s.fireId)).catch(err)} style={{...ghost,padding:"3px 8px",flexShrink:0}}><Ico n="trash" solo/></button>
+                <span style={{display:"flex",gap:6,flexShrink:0}}>
+                  <button data-sched-edit={s.fireId} aria-label="✏️" onClick={()=>setEditLs(s)} style={{...ghost,padding:"3px 8px"}}><Ico n="edit" solo/></button>
+                  <button data-sched-del={s.fireId} aria-label="🗑" onClick={()=>{ if(window.confirm(Z("Ders bişimitîne?","Delete this lesson?")+" – "+(s.title||""))) F.deleteDoc(F.doc(F.db,"kidSchedule",s.fireId)).catch(err); }} style={{...ghost,padding:"3px 8px"}}><Ico n="trash" solo/></button>
+                </span>
               </div>))}
           </div>);})}
       </div>)}

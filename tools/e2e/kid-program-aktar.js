@@ -67,6 +67,19 @@ async function routes(ctx) {
   await p.evaluate(() => document.querySelector('[data-prog-preset]').click()); await p.waitForTimeout(1200);
   const cnt2 = await p.evaluate(() => document.querySelector('[data-prog-count]').dataset.progCount);
   ok('Aynı programı yeniden içe aktarma yeni kayıt üretmez (tekrar yok)', cnt2 === '0', cnt2);
+  // İçe aktarılan ders elle düzenlenebilir (ad, saat, öğretmen, ode) ve silinebilir
+  const fid = await p.evaluate(() => document.querySelector('[data-sched-edit]').dataset.schedEdit);
+  await p.evaluate(() => document.querySelector('[data-sched-edit]').click()); await p.waitForTimeout(900);
+  await p.locator('input[aria-label="Navê dersê"]').fill('Ders Duzenlendi');
+  await p.locator('input[aria-label="Ode"]').fill('Oda 5');
+  await p.locator('input[aria-label="Dawî"]').fill('09:55');
+  await p.locator('button:has-text("Tomar bike")').last().click();
+  const ed = await waitFor(async () => { const r = await fetch(`${FS}/kidSchedule/${fid}`, { headers: H }).then(r => r.json()); return r.fields && r.fields.title.stringValue === 'Ders Duzenlendi' ? r : null; }, 20000);
+  ok('İçe aktarılan ders düzenlenir (ad + ode + bitiş saati kaydolur, sınıf bağı korunur)', !!ed && ed.fields.room.stringValue === 'Oda 5' && ed.fields.end.stringValue === '09:55' && !!ed.fields.classId.stringValue && ed.fields.day.integerValue === '6', ed ? JSON.stringify(ed.fields.title) : 'yok');
+  await p.waitForTimeout(500);
+  await p.evaluate(() => document.querySelector('[data-sched-del]').click());
+  await waitFor(async () => (await list('kidSchedule')).length === 74, 20000);
+  ok('İçe aktarılan ders silinir (74 kaldı)', (await list('kidSchedule')).length === 74);
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);
 })().catch(e => { console.error('E2E HATA', e); process.exit(1); });
