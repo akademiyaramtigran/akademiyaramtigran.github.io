@@ -1691,7 +1691,7 @@ window.AAT_TX={"ku":{},"zza":{},"tr":{"Berpirsê sinifê":"Sınıf sorumlusu","b
 "Girêdan hate kopîkirin":"Bağlantı kopyalandı",
 "Akademiya Zarokan — sepanê li ekrana sereke zêde bike":"Çocuk Akademisi — uygulamayı ana ekrana ekleyin",
 "QR bi kamerayê bixwînin — dikare were çapkirin":"QR'ı kamerayla okutun — çıktı alınabilir",
-"Mamoste tune.":"Öğretmen yok."}};
+"Mamoste tune.":"Öğretmen yok.","Bernameya Îro":"Bugünkü Program","Amadebûna Xwendekaran":"Öğrenci Yoklaması"}};
 window.AAT_SITE={"ku":{},"zza":{}};
 window.AAT_SITE_AREA={"ku":{},"zza":{}};
 window.AAT_ZAROK={"ku":{},"zza":{}};

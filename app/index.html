@@ -15006,8 +15006,8 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
   },[teacher.id, teacher.area]);
 
   const navItems=[
-    {key:"home",icon:"🏠",label:t.home},
-    {key:"attendance",icon:"📋",label:t.attendance},
+    {key:"home",icon:"🏠",label:lang==="en"?"Today's schedule":K("Bernameya Îro")},
+    {key:"attendance",icon:"📋",label:lang==="en"?"Student attendance":K("Amadebûna Xwendekaran")},
     {key:"announce",icon:"📢",label:lang==="en"?"Announcements":K("Ragihandin"),badge:teacherAnnUnread},
     {key:"myclass",icon:"🏫",label:lang==="en"?"My Class · Homework · Messages":K("Sinifa Min · Erk · Peyam"),badge:msgUnreadCount},
     {key:"students",icon:"🎓",label:lang==="en"?"My Students":K("Xwendekarên Min")},
