@@ -41,6 +41,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
 (async () => {
   await put('idx_staff/50202601', { no: '50202601', lvl: 'teacher' }); await put('teachers/TA', { id: 'TA', no: '50202601', name: 'Mamoste Şano', area: 'tiyatro' }); await signUp('50202601@ogretmen.aat', 'Tea12345');
   await put('idx_staff/50202602', { no: '50202602', lvl: 'teacher' }); await put('teachers/TB', { id: 'TB', no: '50202602', name: 'Mamoste Drama', area: 'tiyatro' }); await signUp('50202602@ogretmen.aat', 'Tea12345');
+  await put('idx_staff/50202699', { no: '50202699', lvl: 'teacher' }); await put('teachers/TZ', { id: 'TZ', no: '50202699', name: 'Mamoste Muzik', area: 'muzik' });
   await put('idx_staff/96000002', { no: '96000002', lvl: 'head', area: 'genel' }); await put('teachers/HG', { id: 'HG', no: '96000002', name: 'Berpirsê Giştî', area: 'genel', isHead: true }); await signUp('96000002@ogretmen.aat', 'Head1234');
   await put('idx_students/20202601', { no: '20202601' }); await put('students/S1', { no: '20202601', name: 'Rojîn Aram', area: 'tiyatro', fireId: 'S1' });
   await put('idx_students/20202602', { no: '20202602' }); await put('students/S2', { no: '20202602', name: 'Baran Şêx', area: 'tiyatro', fireId: 'S2' });
@@ -80,6 +81,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
       const ok = await pg.evaluate(([r, m]) => { const e = [...document.querySelectorAll(r + ' [data-rcp-item]')].find(x => x.dataset.rcpItem === m || x.textContent.includes(m)); if (e) { e.click(); return true; } return false; }, [root, match]); if (ok) return true; } return false; };
   const opts = (await rcpItems(ta)).map(o => o.v + '|' + o.t);
   ok('Alıcılar: yönetici, bölüm sorumlusu, genel sorumlu, bölüm öğretmeni', opts.some(o => o.startsWith('admin|')) && opts.some(o => o.startsWith('head|')) && opts.some(o => o.startsWith('genhead|')) && opts.some(o => /^c_.*Mamoste Drama/.test(o)), opts.join(' ; '));
+  ok('Alıcılar: başka bölümün öğretmeni listede yok (yalnız kendi bölümü)', !opts.some(o => /Mamoste Muzik/.test(o)), opts.join(' ; '));
   const sendTo = async (val, subj) => {
     await rcpPick(ta, val);
     await ta.locator('input[placeholder="Sernav..."]').fill(subj); await ta.locator('textarea').first().fill('Silav');

@@ -6175,7 +6175,7 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
   const [colleagues,setColleagues]=useState([]), [genHead,setGenHead]=useState(null);
   useEffect(()=>{
     const F=window.__FB; if(!F||!F.isConfigured()||!teacher.area) return; const us=[];
-    try{ us.push(F.onSnapshot(F.collection(F.db,"teachers"),sn=>setColleagues(sn.docs.map(d=>({...d.data(),fireId:d.id})).filter(x=>!x.isAdmin&&!x.isPress&&!x.isRegistrar&&!x.isGate&&!x.isHead&&String(x.no)!==String(teacher.no)).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")))),()=>{})); }catch(_){}
+    try{ us.push(F.onSnapshot(F.collection(F.db,"teachers"),sn=>setColleagues(sn.docs.map(d=>({...d.data(),fireId:d.id})).filter(x=>!x.isAdmin&&!x.isPress&&!x.isRegistrar&&!x.isGate&&!x.isHead&&String(x.no)!==String(teacher.no)&&(teacher.area==="genel"||(x.area||"")===(teacher.area||""))).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")))),()=>{})); }catch(_){}
     try{ us.push(F.onSnapshot(F.query(F.collection(F.db,"teachers"),F.where("area","==","genel")),sn=>setGenHead(sn.docs.map(d=>d.data()).find(x=>x.isHead&&String(x.no)!==String(teacher.no))||null),()=>{})); }catch(_){}
     return ()=>us.forEach(u=>{ try{u();}catch(_){} });
   },[teacher.area,teacher.no]);
