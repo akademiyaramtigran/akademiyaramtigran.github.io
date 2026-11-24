@@ -15,14 +15,13 @@ t('satırlar: durum + öğrenci numarası, kayıtsız öğrenci atlanır', () =>
   assert.equal(rows[0].id, '13-2026-11-02-2020'); assert.equal(rows[0].data.status, 'off'); assert.equal(rows[1].data.status, 'late');
 });
 t('"ders yapılmadı" günü satır üretmez', () => assert.equal(D.buildRows('13-2026-11-02', { teacherAbsent: true, records: { 101: 'off' } }, idx).length, 0));
-t('kesinleşme: yalnız "Dersi bitir" (endedAt) ya da sorumlu kapatması (closedBy); gün geçmesi kesinleştirmez; eski kayıtlar sayılır', () => {
-  assert.equal(D.isFinal({ date: '2026-12-05' }), false);
+t('kesinleşme: KAYDEDİLEN her yoklama geçerli (dersi başlat / bitir yok); eski ve yeni tarih fark etmez', () => {
+  assert.equal(D.isFinal({ date: '2026-12-05' }), true);
+  assert.equal(D.isFinal({ date: '2026-11-05' }), true);
   assert.equal(D.isFinal({ date: '2026-12-05', endedAt: 1 }), true);
-  assert.equal(D.isFinal({ date: '2026-12-05', closedBy: '96000001' }), true);
-  assert.equal(D.isFinal({ date: '2026-12-04' }), false);          // gün geçti ama dersi bitirmedi → kesin DEĞİL
-  assert.equal(D.isFinal({ date: '2026-11-05' }), true);           // eski kayıt (kesim tarihinden önce)
-  assert.equal(D.buildRows('13-2026-12-05', { lessonId: 13, date: '2026-12-05', records: { 101: 'off' } }, idx, '2026-12-05')[0].data.final, false);
-  assert.equal(D.buildRows('13-2026-12-05', { lessonId: 13, date: '2026-12-05', endedAt: 5, records: { 101: 'off' } }, idx, '2026-12-05')[0].data.final, true);
+  assert.equal(D.isFinal(null), false);
+  assert.equal(D.buildRows('13-2026-12-05', { lessonId: 13, date: '2026-12-05', records: { 101: 'off' } }, idx, '2026-12-05')[0].data.final, true);
+  assert.equal(D.buildRows('13-2026-12-05', { lessonId: 13, date: '2026-12-05', records: { 101: 'off' } }, idx, '2026-12-05')[0].data.status, 'off');   // gelmeyen gelmedi olarak kalır
 });
 t('izin sonradan girilse de o günün "yok"u izinli olur; yalnız seçilen derse ya da tüm güne', () => {
   const leaves = [{ studentNo: '2020', from: '2026-12-05', to: '2026-12-06', reason: 'x' }, { studentNo: '2021', from: '2026-12-05', to: '2026-12-05', lessonIds: ['14'] }];
@@ -34,10 +33,10 @@ t('izin sonradan girilse de o günün "yok"u izinli olur; yalnız seçilen derse
   const r3 = D.buildRows('13-2026-12-05', { lessonId: 13, date: '2026-12-05', endedAt: 1, records: { 101: 'on', 102: 'late' } }, idx, '2026-12-05', leaves);
   assert.deepEqual(r3.map(x => x.data.status), ['on', 'late']);                    // gelen izinli yapılmaz
 });
-t('ortak süzgeç: yalnız kesinleşmiş, ders yapılmadı hariç, devam eden ayrı', () => {
-  const docs = [{ date: '2026-12-01', endedAt: 1, records: { a: 'on' } }, { date: '2026-12-02', records: { a: 'off' } }, { date: '2026-12-03', endedAt: 1, teacherAbsent: true, records: { a: 'off' } }, { date: '2026-11-01', records: { a: 'off' } }, { date: '2026-12-04', closedBy: '9', records: {} }];
-  assert.deepEqual(D.dvStatDocs(docs).map(d => d.date), ['2026-12-01', '2026-11-01']);
-  assert.deepEqual(D.dvOpenDocs(docs).map(d => d.date), ['2026-12-02']);
+t('ortak süzgeç: kayıtlı her ders sayılır, ders yapılmadı hariç; açık ders kavramı yok', () => {
+  const docs = [{ date: '2026-12-01', endedAt: 1, records: { a: 'on' } }, { date: '2026-12-02', records: { a: 'off' } }, { date: '2026-12-03', teacherAbsent: true, records: { a: 'off' } }, { date: '2026-11-01', records: { a: 'on' } }, { date: '2026-12-04', records: {} }];
+  assert.deepEqual(D.dvStatDocs(docs).map(d => d.date), ['2026-12-01', '2026-12-02', '2026-11-01']);
+  assert.deepEqual(D.dvOpenDocs(docs).map(d => d.date), []);
 });
 t('yüzde: kayıt yoksa null (%0 DEĞİL); geç gelen gelmiş sayılır; izinli paydaya girmez', () => {
   assert.equal(D.dvPct(0, 0, 0), null); assert.equal(D.dvPct(1, 0, 3), 25); assert.equal(D.dvPct(2, 1, 1), 75); assert.equal(D.dvPct(0, 0, 2), 0);
@@ -46,14 +45,13 @@ t('istemci ve sunucu çekirdeği BİREBİR aynı', () => {
   const fs = require('fs'); const cut = f => { const t = fs.readFileSync(f, 'utf8'); const a = t.indexOf('/*DEVAMCORE-BEGIN*/'), b = t.indexOf('/*DEVAMCORE-END*/'); assert.ok(a >= 0 && b > a, f); return t.slice(a, b); };
   assert.equal(cut(require('path').join(__dirname, '../app/index.html')), cut(require('path').join(__dirname, '../functions/devam.js')));
 });
-t('bildirim: DERS SÜRERKEN (Kaydet ile geçici "yok") bildirim yok', () => {
-  const ch = D.notifyChanges(null, { date: '2026-12-05', records: { 101: 'off', 102: 'late' } }, '2026-12-05');
-  assert.equal(ch.length, 0);
+t('bildirim: ilk kayıtta geç / yok bildirilir (katıldı bildirilmez)', () => {
+  const ch = D.notifyChanges(null, { date: '2026-12-05', records: { 101: 'off', 102: 'late', 103: 'on' } }, '2026-12-05');
+  assert.deepEqual(ch.map(x => x.sid + ':' + x.status).sort(), ['101:off', '102:late']);
 });
-t('bildirim: ders bitince (endedAt geldi) bütün geç/yok bir kez bildirilir; katıldı bildirilmez', () => {
+t('bildirim: aynı kaydı tekrar kaydetmek yeniden bildirmez', () => {
   const before = { date: '2026-12-05', records: { 101: 'off', 102: 'on', 103: 'late' } };
-  const after = { ...before, endedAt: 9 };
-  assert.deepEqual(D.notifyChanges(before, after, '2026-12-05').map(x => x.sid + ':' + x.status).sort(), ['101:off', '103:late']);
+  assert.deepEqual(D.notifyChanges(before, { ...before }, '2026-12-05'), []);
 });
 t('bildirim: kesinleşmiş derste yalnız yeni değişiklikler (aynı durum yeniden bildirilmez)', () => {
   const ch = D.notifyChanges({ date: '2026-11-01', records: { 101: 'off', 102: 'on' } }, { date: '2026-11-01', records: { 101: 'off', 102: 'late', 103: 'on', 104: 'off' } }, '2026-11-05');
@@ -61,14 +59,9 @@ t('bildirim: kesinleşmiş derste yalnız yeni değişiklikler (aynı durum yeni
   assert.equal(D.notifyChanges(null, { date: '2026-11-01', records: { 1: 'on', 2: 'leave' } }, '2026-11-05').length, 0);
 });
 t('bildirim metinleri üç dilde', () => { ['ku', 'tr', 'en'].forEach(l => assert.ok(D.txd(l, 'off', 'Ders').includes('Ders'))); });
-t('hatırlatma: yoklama var + ders kapanmamış + ders saati 15 dk geçti ya da gün geçti', () => {
+t('"dersi bitirin" hatırlatması artık yok: kaydedilen yoklama zaten geçerli', () => {
   const a = { date: '2026-12-05', records: { 1: 'on' } }, ls = { end: '12:00' };
-  assert.equal(D.nagDue(a, ls, '2026-12-05', '12:10'), false);   // henüz 15 dk geçmedi
-  assert.equal(D.nagDue(a, ls, '2026-12-05', '12:15'), true);
-  assert.equal(D.nagDue(a, ls, '2026-12-06', '08:00'), true);    // ertesi gün
-  assert.equal(D.nagDue({ ...a, endedAt: 1 }, ls, '2026-12-06', '08:00'), false);   // kapanmış
-  assert.equal(D.nagDue({ ...a, records: {} }, ls, '2026-12-06', '08:00'), false);  // yoklama yok
-  assert.equal(D.nagDue({ ...a, teacherAbsent: true }, ls, '2026-12-06', '08:00'), false);
-  assert.equal(D.nagDue({ date: '2026-12-07', records: { 1: 'on' } }, ls, '2026-12-06', '23:00'), false);   // gelecek tarih
+  assert.equal(D.nagDue(a, ls, '2026-12-05', '12:15'), false);
+  assert.equal(D.nagDue(a, ls, '2026-12-06', '08:00'), false);
 });
 console.log(n + ' test geçti');

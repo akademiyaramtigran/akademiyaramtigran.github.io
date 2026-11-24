@@ -36,7 +36,7 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-visual"/>
-<script>try{ if(/[?&]emu=1/.test(location.search)){ var _m=/[?&]dvcut=(\d{4}-\d{2}-\d{2})/.exec(location.search); if(_m) window.__DV_CUTOFF=_m[1]; } }catch(e){}</script>
+<script>try{ if(/[?&]emu=1/.test(location.search)){ window.__EMU=1; window.__AUTOQR=/[?&]autoqr=1/.test(location.search); var _m=/[?&]dvcut=(\d{4}-\d{2}-\d{2})/.exec(location.search); if(_m) window.__DV_CUTOFF=_m[1]; } }catch(e){}</script>
 <title>Konservatuara Aram Tîgran</title>
 <link rel="manifest" id="pwa-manifest"/>
 <script>
@@ -1632,6 +1632,10 @@ html.aat-in .c-seg{display:grid;gap:4px;background:#F2F4F4;border-radius:24px;pa
 html.aat-in .c-seg-b{min-height:40px;border:0;border-radius:20px;background:transparent;color:#56676C;font:500 14px var(--font-ui);
   display:flex;align-items:center;justify-content:center;gap:6px;padding:0 8px;cursor:pointer;transition:background .15s,color .15s}
 html.aat-in .c-seg-b.on{background:#fff;color:#102A31;font-weight:700;box-shadow:0 2px 6px rgba(16,42,49,.10)}
+/* 3+ sekmeli çubuk (dar telefon): simge üstte, metin altta ortalı; taşma/üst üste binme yok; rozet metnin yanında */
+html.aat-in .c-seg.many .c-seg-b{flex-direction:column;gap:3px;min-height:58px;padding:7px 2px;font-size:12px;line-height:1.15;text-align:center;min-width:0}
+html.aat-in .c-seg.many .c-seg-b span{display:block;max-width:100%;overflow-wrap:anywhere;hyphens:auto}
+html.aat-in .c-seg.many .c-seg-b .c-badge{display:inline-block;margin-left:4px!important;vertical-align:middle}
 html.aat-in .c-chips{display:flex;gap:8px;flex-wrap:wrap}
 html.aat-in .c-chip{min-height:40px;padding:0 16px;border:1px solid #E1E6E7;border-radius:20px;background:#fff;color:#102A31;
   font:500 14px var(--font-ui);display:inline-flex;align-items:center;gap:6px;cursor:pointer}
@@ -2308,11 +2312,11 @@ function LiveRegion({ msg }) {
 
 /*DEVAMCORE-BEGIN*/
 // ── DEVAM ORTAK HESABI (istemci: app/index.html · sunucu: functions/devam.js — iki metin BİREBİR aynı olmalı; tools/devam-testi.js denetler) ──
-// Kural: bir yoklama yalnız KESİNLEŞTİKTEN sonra (öğretmen "Dersi bitir" dedi / sorumlu-yönetici düzeltti-kapattı) raporlara,
-// analize, uyarılara ve öğrenci ekranına sayılır. Devam eden ders görünmez. İzin sonradan girilse bile o günün "yok"u "izinli" olur.
-// bu tarihten ÖNCEKİ yoklamalar (eski kayıtlar) "dersi bitir" olmadan da kesin sayılır (test ortamında geçersiz kılınabilir)
-const DV_CUTOFF = (typeof globalThis !== "undefined" && globalThis.__DV_CUTOFF) || (typeof process !== "undefined" && process.env && process.env.DV_CUTOFF) || "2026-11-22";
-const dvClosed = a => !!(a && (a.endedAt || a.closedBy || String(a.date || "") < DV_CUTOFF));
+// Kural: KAYDEDİLEN her yoklama geçerlidir (raporlara, analize, uyarılara ve öğrenci ekranına sayılır) — "dersi başlat / bitir" yoktur;
+// öğretmen listeyi / QR'ı ders saatinde açar, "Yoklamayı kaydet" dediğinde işlenir, sonradan düzeltme sürer. İzin sonradan girilse bile o günün "yok"u "izinli" olur.
+// Gelmeyen öğrenci gelmedi olarak kalır (yoklama kaydı olmayan ders hiç sayılmaz). dvcut / DV_CUTOFF artık kullanılmaz (geriye dönük uyum için sabit durur).
+const DV_CUTOFF = "2000-01-01";
+const dvClosed = a => !!a;
 const dvPct = (on, late, off) => { const n = (on || 0) + (late || 0) + (off || 0); return n ? Math.round(((on || 0) + (late || 0)) / n * 100) : null; };
 const dvLeaveCovers = (l, date, lessonId) => { if (!l || String(l.from || "") > String(date) || String(date) > String(l.to || "")) return false; const ids = l.lessonIds; return !ids || !ids.length || ids.map(String).includes(String(lessonId)); };
 function dvRecords(a, leaves, noOfKey) {
@@ -4046,7 +4050,7 @@ function SectionHeader({children}){
 
 // ── C tasarım yapı taşları (uygulama içi): bölümlü seçici, seçim çipleri, ana düğme, bilgi notu ──
 function Seg({value,onChange,items}){ // items: [[anahtar, etiket, simge?]]
-  return <div role="tablist" className="c-seg" style={{gridTemplateColumns:"repeat("+items.length+",minmax(0,1fr))"}}>
+  return <div role="tablist" className={"c-seg"+(items.length>=3?" many":"")} style={{gridTemplateColumns:"repeat("+items.length+",minmax(0,1fr))"}}>
     {items.map(([k,lb,ic])=><button key={k} type="button" role="tab" aria-selected={value===k} className={"c-seg-b"+(value===k?" on":"")} onClick={()=>onChange(k)}>
       {ic&&<Ico n={ic} size={17}/>}<span>{lb}</span></button>)}
   </div>;
@@ -8002,7 +8006,7 @@ function KidHeadPanel({user,t,lang,toast,onLogout,onSettings,onDataChange}){
         {tab==="classsend"&&<KidHeadClassSend area={area} user={user} kids={kids} guards={guards} lang={lang} toast={toast}/>}
         {tab==="schedule"&&<KidHeadSchedule area={area} user={user} lang={lang} toast={toast}/>}
         {tab==="attfix"&&<KidHeadAttFix kids={kids} user={user} lang={lang} toast={toast}/>}
-        {tab==="leaves"&&<LeavesPanel user={user} students={kids.map(k=>({id:k.fireId,no:k.no,name:k.name,area:"zarok"}))} area={area} kid={true} lang={lang} toast={toast}/>}
+        {tab==="leaves"&&<LeavesPanel user={user} students={kids.map(k=>({id:k.fireId,no:k.no,name:k.name,area:"zarok"}))} stuScope={kids.map(k=>({no:k.no}))} area={area} kid={true} lang={lang} toast={toast}/>}
         {tab==="messages"&&!thread&&adminMsgs.length>0&&(<div style={card} data-admin-msgs="1">
           <div style={{fontSize:13,fontWeight:800,color:"var(--text)",marginBottom:6}}>🏛 {W2("Ji rêveberiyê","From the administration")}</div>
           {adminMsgs.slice(0,10).map(m=>(<div key={m.fireId||m.id} style={{borderTop:"1px solid var(--border2)",padding:"8px 0"}}>
@@ -9016,7 +9020,7 @@ function LeavesPanel({user,students,schedule,area,all=false,kid=false,stuScope=n
     try{ u=F.onSnapshot(F.query(F.collection(F.db,"kidSchedule"),F.where("area","==",area)),sn=>setKSched(sn.docs.map(d=>({...d.data(),id:d.id}))),()=>{}); }catch(_){}
     return ()=>{ try{u();}catch(_){} }; },[kid,readOnly,area]);
   const scopeNos=stuScope?new Set(stuScope.map(x=>String(x.no))):null;
-  const mine=leaves.filter(l=>!!l.kid===!!kid&&(teacherMode?String(l.byNo)===myNo||(scopeNos&&scopeNos.has(String(l.studentNo))):(all||(scopeNos?scopeNos.has(String(l.studentNo)):l.area===area)))).sort((a,b)=>String(b.from).localeCompare(String(a.from)));
+  const mine=leaves.filter(l=>!!l.kid===!!kid&&(teacherMode?String(l.byNo)===myNo:(all||(scopeNos?scopeNos.has(String(l.studentNo)):l.area===area)))).sort((a,b)=>String(b.from).localeCompare(String(a.from)));
   const studs=nameSort((students||[]).filter(s=>s&&s.no));
   const stu=studs.find(x=>String(x.no)===String(f.no))||null;
   // Seçilen öğrencinin, seçilen günlerdeki dersleri (en çok 31 gün)
@@ -14642,39 +14646,18 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
   const attLessonId = attLesson ? String(attLesson.id) : null;
   const attLessonRef = useRef(null); attLessonRef.current = attLessonId;
   const [attSaving,setAttSaving]=useState(false);
-  // "Dersi başlat": başlangıç anı (ms) → attendance/{ders}-{tarih}.startedAt. Başlangıçtan 15 dk sonra
-  // QR / kartla gelenler "geç" yazılır. Elle işaret öğretmenin seçimidir.
+  // "Dersi başlat / bitir" YOK: geç sayımı dersin PROGRAMDAKİ başlangıç saatinden (15 dk sonrası "geç") yapılır.
+  // Ders saatinde yoklama listesi + dönen QR kendiliğinden açılır; "Yoklamayı kaydet" işler; ders saati geçince QR kapanır; sonradan düzeltme sürer.
   const LATE_MS = 15*60*1000;
-  const [lsStarts,setLsStarts]=useState({});
-  const [lsEnds,setLsEnds]=useState({});   // "Dersi bitir": bitiş anı (ms) → attendance/{ders}-{tarih}.endedAt
   const [attScan,setAttScan]=useState(false);
   const attRef=useRef(attendance); attRef.current=attendance;
-  const startKey=id=>"aat-start-"+id+"-"+todayStr_t;
   function startOf(ls){
-    if(!ls) return 0;
-    const v=lsStarts[String(ls.id)]; if(v) return v;
-    try{ return +localStorage.getItem(startKey(ls.id))||0; }catch(_){ return 0; }
+    if(!ls||!ls.start) return 0;
+    const [h,m]=String(ls.start).split(":").map(Number); if(isNaN(h)) return 0;
+    const d=new Date(); d.setHours(h,m||0,0,0); return d.getTime();
   }
-  function startLesson(ls){
-    if(!ls) return 0;
-    const had=startOf(ls); if(had) return had;
-    const ms=Date.now();
-    setLsStarts(p=>({...p,[String(ls.id)]:ms}));
-    try{ localStorage.setItem(startKey(ls.id),String(ms)); }catch(_){}
-    const FB=window.__FB;
-    if(FB&&FB.isConfigured()){
-      FB.setDoc(FB.doc(FB.db,"attendance",ls.id+"-"+todayStr_t),{lessonId:ls.id,lessonFire:String(ls.fireId||ls.id),lessonName:ls.name||"",area:ls.area||"",classId:ls.classId||null,
-        teacherId:teacher.id==null?null:teacher.id,teacherName:teacher.name||"",date:todayStr_t,startedAt:ms,updatedAt:FB.serverTimestamp()},{merge:true})
-        .catch(e=>toast("⚠ "+(e.code||e.message||"")));
-    }
-    hapticSuccess();
-    toast("▶ "+(ls.name||"")+" · "+new Date(ms).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}));
-    return ms;
-  }
+  function startLesson(ls){ return startOf(ls)||Date.now(); }
   const lateNow=ls=>{ const st=startOf(ls); return st>0 && Date.now()-st>LATE_MS; };
-  // Bugünün dersinde yoklama ancak "Dersi başlat"tan sonra işaretlenir / kaydedilir (geçmiş gün düzeltmesi hariç)
-  const needStart=!!attLesson&&!isPastAtt&&!startOf(attLesson);
-  const needStartMsg=()=>toast("⚠ "+(lang==="en"?"Start the lesson first — attendance can only be taken after “Start lesson”.":K("Pêşî dersê dest pê bike — amadebûn tenê piştî “Dersê Dest Pê Bike” tê girtin.")),5000);
   // Kartla (QR ile) alınan yoklama: işaret hemen kaydedilir (kaydet'e basılmasa da kaybolmaz)
   function cardCheckin(student){
     const ls=attLesson; if(!ls) return {ok:false,reason:"session_not_found"};
@@ -14689,32 +14672,6 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     }
     return {ok:true,late:v==="late"};
   }
-  // "Dersi bitir": QR açıksa kapatır; okutmayan/işaretlenmeyen öğrenci "yok" yazılır; yoklama kaydedilir,
-  // devam istatistiği güncellenir ve bitiş anı kaydedilir (rapor buradan okur). Sonradan elle düzeltilebilir.
-  async function endLesson(){
-    const ls=attLesson; if(!ls) return;
-    if(!window.confirm((lang==="en"?"End the lesson? Students not checked in will be marked absent.":K("Ders bi dawî bibe? Xwendekarên ku neketine dê wek “tunebû” bên nivîsandin."))+"\n"+(ls.name||""))) return;
-    const ms=Date.now(), FB=window.__FB;
-    let records={};
-    if(activeQRSession&&String(activeQRSession.lessonId)===String(ls.id)){
-      await closeLessonQR();
-      await new Promise(r=>setTimeout(r,250));
-      records={...attRef.current};
-    }else{
-      attRoster.forEach(s=>{ const v0=attRef.current[s.id]; records[s.id]=(v0==="on"||v0==="late"||v0==="off")?v0:"off"; });
-      attOnLeave.forEach(s=>{ records[s.id]="leave"; });
-      setAttSaving(true);
-      const ok=await fbSaveAttendance(ls.id, teacher.id, todayStr_t, records, ls.fireId||ls.id);
-      setAttSaving(false);
-      if(ok===null&&FB&&FB.isConfigured()){ toast("⚠ "+(lang==="en"?"Attendance could not be saved — check the connection and try again":K("Amadebûn nehat tomarkirin — girêdanê kontrol bike û dîsa biceribîne")),6000); return; }
-      setAttendance(p=>({...p,...records}));
-    }
-    setLsEnds(p=>({...p,[String(ls.id)]:ms})); setAttScan(false);
-    if(FB&&FB.isConfigured()) FB.setDoc(FB.doc(FB.db,"attendance",ls.id+"-"+todayStr_t),{lessonId:ls.id,lessonFire:String(ls.fireId||ls.id),date:todayStr_t,endedAt:ms,updatedAt:FB.serverTimestamp()},{merge:true}).catch(()=>{});
-    const c=v=>attRoster.filter(s=>records[s.id]===v).length;
-    hapticSuccess();
-    toast("⏹ "+(ls.name||"")+" — ✅ "+c("on")+" · ⏱ "+c("late")+" · ❌ "+c("off"),7000);
-  }
   useEffect(()=>{
     setAttendance({}); setAttScan(false);
     if(!attLessonId) return;
@@ -14727,13 +14684,26 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     qrCheckinsFor(attLessonId, teacher.id, attDay).then(qr=>{ if(alive&&Object.keys(qr).length)
       setAttendance(p=>{ const n={...p}; Object.entries(qr).forEach(([k,v])=>{ if(n[k]!=="on"&&n[k]!=="late"&&n[k]!=="leave") n[k]=v; }); return n; }); });
     FB.getDoc(FB.doc(FB.db,"attendance",attLessonId+"-"+attDay)).then(snap=>{
-      if(!alive||!snap.exists()) return; const r=snap.data().records, st=snap.data().startedAt;
+      if(!alive||!snap.exists()) return; const r=snap.data().records;
       if(r) setAttendance(p=>({...r,...p}));
-      if(st) setLsStarts(p=>({...p,[attLessonId]:st}));
-      const en=snap.data().endedAt; if(en) setLsEnds(p=>({...p,[attLessonId]:en}));
     }).catch(()=>{});
     return ()=>{ alive=false; };
   },[attLessonId,attDay]);
+
+  // Ders saati penceresi: bugünün dersi için şimdi [başlangıç, bitiş) içinde miyiz? → yoklama ekranı açılınca liste + dönen QR kendiliğinden açılır.
+  const attInWindow=(()=>{ if(!attLesson||isPastAtt||!attLesson.start||!attLesson.end) return false; if(attLesson.lessonType!=="extra"&&attLesson.day!==todayKu) return false;
+    const [sh,sm]=String(attLesson.start).split(":").map(Number), [eh,em]=String(attLesson.end).split(":").map(Number); if(isNaN(sh)||isNaN(eh)) return false;
+    return nowMin>=sh*60+(sm||0)&&nowMin<eh*60+(em||0); })();
+  const autoQrDone=useRef({});
+  useEffect(()=>{
+    if(view!=="attendance"||!attInWindow||!attLesson||activeQRSession) return;
+    // test/emülatörde kendiliğinden açılma kapalı (ancak ?autoqr=1 ile); gerçek kullanımda açık
+    if(window.__EMU&&!window.__AUTOQR) return;
+    const key=String(attLesson.id)+"-"+todayStr_t; if(autoQrDone.current[key]) return;
+    // kayıtlı yoklama yüklensin diye kısa bekle; bu ders için yoklama zaten alınmışsa QR kendiliğinden açılmaz
+    const tm=setTimeout(()=>{ if(autoQrDone.current[key]||Object.keys(attRef.current||{}).length>0) return; autoQrDone.current[key]=1; openLessonQR(attLesson); },1500);
+    return ()=>clearTimeout(tm);
+  },[view,attInWindow,attLessonId,activeQRSession]);
 
   // Ders durumu etiketi
   function lessonStatusLabel(ls){
@@ -15058,7 +15028,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                     <div style={{height:"100%",width:`${curRoster.length?Object.values(attendance).filter(v=>v==="on").length/curRoster.length*100:0}%`,background:a.color,borderRadius:3,transition:"width 0.3s"}}/>
                   </div>
                 </div>
-                <PrimaryBtn onClick={()=>{ setAttLsId(currentLesson.id); setView("attendance"); }} icon="▶">{startOf(currentLesson)?(lang==="en"?"Attendance":K("Amadebûn")):(lang==="en"?"Start lesson":K("Dersê Dest Pê Bike"))}</PrimaryBtn>
+                <PrimaryBtn onClick={()=>{ setAttLsId(currentLesson.id); setView("attendance"); }} icon="▶">{lang==="en"?"Attendance":K("Amadebûn")}</PrimaryBtn>
               </Card>
             ):(
               <Card><div style={{textAlign:"center",padding:12,color:"var(--text2)",fontSize:13}}>
@@ -15155,34 +15125,19 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
             </div>
             {!attLesson&&!isPastAtt&&<Card><div style={{textAlign:"center",padding:16,fontSize:12.5,color:"var(--text2)"}}>{lang==="en"?"You have no lesson today. To enter or correct attendance for an earlier day, choose the date above.":K("Îro dersa te tune. Ji bo amadebûna rojeke berê, tarîxê li jor hilbijêre.")}</div></Card>}
             {attLesson&&!isPastAtt&&(()=>{ const st=startOf(attLesson); const hm=ms=>new Date(ms).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
-              return !st?(
-              <div style={{background:"var(--surface)",borderRadius:14,padding:"14px",marginBottom:12,border:"1.5px solid #0f2f38"}}>
-                <div style={{fontSize:14,fontWeight:800,color:"var(--text)"}}>{attLesson.name}</div>
-                <div style={{fontSize:11.5,color:"var(--text2)",margin:"2px 0 12px"}}>{attLesson.start}–{attLesson.end} · {attLesson.loc||"—"} · {attRoster.length} {t.totalStudents.toLowerCase()}</div>
-                <PrimaryBtn onClick={()=>startLesson(attLesson)} icon="▶" data-start-lesson="1">{lang==="en"?"Start lesson":K("Dersê Dest Pê Bike")}</PrimaryBtn>
-                <div style={{fontSize:11,color:"var(--text2)",marginTop:8,lineHeight:1.6}}>{lang==="en"?"Students who check in by QR/card more than 15 minutes after the start are marked late.":K("Yên ku 15 deqe piştî destpêkê bi QR/kartê têkevin, “dereng” tên nivîsandin.")}</div>
-              </div>
-            ):(
-              lsEnds[String(attLesson.id)]?(
-              <div data-lesson-ended="1" style={{background:"var(--surface)",borderRadius:14,padding:"12px 14px",marginBottom:12,border:"1.5px solid var(--border2)"}}>
-                <div style={{fontSize:13,fontWeight:800,color:"var(--text)"}}>⏹ {lang==="en"?"Lesson ended":K("Ders bi dawî bû")} {hm(lsEnds[String(attLesson.id)])} · {attLesson.name}</div>
-                <div style={{fontSize:11.5,color:"var(--text2)",marginTop:4}}>🟢 {hm(st)} → ⏹ {hm(lsEnds[String(attLesson.id)])} · ✅ {attCount("on")} · ⏱ {attCount("late")} · ❌ {attCount("off")}</div>
-                <div style={{fontSize:11,color:"var(--text2)",marginTop:4}}>{lang==="en"?"You can still correct the list below and save.":K("Hîn jî dikarî lîsteya jêr rast bikî û tomar bikî.")}</div>
-              </div>
-            ):(
-              <div style={{background:"var(--surface)",borderRadius:14,padding:"12px 14px",marginBottom:12,border:"1.5px solid var(--green)"}}>
-                <div data-lesson-started="1" style={{fontSize:13,fontWeight:800,color:"var(--green)"}}>🟢 {lang==="en"?"Lesson started":K("Ders dest pê kir")} {hm(st)} · {attLesson.name}</div>
-                <div style={{fontSize:11,color:"var(--text2)",margin:"2px 0 10px"}}>⏱ {lang==="en"?"Late after":K("Piştî vê dereng")}: {hm(st+LATE_MS)}</div>
+              return(
+              <div data-att-today="1" style={{background:"var(--surface)",borderRadius:14,padding:"12px 14px",marginBottom:12,border:"1.5px solid "+(attInWindow?"var(--green)":"var(--border2)")}}>
+                <div style={{fontSize:13,fontWeight:800,color:attInWindow?"var(--green)":"var(--text)"}}>{attInWindow?"🟢 ":"📋 "}{attLesson.name}</div>
+                <div style={{fontSize:11.5,color:"var(--text2)",margin:"2px 0 10px"}}>{attLesson.start}–{attLesson.end} · {attLesson.loc||"—"} · {attRoster.length} {t.totalStudents.toLowerCase()}{st?" · ⏱ "+(lang==="en"?"Late after":K("Piştî vê dereng"))+" "+hm(st+LATE_MS):""}</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
                   <button data-att-scan="1" onClick={()=>setAttScan(v=>!v)} style={{padding:"11px 8px",background:"#0f2f38",color:"#e7c77b",border:"none",borderRadius:10,fontSize:12.5,fontWeight:700,cursor:"pointer"}}>
                     📷 {lang==="en"?"Take by QR (card)":K("Bi QR bigire (kart)")}</button>
-                  <button onClick={()=>{ openLessonQR(attLesson); setView("scanner"); }} style={{padding:"11px 8px",background:"var(--bg2)",color:"var(--text)",border:"1px solid var(--border2)",borderRadius:10,fontSize:12.5,fontWeight:700,cursor:"pointer"}}>
+                  <button data-att-open-qr="1" onClick={()=>{ openLessonQR(attLesson); }} style={{padding:"11px 8px",background:"var(--bg2)",color:"var(--text)",border:"1px solid var(--border2)",borderRadius:10,fontSize:12.5,fontWeight:700,cursor:"pointer"}}>
                     📡 {lang==="en"?"Lesson QR (students' phones)":K("QR ya dersê (têlefona xwendekar)")}</button>
                 </div>
                 {attScan&&<div style={{marginTop:10}}><TeacherCardScanner myStudents={attRoster} lang={lang} onCheckin={cardCheckin} onClose={()=>setAttScan(false)}/></div>}
-                <button data-end-lesson="1" disabled={attSaving} onClick={endLesson} style={{width:"100%",marginTop:10,padding:"11px 8px",background:"var(--red-bg)",color:"var(--red)",border:"1px solid var(--red)",borderRadius:10,fontSize:13,fontWeight:800,cursor:"pointer"}}>
-                  ⏹ {lang==="en"?"End lesson":K("Dersê bi dawî bike")}</button>
-              </div>)); })()}
+                <div style={{fontSize:11,color:"var(--text2)",marginTop:8,lineHeight:1.6}}>{lang==="en"?"The list and the rotating QR open automatically at lesson time. Press “Save attendance” to record it; the QR closes when the lesson ends. You can still correct it afterwards.":K("Lîste û QR ya dizivire di dema dersê de bi xwe vedibin. Bi “Amadebûnê tomar bike” tê tomarkirin; QR piştî dersê tê girtin. Piştre jî dikarî rast bikî.")}</div>
+              </div>); })()}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
               <div style={{background:"var(--surface)",borderRadius:10,padding:11,textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
                 <div style={{fontSize:10,color:"var(--green)",marginBottom:3}}>✅ {t.attended}</div>
@@ -15216,7 +15171,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                   </div>
                   <div style={{display:"flex",gap:5}}>
                     {[{v:"on",icon:"✓",cls:"on"},{v:"late",icon:"⏱",cls:"late"},{v:"off",icon:"✗",cls:"off"}].map(btn=>(
-                      <button key={btn.v} data-att-mark={btn.v} onClick={()=>{ if(needStart){ needStartMsg(); return; } setAttendance(p=>({...p,[s.id]:btn.v})); }}
+                      <button key={btn.v} data-att-mark={btn.v} onClick={()=>{ setAttendance(p=>({...p,[s.id]:btn.v})); }}
                         className={`att-btn${attendance[s.id]===btn.v?" "+btn.cls:""}`}>
                         {btn.icon}
                       </button>
@@ -15226,7 +15181,6 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
               ))}
                 <AttSaveBtn dk="data-att-save-list" busy={attSaving} onClick={async()=>{
                   if(!attLesson||attSaving) return;
-                  if(needStart){ needStartMsg(); return; }
                   // Yoklama kaydı (raporlar buradan okur) + devam istatistiği. QR açıksa okutanlar
                   // da listeye zaten işlenmiştir; kayıt aynı belgeye yazılır, tekrar kaydetmek güvenlidir.
                   const total=attRoster.length||1;
