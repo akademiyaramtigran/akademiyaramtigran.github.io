@@ -77,6 +77,7 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await toMsg(B); await B.waitForSelector('[data-room-conv]', { timeout: 20000 });
   const bt = await B.evaluate(() => document.body.innerText);
   ok('Alıcı öğretmen yazışmayı mesaj listesinde görür', bt.includes('Mamoste Ayşe') && bt.includes('Silav Berfin'));
+  await B.evaluate(() => document.querySelector('[data-room-conv]').click()); await B.waitForSelector('#t-room-reply', { timeout: 10000 });
   await B.fill('#t-room-reply', 'Erê, sibe 10:00'); await B.click('#t-room-reply-send');
   await waitFor(async () => (await list('kidStaffMsgs')).length === 2);
   ok('Alıcı yanıtlar (iki mesaj, aynı özel yazışma)', (await list('kidStaffMsgs')).length === 2);

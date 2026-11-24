@@ -9555,58 +9555,119 @@ function TeacherClassHub({teacher,myStudents,classGroups,lang,t,toast,initial,ms
     </div>);
 }
 
-/* ── Çocuk Akademisi: hesap listeleri — (1) çocuk + öğretmen listesi (şifresiz, Excel/PDF) (2) bütün veli şifrelerini yenile + numara/şifre listesi ── */
+/* ── Çocuk Akademisi: LİSTELER sekmesi — öğrenci ve öğretmen listeleri AYRI; sınıf sınıf; şifresiz liste ve şifre yenile + numara/şifre listesi (Excel/PDF) ── */
 function KidAccountLists({kids,guards,kteach,kidCls,lang,toast}){
   const F=window.__FB; const W2=(ku,en)=>lang==="en"?en:K(ku);
-  const [busy,setBusy]=useState(false); const [prog,setProg]=useState(0); const [creds,setCreds]=useState(null);
-  const clsOfKid=k=>(kidCls||[]).filter(c=>c.kind&&c.kind!=="workshop"&&c.status!=="closed"&&inClass(c,k.no)).map(c=>c.name).join(" · ");
-  const kidRows=()=>(kids||[]).map(k=>({cls:clsOfKid(k),name:k.name||"",no:String(((k.guardianNos||[])[0])||k.no||"")})).sort((a,b)=>trCmp(a.cls,b.cls)||trCmp(a.name,b.name));
-  const teachRows=()=>(kteach||[]).map(t=>({name:t.name||"",no:String(t.no||""),cls:(kidCls||[]).filter(c=>c.kind&&c.status!=="closed"&&(c.teacherNos||[]).map(String).includes(String(t.no))).map(c=>c.name).join(", ")})).sort((a,b)=>trCmp(a.name,b.name));
-  function listCsv(){ const o=[[W2("Cure","Type"),W2("Sinif","Class"),W2("Nav","Name"),W2("Jimara têketinê","Login number")]];
-    kidRows().forEach(r=>o.push([W2("Zarok","Child"),r.cls,r.name,r.no])); teachRows().forEach(r=>o.push([W2("Mamoste","Teacher"),r.cls,r.name,r.no]));
-    downloadCSV("zarok-mamoste-lîste-"+ymdLocal(new Date())+".csv",o); }
+  const [sel,setSel]=useState("all");
+  const [busy,setBusy]=useState(""); const [prog,setProg]=useState(0); const [creds,setCreds]=useState({kid:null,teacher:null});
+  const classes=nameSort((kidCls||[]).filter(c=>c.kind&&c.kind!=="workshop"&&c.status!=="closed"),c=>c.name);
+  const clsNameOf=k=>classes.filter(c=>inClass(c,k.no)).map(c=>c.name).join(" · ");
+  const selCls=classes.find(c=>c.id===sel)||null;
+  const selKids=(kids||[]).filter(k=>sel==="all"||(sel==="none"?!clsNameOf(k):(selCls&&inClass(selCls,k.no)))).slice().sort((a,b)=>trCmp(clsNameOf(a),clsNameOf(b))||trCmp(a.name,b.name));
+  const teachClasses=t=>classes.filter(c=>(c.teacherNos||[]).map(String).includes(String(t.no))).map(c=>c.name).join(", ");
+  const selTeach=(kteach||[]).filter(t=>sel==="all"||(sel==="none"?!teachClasses(t):(selCls&&(selCls.teacherNos||[]).map(String).includes(String(t.no))))).slice().sort((a,b)=>trCmp(a.name,b.name));
+  const ownTeach=selTeach.filter(t=>!t.academy);   // çocuk uygulamasında kendi hesabı olanlar (konservatuvar öğretmeni kendi şifresiyle girer)
+  const loginOf=k=>String(((k.guardianNos||[])[0])||k.no||"");
   const H=x=>String(x==null?"":x).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"})[c]);
-  const head="<style>body{font-family:system-ui,sans-serif;padding:20px}table{border-collapse:collapse;width:100%;font-size:12px;margin-bottom:18px}th,td{border:1px solid #d0d5dd;padding:5px 7px;text-align:left}th{background:#f2f4f7}</style>";
-  function listPdf(){
-    const t1="<h3>"+H(W2("Zarok","Children"))+" ("+kidRows().length+")</h3><table><tr><th>"+H(W2("Sinif","Class"))+"</th><th>"+H(W2("Nav","Name"))+"</th><th>"+H(W2("Jimara","Number"))+"</th></tr>"+kidRows().map(r=>"<tr><td>"+H(r.cls)+"</td><td>"+H(r.name)+"</td><td><b>"+H(r.no)+"</b></td></tr>").join("")+"</table>";
-    const t2="<h3>"+H(W2("Mamoste","Teachers"))+" ("+teachRows().length+")</h3><table><tr><th>"+H(W2("Nav","Name"))+"</th><th>"+H(W2("Jimara","Number"))+"</th><th>"+H(W2("Sinif","Classes"))+"</th></tr>"+teachRows().map(r=>"<tr><td>"+H(r.name)+"</td><td><b>"+H(r.no)+"</b></td><td>"+H(r.cls)+"</td></tr>").join("")+"</table>";
-    openPrintHTML("<!doctype html><html><head><meta charset='utf-8'><title>"+H(BRAND())+"</title>"+head+"</head><body><h2>"+H(BRAND())+" · "+H(W2("Akademiya Zarokan","Children's Academy"))+"</h2>"+t1+t2+"<script>setTimeout(()=>print(),300)<\/script></body></html>"); }
-  async function resetAll(){
-    if(busy||!(guards||[]).length) return;
-    if(!window.confirm(W2("Şîfreya hemû dêûbavan ê were nûkirin; şîfreyên kevn êdî naxebitin. Lîsteya nû tenê niha tê nîşandan.","All parents' passwords will be renewed; the old passwords stop working. The new list is shown only now.")+"\n"+guards.length+" "+W2("dêûbav","parents"))) return;
-    setBusy(true); setCreds(null); setProg(0); const out=[];
-    try{
-      for(const g of nameSort(guards,x=>x.no)){
-        const pass=genAutoPassword();
-        const r=await F.forceResetPassword(g.no,"guardian",null,pass);
-        if(!r) throw Object.assign(new Error("reset-failed"),{code:"aat/reset-failed"});
-        const ks=(kids||[]).filter(k=>(k.guardianNos||[]).map(String).includes(String(g.no)));
-        out.push({no:String(g.no),cls:(ks.map(clsOfKid).filter(Boolean)[0])||"",name:ks.map(k=>k.name).join(" + ")||g.name||"",pass}); setProg(out.length);
-      }
-      logAudit("pw-bulk","Çocuk Akademisi: "+out.length+" veli şifresi yenilendi","guardians");
-      setCreds(out); toast("✅ "+out.length+" "+W2("şîfre hate nûkirin","passwords renewed"));
-    }catch(e){ toast("❌ "+((e&&e.code)||e)); if(out.length) setCreds(out); }
-    setBusy(false);
+  const label=sel==="all"?W2("Hemû sinif","All classes"):sel==="none"?W2("Bê sinif","No class"):(selCls?selCls.name:"");
+  const css="<style>body{font-family:system-ui,sans-serif;padding:20px}h2{margin:0 0 4px}h3{margin:18px 0 6px}table{border-collapse:collapse;width:100%;font-size:12px;margin-bottom:12px}th,td{border:1px solid #d0d5dd;padding:5px 7px;text-align:left}th{background:#f2f4f7}.pb{page-break-before:always}</style>";
+  const groupBy=rows=>{ const m=new Map(); rows.forEach(r=>{ const k=r.cls||W2("Bê sinif","No class"); if(!m.has(k)) m.set(k,[]); m.get(k).push(r); }); return [...m.entries()].sort((a,b)=>trCmp(a[0],b[0])); };
+  const page=(title,body)=>openPrintHTML("<!doctype html><html><head><meta charset='utf-8'><title>"+H(title)+"</title>"+css+"</head><body><h2>"+H(BRAND())+" · "+H(title)+"</h2><div>"+H(label)+"</div>"+body+"<script>setTimeout(()=>print(),300)<\/script></body></html>");
+  // ── şifresiz listeler (öğrenci / öğretmen ayrı) ──
+  const kidRows=()=>selKids.map(k=>({cls:clsNameOf(k),name:k.name||"",no:loginOf(k)}));
+  const teachRows=()=>selTeach.map(t=>({name:t.name||"",no:String(t.no||""),cls:teachClasses(t),acc:t.academy?W2("Hesabê konservatuarê","Conservatory account"):W2("Hesabê sepana zarokan","Children's app account")}));
+  function listCsv(kind){
+    if(kind==="kid"){ const o=[[W2("Sinif","Class"),W2("Zarok","Child"),W2("Jimara têketinê","Login number")]]; kidRows().forEach(r=>o.push([r.cls,r.name,r.no])); downloadCSV("zarok-lîste-"+ymdLocal(new Date())+".csv",o); }
+    else { const o=[[W2("Mamoste","Teacher"),W2("Jimara têketinê","Login number"),W2("Sinif","Classes"),W2("Hesab","Account")]]; teachRows().forEach(r=>o.push([r.name,r.no,r.cls,r.acc])); downloadCSV("mamoste-lîste-"+ymdLocal(new Date())+".csv",o); }
   }
-  const sorted=()=>(creds||[]).slice().sort((a,b)=>trCmp(a.cls,b.cls)||trCmp(a.name,b.name));
-  function credCsv(){ const o=[[W2("Sinif","Class"),W2("Zarok","Child"),W2("Jimara têketinê","Login number"),W2("Şîfre","Password")]]; sorted().forEach(c=>o.push([c.cls,c.name,c.no,c.pass])); downloadCSV("zarok-hesab-"+ymdLocal(new Date())+".csv",o); }
-  function credPdf(){ openPrintHTML("<!doctype html><html><head><meta charset='utf-8'><title>"+H(W2("Hesabên dêûbavan","Parent logins"))+"</title>"+head+"</head><body><h2>"+H(BRAND())+" · "+H(W2("Têketina dêûbavan (jimara + şîfre)","Parent logins (number + password)"))+"</h2><table><tr><th>"+H(W2("Sinif","Class"))+"</th><th>"+H(W2("Zarok","Child"))+"</th><th>"+H(W2("Jimara","Number"))+"</th><th>"+H(W2("Şîfre","Password"))+"</th></tr>"+sorted().map(c=>"<tr><td>"+H(c.cls)+"</td><td>"+H(c.name)+"</td><td><b>"+H(c.no)+"</b></td><td><b>"+H(c.pass)+"</b></td></tr>").join("")+"</table><script>setTimeout(()=>print(),300)<\/script></body></html>"); }
+  function listPdf(kind){
+    if(kind==="kid"){ const kr=kidRows();
+      page(W2("Lîsteya zarokan","Children list")+" ("+kr.length+")",groupBy(kr).map(([c,rs],i)=>"<div class='"+(i?"pb":"")+"'><h3>🏫 "+H(c)+" ("+rs.length+")</h3><table><tr><th>#</th><th>"+H(W2("Zarok","Child"))+"</th><th>"+H(W2("Jimara","Number"))+"</th></tr>"+rs.map((r,n)=>"<tr><td>"+(n+1)+"</td><td>"+H(r.name)+"</td><td><b>"+H(r.no)+"</b></td></tr>").join("")+"</table></div>").join("")); }
+    else { const tr=teachRows();
+      page(W2("Lîsteya mamosteyan","Teachers list")+" ("+tr.length+")","<table><tr><th>#</th><th>"+H(W2("Mamoste","Teacher"))+"</th><th>"+H(W2("Jimara","Number"))+"</th><th>"+H(W2("Sinif","Classes"))+"</th><th>"+H(W2("Hesab","Account"))+"</th></tr>"+tr.map((r,n)=>"<tr><td>"+(n+1)+"</td><td>"+H(r.name)+"</td><td><b>"+H(r.no)+"</b></td><td>"+H(r.cls)+"</td><td>"+H(r.acc)+"</td></tr>").join("")+"</table>"); }
+  }
+  // ── şifre yenile + liste (öğrenci / öğretmen ayrı) ──
+  async function renew(kind){
+    const isKid=kind==="kid";
+    const gnos=isKid?[...new Set(selKids.flatMap(k=>(k.guardianNos||[]).map(String)))]:[];
+    const tl=isKid?[]:ownTeach;
+    if(busy||(!gnos.length&&!tl.length)) return;
+    if(!window.confirm(W2("Şîfreya van hesaban ê were nûkirin; şîfreyên kevn êdî naxebitin. Lîsteya nû tenê niha tê nîşandan.","The passwords of these accounts will be renewed; the old passwords stop working. The new list is shown only now.")+"\n"+label+" · "+(isKid?gnos.length+" "+W2("dêûbav","parents"):tl.length+" "+W2("mamoste","teachers")))) return;
+    setBusy(kind); setCreds(c=>({...c,[kind]:null})); setProg(0); const out=[]; let n=0;
+    try{
+      if(isKid){ const pw=new Map();
+        for(const g of gnos){ const pass=genAutoPassword(); const r=await F.forceResetPassword(g,"guardian",null,pass); if(!r) throw Object.assign(new Error("reset-failed"),{code:"aat/reset-failed"}); pw.set(g,pass); setProg(++n); }
+        selKids.forEach(k=>{ const g=String(((k.guardianNos||[])[0])||""); if(pw.has(g)) out.push({cls:clsNameOf(k),name:k.name||"",no:g,pass:pw.get(g)}); });
+      }else{
+        for(const t of tl){ const pass=genAutoPassword(); const r=await F.forceResetPassword(String(t.no),"kidteacher",null,pass); if(!r) throw Object.assign(new Error("reset-failed"),{code:"aat/reset-failed"}); out.push({cls:teachClasses(t),name:t.name||"",no:String(t.no),pass}); setProg(++n); }
+      }
+      logAudit("pw-bulk","Çocuk Akademisi: "+(isKid?gnos.length+" veli":tl.length+" öğretmen")+" şifresi yenilendi ("+label+")","guardians");
+      setCreds(c=>({...c,[kind]:out})); toast("✅ "+out.length+" "+W2("şîfre hate nûkirin","passwords renewed"));
+    }catch(e){ toast("❌ "+((e&&e.code)||e)); if(out.length) setCreds(c=>({...c,[kind]:out})); }
+    setBusy("");
+  }
+  const sortedC=kind=>(creds[kind]||[]).slice().sort((a,b)=>trCmp(a.cls,b.cls)||trCmp(a.name,b.name));
+  function credCsv(kind){ const o=[[kind==="kid"?W2("Zarok","Child"):W2("Mamoste","Teacher"),W2("Sinif","Class"),W2("Jimara têketinê","Login number"),W2("Şîfre","Password")]]; sortedC(kind).forEach(c=>o.push([c.name,c.cls,c.no,c.pass])); downloadCSV((kind==="kid"?"zarok":"mamoste")+"-hesab-"+ymdLocal(new Date())+".csv",o); }
+  function credPdf(kind){
+    const rows=sortedC(kind);
+    if(kind==="kid") page(W2("Têketina dêûbavan (jimara + şîfre)","Parent logins (number + password)"),groupBy(rows).map(([c,rs],i)=>"<div class='"+(i?"pb":"")+"'><h3>🏫 "+H(c)+" ("+rs.length+")</h3><table><tr><th>#</th><th>"+H(W2("Zarok","Child"))+"</th><th>"+H(W2("Jimara","Number"))+"</th><th>"+H(W2("Şîfre","Password"))+"</th></tr>"+rs.map((r,n)=>"<tr><td>"+(n+1)+"</td><td>"+H(r.name)+"</td><td><b>"+H(r.no)+"</b></td><td><b>"+H(r.pass)+"</b></td></tr>").join("")+"</table></div>").join(""));
+    else page(W2("Têketina mamosteyan (jimara + şîfre)","Teacher logins (number + password)"),"<table><tr><th>#</th><th>"+H(W2("Mamoste","Teacher"))+"</th><th>"+H(W2("Jimara","Number"))+"</th><th>"+H(W2("Şîfre","Password"))+"</th><th>"+H(W2("Sinif","Classes"))+"</th></tr>"+rows.map((r,n)=>"<tr><td>"+(n+1)+"</td><td>"+H(r.name)+"</td><td><b>"+H(r.no)+"</b></td><td><b>"+H(r.pass)+"</b></td><td>"+H(r.cls)+"</td></tr>").join("")+"</table>");
+  }
   const box={background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,padding:12,marginBottom:12};
   const bt={padding:"10px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12.5,cursor:"pointer"};
-  return(<details data-kid-acc-lists style={box}>
-    <summary style={{cursor:"pointer",fontWeight:800,color:"var(--text)"}}>📋 {W2("Lîsteyên hesaban (zarok · mamoste · şîfre)","Account lists (children · teachers · passwords)")}</summary>
-    <div style={{fontSize:12,color:"var(--text2)",lineHeight:1.6,margin:"8px 0"}}>{W2("Şîfre piştî çêkirinê nayê xwendin; ji bo lîsteya bi şîfre divê şîfre bêne nûkirin. Mamosteyên konservatuarê bi jimare û şîfreya xwe ya konservatuarê dikevin.","Passwords can't be read back once created; for a list that includes passwords they must be renewed. Conservatory teachers sign in with their own conservatory number and password.")}</div>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-      <button type="button" data-acc-list-csv="1" onClick={listCsv} style={bt}>📊 {W2("Lîsteya zarok + mamoste (Excel)","Children + teachers list (Excel)")}</button>
-      <button type="button" data-acc-list-pdf="1" onClick={listPdf} style={bt}>📄 {W2("Lîsteya zarok + mamoste (PDF)","Children + teachers list (PDF)")}</button>
-    </div>
-    <button type="button" data-acc-reset-all="1" disabled={busy||!(guards||[]).length} onClick={resetAll} style={{...bt,width:"100%",background:"#0f2f38",color:"#fff",border:"none"}}>{busy?"⏳ "+prog+" / "+(guards||[]).length:"🔑 "+W2("Şîfreya hemû dêûbavan nû bike û lîsteyê daxe","Renew all parents' passwords and download the list")}</button>
-    {creds&&<div data-acc-done={creds.length} style={{marginTop:10}}>
-      <div style={{color:"#15803d",fontWeight:800}}>✅ {creds.length} {W2("hesab","accounts")}</div>
+  const dark={...bt,width:"100%",background:"#0f2f38",color:"#fff",border:"none"};
+  const inp={width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:14,boxSizing:"border-box"};
+  // Ana ekrana ekleme bağlantısı: tek bağlantı, cihazı tanır (Android: tek dokunuş · iPhone: 3 adım); QR ile de dağıtılır
+  const installUrl=(()=>{ try{ return new URL("../zarok/app/ekle.html",location.href.split("?")[0].split("#")[0]).href; }catch(_){ return ""; } })();
+  const qrRef=useRef(null);
+  useEffect(()=>{ const el=qrRef.current; if(!el||!installUrl) return; el.innerHTML=""; try{ if(typeof QRCode!=="undefined") new QRCode(el,{text:installUrl,width:150,height:150,colorDark:"#0f2f38",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M}); }catch(_){} },[installUrl]);
+  const copyUrl=()=>{ const done=()=>toast("✅ "+W2("Girêdan hate kopîkirin","Link copied")); try{ navigator.clipboard.writeText(installUrl).then(done,()=>window.prompt("",installUrl)); }catch(_){ window.prompt("",installUrl); } };
+  const waUrl="https://wa.me/?text="+encodeURIComponent(W2("Akademiya Zarokan — sepanê li ekrana sereke zêde bike","Children's Academy — add the app to your home screen")+": "+installUrl);
+  const dl=(kind,cnt)=>(<div style={{marginTop:10}} data-acc-block={kind}>
+    <div style={{fontWeight:700,color:"var(--text)",marginBottom:6}}>{kind==="kid"?"🎓 "+W2("Zarok","Children"):"👩‍🏫 "+W2("Mamoste","Teachers")} · {cnt}</div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+      <button type="button" data-acc-list-csv={kind} onClick={()=>listCsv(kind)} style={bt}>📊 Excel (CSV)</button>
+      <button type="button" data-acc-list-pdf={kind} onClick={()=>listPdf(kind)} style={bt}>📄 PDF</button>
+    </div></div>);
+  const pw=(kind,cnt)=>(<div style={{marginTop:12}} data-acc-pw-block={kind}>
+    <button type="button" data-acc-reset={kind} disabled={!!busy||!cnt} onClick={()=>renew(kind)} style={dark}>{busy===kind?"⏳ "+prog:"🔑 "+(kind==="kid"?W2("Şîfreya zarokan (dêûbav) nû bike û lîsteyê daxe","Renew children's (parent) passwords and download the list"):W2("Şîfreya mamosteyan nû bike û lîsteyê daxe","Renew teachers' passwords and download the list"))+" · "+cnt}</button>
+    {kind==="teacher"&&selTeach.length>ownTeach.length&&<div style={{fontSize:11.5,color:"var(--text2)",marginTop:4}}>{W2("Mamosteyên konservatuarê bi jimare û şîfreya xwe ya konservatuarê dikevin; ew di vê lîsteyê de nînin.","Conservatory teachers sign in with their own conservatory number and password; they are not in this list.")} ({selTeach.length-ownTeach.length})</div>}
+    {creds[kind]&&<div data-acc-done={kind+":"+creds[kind].length} style={{marginTop:8}}>
+      <div style={{color:"#15803d",fontWeight:800}}>✅ {creds[kind].length} {W2("hesab","accounts")}</div>
       <div style={{fontSize:12,color:"#b45309",margin:"4px 0"}}>⚠ {W2("Şîfre tenê niha xuya dibin — lîsteyê daxe an çap bike.","Passwords are shown only now — download or print the list.")}</div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}><button type="button" data-acc-csv="1" onClick={credCsv} style={bt}>📊 Excel (CSV)</button><button type="button" data-acc-pdf="1" onClick={credPdf} style={bt}>📄 PDF</button></div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}><button type="button" data-acc-csv={kind} onClick={()=>credCsv(kind)} style={bt}>📊 Excel (CSV)</button><button type="button" data-acc-pdf={kind} onClick={()=>credPdf(kind)} style={bt}>📄 PDF</button></div>
     </div>}
-  </details>);
+  </div>);
+  return(<div data-kid-acc-lists="1">
+    <div style={box}>
+      <div style={{fontWeight:800,color:"var(--text)",marginBottom:6}}>📋 {W2("Lîsteyên zarok û mamosteyan","Children and teachers lists")}</div>
+      <div style={{fontSize:12,color:"var(--text2)",lineHeight:1.6,marginBottom:8}}>{W2("Sinifekê hilbijêre an hemûyan; lîste sinif bi sinif tê amadekirin. Zarok û mamoste ji hev cuda ne. Şîfre piştî çêkirinê nayê xwendin; ji bo lîsteya bi şîfre divê şîfre bêne nûkirin.","Pick a class or all; lists are prepared class by class. Children and teachers are separate. Passwords can't be read back once created; for a list with passwords they must be renewed.")}</div>
+      <select data-acc-class="1" value={sel} onChange={e=>setSel(e.target.value)} style={inp}>
+        <option value="all">🏫 {W2("Hemû sinif","All classes")} ({(kids||[]).length})</option>
+        {classes.map(c=><option key={c.id} value={c.id}>🏫 {classNameTx(c.name)} ({(kids||[]).filter(k=>inClass(c,k.no)).length})</option>)}
+        <option value="none">— {W2("Bê sinif","No class")}</option>
+      </select>
+    </div>
+    <div style={box} data-acc-install="1">
+      <div style={{fontWeight:800,color:"var(--text)",marginBottom:6}}>📲 {W2("Girêdana “Li ekrana sereke zêde bike”","“Add to home screen” link")}</div>
+      <div style={{fontSize:12,color:"var(--text2)",lineHeight:1.6,marginBottom:8}}>{W2("Yek girêdan ji bo Android û iPhone: li têlefonê vebe, cîhazê nas dike. Android: bi yek tikandinê saz dibe. iPhone: Apple destûr nade, ji ber vê 3 gav tên nîşandan.","One link for Android and iPhone: it recognises the device when opened on the phone. Android: installs with one tap. iPhone: Apple doesn't allow that, so 3 steps are shown.")}</div>
+      <input data-acc-install-url="1" readOnly value={installUrl} onFocus={e=>e.target.select()} style={{...inp,fontFamily:"monospace",fontSize:12}}/>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:8}}>
+        <button type="button" data-acc-install-copy="1" onClick={copyUrl} style={bt}>📋 {W2("Girêdanê kopî bike","Copy link")}</button>
+        <a data-acc-install-wa="1" href={waUrl} target="_blank" rel="noopener noreferrer" style={{...bt,textAlign:"center",textDecoration:"none",display:"block"}}>💬 WhatsApp</a>
+      </div>
+      <div ref={qrRef} data-acc-install-qr="1" style={{display:"flex",justifyContent:"center",marginTop:10}}/>
+      <div style={{fontSize:11.5,color:"var(--text2)",textAlign:"center"}}>{W2("QR bi kamerayê bixwînin — dikare were çapkirin","Scan the QR with the camera — can be printed")}</div>
+    </div>
+    <div style={box}>
+      <div style={{fontWeight:700,color:"var(--text)"}}>{W2("Lîste (bê şîfre)","List (no passwords)")}</div>
+      {dl("kid",selKids.length)}{dl("teacher",selTeach.length)}
+    </div>
+    <div style={box}>
+      <div style={{fontWeight:700,color:"var(--text)"}}>🔑 {W2("Lîste bi şîfre (şîfre nû dibin)","List with passwords (passwords are renewed)")}</div>
+      {pw("kid",selKids.length)}{pw("teacher",ownTeach.length)}
+    </div>
+  </div>);
 }
 function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   const PRESS=mode==="press";
@@ -10054,6 +10115,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
     ["teachers","👩‍🏫",Z("Mamoste","Teachers"),0],
     ["classes","🏫",Z("Sinif","Classes"),0],
     ["sched","📅",Z("Bername","Schedule"),0],
+    ["lists","📋",Z("Lîste","Lists"),0],
   ]:[
     ["apps","📋",Z("Serlêdan","Applications"),newApps],
     ["kids","🎓",Z("Zarok","Children"),0],
@@ -10061,6 +10123,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
     ["guards","👨‍👩‍👧",Z("Dêûbav","Parents"),0],
     ["teachers","👩‍🏫",Z("Mamoste","Teachers"),0],
     ["sched","📅",Z("Bername","Schedule"),0],
+    ["lists","📋",Z("Lîste","Lists"),0],
     ["ann","📢",Z("Ragihandin","Announcements"),0],
     ["msg","💬",Z("Peyam","Messages"),unread],
   ];
@@ -10287,6 +10350,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
 
       {tab==="classes"&&<KidClassStudio kids={kids} kteach={kteach} sched={sched} areaLabel={areaLabel} user={user} lang={lang} toast={toast}/>}
 
+      {tab==="lists"&&<KidAccountLists kids={kids} guards={guards} kteach={kteach} kidCls={kidCls} lang={lang} toast={toast}/>}
       {tab==="guards"&&(<div>
         {form&&form.type==="guard"&&(
           <div style={{...box,border:"2px solid var(--accent)"}}>
@@ -10294,7 +10358,6 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
             <div style={grid2}>{fld(Z("Nav","Name"),"name")}{fld(Z("Yekîtî","Relation"),"relation")}{fld(Z("Têlefon","Phone"),"phone",{type:"tel"})}{fld(Z("E-peyam","E-mail"),"email",{type:"email"})}{fld(Z("Têkiliya acil","Emergency contact"),"phone2")}</div>
             <div style={{display:"flex",gap:8,marginTop:12}}><button onClick={saveGuardianForm} style={btn()}>💾 {Z("Tomar bike","Save")}</button><button onClick={()=>setForm(null)} style={ghost}>{Z("Betal","Cancel")}</button></div>
           </div>)}
-        <KidAccountLists kids={kids} guards={guards} kteach={kteach} kidCls={kidCls} lang={lang} toast={toast}/>
         <div style={{...small,marginBottom:8}}>{guards.length} {Z("dêûbav","parents")} · {Z("Dêûbav bi tomarkirina zarokê re tê çêkirin. Ji bo xwişk û birayan: «➕ Xwişk/bira» — zarok li heman hesabê tê zêdekirin.","Parents are created when a child is registered. For siblings use «➕ Sibling» — the child is added to the same account.")}</div>
         <input style={{...inp,marginBottom:10}} value={gq} onChange={e=>setGq(e.target.value)} placeholder={"🔎 "+Z("Nav, têlefon an jimareya dêûbav","Parent name, phone or number")}/>
         {guards.filter(g=>gMatch(g,gq)).sort((a,b)=>(a.name||"").localeCompare(b.name||"")).map(g=>{const ks=kids.filter(k=>(k.guardianNos||[]).includes(g.no));return(

@@ -36,6 +36,9 @@ const login = (email, password) => fetch('http://127.0.0.1:9099/identitytoolkit.
   await put('kidTeachers/72026001', { no: '72026001', name: 'Hesen Soyad', academy: true }); await put('idx_kidstaff/72026001', { no: '72026001' });
   const KIDS = [['82026001', 'Ada Bir'], ['82026002', 'Bera Iki'], ['82026003', 'Ceren Uc']];
   for (const [no, name] of KIDS) { await signUp(no + '@veli.aat', 'Eski12345'); await put('guardians/' + no, { no, name }); await put('idx_guardians/' + no, { no }); await put('kids/K' + no, { no, name, area: 'zarok', guardianNos: [no] }); }
+  await put('kidClasses/KC1', { kind: 'area', area: 'zarok', name: 'A-1', studentNos: ['82026001', '82026002'], teacherNos: ['72026001', '72026002'], headNos: [] });
+  await put('kidClasses/KC2', { kind: 'area', area: 'zarok', name: 'B-1', studentNos: ['82026003'], teacherNos: ['72026001'], headNos: [] });
+  await signUp('72026002@zmamoste.aat', 'Old12345'); await put('idx_kidstaff/72026002', { no: '72026002' }); await put('kidTeachers/72026002', { no: '72026002', name: 'Berfin Soyad' });
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
   const c = await b.newContext({ viewport: { width: 1280, height: 900 } }); await routes(c);
@@ -61,21 +64,34 @@ const login = (email, password) => fetch('http://127.0.0.1:9099/identitytoolkit.
   // kısa şifre reddedilir
   await p.waitForTimeout(1500); await setPw('82026002', 'kisa'); await p.waitForTimeout(1500);
   ok('Kısa şifre kabul edilmez (hesap değişmez)', !!(await login('82026002@veli.aat', 'Eski12345')).idToken);
-  // 2) Dêûbav sekmesi: listeler + toplu yenileme
+  // 2) "Lîste" sekmesi: öğrenci ve öğretmen listeleri AYRI; sınıf süzgeci; şifreli liste sınıf bazlı
   await p.evaluate(() => { const c = [...document.querySelectorAll('[data-pw-card] button')].find(b => /Betal|Cancel|Iptal/.test(b.textContent)); if (c) c.click(); });
-  // Otomatik düğmesi şifre alanını doldurur
   await p.evaluate(() => document.querySelector('[data-kid-pw="82026003"]').click()); await p.waitForSelector('[data-pw-auto]'); await p.evaluate(() => document.querySelector('[data-pw-auto]').click()); await p.waitForTimeout(300);
   ok('Otomatik düğmesi şifre alanını doldurur (en az 8 karakter)', await p.evaluate(() => document.querySelector('[data-pw-input]').value.length >= 8));
   await p.evaluate(() => { const c = [...document.querySelectorAll('[data-pw-card] button')].find(b => /Betal/.test(b.textContent)); if (c) c.click(); });
-  await tab(/Dêûbav$/); await p.waitForTimeout(1200);
-  await p.evaluate(() => { document.querySelector('[data-kid-acc-lists]').open = true; }); await p.waitForTimeout(300);
-  const has = await p.evaluate(() => !!document.querySelector('[data-acc-list-csv]') && !!document.querySelector('[data-acc-list-pdf]') && !!document.querySelector('[data-acc-reset-all]'));
-  ok('Liste düğmeleri (Excel + PDF) ve toplu şifre yenileme düğmesi var', has);
-  await p.evaluate(() => document.querySelector('[data-acc-reset-all]').click());
-  const done = await waitFor(() => p.evaluate(() => { const e = document.querySelector('[data-acc-done]'); return e ? e.dataset.accDone : null; }), 60000);
-  ok('Toplu yenileme: 3 veli hesabı için liste çıktı', done === '3', String(done));
-  ok('Toplu yenilemeden sonra eski şifre (Ceren) çalışmaz', !!(await login('82026003@veli.aat', 'Eski12345')).error);
-  ok('İndirme düğmeleri (CSV + PDF) görünür', await p.evaluate(() => !!document.querySelector('[data-acc-csv]') && !!document.querySelector('[data-acc-pdf]')));
+  await tab(/Lîste$/); await p.waitForSelector('[data-kid-acc-lists]', { timeout: 15000 });
+  ok('Çocuk Akademisi panelinde ayrı "Lîste" sekmesi var (Öğrenci İşleri)', true);
+  const inst = await p.evaluate(() => ({ url: (document.querySelector('[data-acc-install-url]') || {}).value, copy: !!document.querySelector('[data-acc-install-copy]'), wa: (document.querySelector('[data-acc-install-wa]') || {}).href, qr: document.querySelectorAll('[data-acc-install-qr] canvas, [data-acc-install-qr] img').length }));
+  ok('Ana ekrana ekle bağlantısı: /zarok/app/ekle.html + kopyala + WhatsApp + QR', /\/zarok\/app\/ekle\.html$/.test(inst.url || '') && inst.copy && /^https:\/\/wa\.me\//.test(inst.wa || '') && inst.qr >= 1, JSON.stringify(inst));
+  const btns = await p.evaluate(() => ['kid', 'teacher'].map(k => !!document.querySelector('[data-acc-list-csv="' + k + '"]') && !!document.querySelector('[data-acc-list-pdf="' + k + '"]') && !!document.querySelector('[data-acc-reset="' + k + '"]')));
+  ok('Öğrenci ve öğretmen için AYRI Excel + PDF + şifre yenile düğmeleri var', btns.every(Boolean), JSON.stringify(btns));
+  const cnt = async () => p.evaluate(() => ['kid', 'teacher'].map(k => document.querySelector('[data-acc-block="' + k + '"] div').textContent.split('·').pop().trim()).join('/'));
+  ok('Tüm sınıflar: 3 çocuk / 2 öğretmen', (await cnt()) === '3/2', await cnt());
+  await p.selectOption('[data-acc-class]', 'KC1'); await p.waitForTimeout(500);
+  ok('Sınıf seçilince (A-1): 2 çocuk / 2 öğretmen', (await cnt()) === '2/2', await cnt());
+  // Öğrenci (veli) şifreleri yalnız seçili sınıf için yenilenir
+  await p.evaluate(() => document.querySelector('[data-acc-reset="kid"]').click());
+  const dk = await waitFor(() => p.evaluate(() => { const e = document.querySelector('[data-acc-done^="kid:"]'); return e ? e.dataset.accDone : null; }), 60000);
+  ok('Yalnız seçili sınıfın (A-1) 2 çocuğu için liste çıktı', dk === 'kid:2', String(dk));
+  ok('A-1: eski şifre çalışmaz (Bera)', !!(await login('82026002@veli.aat', 'Eski12345')).error);
+  ok('B-1 (seçilmeyen sınıf): şifre DEĞİŞMEDİ (Ceren)', !!(await login('82026003@veli.aat', 'Eski12345')).idToken);
+  ok('Öğrenci indirme düğmeleri (CSV + PDF) görünür', await p.evaluate(() => !!document.querySelector('[data-acc-csv="kid"]') && !!document.querySelector('[data-acc-pdf="kid"]')));
+  // Öğretmen şifreleri AYRI: yalnız çocuk uygulamasında hesabı olanlar (konservatuvar öğretmeni hariç)
+  await p.evaluate(() => document.querySelector('[data-acc-reset="teacher"]').click());
+  const dt = await waitFor(() => p.evaluate(() => { const e = document.querySelector('[data-acc-done^="teacher:"]'); return e ? e.dataset.accDone : null; }), 60000);
+  ok('Öğretmen listesi AYRI: yalnız çocuk hesaplı 1 öğretmen (konservatuvar öğretmeni listede yok)', dt === 'teacher:1', String(dt));
+  ok('Öğretmenin eski şifresi çalışmaz', !!(await login('72026002@zmamoste.aat', 'Old12345')).error);
+  ok('Öğretmen indirme düğmeleri (CSV + PDF) görünür', await p.evaluate(() => !!document.querySelector('[data-acc-csv="teacher"]') && !!document.querySelector('[data-acc-pdf="teacher"]')));
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);
 })().catch(e => { console.error('E2E HATA', e); process.exit(1); });

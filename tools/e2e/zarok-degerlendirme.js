@@ -119,11 +119,10 @@ function evalWeek() { const x = new Date(); const y = new Date(x.getFullYear(), 
   ok('Öğretmen kendisine yazılanı görür, başka öğretmene yazılanı görmez', tm2.includes('Silav mamoste, pirsek heye') && !tm2.includes('Ji mamosteyê din re'));
   // 4c) Elle yoklama + "Dersi bitir": gelmeyen çocuğun velisine "gelmedi"
   await goZ(tp, 'att'); await tp.waitForTimeout(600);
-  await tp.click('[data-start-lesson="KL1"]'); await tp.waitForTimeout(400);
   ok('Yoklama ekranında kart okutma düğmesi yok (elle yoklama)', !(await txt(tp)).includes('📇'));
-  await tp.click('[data-end-lesson="KL1"]'); await tp.waitForTimeout(2500);
+  await tp.click('[data-save-att="KL1"]'); await tp.waitForTimeout(2500);
   const ab = (await list('kidAttendance')).filter(d => d.fields.kidId && d.fields.kidId.stringValue === 'K1' && d.fields.type.stringValue === 'absent');
-  ok('Dersi bitir: gelmeyen çocuk "absent" kaydı (veliye bildirim)', ab.length === 1 && (await tp.locator('[data-lesson-ended]').count()) === 1);
+  ok('Yoklamayı kaydet: gelmeyen çocuk "absent" kaydı (veliye bildirim); başlat düğmesi yok', ab.length === 1 && (await tp.locator('[data-att-saved]').count()) === 1 && (await tp.locator('[data-start-lesson]').count()) === 0);
   await goZ(vp, 'today'); await vp.waitForTimeout(1500);
   ok('Veli: bugün "derse gelmedi" durumu', (await txt(vp)).includes('Îro nehat dersê'));
   ok('QR/kart sistemi duruyor (Kart sekmesi)', (await tp.locator('.pano-tile[data-tab="card"], [data-tab="card"]').count()) >= 1);
