@@ -14574,6 +14574,42 @@ function TeacherProfileView({teacher,a,lang,t,toast,myStudents,onLogout,onGoStat
 }
 
 /* ─── TEACHER PANEL ─────────────────────────────────────────────────────── */
+// Öğretmen ana sayfası: yalnız haftalık program (bugünden başlayan 7 gün; haftalık + tek günlük dersler)
+function TeacherWeekProgram({schedule,terms,lang,t,a}){
+  const clsDocs=useClassDocs("classes");
+  const DN=["Yekşem","Dûşem","Sêşem","Çarşem","Pêncşem","Înî","Şemî"];
+  const todayL=ymdLocal(new Date()), now0=new Date(), M=calMonths();
+  const onDate=(ls,date,ku)=>ls.lessonType==="extra"?(ls.extraDates||[]).includes(date):(ls.day===ku&&lessonOnDate(ls,terms,date));
+  const rows=[...Array(7)].map((_,i)=>{ const d=new Date(now0.getFullYear(),now0.getMonth(),now0.getDate()+i); const ku=DN[d.getDay()], date=ymdLocal(d);
+    return {date,ku,d,ls:(schedule||[]).filter(l=>onDate(l,date,ku)).sort((x,y)=>String(x.start||"").localeCompare(String(y.start||"")))}; });
+  const total=rows.reduce((n,r)=>n+r.ls.length,0);
+  return(<div data-week-program="1">
+    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,padding:"10px 14px",background:"var(--surface2)",borderRadius:12,border:"1px solid rgba(15,23,42,.08)",borderLeft:"3px solid "+a.color}}>
+      <span style={{fontSize:24}}>📅</span>
+      <div><div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{lang==="en"?"Weekly schedule":K("Bernameya Hefteyê")}</div>
+        <div data-week-count={total} style={{fontSize:11,color:a.color}}>{lang==="en"?("Next 7 days: "+total+" lessons"):KF("7 rojên bê: {0} ders",[total])}</div></div>
+    </div>
+    {total===0&&<Card><div data-sched-empty="1" style={{textAlign:"center",padding:16,color:"var(--text2)",fontSize:13}}>{lang==="en"?"No lessons this week.":K("Vê heftê ders tune.")}</div></Card>}
+    {rows.filter(r=>r.ls.length).map(r=>{ const isT=r.date===todayL;
+      return(<div key={r.date} data-sched-day={r.date} style={{marginBottom:12}}>
+        <div style={{fontSize:11,fontWeight:800,letterSpacing:"0.06em",margin:"0 0 7px",color:isT?"var(--accent)":"var(--text2)",textTransform:"uppercase"}}>
+          {isT?"📍 ":""}{(t.days&&t.days[r.ku])||r.ku} · {r.d.getDate()} {M[r.d.getMonth()]}{isT?" · "+(lang==="en"?"Today":K("Îro")):""}</div>
+        {r.ls.map(ls=>{ const cd=ls.classId&&clsDocs.find(d=>d.id===ls.classId);
+          return(<div key={ls.id} data-sched-lesson={ls.id} style={{display:"flex",gap:10,marginBottom:7}}>
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",minWidth:38}}>
+              <span style={{fontSize:10,color:"var(--text2)",fontWeight:600}}>{ls.start}</span>
+              <div style={{flex:1,width:1.5,background:"rgba(15,47,56,0.25)",margin:"3px 0"}}/>
+              <span style={{fontSize:10,color:"var(--text2)"}}>{ls.end}</span></div>
+            <div style={{flex:1,background:"var(--surface2)",borderRadius:10,padding:"10px 13px",borderLeft:"3px solid "+(isExtraLesson(ls)?"#ea580c":a.color),border:"1px solid rgba(15,23,42,.08)"}}>
+              <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{lessonIcon(ls)} {ls.name}</div>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginTop:3,flexWrap:"wrap"}}>
+                {cd&&<span style={{fontSize:11,color:"var(--text2)"}}>🏫 {classLabel(cd,lang)}</span>}
+                {ls.lessonType!=="extra"&&<span style={{fontSize:10,color:"var(--text2)"}}>🔁 {lang==="en"?"weekly":K("her hefte")}</span>}
+                {ls.loc&&ls.loc!=="—"&&<span style={{fontSize:11,color:a.color}}>📍 {ls.loc}</span>}
+              </div></div></div>); })}
+      </div>); })}
+  </div>);
+}
 function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataChange,onSettings,onHeadMode}){
   const kidLinkedT=useKidLinked(teacher&&teacher.no);
   // Kayıt kimliği her yolda aynı olsun (yoklama/QR kayıtları teacherId ister)
@@ -14634,7 +14670,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
   // Öğretmen yalnızca SINIFLARININ öğrencilerini görür (aynı alanın diğer öğrencileri görünmez):
   // sınıfa bağlı dersin listesi o sınıftır; sınıfı olmayan dersin listesi boştur.
   const rosterOf=ls=>(ls&&ls.classId)?lessonRoster(ls,students,clsDocs):[];
-  const [stq,setStq]=useState(""); const [rq,setRq]=useState("");
+  const [stq,setStq]=useState(""); const [rq,setRq]=useState(""); const [stClsId,setStClsId]=useState("");
   const myStudents=(()=>{
     const m=new Map();
     mySchedule.forEach(ls=>rosterOf(ls).forEach(s=>m.set(s.id,s)));
@@ -15006,12 +15042,11 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
   },[teacher.id, teacher.area]);
 
   const navItems=[
-    {key:"home",icon:"🏠",label:lang==="en"?"Today's schedule":K("Bernameya Îro")},
+    {key:"home",icon:"🏠",label:lang==="en"?"Schedule":K("Bername")},
     {key:"attendance",icon:"📋",label:lang==="en"?"Student attendance":K("Amadebûna Xwendekaran")},
     {key:"announce",icon:"📢",label:lang==="en"?"Announcements":K("Ragihandin"),badge:teacherAnnUnread},
-    {key:"myclass",icon:"🏫",label:lang==="en"?"My Class · Homework · Messages":K("Sinifa Min · Erk · Peyam"),badge:msgUnreadCount},
+    {key:"myclass",icon:"🏫",label:lang==="en"?"Homework · Messages":K("Erk û Peyam"),badge:msgUnreadCount},
     {key:"students",icon:"🎓",label:lang==="en"?"My Students":K("Xwendekarên Min")},
-    {key:"scanner",icon:"📷",label:t.qrScan},
     {key:"leaves",icon:"🏷",label:lang==="en"?"Leaves":K("Destûr")},
     {key:"seval",icon:"📝",label:lang==="en"?"Evaluation":K("Nirxandin"),badge:evPending},
     {key:"profile",icon:"👤",label:t.profile},
@@ -15053,94 +15088,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
         {view==="home"&&(
           <>
             <TeacherNoAttCard teacher={teacher} schedule={schedule} students={students} lang={lang} toast={toast}/>
-            {/* Summary stats */}
-            <div style={{display:"grid",gridTemplateColumns:"1fr",gap:8,marginBottom:12}}>
-              <div style={{background:"var(--surface)",borderRadius:10,padding:"14px 12px",textAlign:"center",border:"1px solid rgba(15,23,42,.08)",borderLeft:"4px solid "+a.color,boxShadow:"0 1px 4px rgba(15,23,42,.06)"}}>
-                <div style={{fontSize:14,marginBottom:4}}>{a.icon}</div>
-                <div style={{fontSize:32,fontWeight:800,color:a.color}}>{myStudents.length}</div>
-                <div style={{fontSize:10,color:"#64748b",marginTop:3}}>{t.totalStudents}</div>
-              </div>
-            </div>
-
-            {/* Haftalık öğrenci değerlendirmesi hatırlatması */}
-            {hasTEf&&<EvalReminder kind="teacher" pending={evPending} total={evTotal} onGo={()=>setView("seval")} lang={lang}/>}
-
-            {/* Active lesson */}
-            <SectionHeader>{t.activeLesson}</SectionHeader>
-            {currentLesson?(
-              <Card style={{border:`1.5px solid ${activeLesson?a.color:"var(--border2)"}`,marginBottom:12}}>
-                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-                  <span style={{fontSize:16}}>{a.icon}</span>
-                  <div style={{fontSize:14,fontWeight:600,color:"var(--text)",flex:1}}>{currentLesson.name}</div>
-                  <span style={{fontSize:10,padding:"2px 8px",borderRadius:8,
-                    background:activeLesson?"rgba(15,47,56,0.08)":upcomingLesson?"rgba(234,179,8,0.10)":"var(--bg2)",
-                    color:activeLesson?"var(--accent)":upcomingLesson?"#a16207":"#64748b",
-                    border:`1px solid ${activeLesson?a.color:upcomingLesson?"rgba(231,199,123,0.4)":"var(--border)"}`,
-                    fontWeight:600,whiteSpace:"nowrap"}}>
-                    {lessonStatusLabel(currentLesson)}
-                  </span>
-                </div>
-                <div style={{fontSize:11,color:"var(--text2)",marginBottom:10}}>
-                  {currentLesson.start} – {currentLesson.end} · {currentLesson.loc||"—"} · {curRoster.length} {t.totalStudents.toLowerCase()}
-                  {currentLesson.day!==todayKu&&<span style={{marginLeft:6,color:"var(--text2)",fontStyle:"italic"}}>({t.days?.[currentLesson.day]||currentLesson.day})</span>}
-                </div>
-                <div style={{marginBottom:10}}>
-                  <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"var(--text2)",marginBottom:4}}>
-                    <span>{lang==="en"?"QR Attendance":K("Amadebûna QR")}</span>
-                    <span style={{fontWeight:600}}>{Object.values(attendance).filter(v=>v==="on").length} / {curRoster.length}</span>
-                  </div>
-                  <div style={{height:6,background:"var(--bg2)",borderRadius:3}}>
-                    <div style={{height:"100%",width:`${curRoster.length?Object.values(attendance).filter(v=>v==="on").length/curRoster.length*100:0}%`,background:a.color,borderRadius:3,transition:"width 0.3s"}}/>
-                  </div>
-                </div>
-                <PrimaryBtn onClick={()=>{ setAttLsId(currentLesson.id); setView("attendance"); }} icon="▶">{lang==="en"?"Attendance":K("Amadebûn")}</PrimaryBtn>
-              </Card>
-            ):(
-              <Card><div style={{textAlign:"center",padding:12,color:"var(--text2)",fontSize:13}}>
-                {lang==="en"?"No lessons today":K("Îro bername tune")}
-              </div></Card>
-            )}
-
-            {/* Duyuru özeti — home'da */}
-            {teacherAnns.filter(a=>!a._read).length>0&&(
-              <div onClick={()=>setView("announce")}
-                style={{background:"#0f2f38",
-                  borderRadius:14,padding:"12px 14px",marginBottom:10,
-                  border:`1px solid ${AREA_MAP[teacher.area]?.color||"#0f2f38"}55`,cursor:"pointer",
-                  display:"flex",alignItems:"center",gap:10}}>
-                <div style={{width:36,height:36,borderRadius:10,background:"rgba(77,179,160,0.12)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>📢</div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:11,color:"rgba(231,199,123,0.85)",fontWeight:700,marginBottom:2}}>
-                    {teacherAnns.filter(a=>!a._read).length} {lang==="en"?"new announcement(s)":K("ragihandina nû")}
-                  </div>
-                  <div style={{fontSize:11,color:"#64748b",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                    {teacherAnns.find(a=>!a._read)?.title||""}
-                  </div>
-                </div>
-                <span style={{fontSize:11,color:"rgba(231,199,123,0.6)"}}>→</span>
-              </div>
-            )}
-
-            {/* Quick student list — no stats shown to teacher */}
-            <SectionHeader>{t.myStudents}</SectionHeader>
-            <Card>
-              {myStudents.length===0
-                ? <div style={{textAlign:"center",padding:12,color:"var(--text2)",fontSize:13}}>—</div>
-                : myStudents.map((s,i)=>(
-                  <div key={s.id}
-                    style={{display:"flex",alignItems:"center",gap:10,padding:"9px 0",borderBottom:i<myStudents.length-1?"0.5px solid var(--border)":"none"}}>
-                    <Avatar name={s.name} color={a.color} size={36} photo={s.photo}/>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:13,color:"var(--text)",fontWeight:500}}>{s.name}</div>
-                      <div style={{fontSize:10,color:"var(--text2)",fontFamily:"monospace"}}>{s.no}</div>
-                    </div>
-                    {attendance[s.id]==="on"&&<span style={{fontSize:16}}>✅</span>}
-                    {attendance[s.id]==="late"&&<span style={{fontSize:16}}>⏱</span>}
-                    {attendance[s.id]==="off"&&<span style={{fontSize:16}}>❌</span>}
-                  </div>
-                ))
-              }
-            </Card>
+            <TeacherWeekProgram schedule={mySchedule} terms={_terms} lang={lang} t={t} a={a}/>
           </>
         )}
 
@@ -15468,20 +15416,27 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
               </div>
 
             </div>
-            {/* Öğretmen: kendi öğrencilerinin listesi — PDF / Excel (CSV) */}
-            {myStudents.length>0&&(()=>{
-              const clsOf=st=>((myClassGroups||[]).find(g=>(g.students||[]).some(y=>String(y.id)===String(st.id)))||{}).name||"";
-              const rowsL=myStudents.map(st=>({n:st.name||"",no:st.no||"",c:clsOf(st)})).sort((x,y)=>String(x.c).localeCompare(String(y.c))||String(x.n).localeCompare(String(y.n)));
+            {/* Sınıfa göre liste: birden çok sınıf varsa sınıf seçilir, tek sınıfsa yalnız o sınıf; PDF / Excel seçili sınıfın listesidir */}
+            {(()=>{
+              const grp=myClassGroups||[];
+              const selG=grp.length?(grp.find(g=>g.id===stClsId)||grp[0]):null;
+              const listS=(selG?selG.students:myStudents).slice().sort((x,y)=>String(x.name||"").localeCompare(String(y.name||"")));
+              const rowsL=listS.map(st=>({n:st.name||"",no:st.no||""}));
               const H=x=>String(x==null?"":x).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"})[c]);
-              const ttl=lang==="en"?"My students":K("Xwendekarên Min");
-              const csvL=()=>{ downloadCSV("xwendekaren-min-"+ymdLocal(new Date())+".csv",[["#",lang==="en"?"Full name":K("Nav û paşnav"),lang==="en"?"User number":K("Jimareya bikarhêner"),lang==="en"?"Class":K("Sinif")],...rowsL.map((r,i)=>[i+1,r.n,r.no,r.c])]); toast("⬇ CSV"); };
-              const pdfL=()=>{ openPrintHTML("<!doctype html><html><head><meta charset='utf-8'><title>"+H(ttl)+"</title><style>body{font-family:system-ui,sans-serif;padding:20px;color:#102A31}table{border-collapse:collapse;width:100%;font-size:12px}th,td{border:1px solid #cfd8dc;padding:6px 8px;text-align:left}th{background:#eef3f4}h2{margin:0 0 4px}.s{color:#5b6b70;margin-bottom:12px}</style></head><body><h2>"+H(ttl)+"</h2><div class='s'>"+H(teacher.name||"")+" · "+rowsL.length+" · "+H(fmtDateTx(ymdLocal(new Date())))+"</div><table><tr><th>#</th><th>"+H(lang==="en"?"Full name":K("Nav û paşnav"))+"</th><th>"+H(lang==="en"?"User number":K("Jimareya bikarhêner"))+"</th><th>"+H(lang==="en"?"Class":K("Sinif"))+"</th></tr>"+rowsL.map((r,i)=>"<tr><td>"+(i+1)+"</td><td>"+H(r.n)+"</td><td><b>"+H(r.no)+"</b></td><td>"+H(r.c)+"</td></tr>").join("")+"</table></body></html>"); };
+              const ttl=(lang==="en"?"My students":K("Xwendekarên Min"))+(selG?" · "+selG.name:"");
+              const fn=x=>String(x).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+              const csvL=()=>{ downloadCSV("xwendekaren-min-"+(selG?fn(selG.name)+"-":"")+ymdLocal(new Date())+".csv",[["#",lang==="en"?"Full name":K("Nav û paşnav"),lang==="en"?"User number":K("Jimareya bikarhêner")],...rowsL.map((r,i)=>[i+1,r.n,r.no])]); toast("⬇ CSV"); };
+              const pdfL=()=>{ openPrintHTML("<!doctype html><html><head><meta charset='utf-8'><title>"+H(ttl)+"</title><style>body{font-family:system-ui,sans-serif;padding:20px;color:#102A31}table{border-collapse:collapse;width:100%;font-size:12px}th,td{border:1px solid #cfd8dc;padding:6px 8px;text-align:left}th{background:#eef3f4}h2{margin:0 0 4px}.s{color:#5b6b70;margin-bottom:12px}</style></head><body><h2>"+H(ttl)+"</h2><div class='s'>"+H(teacher.name||"")+" · "+rowsL.length+" · "+H(fmtDateTx(ymdLocal(new Date())))+"</div><table><tr><th>#</th><th>"+H(lang==="en"?"Full name":K("Nav û paşnav"))+"</th><th>"+H(lang==="en"?"User number":K("Jimareya bikarhêner"))+"</th></tr>"+rowsL.map((r,i)=>"<tr><td>"+(i+1)+"</td><td>"+H(r.n)+"</td><td><b>"+H(r.no)+"</b></td></tr>").join("")+"</table></body></html>"); };
               const bs={padding:"9px 12px",background:"var(--bg2)",color:"var(--text)",border:"1px solid var(--border2)",borderRadius:10,fontSize:12.5,fontWeight:700,cursor:"pointer"};
-              return(<div data-my-students-export="1" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
-                <button type="button" data-ms-pdf="1" onClick={pdfL} style={bs}>📄 PDF</button>
-                <button type="button" data-ms-csv="1" onClick={csvL} style={bs}>📊 Excel (CSV)</button></div>); })()}
+              return(<>
+                {grp.length>1&&<div data-ms-classes="1" className="c-chips" style={{marginBottom:10}}>
+                  {grp.map(g=><button key={g.id} type="button" data-ms-class={g.id} className={"c-chip"+(selG&&selG.id===g.id?" on":"")} onClick={()=>setStClsId(g.id)}>🏫 {g.name} ({g.students.length})</button>)}</div>}
+                {grp.length===1&&<div data-ms-oneclass="1" style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:10}}>🏫 {grp[0].name} <span style={{fontWeight:400,color:"var(--text2)"}}>({grp[0].students.length})</span></div>}
+                {listS.length>0&&<div data-my-students-export="1" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+                  <button type="button" data-ms-pdf="1" onClick={pdfL} style={bs}>📄 PDF</button>
+                  <button type="button" data-ms-csv="1" onClick={csvL} style={bs}>📊 Excel (CSV)</button></div>}
+              </>); })()}
 
-            <MyClassesCard teacherNo={teacher.no} students={students} lang={lang}/>
             {/* Bulk message shortcut */}
             <div style={{background:"var(--surface)",borderRadius:12,padding:"11px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:10,cursor:"pointer",border:"1px solid rgba(15,23,42,.08)",borderLeft:"4px solid "+a.color}}
               onClick={()=>setView("messages")}>
@@ -15508,7 +15463,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
               <>
               <SearchBox value={stq} onChange={setStq} lang={lang} id="my-students-search"/>
               <Card>
-                {myStudents.filter(s=>matchQ(stq,s.name,s.no)).map((s,i)=>{
+                {(()=>{ const g0=myClassGroups||[]; const sg=g0.length?(g0.find(g=>g.id===stClsId)||g0[0]):null; return (sg?sg.students:myStudents).slice().sort((x,y)=>String(x.name||"").localeCompare(String(y.name||""))); })().filter(s=>matchQ(stq,s.name,s.no)).map((s,i)=>{
                   return(
                     <div key={s.id}
                       style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",

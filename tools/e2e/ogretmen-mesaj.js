@@ -140,7 +140,10 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   ok('Öğretmen "Xwendekarên Min" ekranında PDF + Excel düğmeleri var', (await ta7.locator('[data-ms-pdf]').count()) === 1 && (await ta7.locator('[data-ms-csv]').count()) === 1);
   const [dl7] = await Promise.all([ta7.waitForEvent('download'), ta7.click('[data-ms-csv]')]);
   const csv7 = require('fs').readFileSync(await dl7.path(), 'utf8');
-  ok('Excel listesi: yalnız kendi öğrencileri (ad, numara, sınıf)', csv7.includes('Rojîn Aram') && csv7.includes('20202601') && csv7.includes('Baran Şêx') && csv7.includes('1. Sînif'), csv7.replace(/\n/g, ' | ').slice(0, 160));
+  ok('Excel listesi: seçili sınıfın öğrencileri (ad, numara)', csv7.includes('Rojîn Aram') && csv7.includes('20202601') && csv7.includes('Baran Şêx'), csv7.replace(/\n/g, ' | ').slice(0, 160));
+  ok('Tek sınıfı olan öğretmende sınıf adı başlıkta, seçici yok', (await ta7.locator('[data-ms-oneclass]').count()) === 1 && (await ta7.locator('[data-ms-classes]').count()) === 0 && (await ta7.locator('[data-ms-oneclass]').innerText()).includes('1. Sînif'));
+  await goA(ta7, 'home'); await ta7.waitForTimeout(800);
+  ok('Ana sayfa yalnız haftalık program (öğrenci listesi / aktif ders kartı yok); menüde QR okut yok, Erk û Peyam adı var', (await ta7.locator('[data-week-program]').count()) === 1 && !(await ta7.evaluate(() => document.body.innerText)).includes('Xwendekarên Min\n') && (await ta7.locator('.sm-it[data-key="scanner"],.pano-tile[data-key="scanner"]').count()) === 0 && (await ta7.evaluate(() => [...document.querySelectorAll('[data-key="myclass"]')].some(e => e.textContent.includes('Erk û Peyam') && !e.textContent.includes('Sinifa Min')))), JSON.stringify(await ta7.evaluate(() => ({ wp: document.querySelectorAll('[data-week-program]').length, sc: document.querySelectorAll('[data-key="scanner"]').length, my: [...document.querySelectorAll('[data-key="myclass"]')].map(e => e.textContent), hasList: document.body.innerText.includes('Xwendekarên Min\n') }))));
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);
 })().catch(e => { console.error('E2E HATA', e); process.exit(1); });

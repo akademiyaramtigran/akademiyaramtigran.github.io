@@ -252,13 +252,12 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   const ac = await mk(430); const ap = await login(ac, '50202601', 'Tea12345');
   await ap.evaluate(() => [...document.querySelectorAll('.pano-tile[data-key="students"],.sm-it[data-key="students"]')].filter(x => x.getClientRects().length).pop().click());
   await ap.waitForTimeout(1500);
-  await ap.getByText('Sinifên Min').first().waitFor({ timeout: 10000 }).catch(() => {});
-  await ap.evaluate(() => { const s = [...document.querySelectorAll('span')].find(x => /1\. Sînif/.test(x.textContent) && x.textContent.includes('▸')); s && s.click(); });
-  await ap.waitForTimeout(500);
+  await ap.locator('[data-ms-classes],[data-ms-oneclass]').first().waitFor({ timeout: 10000 }).catch(() => {});
+  const chip1 = ap.locator('[data-ms-class]').filter({ hasText: '1. Sînif' }); if (await chip1.count()) { await chip1.first().click(); await ap.waitForTimeout(500); }
   const t8 = await txt(ap);
-  ok('Akademi öğretmeni "Sinifên Min" kartında sınıfını ve öğrencisini görür', t8.includes('Sinifên Min') && t8.includes('Rojîn Aram'));
+  ok('Akademi öğretmeni sınıf listesinde sınıfını ve öğrencisini görür', t8.includes('1. Sînif') && t8.includes('Rojîn Aram'));
   // Sınıfına ödev + belge gönder
-  await ap.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => x.textContent.includes('Sinifa Min') && x.offsetParent).pop(); b.click(); });
+  await ap.evaluate(() => { const b = [...document.querySelectorAll('button')].filter(x => (x.textContent.includes('Erk û Peyam') || x.textContent.includes('Sinifa Min')) && x.offsetParent).pop(); b.click(); });
   await ap.waitForTimeout(1200);
   await ap.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.includes('Erka malê') && x.offsetParent).click());
   if ((await ap.locator('[data-post-to]').count()) === 0) await ap.evaluate(() => [...document.querySelectorAll('button')].find(x => x.textContent.includes('Muzîk · 1. Sînif') && x.offsetParent).click());
