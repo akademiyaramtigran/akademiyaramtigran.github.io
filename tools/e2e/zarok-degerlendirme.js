@@ -120,6 +120,9 @@ function evalWeek() { const x = new Date(); const y = new Date(x.getFullYear(), 
   // 4c) Elle yoklama + "Dersi bitir": gelmeyen çocuğun velisine "gelmedi"
   await goZ(tp, 'att'); await tp.waitForTimeout(600);
   ok('Yoklama ekranında kart okutma düğmesi yok (elle yoklama)', !(await txt(tp)).includes('📇'));
+  ok('Yoklama düğmeleri yalnız Geldi / Gelmedi', (await tp.locator('[data-mark-in]').count()) >= 1 && (await tp.locator('[data-mark-absent]').count()) >= 1 && (await tp.locator('.attrow .attbtn').count()) === 2 * (await tp.locator('.attrow').count()));
+  await tp.click('[data-mark-absent="K1"]'); await tp.waitForTimeout(1500);
+  ok('Gelmedi düğmesi "absent" kaydı yazar', (await list('kidAttendance')).filter(d => d.fields.kidId && d.fields.kidId.stringValue === 'K1' && d.fields.type.stringValue === 'absent').length === 1);
   await tp.click('[data-save-att="KL1"]'); await tp.waitForTimeout(2500);
   const ab = (await list('kidAttendance')).filter(d => d.fields.kidId && d.fields.kidId.stringValue === 'K1' && d.fields.type.stringValue === 'absent');
   ok('Yoklamayı kaydet: gelmeyen çocuk "absent" kaydı (veliye bildirim); başlat düğmesi yok', ab.length === 1 && (await tp.locator('[data-att-saved]').count()) === 1 && (await tp.locator('[data-start-lesson]').count()) === 0);
