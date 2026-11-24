@@ -87,19 +87,19 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await clickText(p, '🎓 Zarok'); await p.waitForTimeout(400);
   await clickText(p, 'Zarokê Tescîl Bike'); await p.waitForTimeout(300);
   await p.locator('label:has-text("Nav û paşnavê zarokê") + input').fill('Dilan Aram');
-  await p.locator('label:has-text("Navê dêûbav") + input').fill('Nûrê Aram');
-  await p.locator('label:has-text("Têlefon *") + input').fill('0555 444 55 66');
   await clickText(p, '💾 Tomar bike');
   await p.waitForSelector('text=Zarok hate tomarkirin', { timeout: 20000 });
   const c1 = await txt(p);
   const gno = (c1.match(/Jimara têketinê:\s*(\d+)/) || [])[1], gpass = (c1.match(/Şîfre:\s*(\S+)/) || [])[1];
   ok('Çocuk + yeni veli hesabı', !!gno && !!gpass, 'veli ' + gno);
+  // Elle kayıtta veli adı / telefon istenmez; sonradan bilgisi eklenen veli (telefon) başvuruyla eşleşir
+  await fetch(`${FS}/guardians/${gno}?updateMask.fieldPaths=phone`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { phone: { stringValue: '+90 555 444 55 66' } } }) });
   await clickText(p, 'Baş e'); await p.waitForTimeout(300);
 
   // ── 2) Veliler → "➕ Xwişk/bira": kardeş aynı hesaba ──
   await clickText(p, '👨‍👩‍👧 Dêûbav'); await p.waitForTimeout(500);
   ok('Veliler sekmesinde kardeş ekleme düğmesi', (await txt(p)).includes('Xwişk/bira'));
-  await p.evaluate(() => { const row = [...document.querySelectorAll('div')].filter(d => d.textContent.includes('Nûrê Aram') && [...d.querySelectorAll('button')].some(b => b.textContent.includes('➕ Xwişk/bira'))).pop();
+  await p.evaluate(() => { const row = [...document.querySelectorAll('div')].filter(d => d.textContent.includes('Dilan Aram') && [...d.querySelectorAll('button')].some(b => b.textContent.includes('➕ Xwişk/bira'))).pop();
     [...row.querySelectorAll('button')].find(b => b.textContent.includes('➕ Xwişk/bira')).click(); }); await p.waitForTimeout(500);
   const f2 = await txt(p);
   ok('Kardeş formu mevcut veliyle açılır (yeni hesap yok uyarısı)', f2.includes('Zarokên vê dêûbavê') && f2.includes('Dilan Aram'));

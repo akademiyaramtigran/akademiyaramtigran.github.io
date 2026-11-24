@@ -9688,8 +9688,26 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
     const mailed=await mailCreds(g.name,g.email,no,pass);
     return {...g,pass,mailed};
   }
-  async function createKid(d,gnos){
-    const kno=zarokNextNo(kids.map(x=>x.no),"8"+yr);
+  // Yeni çocuk + VELİ GİRİŞİ: öğrenci hesabı gibi — giriş numarası çocuğun numarasıdır (veli o numara + şifre ile girer); veli adı / telefon istenmez
+  async function createKidWithLogin(d,extra){
+    extra=extra||{};
+    const prefix="8"+yr, taken=new Set(kids.map(x=>String(x.no)));
+    const first=parseInt(zarokNextNo(kids.map(x=>x.no),prefix).slice(prefix.length),10);
+    for(let i=0;i<30;i++){
+      const no=prefix+String(first+i).padStart(3,"0"); if(taken.has(no)) continue;
+      const pass=genAutoPassword();
+      try{ await F.createAuthUser(no,pass,"guardian"); }catch(e){ if(e.code==="auth/email-already-in-use") continue; throw e; }
+      const g={no,name:(extra.name||d.kidName||"").trim(),phone:extra.phone||"",phone2:extra.phone2||"",email:(extra.email||"").trim(),relation:extra.relation||""};
+      await F.setDoc(F.doc(F.db,"guardians",no),{...g,createdAt:F.serverTimestamp()});
+      await F.setDoc(F.doc(F.db,"idx_guardians",no),{no,updatedAt:F.serverTimestamp()});
+      await createKid(d,[no],no);
+      const mailed=await mailCreds(g.name,g.email,no,pass);
+      return {kno:no,g,pass,mailed};
+    }
+    throw Object.assign(new Error("no-free-number"),{code:"aat/no-free-number"});
+  }
+  async function createKid(d,gnos,knoGiven){
+    const kno=knoGiven||zarokNextNo(kids.map(x=>x.no),"8"+yr);
     await F.addDoc(F.collection(F.db,"kids"),{no:kno,name:(d.kidName||"").trim(),dob:d.kidDob||"",area:"zarok",school:d.school||"",
       guardianNos:gnos,health:d.health||"",consentPhoto:!!d.consentPhoto,consentShare:!!d.consentShare,pickups:[],
       appId:d.appId||"",photo:d.photo||"",createdAt:F.serverTimestamp()});
@@ -9708,9 +9726,9 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
     if(busy) return; setBusy(true);
     try{
       const ch=appChoice(a);
-      let g=ch!=="new"?guardOf(ch):null, created=null;
-      if(!g){ created=await createGuardian(a); g=created; }
-      const kno=await createKid({...a,appId:a.fireId},[g.no]);
+      let g=ch!=="new"?guardOf(ch):null, created=null, kno="";
+      if(!g){ const r=await createKidWithLogin({...a,appId:a.fireId},{name:a.guardianName,phone:a.phone,phone2:a.phone2,email:a.email,relation:a.relation}); g=r.g; created={pass:r.pass,mailed:r.mailed}; kno=r.kno; }
+      else kno=await createKid({...a,appId:a.fireId},[g.no]);
       await F.updateDoc(F.doc(F.db,"kidApplications",a.fireId),{status:"accepted",kidNo:kno,guardianNo:g.no});
       setCreds({title:Z("Zarok hate tomarkirin","Child registered"),kid:a.kidName,kno,no:g.no,name:g.name,pass:created&&created.pass,mailed:created&&created.mailed});
       setOpenId(null);
@@ -9731,14 +9749,13 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
         await F.updateDoc(F.doc(F.db,"kids",form.id),{...patch,updatedAt:F.serverTimestamp()});
         toast(Z("✅ Hate tomarkirin","✅ Saved")); setForm(null);
       }else{      // yeni çocuk
-        let gno=d.guardianMode==="existing"?d.existingGuardian:"", created=null;
-        if(!gno){
-          if(!(d.guardianName||"").trim()||!(d.phone||"").trim()){ toast(Z("⚠ Navê dêûbav û têlefon pêwîst in","⚠ Parent name and phone required")); setBusy(false); return; }
-          created=await createGuardian(d); gno=created.no;
+        if(d.guardianMode==="existing"&&d.existingGuardian){   // kardeş: mevcut aile hesabına bağla
+          const gno=d.existingGuardian, kno=await createKid(d,[gno]); const g=guardOf(gno)||{};
+          setCreds({title:Z("Zarok hate tomarkirin","Child registered"),kid:d.kidName,kno,no:gno,name:g.name,pass:null,mailed:false});
+        }else{                                                  // yeni çocuk: çocuğun numarası = veli giriş numarası
+          const r=await createKidWithLogin(d,{});
+          setCreds({title:Z("Zarok hate tomarkirin","Child registered"),kid:d.kidName,kno:r.kno,no:r.kno,name:r.g.name,pass:r.pass,mailed:r.mailed});
         }
-        const kno=await createKid(d,[gno]);
-        const g=created||guardOf(gno)||{};
-        setCreds({title:Z("Zarok hate tomarkirin","Child registered"),kid:d.kidName,kno,no:gno,name:g.name,pass:created&&created.pass,mailed:created&&created.mailed});
         setForm(null);
       }
     }catch(e){ err(e); }
@@ -10120,25 +10137,16 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
                 <option value="">—</option>{guards.filter(g=>!(form.orig.guardianNos||[]).includes(g.no)).map(g=><option key={g.no} value={g.no}>{g.name} · {g.phone}</option>)}
               </select>
             </div>):(<div>
-              <div style={{fontWeight:800,color:"var(--text)",margin:"14px 0 4px"}}>👨‍👩‍👧 {Z("Dêûbav","Parent")}</div>
-              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                <button onClick={()=>setForm(f=>({...f,data:{...f.data,guardianMode:"new"}}))} style={form.data.guardianMode!=="existing"?btn():ghost}>{Z("Hesabê nû","New account")}</button>
-                <button onClick={()=>setForm(f=>({...f,data:{...f.data,guardianMode:"existing"}}))} style={form.data.guardianMode==="existing"?btn():ghost}>{Z("Dêûbavê heyî","Existing parent")}</button>
-              </div>
-              {form.data.guardianMode==="existing"?(<div>
+              <div style={{fontWeight:800,color:"var(--text)",margin:"14px 0 4px"}}>🔐 {Z("Têketina dêûbav","Parent login")}</div>
+              <div data-kid-login-note="1" style={{...small,marginBottom:6}}>{Z("Dêûbav bi jimara zarokê û şîfreyeke otomatîk têdikevin — navê dêûbav û têlefon nayê xwestin.","Parents sign in with the child's number and an automatic password — no parent name or phone needed.")}</div>
+              <label style={{...small,display:"flex",gap:8,alignItems:"center"}}><input type="checkbox" data-kid-sibling="1" checked={form.data.guardianMode==="existing"} onChange={e=>{const v=e.target.checked;setForm(f=>({...f,data:{...f.data,guardianMode:v?"existing":"new"}}));}}/>👨‍👧‍👦 {Z("Xwişk/bira ye — hesabê malbatê yê heyî bikar bîne","Sibling — use an existing family login")}</label>
+              {form.data.guardianMode==="existing"&&(<div>
                 <input style={{...inp,marginTop:8}} value={form.data.gq||""} onChange={e=>{const v=e.target.value;setForm(f=>({...f,data:{...f.data,gq:v}}));}} placeholder={"🔎 "+Z("Nav, têlefon an jimareya dêûbav","Parent name, phone or number")}/>
                 <select style={{...inp,marginTop:8}} value={form.data.existingGuardian||""} onChange={e=>{const v=e.target.value;setForm(f=>({...f,data:{...f.data,existingGuardian:v}}));}}>
                   <option value="">—</option>{guards.filter(g=>g.no===form.data.existingGuardian||gMatch(g,form.data.gq)).map(g=>{const n=kids.filter(k=>(k.guardianNos||[]).includes(g.no)).length;return <option key={g.no} value={g.no}>{g.name} · {g.phone} · #{g.no}{n?" · 🎓 "+n:""}</option>;})}
                 </select>
                 {form.data.existingGuardian&&<div style={{...small,marginTop:6}}>👨‍👧‍👦 {Z("Zarokên vê dêûbavê","This parent's children")}: {kids.filter(k=>(k.guardianNos||[]).includes(form.data.existingGuardian)).map(k=>k.name).join(", ")||"—"} · {Z("Zarokê nû dê wek xwişk/bira li heman hesabê were zêdekirin; hesabekî nû nayê vekirin.","The new child is added to the same account as a sibling; no new account is created.")}</div>}
-              </div>):(<div style={grid2}>
-                {fld(Z("Navê dêûbav *","Parent name *"),"guardianName")}
-                {fld(Z("Yekîtî (dayik, bav…)","Relation"),"relation")}
-                {fld(Z("Têlefon *","Phone *"),"phone",{type:"tel"})}
-                {fld(Z("E-peyam (agahiyên têketinê)","E-mail (login details)"),"email",{type:"email"})}
-                {fld(Z("Têkiliya acil","Emergency contact"),"phone2")}
               </div>)}
-              <div style={{...small,marginTop:6}}>{Z("Şîfre otomatîk tê çêkirin û bi e-peyamê tê şandin.","Password is generated automatically and e-mailed.")}</div>
             </div>)}
             <div style={{display:"flex",alignItems:"center",gap:10,marginTop:10}}>
               <div style={{width:56,height:70,borderRadius:8,overflow:"hidden",background:"var(--bg2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,flexShrink:0}}>

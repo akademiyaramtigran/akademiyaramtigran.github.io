@@ -17,6 +17,7 @@ const admin = require("firebase-admin");
 admin.initializeApp();
 setGlobalOptions({ region: "europe-west1", maxInstances: 5 });
 
+const KID_AREA_KEYS = ["zarok", "solfej", "ziman", "teori", "dalcroze", "drama", "enstruman"];
 const SUFFIX = { student: "@ogrenci.aat", teacher: "@ogretmen.aat", admin: "@ogretmen.aat", guardian: "@veli.aat", kidteacher: "@zmamoste.aat" };
 // Hesap yönetimi yalnızca yönetici + öğrenci işleri (basın hesap açamaz/şifre değiştiremez)
 const MANAGERS = ["admin", "registrar"];
@@ -49,7 +50,10 @@ exports.aatUser = onCall(async (req) => {
     if (suffix === "@ogretmen.aat") {
       if (id === callerId) throw new HttpsError("permission-denied", "Kendi hesabı");
       const t = await admin.firestore().doc("idx_staff/" + id).get();
-      if (t.exists && (t.get("lvl") || "teacher") !== "teacher") throw new HttpsError("permission-denied", "Özel personel hesabı");
+      // Alan sorumlusu (head) olan ana akademi öğretmeninin hesabına öğrenci işleri de dokunabilir (genel / çocuk akademisi sorumlusu ve özel kartlar hariç)
+      const tl = t.exists ? (t.get("lvl") || "teacher") : "teacher", ta = t.exists ? String(t.get("area") || "") : "";
+      const okHead = tl === "head" && ta && ta !== "genel" && !KID_AREA_KEYS.includes(ta);
+      if (t.exists && tl !== "teacher" && !okHead) throw new HttpsError("permission-denied", "Özel personel hesabı");
     }
   }
 

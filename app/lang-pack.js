@@ -1634,6 +1634,9 @@ window.AAT_TX={"ku":{},"zza":{},"tr":{"Berpirsê sinifê":"Sınıf sorumlusu","b
 "Nirxandin — bersivên her pirsê":"Değerlendirme — her sorunun cevabı",
 "Her nirxandin û bersiv":"Her değerlendirme ve cevapları",
 "Navgîna her pirsê":"Soru başına ortalama",
+"Têketina dêûbav":"Veli girişi",
+"Dêûbav bi jimara zarokê û şîfreyeke otomatîk têdikevin — navê dêûbav û têlefon nayê xwestin.":"Veliler çocuğun numarası ve otomatik bir şifreyle giriş yapar — veli adı ve telefon istenmez.",
+"Xwişk/bira ye — hesabê malbatê yê heyî bikar bîne":"Kardeş — mevcut aile girişini kullan",
 "Mamoste tune.":"Öğretmen yok."}};
 window.AAT_SITE={"ku":{},"zza":{}};
 window.AAT_SITE_AREA={"ku":{},"zza":{}};
