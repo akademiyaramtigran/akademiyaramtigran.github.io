@@ -79,14 +79,13 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await clickText(p, '🎓 Zarok'); await p.waitForTimeout(400);
   await clickText(p, 'Zarokê Tescîl Bike'); await p.waitForTimeout(300);
   await p.locator('label:has-text("Nav û paşnavê zarokê") + input').fill('Rojîn Aydın');
-  await p.locator('label:has-text("Navê dêûbav") + input').fill('Sara Aydın');
-  await p.locator('label:has-text("Têlefon *") + input').fill('0555 444 55 66');
   await clickText(p, '💾 Tomar bike');
   await p.waitForSelector('text=Zarok hate tomarkirin', { timeout: 20000 });
   t = await p.evaluate(() => document.body.innerText);
   const gno = (t.match(/Jimara têketinê:\s*(\d+)/) || [])[1], gpass = (t.match(/Şîfre:\s*(\S+)/) || [])[1];
   ok('Çocuk + yeni veli hesabı elle kaydedilir', !!gno && !!gpass, 'veli ' + gno);
   const kid = (await list('kids')).find(d => d.fields.name.stringValue === 'Rojîn Aydın');
+  ok('Kayıtta veli adı / telefon istenmedi; veli giriş numarası = çocuğun numarası', !!kid && kid.fields.no.stringValue === gno && (await list('guardians')).some(d => d.name.endsWith('/' + gno)) && (await list('idx_guardians')).some(d => d.name.endsWith('/' + gno)), 'çocuk ' + (kid && kid.fields.no.stringValue) + ' / veli ' + gno);
   // Öğretmen ataması artık sınıf üzerinden (Sinif û Atolye): sınıf öğretmeni olduğu sınıfa çocuk eklenir
   await put('kidClasses/KC1', { kind: 'general', name: 'Koma A', area: 'genel', studentNos: [kid.fields.no.stringValue], teacherNos: [tno], teacherNames: ['Mamoste Hêvî'] });
   ok('Çocuk kaydı oluşturuldu (öğretmen sınıf üzerinden)', !!kid && !kid.fields.teacherNo);

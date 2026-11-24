@@ -188,6 +188,9 @@ service cloud.firestore {
       allow update: if isAdmin()
                     || (isRegistrar() && plainTeacher(resource.data) && plainTeacher(request.resource.data))
                     // Genel sorumlu: yalnız "alan sorumlusu" işaretini (isHead) açıp kapatır; başka alan / özel kart değil
+                    // Öğrenci İşleri: alan sorumlusu olan (ana akademi, genel / çocuk alanı hariç) öğretmenin bilgilerini de düzenler (isHead + alan sabit)
+                    || (isRegistrar() && areaHeadDoc(resource.data) && areaHeadDoc(request.resource.data) && !isKidAreaKey(resource.data.get('area', ''))
+                        && request.resource.data.get('area', '') == resource.data.get('area', '') && request.resource.data.get('no', '') == resource.data.get('no', ''))
                     // Öğrenci İşleri: yalnız "alan sorumlusu" işaretini (isHead) açıp kapatır
                     || (isRegistrar() && (plainTeacher(resource.data) || areaHeadDoc(resource.data))
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isHead', 'updatedAt'])

@@ -9542,6 +9542,180 @@ function TeacherClassHub({teacher,myStudents,classGroups,lang,t,toast,initial,ms
     </div>);
 }
 
+/* ── Çocuk Akademisi: ders programını toplu içe aktar (sınıf;gün;başlangıç;bitiş;ders;öğretmenler) ── */
+const KID_PROG_PRESET_MUZIK=`A+;Şemî;09:50;10:30;Stranbêjî;Mesûd
+A+;Şemî;10:40;11:20;Ziman;Hesen
+A+;Şemî;11:30;12:10;Ziman;Hesen
+A-1;Şemî;09:00;09:40;Ziman;Hesen
+A-1;Şemî;09:50;10:30;Titulars;Eda
+A-1;Şemî;10:40;11:20;Stranbêjî;Mesûd
+A-1;Şemî;11:30;12:10;Dalcroze;Evîndar
+A-2;Şemî;09:00;09:40;Titulars;Eda
+A-2;Şemî;09:50;10:30;Ziman;Hesen
+A-2;Şemî;10:40;11:20;Dalcroze;Evîndar
+A-2;Şemî;11:30;12:10;Stranbêjî;Mesûd
+B-1;Şemî;09:00;09:40;Solfej;Derya
+B-1;Şemî;09:50;10:30;Teorî;Aram
+B-1;Şemî;10:40;11:20;Amûr;Sarya,Müslüm,Apo,Nergiz,Xoşyar,Adar
+B-1;Şemî;11:30;12:10;Ziman;Sedat
+B-2;Şemî;09:00;09:40;Teorî;Aram
+B-2;Şemî;09:50;10:30;Amûr;Welat,Xoşyar,Müslüm
+B-2;Şemî;10:40;11:20;Ziman;Sedat
+B-2;Şemî;11:30;12:10;Solfej;Derya
+B-3;Şemî;09:00;09:40;Ziman;Sedat
+B-3;Şemî;09:50;10:30;Solfej;Derya
+B-3;Şemî;10:40;11:20;Teorî;Aram
+B-3;Şemî;11:30;12:10;Amûr;Welat,Sarya,Adar,Apo,Nergiz
+D-1;Şemî;13:00;13:40;Amûr;Müslüm,Nergiz,Hêlin,Apo,Xoşyar,Bawer,Welat,Xebat
+D-1;Şemî;13:50;14:30;Solfej;Evîndar
+D-1;Şemî;14:40;15:20;Ziman;Hesen
+D-1;Şemî;15:30;16:10;Teorî;Yunus
+E-2;Şemî;13:00;13:40;Solfej;Evîndar
+E-2;Şemî;13:50;14:30;Amûr;Xebat,Müslüm,Hêlin,Xoşyar,Adar,Bawer,Sarya
+E-2;Şemî;14:40;15:20;Teorî;Yunus
+E-2;Şemî;15:30;16:10;Ziman;Sedat
+E-1;Şemî;13:00;13:40;Ziman;Hesen
+E-1;Şemî;13:50;14:30;Teorî;Yunus
+E-1;Şemî;14:40;15:20;Amûr;Xebat,Müslüm,Hêlin,Welat,Sarya
+E-1;Şemî;15:30;16:10;Solfej;Adar
+F-1;Şemî;13:00;13:40;Teorî;Ferhat
+F-1;Şemî;13:50;14:30;Ziman;Hesen
+F-1;Şemî;14:40;15:20;Solfej;Adar
+F-1;Şemî;15:30;16:10;Amûr;Xebat,Müslüm,Welat,Xoşyar,Bawer,Sarya
+A+;Şemî;13:00;13:40;Stranbêjî;Mesûd
+A+;Şemî;13:50;14:30;Ziman;Sedat
+A+;Şemî;14:40;15:20;Ziman;Sedat`;
+const kidNz=s=>String(s||"").toLocaleLowerCase("tr").replace(/[ûúùü]/g,"u").replace(/[îıíì]/g,"i").replace(/[êéèë]/g,"e").replace(/[çć]/g,"c").replace(/[şś]/g,"s").replace(/[ğ]/g,"g").replace(/[öô]/g,"o").replace(/[âá]/g,"a").replace(/[^a-z0-9+\-]/g,"");
+const KID_DAY_MAP={"yekşem":0,"pazar":0,"sunday":0,"dûşem":1,"pazartesi":1,"monday":1,"sêşem":2,"salı":2,"sali":2,"tuesday":2,"çarşem":3,"çarşamba":3,"carsamba":3,"wednesday":3,"pêncşem":4,"perşembe":4,"persembe":4,"thursday":4,"înî":5,"cuma":5,"friday":5,"şemî":6,"cumartesi":6,"saturday":6};
+function parseKidProgram(text){
+  const rows=[]; const bad=[];
+  String(text||"").split(/\r?\n/).forEach((ln,i)=>{ const t=ln.trim(); if(!t||t.startsWith("#")) return;
+    const p=t.split(/[;\t]/).map(x=>x.trim());
+    const day=KID_DAY_MAP[String(p[1]||"").toLocaleLowerCase("tr")];
+    if(p.length<6||day==null||!/^\d{1,2}:\d{2}$/.test(p[2])||!/^\d{1,2}:\d{2}$/.test(p[3])||!p[0]||!p[4]){ bad.push(i+1); return; }
+    const pad=x=>x.length===4?"0"+x:x;
+    rows.push({cls:p[0],day,start:pad(p[2]),end:pad(p[3]),title:p[4],teachers:p[5].split(/[,\/]/).map(x=>x.trim()).filter(Boolean)}); });
+  return {rows,bad};
+}
+function KidProgramImport({kteach,kidCls,sched,lang,toast,user}){
+  const F=window.__FB; const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const [text,setText]=useState(""); const [map,setMap]=useState({}); const [busy,setBusy]=useState(false); const [done,setDone]=useState(null);
+  const {rows,bad}=useMemo(()=>parseKidProgram(text),[text]);
+  const names=[...new Set(rows.flatMap(r=>r.teachers))];
+  const cands=n=>{ const k=kidNz(n); const exact=(kteach||[]).filter(t=>kidNz(t.name)===k); if(exact.length) return exact; return (kteach||[]).filter(t=>kidNz(String(t.name||"").split(/\s+/)[0])===k); };
+  const pick=n=>{ if(map[n]!==undefined) return map[n]; const c=cands(n); return c.length===1?String(c[0].no):""; };
+  const clsNames=[...new Set(rows.map(r=>r.cls))];
+  const clsOf=n=>(kidCls||[]).find(c=>c.kind&&c.kind!=="workshop"&&c.status!=="closed"&&kidNz(c.name)===kidNz(n));
+  const missing=names.filter(n=>!pick(n));
+  // Çakışma: aynı öğretmen aynı gün+saatte iki ayrı sınıfta
+  const conflicts=(()=>{ const m=new Map(), out=[]; rows.forEach(r=>r.teachers.forEach(n=>{ const no=pick(n); if(!no) return; const k=no+"|"+r.day+"|"+r.start; const x=m.get(k); if(x&&x!==r.cls) out.push(n+" · "+r.start+" · "+x+" / "+r.cls); else m.set(k,r.cls); })); return out; })();
+  const entries=rows.flatMap(r=>r.teachers.map(n=>({...r,tno:pick(n),tname:n}))).filter(e=>e.tno);
+  const exists=e=>(sched||[]).some(s=>String(s.classId)===String((clsOf(e.cls)||{}).id)&&+s.day===e.day&&s.start===e.start&&s.title===e.title&&String(s.teacherNo)===String(e.tno));
+  const fresh=entries.filter(e=>!(clsOf(e.cls)&&exists(e)));
+  async function run(){
+    if(busy||!fresh.length&&!clsNames.some(n=>!clsOf(n))) return;
+    if(!window.confirm(W2("Sinif û ders werin zêdekirin?","Add classes and lessons?")+"\n"+clsNames.filter(n=>!clsOf(n)).length+" "+W2("sinifên nû","new classes")+" · "+fresh.length+" "+W2("ders","lessons"))) return;
+    setBusy(true); setDone(null);
+    try{
+      const ids={}; let nc=0, nl=0;
+      for(const n of clsNames){ const ex=clsOf(n); const tn=[...new Map(entries.filter(e=>e.cls===n).map(e=>[String(e.tno),(kteach||[]).find(t=>String(t.no)===String(e.tno))||{}])).entries()];
+        const tnos=tn.map(x=>x[0]), tnames=tn.map(x=>x[1].name||"");
+        if(ex){ ids[n]=ex.id; const un=[...new Set([...(ex.teacherNos||[]).map(String),...tnos])]; await F.updateDoc(F.doc(F.db,"kidClasses",ex.id),{teacherNos:un,teacherNames:un.map(no=>((kteach||[]).find(t=>String(t.no)===no)||{}).name||""),updatedAt:F.serverTimestamp()}); }
+        else{ const ref=F.doc(F.collection(F.db,"kidClasses")); ids[n]=ref.id; await F.setDoc(ref,{kind:"area",name:n.slice(0,80),workshop:false,area:"zarok",studentNos:[],teacherNos:tnos,teacherNames:tnames,headNos:[],createdAt:F.serverTimestamp(),updatedAt:F.serverTimestamp()}); nc++; } }
+      for(const e of fresh){ const t=(kteach||[]).find(x=>String(x.no)===String(e.tno))||{};
+        await F.addDoc(F.collection(F.db,"kidSchedule"),{day:e.day,start:e.start,end:e.end,title:e.title.slice(0,80),area:"zarok",teacherNo:String(e.tno),teacher:t.name||e.tname,room:"",classId:ids[e.cls],createdAt:F.serverTimestamp()}); nl++; }
+      logAudit("prog-import","Çocuk Akademisi programı içe aktarıldı: "+nc+" sınıf, "+nl+" ders","kidSchedule");
+      setDone({nc,nl}); toast("✅ "+nc+" "+W2("sinif","classes")+" · "+nl+" "+W2("ders","lessons"));
+    }catch(e){ toast("❌ "+((e&&e.code)||e)); }
+    setBusy(false);
+  }
+  const box={background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,padding:12,marginBottom:12};
+  const inp={width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:13,boxSizing:"border-box",fontFamily:"monospace"};
+  return(<details data-kid-prog-import style={box}>
+    <summary style={{cursor:"pointer",fontWeight:800,color:"var(--text)"}}>📥 {W2("Bernameyê bi carekê ve têxe (sinif · roj · saet · ders · mamoste)","Import the schedule in one go (class · day · time · lesson · teachers)")}</summary>
+    <div style={{fontSize:12,color:"var(--text2)",lineHeight:1.6,margin:"8px 0"}}>{W2("Her rêzek: sinif;roj;destpêk;dawî;ders;mamoste (gelek mamoste bi vîrgûlê). Sinifê tune be tê çêkirin; mamoste bi navê xwe ya yekem tên hevgirtin. Dersa ku gelek mamoste hene ji bo her mamosteyî rêzek dibe.","Each line: class;day;start;end;lesson;teachers (several teachers separated by commas). Missing classes are created; teachers are matched by first name. A lesson with several teachers becomes one entry per teacher.")}</div>
+    <button type="button" data-prog-preset="1" onClick={()=>setText(KID_PROG_PRESET_MUZIK)} style={{padding:"8px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12.5,cursor:"pointer",marginBottom:8}}>🎵 {W2("Bernameya Muzîkê ya Şemiyê (2026/2027) bar bike","Load the Music Unit Saturday schedule (2026/2027)")}</button>
+    <textarea data-prog-text="1" value={text} onChange={e=>setText(e.target.value)} rows={6} style={inp} placeholder="A+;Şemî;09:50;10:30;Stranbêjî;Mesûd"/>
+    {text.trim()&&<div data-prog-preview="1" style={{marginTop:10,fontSize:13,color:"var(--text)",lineHeight:1.7}}>
+      <div><b>{clsNames.length}</b> {W2("sinif","classes")} ({clsNames.filter(n=>!clsOf(n)).length} {W2("nû","new")}) · <b>{rows.length}</b> {W2("ders","lessons")} → <b data-prog-count={fresh.length}>{fresh.length}</b> {W2("tomar (her mamoste rêzek)","entries (one per teacher)")}</div>
+      {bad.length>0&&<div style={{color:"#b42318"}}>⚠ {W2("Rêzên şaş","Invalid lines")}: {bad.slice(0,12).join(", ")}</div>}
+      {names.length>0&&<div style={{marginTop:6}}><b>{W2("Mamoste","Teachers")}</b>: {names.map(n=>{ const c=cands(n); const cur=pick(n); return(<span key={n} data-prog-teacher={n} style={{display:"inline-flex",alignItems:"center",gap:4,margin:"2px 8px 2px 0"}}>
+        <span style={{color:cur?"#15803d":"#b42318",fontWeight:700}}>{cur?"✓":"✗"} {n}</span>
+        {(c.length!==1)&&<select value={cur} onChange={e=>setMap(m=>({...m,[n]:e.target.value}))} style={{fontSize:12,padding:"2px 4px"}}><option value="">—</option>{(c.length?c:(kteach||[])).map(t=><option key={t.no} value={t.no}>{t.name}</option>)}</select>}</span>); })}</div>}
+      {missing.length>0&&<div style={{color:"#b42318"}}>⚠ {W2("Mamosteyên nehatin dîtin (dersên wan nayên zêdekirin)","Teachers not found (their lessons are skipped)")}: {missing.join(", ")}</div>}
+      {conflicts.length>0&&<div data-prog-conflicts={conflicts.length} style={{color:"#b45309"}}>⚠ {W2("Lihevketin","Conflicts")}: {conflicts.slice(0,6).join(" | ")}</div>}
+      <button type="button" data-prog-run="1" disabled={busy||(!fresh.length&&!clsNames.some(n=>!clsOf(n)))} onClick={run} style={{marginTop:8,width:"100%",padding:12,borderRadius:10,border:"none",background:"#0f2f38",color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer"}}>{busy?"⏳":"📥 "+W2("Têxe","Import")}</button>
+      {done&&<div data-prog-done={done.nl} style={{marginTop:8,color:"#15803d",fontWeight:700}}>✅ {done.nc} {W2("sinifên nû","new classes")} · {done.nl} {W2("ders","lessons")}</div>}
+    </div>}
+  </details>);
+}
+/* ── Çocuk Akademisi: öğrenci + sınıf + sınıf sorumlusu listesini toplu içe aktar (sınıf;ad soyad;sorumlu) — liste dosyadan / yapıştırarak gelir, koda gömülmez ── */
+function KidRosterImport({kids,kidCls,kteach,onCreate,lang,toast}){
+  const F=window.__FB; const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const [text,setText]=useState(""); const [map,setMap]=useState({}); const [busy,setBusy]=useState(false); const [prog,setProg]=useState(null); const [creds,setCreds]=useState(null);
+  const rows=useMemo(()=>String(text||"").split(/\r?\n/).map(l=>l.trim()).filter(l=>l&&!l.startsWith("#")).map(l=>{ const p=l.split(/[;\t]/).map(x=>x.trim()); return {cls:p[0]||"",name:(p[1]||"").replace(/\s+/g," "),head:p[2]||""}; }).filter(r=>r.cls&&r.name),[text]);
+  const clsNames=[...new Set(rows.map(r=>r.cls))];
+  const headOf=c=>(rows.find(r=>r.cls===c&&r.head)||{}).head||"";
+  const cands=n=>{ const k=kidNz(n); const exact=(kteach||[]).filter(t=>kidNz(t.name)===k); if(exact.length) return exact; return (kteach||[]).filter(t=>kidNz(String(t.name||"").split(/\s+/)[0])===k); };
+  const pick=n=>{ if(!n) return ""; if(map[n]!==undefined) return map[n]; const c=cands(n); return c.length===1?String(c[0].no):""; };
+  const clsOf=n=>(kidCls||[]).find(c=>c.kind&&c.kind!=="workshop"&&c.status!=="closed"&&kidNz(c.name)===kidNz(n));
+  const kidByName=n=>(kids||[]).find(k=>kidNz(k.name)===kidNz(n));
+  const heads=[...new Set(clsNames.map(headOf).filter(Boolean))];
+  const missingHeads=heads.filter(h=>!pick(h));
+  const dupNames=(()=>{ const m=new Map(), out=[]; rows.forEach(r=>{ const k=kidNz(r.name); if(m.has(k)&&m.get(k)!==r.cls) out.push(r.name); else m.set(k,r.cls); }); return out; })();
+  const newKids=rows.filter(r=>!kidByName(r.name)).length;
+  function loadFile(e){ const f=e.target.files&&e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>setText(String(r.result||"")); r.readAsText(f,"utf-8"); e.target.value=""; }
+  async function run(){
+    if(busy||!rows.length) return;
+    if(!window.confirm(rows.length+" "+W2("zarok","children")+" · "+clsNames.length+" "+W2("sinif","classes")+"\n"+newKids+" "+W2("hesabê nû yê dêûbav tên çêkirin","new parent logins will be created"))) return;
+    setBusy(true); setCreds(null); const out=[]; const used=new Set(); let n=0;
+    try{
+      for(const cn of clsNames){
+        const ex=clsOf(cn); const hno=pick(headOf(cn));
+        let ref;
+        if(ex){ ref=F.doc(F.db,"kidClasses",ex.id); }
+        else{ ref=F.doc(F.collection(F.db,"kidClasses")); await F.setDoc(ref,{kind:"area",name:cn.slice(0,80),workshop:false,area:"zarok",studentNos:[],teacherNos:[],teacherNames:[],headNos:[],createdAt:F.serverTimestamp(),updatedAt:F.serverTimestamp()}); }
+        const nos=[];
+        for(const r of rows.filter(x=>x.cls===cn)){
+          const k=kidByName(r.name); let no, pass="";
+          if(k){ no=String(k.no); }
+          else{ const c=await onCreate(r.name,used); no=c.kno; pass=c.pass; }
+          nos.push(no); out.push({cls:cn,name:r.name,no,pass:pass||W2("(berê hebû)","(existing)")}); n++; setProg(n); }
+        const cur=ex?{studentNos:(ex.studentNos||[]).map(String),teacherNos:(ex.teacherNos||[]).map(String),headNos:(ex.headNos||[]).map(String)}:{studentNos:[],teacherNos:[],headNos:[]};
+        const patch={studentNos:[...new Set([...cur.studentNos,...nos])],updatedAt:F.serverTimestamp()};
+        if(hno){ patch.headNos=[...new Set([...cur.headNos,hno])]; patch.teacherNos=[...new Set([...cur.teacherNos,hno])]; patch.teacherNames=patch.teacherNos.map(no=>((kteach||[]).find(t=>String(t.no)===no)||{}).name||""); }
+        await F.setDoc(ref,patch,{merge:true});
+      }
+      logAudit("roster-import","Çocuk Akademisi listesi içe aktarıldı: "+out.length+" zarok, "+clsNames.length+" sinif","kidClasses");
+      setCreds(out); toast("✅ "+out.length+" "+W2("zarok","children"));
+    }catch(e){ toast("❌ "+((e&&e.code)||e)); if(out.length) setCreds(out); }
+    setBusy(false);
+  }
+  function csv(){ const o=[[W2("Sinif","Class"),W2("Zarok","Child"),W2("Jimara têketinê (jimara zarokê)","Login (child number)"),W2("Şîfre","Password")]]; (creds||[]).forEach(c=>o.push([c.cls,c.name,c.no,c.pass])); downloadCSV("zarok-hesab-"+ymdLocal(new Date())+".csv",o); }
+  function pdf(){ const H=x=>String(x==null?"":x).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"})[c]);
+    openPrintHTML("<!doctype html><html><head><meta charset='utf-8'><title>"+H(W2("Hesabên dêûbavan","Parent logins"))+"</title><style>body{font-family:system-ui,sans-serif;padding:20px}table{border-collapse:collapse;width:100%;font-size:12px}th,td{border:1px solid #d0d5dd;padding:5px 7px;text-align:left}th{background:#f2f4f7}</style></head><body><h2>"+H(BRAND())+" · "+H(W2("Têketina dêûbavan (jimara zarokê + şîfre)","Parent logins (child number + password)"))+"</h2><table><tr><th>"+H(W2("Sinif","Class"))+"</th><th>"+H(W2("Zarok","Child"))+"</th><th>"+H(W2("Jimara","Number"))+"</th><th>"+H(W2("Şîfre","Password"))+"</th></tr>"+(creds||[]).map(c=>"<tr><td>"+H(c.cls)+"</td><td>"+H(c.name)+"</td><td><b>"+H(c.no)+"</b></td><td><b>"+H(c.pass)+"</b></td></tr>").join("")+"</table><script>setTimeout(()=>print(),300)<\/script></body></html>"); }
+  const box={background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,padding:12,marginBottom:12};
+  const inp={width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontSize:13,boxSizing:"border-box",fontFamily:"monospace"};
+  return(<details data-kid-roster-import style={box}>
+    <summary style={{cursor:"pointer",fontWeight:800,color:"var(--text)"}}>📥 {W2("Zarok û sinifan bi carekê ve têxe (sinif · navê zarokê · berpirs)","Import children, classes and class heads in one go")}</summary>
+    <div style={{fontSize:12,color:"var(--text2)",lineHeight:1.6,margin:"8px 0"}}>{W2("Her rêzek: sinif;nav û paşnav;berpirsê sinifê. Pelê (.csv/.txt) bar bike an lîsteyê di qutiyê de bi cih bike. Her zarok hesabê dêûbav (jimara zarokê + şîfre) distîne. Sinif tune be tê çêkirin, berpirs bi navê xwe ya yekem tê hevgirtin. Zarokê ku berê tomar bûye dubare nayê çêkirin.","Each line: class;full name;class head. Upload a file (.csv/.txt) or paste into the box. Every child gets a parent login (child number + password). Missing classes are created, the head is matched by first name. A child already registered is not created again.")}</div>
+    <label style={{display:"inline-block",padding:"8px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12.5,cursor:"pointer",marginBottom:8}}>📂 {W2("Pelê bar bike (.csv / .txt)","Upload file (.csv / .txt)")}<input data-roster-file="1" type="file" accept=".csv,.txt,text/plain,text/csv" style={{display:"none"}} onChange={loadFile}/></label>
+    <textarea data-roster-text="1" value={text} onChange={e=>setText(e.target.value)} rows={5} style={inp} placeholder="A-1;Ad Soyad;Mamoste"/>
+    {rows.length>0&&<div data-roster-preview="1" style={{marginTop:10,fontSize:13,color:"var(--text)",lineHeight:1.7}}>
+      <div><b data-roster-count={rows.length}>{rows.length}</b> {W2("zarok","children")} · <b>{clsNames.length}</b> {W2("sinif","classes")} ({clsNames.filter(n=>!clsOf(n)).length} {W2("nû","new")}) · <b data-roster-new={newKids}>{newKids}</b> {W2("hesabê nû","new logins")}</div>
+      <div>{clsNames.map(c=><span key={c} style={{display:"inline-block",margin:"2px 8px 2px 0"}}><b>{c}</b> ({rows.filter(r=>r.cls===c).length}){headOf(c)?" · 👩‍🏫 "+headOf(c)+(pick(headOf(c))?" ✓":" ✗"):""}</span>)}</div>
+      {heads.some(h=>cands(h).length!==1)&&<div style={{marginTop:4}}>{heads.filter(h=>cands(h).length!==1).map(h=><span key={h} style={{marginRight:8}}>{h}: <select value={pick(h)} onChange={e=>setMap(m=>({...m,[h]:e.target.value}))} style={{fontSize:12}}><option value="">—</option>{(cands(h).length?cands(h):(kteach||[])).map(t=><option key={t.no} value={t.no}>{t.name}</option>)}</select></span>)}</div>}
+      {missingHeads.length>0&&<div style={{color:"#b42318"}}>⚠ {W2("Berpirsên nehatin dîtin (sinif bê berpirs tê çêkirin)","Heads not found (classes are created without a head)")}: {missingHeads.join(", ")}</div>}
+      {dupNames.length>0&&<div style={{color:"#b45309"}}>⚠ {W2("Nav di du sinifan de","Name in two classes")}: {dupNames.slice(0,6).join(", ")}</div>}
+      <button type="button" data-roster-run="1" disabled={busy} onClick={run} style={{marginTop:8,width:"100%",padding:12,borderRadius:10,border:"none",background:"#0f2f38",color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer"}}>{busy?"⏳ "+(prog||0)+" / "+rows.length:"📥 "+W2("Têxe","Import")}</button>
+    </div>}
+    {creds&&<div data-roster-done={creds.length} style={{marginTop:10}}>
+      <div style={{color:"#15803d",fontWeight:800}}>✅ {creds.length} {W2("zarok","children")}</div>
+      <div style={{fontSize:12,color:"#b45309",margin:"4px 0"}}>⚠ {W2("Şîfre tenê niha xuya dibin — lîsteyê daxe an çap bike.","Passwords are shown only now — download or print the list.")}</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}><button type="button" data-roster-csv="1" onClick={csv} style={{padding:10,borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,cursor:"pointer"}}>📊 Excel (CSV)</button><button type="button" data-roster-pdf="1" onClick={pdf} style={{padding:10,borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,cursor:"pointer"}}>📄 PDF</button></div>
+    </div>}
+  </details>);
+}
 function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   const PRESS=mode==="press";
   const REG=!!(user&&user.isRegistrar)&&!PRESS;
@@ -9688,8 +9862,27 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
     const mailed=await mailCreds(g.name,g.email,no,pass);
     return {...g,pass,mailed};
   }
-  async function createKid(d,gnos){
-    const kno=zarokNextNo(kids.map(x=>x.no),"8"+yr);
+  // Yeni çocuk + VELİ GİRİŞİ: öğrenci hesabı gibi — giriş numarası çocuğun numarasıdır (veli o numara + şifre ile girer); veli adı / telefon istenmez
+  async function createKidWithLogin(d,extra,usedSet){
+    extra=extra||{}; usedSet=usedSet||new Set();
+    const prefix="8"+yr, taken=new Set([...kids.map(x=>String(x.no)),...usedSet]);
+    const first=parseInt(zarokNextNo(kids.map(x=>x.no),prefix).slice(prefix.length),10);
+    for(let i=0;i<400;i++){
+      const no=prefix+String(first+i).padStart(3,"0"); if(taken.has(no)) continue;
+      const pass=genAutoPassword();
+      try{ await F.createAuthUser(no,pass,"guardian"); }catch(e){ if(e.code==="auth/email-already-in-use") continue; throw e; }
+      const g={no,name:(extra.name||d.kidName||"").trim(),phone:extra.phone||"",phone2:extra.phone2||"",email:(extra.email||"").trim(),relation:extra.relation||""};
+      await F.setDoc(F.doc(F.db,"guardians",no),{...g,createdAt:F.serverTimestamp()});
+      await F.setDoc(F.doc(F.db,"idx_guardians",no),{no,updatedAt:F.serverTimestamp()});
+      await createKid(d,[no],no);
+      usedSet.add(no);
+      const mailed=await mailCreds(g.name,g.email,no,pass);
+      return {kno:no,g,pass,mailed};
+    }
+    throw Object.assign(new Error("no-free-number"),{code:"aat/no-free-number"});
+  }
+  async function createKid(d,gnos,knoGiven){
+    const kno=knoGiven||zarokNextNo(kids.map(x=>x.no),"8"+yr);
     await F.addDoc(F.collection(F.db,"kids"),{no:kno,name:(d.kidName||"").trim(),dob:d.kidDob||"",area:"zarok",school:d.school||"",
       guardianNos:gnos,health:d.health||"",consentPhoto:!!d.consentPhoto,consentShare:!!d.consentShare,pickups:[],
       appId:d.appId||"",photo:d.photo||"",createdAt:F.serverTimestamp()});
@@ -9708,9 +9901,9 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
     if(busy) return; setBusy(true);
     try{
       const ch=appChoice(a);
-      let g=ch!=="new"?guardOf(ch):null, created=null;
-      if(!g){ created=await createGuardian(a); g=created; }
-      const kno=await createKid({...a,appId:a.fireId},[g.no]);
+      let g=ch!=="new"?guardOf(ch):null, created=null, kno="";
+      if(!g){ const r=await createKidWithLogin({...a,appId:a.fireId},{name:a.guardianName,phone:a.phone,phone2:a.phone2,email:a.email,relation:a.relation}); g=r.g; created={pass:r.pass,mailed:r.mailed}; kno=r.kno; }
+      else kno=await createKid({...a,appId:a.fireId},[g.no]);
       await F.updateDoc(F.doc(F.db,"kidApplications",a.fireId),{status:"accepted",kidNo:kno,guardianNo:g.no});
       setCreds({title:Z("Zarok hate tomarkirin","Child registered"),kid:a.kidName,kno,no:g.no,name:g.name,pass:created&&created.pass,mailed:created&&created.mailed});
       setOpenId(null);
@@ -9731,14 +9924,13 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
         await F.updateDoc(F.doc(F.db,"kids",form.id),{...patch,updatedAt:F.serverTimestamp()});
         toast(Z("✅ Hate tomarkirin","✅ Saved")); setForm(null);
       }else{      // yeni çocuk
-        let gno=d.guardianMode==="existing"?d.existingGuardian:"", created=null;
-        if(!gno){
-          if(!(d.guardianName||"").trim()||!(d.phone||"").trim()){ toast(Z("⚠ Navê dêûbav û têlefon pêwîst in","⚠ Parent name and phone required")); setBusy(false); return; }
-          created=await createGuardian(d); gno=created.no;
+        if(d.guardianMode==="existing"&&d.existingGuardian){   // kardeş: mevcut aile hesabına bağla
+          const gno=d.existingGuardian, kno=await createKid(d,[gno]); const g=guardOf(gno)||{};
+          setCreds({title:Z("Zarok hate tomarkirin","Child registered"),kid:d.kidName,kno,no:gno,name:g.name,pass:null,mailed:false});
+        }else{                                                  // yeni çocuk: çocuğun numarası = veli giriş numarası
+          const r=await createKidWithLogin(d,{});
+          setCreds({title:Z("Zarok hate tomarkirin","Child registered"),kid:d.kidName,kno:r.kno,no:r.kno,name:r.g.name,pass:r.pass,mailed:r.mailed});
         }
-        const kno=await createKid(d,[gno]);
-        const g=created||guardOf(gno)||{};
-        setCreds({title:Z("Zarok hate tomarkirin","Child registered"),kid:d.kidName,kno,no:gno,name:g.name,pass:created&&created.pass,mailed:created&&created.mailed});
         setForm(null);
       }
     }catch(e){ err(e); }
@@ -10120,25 +10312,16 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
                 <option value="">—</option>{guards.filter(g=>!(form.orig.guardianNos||[]).includes(g.no)).map(g=><option key={g.no} value={g.no}>{g.name} · {g.phone}</option>)}
               </select>
             </div>):(<div>
-              <div style={{fontWeight:800,color:"var(--text)",margin:"14px 0 4px"}}>👨‍👩‍👧 {Z("Dêûbav","Parent")}</div>
-              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                <button onClick={()=>setForm(f=>({...f,data:{...f.data,guardianMode:"new"}}))} style={form.data.guardianMode!=="existing"?btn():ghost}>{Z("Hesabê nû","New account")}</button>
-                <button onClick={()=>setForm(f=>({...f,data:{...f.data,guardianMode:"existing"}}))} style={form.data.guardianMode==="existing"?btn():ghost}>{Z("Dêûbavê heyî","Existing parent")}</button>
-              </div>
-              {form.data.guardianMode==="existing"?(<div>
+              <div style={{fontWeight:800,color:"var(--text)",margin:"14px 0 4px"}}>🔐 {Z("Têketina dêûbav","Parent login")}</div>
+              <div data-kid-login-note="1" style={{...small,marginBottom:6}}>{Z("Dêûbav bi jimara zarokê û şîfreyeke otomatîk têdikevin — navê dêûbav û têlefon nayê xwestin.","Parents sign in with the child's number and an automatic password — no parent name or phone needed.")}</div>
+              <label style={{...small,display:"flex",gap:8,alignItems:"center"}}><input type="checkbox" data-kid-sibling="1" checked={form.data.guardianMode==="existing"} onChange={e=>{const v=e.target.checked;setForm(f=>({...f,data:{...f.data,guardianMode:v?"existing":"new"}}));}}/>👨‍👧‍👦 {Z("Xwişk/bira ye — hesabê malbatê yê heyî bikar bîne","Sibling — use an existing family login")}</label>
+              {form.data.guardianMode==="existing"&&(<div>
                 <input style={{...inp,marginTop:8}} value={form.data.gq||""} onChange={e=>{const v=e.target.value;setForm(f=>({...f,data:{...f.data,gq:v}}));}} placeholder={"🔎 "+Z("Nav, têlefon an jimareya dêûbav","Parent name, phone or number")}/>
                 <select style={{...inp,marginTop:8}} value={form.data.existingGuardian||""} onChange={e=>{const v=e.target.value;setForm(f=>({...f,data:{...f.data,existingGuardian:v}}));}}>
                   <option value="">—</option>{guards.filter(g=>g.no===form.data.existingGuardian||gMatch(g,form.data.gq)).map(g=>{const n=kids.filter(k=>(k.guardianNos||[]).includes(g.no)).length;return <option key={g.no} value={g.no}>{g.name} · {g.phone} · #{g.no}{n?" · 🎓 "+n:""}</option>;})}
                 </select>
                 {form.data.existingGuardian&&<div style={{...small,marginTop:6}}>👨‍👧‍👦 {Z("Zarokên vê dêûbavê","This parent's children")}: {kids.filter(k=>(k.guardianNos||[]).includes(form.data.existingGuardian)).map(k=>k.name).join(", ")||"—"} · {Z("Zarokê nû dê wek xwişk/bira li heman hesabê were zêdekirin; hesabekî nû nayê vekirin.","The new child is added to the same account as a sibling; no new account is created.")}</div>}
-              </div>):(<div style={grid2}>
-                {fld(Z("Navê dêûbav *","Parent name *"),"guardianName")}
-                {fld(Z("Yekîtî (dayik, bav…)","Relation"),"relation")}
-                {fld(Z("Têlefon *","Phone *"),"phone",{type:"tel"})}
-                {fld(Z("E-peyam (agahiyên têketinê)","E-mail (login details)"),"email",{type:"email"})}
-                {fld(Z("Têkiliya acil","Emergency contact"),"phone2")}
               </div>)}
-              <div style={{...small,marginTop:6}}>{Z("Şîfre otomatîk tê çêkirin û bi e-peyamê tê şandin.","Password is generated automatically and e-mailed.")}</div>
             </div>)}
             <div style={{display:"flex",alignItems:"center",gap:10,marginTop:10}}>
               <div style={{width:56,height:70,borderRadius:8,overflow:"hidden",background:"var(--bg2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,flexShrink:0}}>
@@ -10188,6 +10371,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
           </div>))}
       </div>)}
 
+      {tab==="classes"&&<KidRosterImport kids={kids} kidCls={kidCls} kteach={kteach} onCreate={(name,used)=>createKidWithLogin({kidName:name},{},used)} lang={lang} toast={toast}/>}
       {tab==="classes"&&<KidClassStudio kids={kids} kteach={kteach} sched={sched} areaLabel={areaLabel} user={user} lang={lang} toast={toast}/>}
 
       {tab==="guards"&&(<div>
@@ -10250,6 +10434,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
       </div>)}
 
       {tab==="sched"&&(<div>
+        <KidProgramImport kteach={kteach} kidCls={kidCls} sched={sched} lang={lang} toast={toast} user={user}/>
         <div style={box}>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:8}}>
             <select style={inp} value={sForm.day} onChange={e=>setSForm(f=>({...f,day:e.target.value}))}>{DAYS.map((d,i)=><option key={i} value={i}>{d}</option>)}</select>

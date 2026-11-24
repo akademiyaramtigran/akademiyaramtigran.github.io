@@ -78,6 +78,8 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
     await setDoc(doc(db, 'kidClasses/GC1'), { kind: 'area', area: 'zarok', name: 'G1', headNos: ['96202697'], studentNos: ['82026001'] });
     await setDoc(doc(db, 'kidClasses/GC2'), { kind: 'area', area: 'zarok', name: 'G2', headNos: [], studentNos: ['82026002'] });
     await setDoc(doc(db, 'kidClasses/GC3'), { kind: 'area', area: 'zarok', name: 'G3', headNos: ['96202699'], studentNos: ['82026002'] });
+    await setDoc(doc(db, 'teachers/GTH'), { id: 'GTH', no: '11202698', name: 'Sorumlu Hoca', area: 'tiyatro', isHead: true });
+    await setDoc(doc(db, 'teachers/GTK'), { id: 'GTK', no: '11202697', name: 'Çocuk Sorumlusu', area: 'drama', isHead: true });
     await setDoc(doc(db, 'teachers/GTP'), { id: 'GTP', no: '11202699', name: 'Düz Hoca', area: 'tiyatro' });
     await setDoc(doc(db, 'idx_staff/11202699'), { no: '11202699', lvl: 'teacher', area: 'tiyatro' });
     await setDoc(doc(db, 'kids/K3'), { no: '82026003', name: 'Zarok D', area: 'drama', guardianNos: ['92026001'] });
@@ -888,6 +890,10 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
     // Ana akademi: genel sorumlu → alan sorumlusu ata
     const genM = as('96202602@ogretmen.aat');
     const regO = as('98202601@ogretmen.aat');
+    await t('Öğrenci İşleri: alan sorumlusu olan öğretmenin bilgilerini düzenler (telefon)', updateDoc(doc(regO, 'teachers/GTH'), { phone: '0555', updatedAt: new Date() }), true);
+    await t('Öğrenci İşleri: alan sorumlusunun alanını değiştiremez', updateDoc(doc(regO, 'teachers/GTH'), { area: 'muzik' }), false);
+    await t('Öğrenci İşleri: sorumluya yönetici yetkisi veremez', updateDoc(doc(regO, 'teachers/GTH'), { isAdmin: true }), false);
+    await t('Öğrenci İşleri: çocuk akademisi sorumlusunu düzenleyemez', updateDoc(doc(regO, 'teachers/GTK'), { phone: '0555' }), false);
     await t('Öğrenci İşleri: öğretmeni ALAN SORUMLUSU yapar (idx_staff head + isHead)', Promise.all([setDoc(doc(regO, 'idx_staff/11202699'), { no: '11202699', lvl: 'head', area: 'tiyatro' }), updateDoc(doc(regO, 'teachers/GTP'), { isHead: true, updatedAt: new Date() })]), true);
     await t('Öğrenci İşleri: alan sorumlusunu kaldırır (head → teacher)', Promise.all([setDoc(doc(regO, 'idx_staff/11202699'), { no: '11202699', lvl: 'teacher' }), updateDoc(doc(regO, 'teachers/GTP'), { isHead: false, updatedAt: new Date() })]), true);
     await t('Öğrenci İşleri: GENEL / çocuk alanı sorumlusu yapamaz', setDoc(doc(regO, 'idx_staff/11202699'), { no: '11202699', lvl: 'head', area: 'genel' }), false);
