@@ -2,7 +2,7 @@
 //   cd tools && npm install && npm run kural-testi     (Java 11+ gerekir)
 const fs = require('fs');
 const { initializeTestEnvironment, assertSucceeds, assertFails } = require('@firebase/rules-unit-testing');
-const { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, addDoc, deleteField } = require('firebase/firestore');
+const { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, addDoc, deleteField, serverTimestamp } = require('firebase/firestore');
 const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/storage');
 
 (async () => {
@@ -36,6 +36,11 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
     await setDoc(doc(db, 'config/zarok'), { open: true });
     await setDoc(doc(db, 'idx_kidstaff/72026001'), { no: '72026001' });
     await setDoc(doc(db, 'kidTeachers/72026001'), { no: '72026001', name: 'Mamoste Hêvî' });
+    await setDoc(doc(db, 'idx_kidstaff/72026003'), { no: '72026003' });
+    await setDoc(doc(db, 'kidTeachers/72026003'), { no: '72026003', name: 'Mamoste Rojda' });
+    await setDoc(doc(db, 'idx_kidstaff/72026004'), { no: '72026004' });
+    await setDoc(doc(db, 'kidTeachers/72026004'), { no: '72026004', name: 'Mamoste Evîn' });
+    await setDoc(doc(db, 'kidStaffMsgs/SM0'), { text: 'seed', fromNo: '72026003', fromName: 'Rojda', to: '72026004', toName: 'Evîn', members: ['72026003', '72026004'] });
     await setDoc(doc(db, 'kidNews/KN1'), { title: 'Nûçe' });
     // v5 rol ayrımı
     await setDoc(doc(db, 'idx_staff/99202601'), { no: '99202601', lvl: 'press' });
@@ -240,6 +245,28 @@ const { ref, uploadString, uploadBytes, getBytes, listAll } = require('firebase/
   await t('Çocuk öğretmeni yoklama yazar', addDoc(collection(kt, 'kidAttendance'), { kidId: 'K1', guardianNos: ['92026001'], type: 'in' }), true);
   await t('Çocuk öğretmeni genel duyuru gönderemez (yalnız sınıfına)', addDoc(collection(kt, 'kidAnnouncements'), { title: 'x' }), false);
   await t('Çocuk öğretmeni veliye yanıt yazar', addDoc(collection(kt, 'kidMessages'), { guardianNo: '92026001', text: 'y', from: 'staff' }), true);
+  // Öğretmenler arası özel mesaj (kidStaffMsgs): yalnız gönderen ve alıcı okur; veli/yetişkin akademi okuyamaz; grup yok
+  const sm = (from, to, extra) => Object.assign({ text: 'Silav', fromNo: from, fromName: 'X', to, toName: 'Y', members: [from, to], createdAt: serverTimestamp() }, extra || {});
+  const kt3 = as('72026003@zmamoste.aat'), kt4 = as('72026004@zmamoste.aat'), vSm = as('92026001@veli.aat'), tSm = as('11202601@ogretmen.aat');
+  await t('Öğretmen mesajı: çocuk öğretmeni başka çocuk öğretmenine yazar', setDoc(doc(kt, 'kidStaffMsgs/SM1'), sm('72026001', '72026003')), true);
+  await t('Öğretmen mesajı: gönderen kendi mesajını okur', getDoc(doc(kt, 'kidStaffMsgs/SM1')), true);
+  await t('Öğretmen mesajı: alıcı okur', getDoc(doc(kt3, 'kidStaffMsgs/SM1')), true);
+  await t('Öğretmen mesajı: ilgisiz üçüncü öğretmen OKUYAMAZ', getDoc(doc(kt4, 'kidStaffMsgs/SM1')), false);
+  await t('Öğretmen mesajı: alıcı kendi yazışmalarını sorgular', getDocs(query(collection(kt3, 'kidStaffMsgs'), where('members', 'array-contains', '72026003'))), true);
+  await t('Öğretmen mesajı: başkasının yazışmasını sorgulayamaz', getDocs(query(collection(kt4, 'kidStaffMsgs'), where('members', 'array-contains', '72026003'))), false);
+  await t('Öğretmen mesajı: veli okuyamaz', getDoc(doc(vSm, 'kidStaffMsgs/SM1')), false);
+  await t('Öğretmen mesajı: veli yazamaz', setDoc(doc(vSm, 'kidStaffMsgs/SM2'), sm('92026001', '72026003')), false);
+  await t('Öğretmen mesajı: yetişkin akademi öğretmeni (bağlanmamış) yazamaz', setDoc(doc(tSm, 'kidStaffMsgs/SM3'), sm('11202601', '72026003')), false);
+  await t('Öğretmen mesajı: başkası adına (fromNo) yazılamaz', setDoc(doc(kt, 'kidStaffMsgs/SM4'), sm('72026003', '72026004')), false);
+  await t('Öğretmen mesajı: kendine yazamaz', setDoc(doc(kt, 'kidStaffMsgs/SM5'), sm('72026001', '72026001')), false);
+  await t('Öğretmen mesajı: grup (members all) YOK', setDoc(doc(kt, 'kidStaffMsgs/SM6'), sm('72026001', 'all', { members: ['all'] })), false);
+  await t('Öğretmen mesajı: üyeler gönderen+alıcıyla eşleşmeli', setDoc(doc(kt, 'kidStaffMsgs/SM7'), sm('72026001', '72026003', { members: ['72026001', '72026004'] })), false);
+  await t('Öğretmen mesajı: kayıtlı olmayan öğretmene yazılamaz', setDoc(doc(kt, 'kidStaffMsgs/SM8'), sm('72026001', '79999999')), false);
+  await t('Öğretmen mesajı: fazladan alan reddedilir', setDoc(doc(kt, 'kidStaffMsgs/SM9'), sm('72026001', '72026003', { x: 1 })), false);
+  await t('Öğretmen mesajı: boş metin reddedilir', setDoc(doc(kt, 'kidStaffMsgs/SM10'), sm('72026001', '72026003', { text: '' })), false);
+  await t('Öğretmen mesajı: düzenlenemez', updateDoc(doc(kt, 'kidStaffMsgs/SM1'), { text: 'z' }), false);
+  await t('Öğretmen mesajı: alıcı gönderenin mesajını silemez', deleteDoc(doc(kt3, 'kidStaffMsgs/SM1')), false);
+  await t('Öğretmen mesajı: gönderen kendi mesajını siler', deleteDoc(doc(kt, 'kidStaffMsgs/SM1')), true);
   await t('Çocuk öğretmeni yetişkin öğrencileri OKUYAMAZ', getDocs(collection(kt, 'students')), false);
   await t('Çocuk öğretmeni yetişkin mesajlarını OKUYAMAZ', getDocs(collection(kt, 'messages')), false);
   await t('Çocuk öğretmeni çocuk kaydı AÇAMAZ', setDoc(doc(kt, 'kids/K8'), { no: '1', guardianNos: [] }), false);

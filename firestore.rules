@@ -875,6 +875,25 @@ service cloud.firestore {
       allow delete: if isRegistrar();
     }
 
+    // Öğretmenler arası özel mesaj (çocuk akademisi personeli): members == [gönderen, alıcı]. Veli okuyamaz/yazamaz.
+    // Yalnız gönderen ve alıcı okur; gönderen kendi mesajını siler (Öğrenci İşleri hepsini).
+    match /kidStaffMsgs/{id} {
+      allow read: if kidStaff() && prefix() in resource.data.members;
+      allow create: if kidStaff()
+        && request.resource.data.keys().hasOnly(['text', 'fromNo', 'fromName', 'to', 'toName', 'members', 'createdAt'])
+        && request.resource.data.fromNo == prefix()
+        && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000
+        && request.resource.data.fromName is string && request.resource.data.fromName.size() <= 80
+        && request.resource.data.toName is string && request.resource.data.toName.size() <= 80
+        && request.resource.data.to is string && request.resource.data.to != prefix()
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.members is list && request.resource.data.members.size() == 2
+        && request.resource.data.members[0] == prefix() && request.resource.data.members[1] == request.resource.data.to
+        && exists(/databases/$(database)/documents/kidTeachers/$(request.resource.data.to));
+      allow update: if false;
+      allow delete: if isRegistrar() || (kidStaff() && resource.data.fromNo == prefix());
+    }
+
     // ════════════════════════════════════════════════════════════════════
     //  ÖĞRENCİ KARTLARI (yetişkin + çocuk) — QR içinde tahmin edilemez anahtar (128 bit)
     //    cards/{token}: {kind:'student'|'kid', no, ref, name, area, photo, active}
