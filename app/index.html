@@ -9725,6 +9725,59 @@ function KidRosterImport({kids,kidCls,kteach,onCreate,lang,toast}){
     </div>}
   </details>);
 }
+/* ── Çocuk Akademisi: hesap listeleri — (1) çocuk + öğretmen listesi (şifresiz, Excel/PDF) (2) bütün veli şifrelerini yenile + numara/şifre listesi ── */
+function KidAccountLists({kids,guards,kteach,kidCls,lang,toast}){
+  const F=window.__FB; const W2=(ku,en)=>lang==="en"?en:K(ku);
+  const [busy,setBusy]=useState(false); const [prog,setProg]=useState(0); const [creds,setCreds]=useState(null);
+  const clsOfKid=k=>(kidCls||[]).filter(c=>c.kind&&c.kind!=="workshop"&&c.status!=="closed"&&inClass(c,k.no)).map(c=>c.name).join(" · ");
+  const kidRows=()=>(kids||[]).map(k=>({cls:clsOfKid(k),name:k.name||"",no:String(((k.guardianNos||[])[0])||k.no||"")})).sort((a,b)=>trCmp(a.cls,b.cls)||trCmp(a.name,b.name));
+  const teachRows=()=>(kteach||[]).map(t=>({name:t.name||"",no:String(t.no||""),cls:(kidCls||[]).filter(c=>c.kind&&c.status!=="closed"&&(c.teacherNos||[]).map(String).includes(String(t.no))).map(c=>c.name).join(", ")})).sort((a,b)=>trCmp(a.name,b.name));
+  function listCsv(){ const o=[[W2("Cure","Type"),W2("Sinif","Class"),W2("Nav","Name"),W2("Jimara têketinê","Login number")]];
+    kidRows().forEach(r=>o.push([W2("Zarok","Child"),r.cls,r.name,r.no])); teachRows().forEach(r=>o.push([W2("Mamoste","Teacher"),r.cls,r.name,r.no]));
+    downloadCSV("zarok-mamoste-lîste-"+ymdLocal(new Date())+".csv",o); }
+  const H=x=>String(x==null?"":x).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"})[c]);
+  const head="<style>body{font-family:system-ui,sans-serif;padding:20px}table{border-collapse:collapse;width:100%;font-size:12px;margin-bottom:18px}th,td{border:1px solid #d0d5dd;padding:5px 7px;text-align:left}th{background:#f2f4f7}</style>";
+  function listPdf(){
+    const t1="<h3>"+H(W2("Zarok","Children"))+" ("+kidRows().length+")</h3><table><tr><th>"+H(W2("Sinif","Class"))+"</th><th>"+H(W2("Nav","Name"))+"</th><th>"+H(W2("Jimara","Number"))+"</th></tr>"+kidRows().map(r=>"<tr><td>"+H(r.cls)+"</td><td>"+H(r.name)+"</td><td><b>"+H(r.no)+"</b></td></tr>").join("")+"</table>";
+    const t2="<h3>"+H(W2("Mamoste","Teachers"))+" ("+teachRows().length+")</h3><table><tr><th>"+H(W2("Nav","Name"))+"</th><th>"+H(W2("Jimara","Number"))+"</th><th>"+H(W2("Sinif","Classes"))+"</th></tr>"+teachRows().map(r=>"<tr><td>"+H(r.name)+"</td><td><b>"+H(r.no)+"</b></td><td>"+H(r.cls)+"</td></tr>").join("")+"</table>";
+    openPrintHTML("<!doctype html><html><head><meta charset='utf-8'><title>"+H(BRAND())+"</title>"+head+"</head><body><h2>"+H(BRAND())+" · "+H(W2("Akademiya Zarokan","Children's Academy"))+"</h2>"+t1+t2+"<script>setTimeout(()=>print(),300)<\/script></body></html>"); }
+  async function resetAll(){
+    if(busy||!(guards||[]).length) return;
+    if(!window.confirm(W2("Şîfreya hemû dêûbavan ê were nûkirin; şîfreyên kevn êdî naxebitin. Lîsteya nû tenê niha tê nîşandan.","All parents' passwords will be renewed; the old passwords stop working. The new list is shown only now.")+"\n"+guards.length+" "+W2("dêûbav","parents"))) return;
+    setBusy(true); setCreds(null); setProg(0); const out=[];
+    try{
+      for(const g of nameSort(guards,x=>x.no)){
+        const pass=genAutoPassword();
+        const r=await F.forceResetPassword(g.no,"guardian",null,pass);
+        if(!r) throw Object.assign(new Error("reset-failed"),{code:"aat/reset-failed"});
+        const ks=(kids||[]).filter(k=>(k.guardianNos||[]).map(String).includes(String(g.no)));
+        out.push({no:String(g.no),cls:(ks.map(clsOfKid).filter(Boolean)[0])||"",name:ks.map(k=>k.name).join(" + ")||g.name||"",pass}); setProg(out.length);
+      }
+      logAudit("pw-bulk","Çocuk Akademisi: "+out.length+" veli şifresi yenilendi","guardians");
+      setCreds(out); toast("✅ "+out.length+" "+W2("şîfre hate nûkirin","passwords renewed"));
+    }catch(e){ toast("❌ "+((e&&e.code)||e)); if(out.length) setCreds(out); }
+    setBusy(false);
+  }
+  const sorted=()=>(creds||[]).slice().sort((a,b)=>trCmp(a.cls,b.cls)||trCmp(a.name,b.name));
+  function credCsv(){ const o=[[W2("Sinif","Class"),W2("Zarok","Child"),W2("Jimara têketinê","Login number"),W2("Şîfre","Password")]]; sorted().forEach(c=>o.push([c.cls,c.name,c.no,c.pass])); downloadCSV("zarok-hesab-"+ymdLocal(new Date())+".csv",o); }
+  function credPdf(){ openPrintHTML("<!doctype html><html><head><meta charset='utf-8'><title>"+H(W2("Hesabên dêûbavan","Parent logins"))+"</title>"+head+"</head><body><h2>"+H(BRAND())+" · "+H(W2("Têketina dêûbavan (jimara + şîfre)","Parent logins (number + password)"))+"</h2><table><tr><th>"+H(W2("Sinif","Class"))+"</th><th>"+H(W2("Zarok","Child"))+"</th><th>"+H(W2("Jimara","Number"))+"</th><th>"+H(W2("Şîfre","Password"))+"</th></tr>"+sorted().map(c=>"<tr><td>"+H(c.cls)+"</td><td>"+H(c.name)+"</td><td><b>"+H(c.no)+"</b></td><td><b>"+H(c.pass)+"</b></td></tr>").join("")+"</table><script>setTimeout(()=>print(),300)<\/script></body></html>"); }
+  const box={background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:12,padding:12,marginBottom:12};
+  const bt={padding:"10px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--text)",fontWeight:700,fontSize:12.5,cursor:"pointer"};
+  return(<details data-kid-acc-lists style={box}>
+    <summary style={{cursor:"pointer",fontWeight:800,color:"var(--text)"}}>📋 {W2("Lîsteyên hesaban (zarok · mamoste · şîfre)","Account lists (children · teachers · passwords)")}</summary>
+    <div style={{fontSize:12,color:"var(--text2)",lineHeight:1.6,margin:"8px 0"}}>{W2("Şîfre piştî çêkirinê nayê xwendin; ji bo lîsteya bi şîfre divê şîfre bêne nûkirin. Mamosteyên konservatuarê bi jimare û şîfreya xwe ya konservatuarê dikevin.","Passwords can't be read back once created; for a list that includes passwords they must be renewed. Conservatory teachers sign in with their own conservatory number and password.")}</div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+      <button type="button" data-acc-list-csv="1" onClick={listCsv} style={bt}>📊 {W2("Lîsteya zarok + mamoste (Excel)","Children + teachers list (Excel)")}</button>
+      <button type="button" data-acc-list-pdf="1" onClick={listPdf} style={bt}>📄 {W2("Lîsteya zarok + mamoste (PDF)","Children + teachers list (PDF)")}</button>
+    </div>
+    <button type="button" data-acc-reset-all="1" disabled={busy||!(guards||[]).length} onClick={resetAll} style={{...bt,width:"100%",background:"#0f2f38",color:"#fff",border:"none"}}>{busy?"⏳ "+prog+" / "+(guards||[]).length:"🔑 "+W2("Şîfreya hemû dêûbavan nû bike û lîsteyê daxe","Renew all parents' passwords and download the list")}</button>
+    {creds&&<div data-acc-done={creds.length} style={{marginTop:10}}>
+      <div style={{color:"#15803d",fontWeight:800}}>✅ {creds.length} {W2("hesab","accounts")}</div>
+      <div style={{fontSize:12,color:"#b45309",margin:"4px 0"}}>⚠ {W2("Şîfre tenê niha xuya dibin — lîsteyê daxe an çap bike.","Passwords are shown only now — download or print the list.")}</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}><button type="button" data-acc-csv="1" onClick={credCsv} style={bt}>📊 Excel (CSV)</button><button type="button" data-acc-pdf="1" onClick={credPdf} style={bt}>📄 PDF</button></div>
+    </div>}
+  </details>);
+}
 function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   const PRESS=mode==="press";
   const REG=!!(user&&user.isRegistrar)&&!PRESS;
@@ -9978,10 +10031,14 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   }
   // Şifre yenile: sunucu yeni şifreyi doğrudan yazar (eski şifre gerekmez)
   async function resetPass(no,role,name,email){
-    if(!window.confirm(Z("Şîfreyeke nû were çêkirin?","Generate a new password?"))) return;
+    // Kendi şifrenizi yazabilirsiniz (en az 8 karakter + rakam); boş bırakırsanız otomatik üretilir
+    const typed=window.prompt(Z("Şîfreya nû binivîse (herî kêm 8 tîp û hejmarek). Vala bihêle = otomatîk.","Type the new password (at least 8 characters incl. a digit). Leave blank = auto-generate."),"");
+    if(typed===null) return;
+    const custom=String(typed).trim();
+    if(custom&&(custom.length<8||!/[0-9]/.test(custom))){ toast(Z("⚠ Şîfre: herî kêm 8 tîp û hejmarek","⚠ Password: at least 8 characters including a digit")); return; }
     setBusy(true);
     try{
-      const pass=genAutoPassword();
+      const pass=custom||genAutoPassword();
       const r=await F.forceResetPassword(no,role,null,pass);
       if(!r){ toast(Z("⚠ Şîfre nehat guhertin — Cloud Functions veke (FUNCTIONS.md)","⚠ Could not change password — enable Cloud Functions (FUNCTIONS.md)"),7000); setBusy(false); return; }
       const mailed=await mailCreds(name,email,no,pass);
@@ -10357,6 +10414,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
               </div>
               <div style={{display:"flex",gap:6,flexShrink:0}}>
                 <button title={Z("Xwişk/bira girê bide (ji lîsteyê)","Link a sibling (from the list)")} onClick={()=>setSibPick(sibPick&&sibPick.kidId===k.fireId?null:{kidId:k.fireId,q:"",other:""})} style={{...ghost,padding:"6px 10px"}}>👨‍👧</button>
+                {(k.guardianNos||[])[0]&&<button data-kid-pw={k.no} title={Z("Şîfreya dêûbav","Parent password")} disabled={busy} onClick={()=>{ const gno=(k.guardianNos||[])[0]; const g=guardOf(gno)||{}; resetPass(gno,"guardian",k.name,g.email); }} style={{...ghost,padding:"6px 10px"}}>🔑</button>}
                 <button title={Z("Kartê çap bike","Print card")} onClick={()=>issueAndPrintCards("kid",[k],lang,toast,{areaLabel,classOf:kidClassOf})} style={{...ghost,padding:"6px 10px"}}>🪪</button>
                 {k.cardToken&&<button title={Z("Karta winda: ya nû çêke","Lost card: issue new")} onClick={()=>{ if(window.confirm(Z("Karteke NÛ were çêkirin? Karta kevn êdî naxebite.","Issue a NEW card? The old card will stop working."))) issueAndPrintCards("kid",[k],lang,toast,{renew:true,areaLabel,classOf:kidClassOf}); }} style={{...ghost,padding:"6px 10px"}}>♻️</button>}
                 <button onClick={()=>setForm({type:"kid",id:k.fireId,orig:k,data:{photo:k.photo||"",kidName:k.name,kidDob:k.dob,area:k.area,school:k.school,health:k.health,consentPhoto:k.consentPhoto,consentShare:k.consentShare,pickupsText:(k.pickups||[]).join("\n")}})} style={{...ghost,padding:"6px 10px"}}><Ico n="edit" solo/></button>
@@ -10391,6 +10449,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
             <div style={grid2}>{fld(Z("Nav","Name"),"name")}{fld(Z("Yekîtî","Relation"),"relation")}{fld(Z("Têlefon","Phone"),"phone",{type:"tel"})}{fld(Z("E-peyam","E-mail"),"email",{type:"email"})}{fld(Z("Têkiliya acil","Emergency contact"),"phone2")}</div>
             <div style={{display:"flex",gap:8,marginTop:12}}><button onClick={saveGuardianForm} style={btn()}>💾 {Z("Tomar bike","Save")}</button><button onClick={()=>setForm(null)} style={ghost}>{Z("Betal","Cancel")}</button></div>
           </div>)}
+        <KidAccountLists kids={kids} guards={guards} kteach={kteach} kidCls={kidCls} lang={lang} toast={toast}/>
         <div style={{...small,marginBottom:8}}>{guards.length} {Z("dêûbav","parents")} · {Z("Dêûbav bi tomarkirina zarokê re tê çêkirin. Ji bo xwişk û birayan: «➕ Xwişk/bira» — zarok li heman hesabê tê zêdekirin.","Parents are created when a child is registered. For siblings use «➕ Sibling» — the child is added to the same account.")}</div>
         <input style={{...inp,marginBottom:10}} value={gq} onChange={e=>setGq(e.target.value)} placeholder={"🔎 "+Z("Nav, têlefon an jimareya dêûbav","Parent name, phone or number")}/>
         {guards.filter(g=>gMatch(g,gq)).sort((a,b)=>(a.name||"").localeCompare(b.name||"")).map(g=>{const ks=kids.filter(k=>(k.guardianNos||[]).includes(g.no));return(
