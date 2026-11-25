@@ -14747,8 +14747,8 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
   const attLessonId = attLesson ? String(attLesson.id) : null;
   const attLessonRef = useRef(null); attLessonRef.current = attLessonId;
   const [attSaving,setAttSaving]=useState(false);
-  // "Dersi başlat / bitir" YOK: geç sayımı dersin PROGRAMDAKİ başlangıç saatinden (15 dk sonrası "geç") yapılır.
-  // Ders saatinde yoklama listesi + dönen QR kendiliğinden açılır; "Yoklamayı kaydet" işler; ders saati geçince QR kapanır; sonradan düzeltme sürer.
+  // Geç sayımı dersin PROGRAMDAKİ başlangıç saatinden (15 dk sonrası "geç") yapılır, başlat düğmesine basma anından değil.
+  // "Dersi başlat" listeyi + dönen QR'ı açar; "Yoklamayı kaydet" işler; ders saati bitince ders (ve QR) kapanır; sonradan düzeltme sürer.
   const LATE_MS = 15*60*1000;
   const [attScan,setAttScan]=useState(false);
   const attRef=useRef(attendance); attRef.current=attendance;
@@ -14758,6 +14758,26 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     const d=new Date(); d.setHours(h,m||0,0,0); return d.getTime();
   }
   function startLesson(ls){ return startOf(ls)||Date.now(); }
+  // "Dersi başlat": başlatılmadan bugünün dersinde yoklama listesi / QR açılmaz. Başlatınca liste + dönen QR açılır.
+  // "Dersi bitir" YOK: yoklama kaydedildikten sonra ders saati bitince ders kapanır (QR da kapanır); sonradan düzeltme sürer.
+  const [lsStarted,setLsStarted]=useState({});
+  const startedKey=id=>"aat-started-"+id+"-"+todayStr_t;
+  function startedAtOf(ls){ if(!ls) return 0; const v=lsStarted[String(ls.id)]; if(v) return v;
+    try{ return +localStorage.getItem(startedKey(ls.id))||0; }catch(_){ return 0; } }
+  function beginLesson(ls){
+    if(!ls) return;
+    const ms=Date.now();
+    setLsStarted(p=>({...p,[String(ls.id)]:ms}));
+    try{ localStorage.setItem(startedKey(ls.id),String(ms)); }catch(_){}
+    const FB=window.__FB;
+    if(FB&&FB.isConfigured()){
+      FB.setDoc(FB.doc(FB.db,"attendance",ls.id+"-"+todayStr_t),{lessonId:ls.id,lessonFire:String(ls.fireId||ls.id),lessonName:ls.name||"",area:ls.area||"",classId:ls.classId||null,
+        teacherId:teacher.id==null?null:teacher.id,teacherName:teacher.name||"",date:todayStr_t,startedAt:ms,updatedAt:FB.serverTimestamp()},{merge:true})
+        .catch(e=>toast("⚠ "+(e.code||e.message||"")));
+    }
+    hapticSuccess();
+    openLessonQR(ls);
+  }
   const lateNow=ls=>{ const st=startOf(ls); return st>0 && Date.now()-st>LATE_MS; };
   // Kartla (QR ile) alınan yoklama: işaret hemen kaydedilir (kaydet'e basılmasa da kaybolmaz)
   function cardCheckin(student){
@@ -14785,8 +14805,9 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     qrCheckinsFor(attLessonId, teacher.id, attDay).then(qr=>{ if(alive&&Object.keys(qr).length)
       setAttendance(p=>{ const n={...p}; Object.entries(qr).forEach(([k,v])=>{ if(n[k]!=="on"&&n[k]!=="late"&&n[k]!=="leave") n[k]=v; }); return n; }); });
     FB.getDoc(FB.doc(FB.db,"attendance",attLessonId+"-"+attDay)).then(snap=>{
-      if(!alive||!snap.exists()) return; const r=snap.data().records;
+      if(!alive||!snap.exists()) return; const r=snap.data().records, st0=snap.data().startedAt;
       if(r) setAttendance(p=>({...r,...p}));
+      if(st0||(r&&Object.keys(r).length)) setLsStarted(p=>({...p,[attLessonId]:st0||Date.now()}));
     }).catch(()=>{});
     return ()=>{ alive=false; };
   },[attLessonId,attDay]);
@@ -14795,16 +14816,9 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
   const attInWindow=(()=>{ if(!attLesson||isPastAtt||!attLesson.start||!attLesson.end) return false; if(attLesson.lessonType!=="extra"&&attLesson.day!==todayKu) return false;
     const [sh,sm]=String(attLesson.start).split(":").map(Number), [eh,em]=String(attLesson.end).split(":").map(Number); if(isNaN(sh)||isNaN(eh)) return false;
     return nowMin>=sh*60+(sm||0)&&nowMin<eh*60+(em||0); })();
-  const autoQrDone=useRef({});
-  useEffect(()=>{
-    if(view!=="attendance"||!attInWindow||!attLesson||activeQRSession) return;
-    // test/emülatörde kendiliğinden açılma kapalı (ancak ?autoqr=1 ile); gerçek kullanımda açık
-    if(window.__EMU&&!window.__AUTOQR) return;
-    const key=String(attLesson.id)+"-"+todayStr_t; if(autoQrDone.current[key]) return;
-    // kayıtlı yoklama yüklensin diye kısa bekle; bu ders için yoklama zaten alınmışsa QR kendiliğinden açılmaz
-    const tm=setTimeout(()=>{ if(autoQrDone.current[key]||Object.keys(attRef.current||{}).length>0) return; autoQrDone.current[key]=1; openLessonQR(attLesson); },1500);
-    return ()=>clearTimeout(tm);
-  },[view,attInWindow,attLessonId,activeQRSession]);
+  // Başlatma kapısı: bugünün dersi "Dersi başlat"tan önce yoklama ekranı / QR açmaz. Ders saati bittiyse kapı kalkar (sonradan düzeltme).
+  const attEndMin=(()=>{ const p=String((attLesson&&attLesson.end)||"").split(":").map(Number); return isNaN(p[0])?null:p[0]*60+(p[1]||0); })();
+  const needStart=!!attLesson&&!isPastAtt&&!startedAtOf(attLesson)&&!(activeQRSession&&String(activeQRSession.lessonId)===String(attLesson.id))&&!(attEndMin!=null&&nowMin>=attEndMin);
 
   // Ders durumu etiketi
   function lessonStatusLabel(ls){
@@ -15137,7 +15151,14 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                     :"· 🔁"}</span></button>); })}
             </div>
             {!attLesson&&!isPastAtt&&<Card><div style={{textAlign:"center",padding:16,fontSize:12.5,color:"var(--text2)"}}>{lang==="en"?"You have no lesson today. To enter or correct attendance for an earlier day, choose the date above.":K("Îro dersa te tune. Ji bo amadebûna rojeke berê, tarîxê li jor hilbijêre.")}</div></Card>}
-            {attLesson&&!isPastAtt&&(()=>{ const st=startOf(attLesson); const hm=ms=>new Date(ms).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+            {needStart&&(
+              <div data-att-start-card="1" style={{background:"var(--surface)",borderRadius:14,padding:"14px",marginBottom:12,border:"1.5px solid #0f2f38"}}>
+                <div style={{fontSize:14,fontWeight:800,color:"var(--text)"}}>{attLesson.name}</div>
+                <div style={{fontSize:11.5,color:"var(--text2)",margin:"2px 0 12px"}}>{attLesson.start}–{attLesson.end} · {attLesson.loc||"—"} · {attRoster.length} {t.totalStudents.toLowerCase()}</div>
+                <button type="button" className="btn-navy" data-start-lesson="1" onClick={()=>beginLesson(attLesson)}><span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:7}}><span>▶</span>{lang==="en"?"Start lesson":K("Dersê Dest Pê Bike")}</span></button>
+                <div style={{fontSize:11,color:"var(--text2)",marginTop:8,lineHeight:1.6}}>{lang==="en"?"The attendance list and the rotating QR open after you start the lesson. When the lesson time ends the lesson closes by itself.":K("Piştî dest pê kirina dersê lîsteya amadebûnê û QR ya dizivire vedibin. Dema dersê biqede ders bi xwe tê girtin.")}</div>
+              </div>)}
+            {attLesson&&!isPastAtt&&!needStart&&(()=>{ const st=startOf(attLesson); const hm=ms=>new Date(ms).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
               return(
               <div data-att-today="1" style={{background:"var(--surface)",borderRadius:14,padding:"12px 14px",marginBottom:12,border:"1.5px solid "+(attInWindow?"var(--green)":"var(--border2)")}}>
                 <div style={{fontSize:13,fontWeight:800,color:attInWindow?"var(--green)":"var(--text)"}}>{attInWindow?"🟢 ":"📋 "}{attLesson.name}</div>
@@ -15149,8 +15170,9 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                     📡 {lang==="en"?"Lesson QR (students' phones)":K("QR ya dersê (têlefona xwendekar)")}</button>
                 </div>
                 {attScan&&<div style={{marginTop:10}}><TeacherCardScanner myStudents={attRoster} lang={lang} onCheckin={cardCheckin} onClose={()=>setAttScan(false)}/></div>}
-                <div style={{fontSize:11,color:"var(--text2)",marginTop:8,lineHeight:1.6}}>{lang==="en"?"The list and the rotating QR open automatically at lesson time. Press “Save attendance” to record it; the QR closes when the lesson ends. You can still correct it afterwards.":K("Lîste û QR ya dizivire di dema dersê de bi xwe vedibin. Bi “Amadebûnê tomar bike” tê tomarkirin; QR piştî dersê tê girtin. Piştre jî dikarî rast bikî.")}</div>
+                <div style={{fontSize:11,color:"var(--text2)",marginTop:8,lineHeight:1.6}}>{lang==="en"?"Press “Save attendance” to record it; the lesson closes when the lesson time ends (the QR closes too). You can still correct it afterwards.":K("Bi “Amadebûnê tomar bike” tê tomarkirin; dema dersê biqede ders tê girtin (QR jî tê girtin). Piştre jî dikarî rast bikî.")}</div>
               </div>); })()}
+            {!needStart&&<>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
               <div style={{background:"var(--surface)",borderRadius:10,padding:11,textAlign:"center",border:"1px solid rgba(15,23,42,.09)"}}>
                 <div style={{fontSize:10,color:"var(--green)",marginBottom:3}}>✅ {t.attended}</div>
@@ -15210,6 +15232,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
                   hapticSuccess(); toast("✓ "+t.attendanceSaved+" ("+presentCount+"/"+total+")"+(isPastAtt?" · "+fmtDateTx(attDay):""));
                 }} lang={lang}/>
             </Card>
+            </>}
           </>
         )}
         {view==="announce"&&(

@@ -135,14 +135,18 @@ async function routes(ctx) {
   const tp = await login(await mk(), '50202601', 'Tea12345');
   await goA(tp, 'attendance'); await tp.waitForTimeout(1500);
   await tp.click('[data-att-lesson="' + LID + '"]'); await tp.waitForTimeout(1200);
-  ok('"Dersê Dest Pê Bike" düğmesi YOK; bugünün dersi için durum paneli var', !(await txt(tp)).includes('Dersê Dest Pê Bike') && (await tp.locator('[data-att-today]').count()) === 1);
+  ok('Başlatmadan: "Dersê Dest Pê Bike" kartı var; yoklama listesi / QR düğmeleri yok', (await tp.locator('[data-att-start-card]').count()) === 1 && (await tp.locator('.att-btn').count()) === 0 && (await tp.locator('[data-att-scan]').count()) === 0);
+  const startAndClose = async pg => { await pg.click('[data-start-lesson]'); await pg.waitForTimeout(3000); await btn(pg, 'Bigire'); await pg.waitForTimeout(2500); };
+  await startAndClose(tp);
+  ok('Dersi başlat: durum paneli + liste açıldı', (await tp.locator('[data-att-today]').count()) === 1 && (await tp.locator('.att-btn').count()) > 0);
   await tp.click('[data-att-scan]'); await tp.waitForTimeout(800);
   await tp.fill('input[aria-label=card-code]', 'AAT1:' + TOK1); await btn(tp, 'Kontrol'); await tp.waitForTimeout(2500);
   const a2 = await get('attendance/' + LID + '-' + today);
   ok('Kartla okutulan öğrenci "on" (zamanında) kaydedildi', JSON.stringify(a2.fields && a2.fields.records || {}).includes('"on"'));
   // Geç: 20 dk önce başlamış ders
   await tp.click('[data-att-lesson="LB"]'); await tp.waitForTimeout(2000);
-  ok('Programdaki ders için durum paneli görünür (başlat düğmesi yok)', (await tp.locator('[data-att-today]').count()) === 1);
+  await startAndClose(tp);
+  ok('Programdaki ders başlatılınca durum paneli görünür', (await tp.locator('[data-att-today]').count()) === 1);
   ok('İzinli öğrenci listede yok, izinli notu var', (await tp.locator('[data-on-leave]').count()) === 1 && (await tp.locator('.att-btn').count()) === 6 && !(await tp.evaluate(() => [...document.querySelectorAll('.att-btn')].some(b => (b.closest('div[style]') || {}).textContent && b.closest('div').parentElement.textContent.includes('Azad Can')))));
   await tp.click('[data-att-scan]'); await tp.waitForTimeout(800);
   await tp.fill('input[aria-label=card-code]', 'AAT1:' + TOK1); await btn(tp, 'Kontrol'); await tp.waitForTimeout(2500);

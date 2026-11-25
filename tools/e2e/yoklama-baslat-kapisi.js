@@ -1,8 +1,6 @@
 // Uçtan uca test — çalıştırma: tools/README.md → "E2E"
-// E2E: Haftalık değerlendirme + öğretmen kartları — öğretmen öğrencilerini değerlendirir (hatırlatma), yalnız kendi
-//      sınıfına dosyasız duyuru gönderir, Sınıfım = ödev/belge + mesaj; öğrenci öğretmenini isimsiz değerlendirir;
-//      sorumlu raporlarda iki değerlendirmeyi ve anketi görür; yöneticide öğrenci ayrıntısında gerçek haftalık grafik;
-//      öğrenci işlerinde rapor yok.
+// E2E: Yoklama başlatma kapısı — bugünün dersinde "Dersi başlat"a basılmadan liste / QR açılmaz; başlatınca liste + dönen QR açılır;
+//      "Dersi bitir" düğmesi yok; ders saati bitmişse kapı yoktur (sonradan düzeltme); başka cihazda başlamış ders yeniden başlatma istemez.
 const { chromium } = require('playwright-core');
 const fs = require('fs');
 const FBV = require('firebase/package.json').version;
@@ -29,7 +27,6 @@ async function routes(ctx) {
   });
 }
 
-// E2E: Ders saatinde yoklama ekranı açılınca liste + dönen QR KENDİLİĞİNDEN açılır; yoklama zaten alınmışsa yeniden açılmaz; ders saati dışında açılmaz
 (async () => {
   const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-key="' + k + '"],.sm-it[data-key="' + k + '"]').click(), k);
   const TD = new Date().toISOString().slice(0, 10); const todayKu = ['Yekşem', 'Dûşem', 'Sêşem', 'Çarşem', 'Pêncşem', 'Înî', 'Şemî'][new Date().getDay()];
@@ -37,36 +34,45 @@ async function routes(ctx) {
   for (const [k, no, nm, id] of [['S1', '20202601', 'Rojîn Aram', 101], ['S2', '20202602', 'Azad Can', 102]]) { await put('idx_students/' + no, { no, area: 'tiyatro' }); await put('students/' + k, { no, name: nm, area: 'tiyatro', fireId: k, id }); }
   await put('classes/C1', { kind: 'area', area: 'tiyatro', name: '1. Sınıf', studentNos: ['20202601', '20202602'], teacherNos: ['50202601'] });
   await put('schedule/LA', { id: 'LA', fireId: 'LA', area: 'tiyatro', classId: 'C1', name: 'Şano Şimdi', day: todayKu, start: '00:00', end: '23:59', teacherNo: '50202601', teacherName: 'Mamoste Şano', lessonType: 'main' });
+  await put('schedule/LB', { id: 'LB', fireId: 'LB', area: 'tiyatro', classId: 'C1', name: 'Şano Sabah', day: todayKu, start: '00:00', end: '00:01', teacherNo: '50202601', teacherName: 'Mamoste Şano', lessonType: 'main' });
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined }); const errs = [];
   const open = async () => { const c = await b.newContext({ viewport: { width: 430, height: 900 } }); await routes(c);
     await c.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} });
     const p = await c.newPage(); p.on('pageerror', e => errs.push(e.message)); p.on('dialog', d => d.accept());
-    await p.goto('http://localhost:8765/app/?emu=1&autoqr=1'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
+    await p.goto('http://localhost:8765/app/?emu=1'); await p.waitForSelector('text=Têkeve', { timeout: 60000 });
     await p.getByText('Mamoste', { exact: true }).first().click();
     await p.locator('input.inp').first().fill('50202601'); await p.locator('input[type=password]').first().fill('Tea12345');
     await p.getByText('Têkeve', { exact: true }).last().click(); await p.waitForTimeout(8000); return p; };
   const sessions = async () => (await list('qrSessions')).filter(d => d.fields.active && d.fields.active.booleanValue).length;
   const p = await open();
-  ok('Giriş yapınca henüz yoklama ekranı açılmadı: QR oturumu yok', (await sessions()) === 0);
-  await goA(p, 'attendance'); await p.waitForTimeout(4500);
-  ok('Ders saatinde yoklama ekranı açılınca dönen QR KENDİLİĞİNDEN açılır (oturum + QR penceresi)', (await sessions()) === 1 && (await p.evaluate(() => document.body.innerText)).includes('Şano Şimdi'));
-  ok('Liste de hazır: öğrenciler yoklama listesinde (3 işaret düğmesi × 2 öğrenci)', (await p.locator('.att-btn').count()) === 6);
+  await goA(p, 'attendance'); await p.waitForTimeout(2500);
+  await p.locator('[data-att-lesson="LA"]').click(); await p.waitForTimeout(800);
+  ok('Başlatmadan: başlat kartı var; liste, işaret düğmeleri, QR düğmeleri yok; QR oturumu yok', (await p.locator('[data-att-start-card]').count()) === 1 && (await p.locator('.att-btn').count()) === 0 && (await p.locator('[data-att-scan]').count()) === 0 && (await p.locator('[data-att-open-qr]').count()) === 0 && (await sessions()) === 0);
+  ok('"Dersi bitir" düğmesi yok', (await p.locator('[data-end-lesson]').count()) === 0);
+  await p.click('[data-start-lesson]'); await p.waitForTimeout(3000);
+  ok('Dersi başlat: dönen QR oturumu açılır', (await sessions()) === 1);
+  const dc = await fetch(`${FS}/attendance/LA-${TD}`, { headers: H }).then(r => r.json());
+  ok('Başlatma anı yoklama belgesine yazılır (startedAt)', !!(dc.fields && dc.fields.startedAt), JSON.stringify(Object.keys(dc.fields || {})));
+  await p.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.offsetParent && /Bigire|Close|Girtin|✕|×/.test(x.textContent) && x.textContent.length < 12); b && b.click(); }); await p.waitForTimeout(600);
+  await goA(p, 'attendance'); await p.waitForTimeout(1200);
+  ok('Başladıktan sonra liste açık (3 işaret düğmesi × 2 öğrenci), başlat kartı yok', (await p.locator('.att-btn').count()) === 6 && (await p.locator('[data-att-start-card]').count()) === 0);
+  await p.locator('[data-att-lesson="LB"]').click(); await p.waitForTimeout(800);
+  ok('Ders saati bitmiş ders (00:00–00:01): kapı yok, liste doğrudan düzeltilebilir', (await p.locator('[data-att-start-card]').count()) === 0 && (await p.locator('.att-btn').count()) === 6);
   await b.close();
-  // Yoklama zaten alınmışsa yeniden açılmaz
-  await put('attendance/LA-' + TD, { lessonId: 'LA', lessonFire: 'LA', lessonName: 'Şano Şimdi', area: 'tiyatro', date: TD });
-  await fetch(`${FS}/attendance/LA-${TD}?updateMask.fieldPaths=records`, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { records: { mapValue: { fields: { 101: { stringValue: 'on' }, 102: { stringValue: 'off' } } } } } }) });
+  // Başka cihaz: ders başlamış (startedAt var) → yeniden başlatma istemez
+  await put('attendance/LA-' + TD, { lessonId: 'LA', lessonFire: 'LA', lessonName: 'Şano Şimdi', area: 'tiyatro', date: TD, startedAt: Date.now() });
   const b2 = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
   const c2 = await b2.newContext({ viewport: { width: 430, height: 900 } }); await routes(c2);
   await c2.addInitScript(() => { try { localStorage.setItem('aat-gdpr-consent', '1'); localStorage.setItem('aat-lang', 'ku'); } catch (_) {} });
   const p2 = await c2.newPage(); p2.on('pageerror', e => errs.push(e.message)); p2.on('dialog', d => d.accept());
-  const before = await sessions();
-  await p2.goto('http://localhost:8765/app/?emu=1&autoqr=1'); await p2.waitForSelector('text=Têkeve', { timeout: 60000 });
+  await p2.goto('http://localhost:8765/app/?emu=1'); await p2.waitForSelector('text=Têkeve', { timeout: 60000 });
   await p2.getByText('Mamoste', { exact: true }).first().click();
   await p2.locator('input.inp').first().fill('50202601'); await p2.locator('input[type=password]').first().fill('Tea12345');
   await p2.getByText('Têkeve', { exact: true }).last().click(); await p2.waitForTimeout(8000);
-  await goA(p2, 'attendance'); await p2.waitForTimeout(4500);
-  ok('Bu ders için yoklama zaten alınmışsa QR yeniden KENDİLİĞİNDEN açılmaz', (await sessions()) === before, before + ' → ' + (await sessions()));
+  await goA(p2, 'attendance'); await p2.waitForTimeout(2500);
+  await p2.locator('[data-att-lesson="LA"]').click(); await p2.waitForTimeout(1500);
+  ok('Başka cihazda başlamış ders: başlat kartı çıkmaz, liste açık', (await p2.locator('[data-att-start-card]').count()) === 0 && (await p2.locator('.att-btn').count()) === 6);
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b2.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);
 })().catch(e => { console.error('E2E HATA', e); process.exit(1); });

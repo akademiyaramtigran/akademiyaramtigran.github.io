@@ -75,7 +75,8 @@ async function routes(ctx) {
     await goA(hp, 'attendance'); await hp.waitForTimeout(1500);
     ok('Kendisine atanmış ders (Şano Sorumlu) yoklama listesinde, öğretmenin dersi yok', (await hp.locator('[data-att-lesson="LH"]').count()) === 1 && (await hp.locator('[data-att-lesson="LT"]').count()) === 0);
     await hp.click('[data-att-lesson="LH"]'); await hp.waitForTimeout(1200);
-    ok('Sorumlu başlat düğmesi olmadan yoklamayı doğrudan alır (başlat/bitir yok)', (await hp.locator('[data-start-lesson]').count()) === 0);
+    ok('Sorumlu da önce "Dersi başlat" der (liste yok), başlatınca liste açılır', (await hp.locator('[data-start-lesson]').count()) === 1 && (await hp.locator('.att-btn').count()) === 0);
+    await hp.click('[data-start-lesson]'); await hp.waitForTimeout(3000); await btn(hp, 'Bigire'); await hp.waitForTimeout(2500);
     // Elle yoklama: Rojîn geldi
     await hp.evaluate(() => { const b = document.querySelector('.att-btn.on, .att-btn'); });
     const first = hp.locator('.att-btn').first(); await first.click(); await hp.waitForTimeout(400);

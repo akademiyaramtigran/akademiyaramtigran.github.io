@@ -57,6 +57,7 @@ async function routes(ctx) {
   ok('Öğretmen izin listesinde yalnız KENDİ yazdığını görür (1 kayıt)', (await T.locator('[data-leave-row]').count()) === 1 && tt.includes('Teacher izni'), String(await T.locator('[data-leave-row]').count()));
   ok('Sorumlunun yazdığı izin öğretmenin listesinde GÖRÜNMEZ', !tt.includes('Sorumlu izni'));
   await goA(T, 'attendance'); await T.waitForTimeout(2500);
+  await T.evaluate(() => { const b = document.querySelector('[data-start-lesson]'); b && b.click(); }); await T.waitForTimeout(3000);   // "Dersi başlat" → liste açılır
   const roster = await T.evaluate(() => document.body.innerText);
   ok('Yoklama listesinde her iki izinli öğrenci yine listede yok (izin kapsamı korunur)', (await T.locator('.att-btn').count()) === 3, String(await T.locator('.att-btn').count()));
   const H1 = await open('96000001', 'Head12345');

@@ -56,18 +56,19 @@ async function routes(ctx) {
   // Yoklama ekranı: dersi başlat / bitir düğmeleri YOK; işaretleme ve kaydetme doğrudan çalışır
   await goA(p, 'attendance'); await p.waitForTimeout(1500);
   await p.evaluate(() => document.querySelector('[data-att-lesson="LA"]').click()); await p.waitForTimeout(1200);
-  ok('"Dersi başlat" düğmesi yok', (await p.locator('[data-start-lesson]').count()) === 0 && !(await p.evaluate(() => document.body.innerText)).includes('Dersê Dest Pê Bike'));
+  ok('Başlatmadan: "Dersi başlat" kartı var; liste ve QR düğmeleri yok', (await p.locator('[data-att-start-card]').count()) === 1 && (await p.locator('[data-start-lesson]').count()) === 1 && (await p.locator('.att-btn').count()) === 0 && (await p.locator('[data-att-open-qr]').count()) === 0);
   ok('"Dersi bitir" düğmesi yok', (await p.locator('[data-end-lesson]').count()) === 0);
-  ok('Bugünün dersi için durum paneli + QR düğmeleri var (liste ders saatinde hazır)', (await p.locator('[data-att-today]').count()) === 1 && (await p.locator('[data-att-open-qr]').count()) === 1 && (await p.locator('[data-att-scan]').count()) === 1);
+  await p.evaluate(() => document.querySelector('[data-start-lesson]').click()); await p.waitForTimeout(3000);
+  ok('Dersi başlat deyince liste + QR düğmeleri + dönen QR açılır', (await p.locator('[data-att-today]').count()) === 1 && (await p.locator('[data-att-open-qr]').count()) === 1 && (await p.locator('[data-att-scan]').count()) === 1 && (await p.locator('.att-btn').count()) > 0 && (await p.locator('[data-att-start-card]').count()) === 0);
   await p.evaluate(() => document.querySelector('[data-att-mark="on"]').click()); await p.waitForTimeout(600);
   const t1 = await p.evaluate(() => document.body.innerText);
-  ok('Başlatmadan işaretlenir: "önce dersi başlat" uyarısı çıkmaz', !t1.includes('Pêşî dersê dest pê bike'));
+  ok('Başladıktan sonra işaretlenir: "önce dersi başlat" uyarısı çıkmaz', !t1.includes('Pêşî dersê dest pê bike'));
   const a0 = await getDoc('LA-' + TD);
   ok('Kaydet\'e basılmadan kayıt yazılmaz', !(a0.fields && a0.fields.records));
   await p.evaluate(() => [...document.querySelectorAll('button')].filter(x => x.offsetParent && /tomar/i.test(x.textContent)).pop().click()); await p.waitForTimeout(2500);
   const a1 = await getDoc('LA-' + TD);
   const rj = JSON.stringify(a1.fields && a1.fields.records || {});
-  ok('Yoklamayı kaydet deyince kayıt işlenir (başlat/bitir gerekmez); işaretlenen "geldi", işaretlenmeyen "yok" yazılır', (rj.match(/"on"/g) || []).length === 1 && (rj.match(/"off"/g) || []).length === 1, rj);
+  ok('Yoklamayı kaydet deyince kayıt işlenir (bitir gerekmez); işaretlenen "geldi", işaretlenmeyen "yok" yazılır', (rj.match(/"on"/g) || []).length === 1 && (rj.match(/"off"/g) || []).length === 1, rj);
   ok('Sayfa hatası yok', errs.length === 0, errs.slice(0, 3).join(' | '));
   console.log(out.join('\n')); await b.close(); process.exit(out.some(l => l.startsWith('❌')) ? 1 : 0);
 })().catch(e => { console.error('E2E HATA', e); process.exit(1); });
