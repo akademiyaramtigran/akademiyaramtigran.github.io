@@ -123,11 +123,9 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await rp.bringToFront(); await topTab(rp, 'Akademiya Zarokan'); await rp.waitForTimeout(1500);
   await rp.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.includes('🎓 Zarok') && x.offsetParent); b.click(); }); await rp.waitForTimeout(800);
   const [pop3] = await Promise.all([rc.waitForEvent('page'), rp.evaluate(() => {
-    // Önceki testlerin eklediği çocuklar da listede olabilir → "Rojda Aram" satırındaki kart düğmesi
-    const b = [...document.querySelectorAll('button')].filter(x => x.textContent.trim() === '🪪' && x.offsetParent).find(x => {
-      let e = x; while (e && !e.textContent.includes('Rojda Aram')) { e = e.parentElement; if (e && e.querySelectorAll('button').length > 12) return false; }
-      return !!e && [...e.querySelectorAll('button')].filter(y => y.textContent.trim() === '🪪').length === 1;
-    }); b.click(); })]);
+    // Önceki testlerin eklediği çocuklar da listede olabilir → "Rojda Aram" satırındaki kart düğmesi (🪪 Kart)
+    const a = [...document.querySelectorAll('[data-kid-actions]')].find(x => x.parentElement.textContent.includes('Rojda Aram'));
+    a.querySelector('[data-kid-card]').click(); })]);
   await pop3.waitForTimeout(2500); await shot(pop3, 'kart-zarok.png');
   ok('Çocuk kartı basılır', (await pop3.evaluate(() => document.body.innerText)).includes('KONSERVATUARA ARAM'));
   await pop3.close();

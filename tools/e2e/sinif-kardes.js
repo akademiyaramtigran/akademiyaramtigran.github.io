@@ -174,8 +174,11 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   // ── 5b) Kardeş eşleştir: ayrı kaydedilmiş çocuk listeden bağlanır ──
   await topTab(p, 'Akademiya Zarokan'); await p.waitForTimeout(1500);
   await clickText(p, '🎓 Zarok'); await p.waitForTimeout(500);
-  await p.evaluate(() => { const card = [...document.querySelectorAll('div')].filter(d => d.textContent.includes('Dilan Aram') && [...d.querySelectorAll('button')].some(b => b.textContent.trim() === '👨‍👧')).pop();
-    [...card.querySelectorAll('button')].find(b => b.textContent.trim() === '👨‍👧').click(); });
+  // Kardeş düğmesi artık yazılı ve her zaman görünür ("👨‍👧 Xwişk/bira")
+  const sibBtnFor = name => p.evaluate(n => { const a = [...document.querySelectorAll('[data-kid-actions]')].find(x => x.parentElement.textContent.includes(n));
+    a.querySelector('[data-kid-sib]').click(); }, name);
+  ok('Kardeş düğmesi yazılı olarak görünür', await p.evaluate(() => [...document.querySelectorAll('[data-kid-sib]')].some(b => b.offsetWidth > 0 && /Xwişk\/bira/.test(b.textContent))));
+  await sibBtnFor('Dilan Aram');
   await p.waitForTimeout(400);
   await p.locator('input[placeholder*="Navê zarokê, jimare"]').fill('Azad');
   await p.selectOption('select[aria-label="Xwişk û bira"], select[aria-label="Xwişk/bira"]', { index: 1 });
@@ -203,6 +206,15 @@ const goZ = (pg, k) => pg.evaluate(k => { const vis = e => e && e.getClientRects
   await vp.evaluate(() => [...document.querySelectorAll('.kidchip')].find(x => x.textContent.includes('Dilan')).click()); await vp.waitForTimeout(500);
   const v6 = await txt(vp);
   ok('Velide çocuğun sınıfı ve sınıf öğretmeni', v6.includes('1. Sînif') && v6.includes('Mamoste Berfîn'), v6.split('\n').find(l => l.includes('Sînif')));
+
+  // ── 6b) Kardeşi ayır: Azad kendi velisine döner, diğer aile onu görmez ──
+  await sibBtnFor('Azad Aram'); await p.waitForTimeout(400);
+  ok('Kardeş panelinde mevcut kardeşler ve ✂ ayır düğmesi', (await p.locator('[data-sib-unlink]').count()) >= 3);
+  await p.evaluate(() => document.querySelector('[data-sib-unlink-self]').click()); await p.waitForTimeout(2500);
+  const az2 = (await list('kids')).find(d => d.fields.name.stringValue === 'Azad Aram');
+  const fam2 = await kidsOf(gno);
+  ok('Kardeş ayrıldı: Azad yalnız kendi velisinde, aile 3 çocuk', JSON.stringify(az2.fields.guardianNos) === JSON.stringify({ arrayValue: { values: [{ stringValue: '9' + YR + '777' }] } })
+    && fam2.length === 3, JSON.stringify(az2.fields.guardianNos) + ' · ' + fam2.length);
 
   // ── 7) Çocuk öğretmeni: "Sinifa min" filtresi ──
   const tc = await mk(390); const tp = await tc.newPage(); tp.on('pageerror', e => errs.push('kidteacher: ' + e.message));
