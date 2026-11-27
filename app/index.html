@@ -16436,6 +16436,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
   const unreadCount=announcements.filter(x=>!readIds.includes(x.fireId||x.id)).length;
 
   const [studentMessages,setStudentMessages]=useState([]);
+  const [msgReload,setMsgReload]=useState(0);
   const [studentMsgRead,setStudentMsgRead]=useState([]);
   const studentMsgUnread=studentMessages.filter(m=>!m.read&&!studentMsgRead.includes(m.fireId||m.id)).length;
 
@@ -16443,6 +16444,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
   useEffect(()=>{
 
     if(!window.__FB||!window.__FB.isConfigured()) return;
+    let alive=true;
     let unsub=()=>{};
     const myId="s_"+student.id;
     const myArea=student.area;
@@ -16459,12 +16461,14 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
           return [...newMsgs,...others].sort((a,b)=>((b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)));
         });
       };
+      // Dinleyici hata ile kapanırsa (ağ kopması, oturum yenileme…) sessizce ölü kalmasın: kısa süre sonra yeniden kurulur
+      const retry=()=>{ if(!alive) return; setTimeout(()=>{ if(alive) setMsgReload(n=>n+1); },4000); };
       const unsubPrivate = window.__FB.onSnapshot(qPrivate, snap=>{
         mergeInto(snap.docs.map(d=>({...d.data(),fireId:d.id})), "private");
-      });
+      }, retry);
       const unsubBulk = window.__FB.onSnapshot(qBulk, snap=>{
         mergeInto(snap.docs.map(d=>({...d.data(),fireId:d.id})), "bulk");
-      });
+      }, retry);
       unsub = ()=>{ unsubPrivate(); unsubBulk(); };
     } catch(e) {
       // Fallback: tüm mesajları al, client tarafında filtrele
@@ -16489,8 +16493,16 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
         });
       } catch(e2){ console.warn("student messages fallback err:",e2); }
     }
-    return ()=>unsub();
-  },[student.id, student.area]);
+    return ()=>{ alive=false; unsub(); };
+  },[student.id, student.area, msgReload]);
+  // Uygulama arka plandan dönünce veya Peyam ekranı açılınca dinleyiciyi tazele (uykuda kalan telefonda mesaj eksik görünmesin)
+  useEffect(()=>{
+    let hiddenAt=0;
+    const onVis=()=>{ if(document.hidden){ hiddenAt=Date.now(); } else if(hiddenAt&&Date.now()-hiddenAt>15000){ hiddenAt=0; setMsgReload(n=>n+1); } };
+    document.addEventListener("visibilitychange",onVis);
+    return ()=>document.removeEventListener("visibilitychange",onVis);
+  },[]);
+  useEffect(()=>{ if(view==="messages") setMsgReload(n=>n+1); },[view]);
 
   const navItems=[
     {key:"home",   icon:"🏠", label:t.home},
