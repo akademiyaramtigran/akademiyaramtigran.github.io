@@ -3924,7 +3924,7 @@ function CardResultView({res,lang,areaLabel}){
 }
 
 /* ─── KAPI GÜVENLİĞİ PANELİ (Ewlehî) — yalnızca kart doğrular ve giriş kaydı tutar ─── */
-function GatePanel({user,lang,toast,onLogout,onSettings}){
+function GatePanel({user,lang,toast,onLogout}){
   const W=(ku,en)=>lang==="en"?en:K(ku);
   const [res,setRes]=useState(null); const [busy,setBusy]=useState(false); const [log,setLog]=useState([]);
   useEffect(()=>{
@@ -3946,7 +3946,7 @@ function GatePanel({user,lang,toast,onLogout,onSettings}){
   const okN=log.filter(x=>x.ok).length;
   return(
     <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
-      <SpecialPanelHeader user={user} icon="🛡" lang={lang} onLogout={onLogout} onSettings={onSettings} roleLabel={W("Ewlehî · Kontrola Dergehê","Security · Gate Control")}/>
+      <SpecialPanelHeader user={user} icon="🛡" lang={lang} onLogout={onLogout} roleLabel={W("Ewlehî · Kontrola Dergehê","Security · Gate Control")}/>
       <div className="scroll-area" style={{flex:1,overflowY:"auto",padding:"14px 14px 40px",maxWidth:640,margin:"0 auto",width:"100%"}}>
         <CardScanner lang={lang} onToken={check} busy={busy} height={260}/>
         {busy&&<div style={{textAlign:"center",padding:10,color:"var(--text2)"}}>⏳</div>}
@@ -7323,7 +7323,7 @@ function SideMenu({open,onClose,onOpen,items,activeKey,onSelect,user,roleLabel,e
 }
 
 /* ─── SPECIAL PANEL HEADER (Çapemenî / Karûbar — ortak üst panel) ────────── */
-function SpecialPanelHeader({user,icon,roleLabel,lang,onLogout,siteLink,onMenu,tabs,activeKey,onTab,onSettings}){
+function SpecialPanelHeader({user,icon,roleLabel,lang,onLogout,siteLink,onMenu,tabs,activeKey,onTab}){
   return(
     <div className="ph" style={{padding:"calc(env(safe-area-inset-top,0px) + 18px) 16px 14px",borderRadius:"0 0 22px 22px"}}>
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}>
@@ -7341,11 +7341,6 @@ function SpecialPanelHeader({user,icon,roleLabel,lang,onLogout,siteLink,onMenu,t
           <a href="../" target="_blank" rel="noopener" style={{flex:1,textAlign:"center",background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.22)",borderRadius:10,padding:"10px 8px",fontSize:12.5,fontWeight:700,color:"#fff",textDecoration:"none",whiteSpace:"nowrap"}}>
             <Ico n="globe" size={15}/> {lang==="en"?"View site":K("Malperê bibîne")}
           </a>
-        )}
-        {onSettings&&(
-          <button data-open-settings="1" onClick={onSettings} style={{flex:1,background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.22)",borderRadius:10,padding:"10px 8px",fontSize:12.5,fontWeight:700,color:"#fff",cursor:"pointer",whiteSpace:"nowrap"}}>
-            ⚙️ {lang==="en"?"Settings":K("Mîheng")}
-          </button>
         )}
         <button onClick={onLogout} style={{flex:1,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.22)",borderRadius:10,padding:"10px 8px",fontSize:12.5,fontWeight:700,color:"rgba(255,255,255,0.88)",cursor:"pointer",whiteSpace:"nowrap"}}>
           <Ico n="out" size={15}/> {lang==="en"?"Sign out":K("Derkeve")}
@@ -7687,7 +7682,7 @@ function AdminArchivePanel({lang,toast,adminName}){
 }
 
 /* ─── PRESS PANEL (basın kullanıcısının ekranı — yalnızca malper haberleri) ── */
-function PressPanel({user,lang,toast,onLogout,onSettings}){
+function PressPanel({user,lang,toast,onLogout}){
   const [menuOpen,setMenuOpen]=useState(isPhoneNow);
   const [ptab,setPtab]=useState("nuce");
   const pressTabs=[
@@ -7702,10 +7697,9 @@ function PressPanel({user,lang,toast,onLogout,onSettings}){
         roleLabel={lang==="en"?"Press":K("Çapemenî")}
         extraItems={[
           {label:lang==="en"?"View site":K("Malperê bibîne"),onClick:()=>{try{window.open("../","_blank");}catch(_){}}},
-          ...(onSettings?[{icon:"⚙️",label:lang==="en"?"Settings":K("Mîheng"),onClick:onSettings}]:[]),
           {label:lang==="en"?"Sign out":K("Derkeve"),onClick:onLogout,danger:true},
         ]}/>
-      <SpecialPanelHeader user={user} icon="📰" lang={lang} onLogout={onLogout} onSettings={onSettings} siteLink={true} onMenu={()=>setMenuOpen(true)}
+      <SpecialPanelHeader user={user} icon="📰" lang={lang} onLogout={onLogout} siteLink={true} onMenu={()=>setMenuOpen(true)}
         roleLabel={lang==="en"?"Press · Website Editor":K("Çapemenî · Edîtorê Malperê")}/>
       <div className="tab-bar menu-dup" style={{padding:"0 14px",background:"var(--bg3)"}}>
         {pressTabs.map(tb=>(
@@ -7919,7 +7913,7 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
     <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
       <SideMenu dock={["schedule","reports","messages","announce"]} open={menuOpen} onClose={()=>setMenuOpen(false)} onOpen={()=>setMenuOpen(true)} items={items} activeKey={tab} onSelect={setTab} user={user} roleLabel={roleLabel}
         extraItems={[...(onTeachMode?[{icon:"👨‍🏫",label:lang==="en"?"Teacher panel (my lessons)":K("Panela Mamoste (dersên min)"),onClick:onTeachMode,attrs:{"data-role-switch":"teacher"}}]:[]),...(kidLinked?[kidSwitchItem(lang)]:[]),...(onSettings?[{icon:"⚙️",label:t.settings||"Mîheng",onClick:onSettings}]:[]),{icon:"↩",label:t.logout||"Derkeve",onClick:onLogout,danger:true}]}/>
-      <SpecialPanelHeader user={user} icon="🎓" lang={lang} onLogout={onLogout} onSettings={onSettings} onMenu={()=>setMenuOpen(true)} roleLabel={roleLabel}/>
+      <SpecialPanelHeader user={user} icon="🎓" lang={lang} onLogout={onLogout} onMenu={()=>setMenuOpen(true)} roleLabel={roleLabel}/>
       <div className="scroll-area" style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
         {tab==="announce"&&<>
           <div className="c-chips" style={{marginBottom:12}}>
@@ -8006,7 +8000,7 @@ function KidHeadPanel({user,t,lang,toast,onLogout,onSettings,onDataChange}){
     <div className="panel-shell" style={{height:"100%",display:"flex",flexDirection:"column",background:"var(--bg3)"}}>
       <SideMenu dock={["schedule","reports","messages","classsend"]} open={menuOpen} onClose={()=>setMenuOpen(false)} onOpen={()=>setMenuOpen(true)} items={items} activeKey={tab} onSelect={setTab} user={user} roleLabel={roleLabel}
         extraItems={[...(onSettings?[{icon:"⚙️",label:t.settings||"Mîheng",onClick:onSettings}]:[]),{icon:"↩",label:t.logout||"Derkeve",onClick:onLogout,danger:true}]}/>
-      <SpecialPanelHeader user={user} icon="🎼" lang={lang} onLogout={onLogout} onSettings={onSettings} onMenu={()=>setMenuOpen(true)} roleLabel={roleLabel}/>
+      <SpecialPanelHeader user={user} icon="🎼" lang={lang} onLogout={onLogout} onMenu={()=>setMenuOpen(true)} roleLabel={roleLabel}/>
       <div className="scroll-area" style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
         {tab==="classes"&&<KidHeadClasses area={area} user={user} lang={lang} toast={toast}/>}
         {tab==="classsend"&&<KidHeadClassSend area={area} user={user} kids={kids} guards={guards} lang={lang} toast={toast}/>}
@@ -8191,6 +8185,14 @@ function HeadMessagesPanel({user,inbox,sent,students,teachers,lang,t,toast}){
                       <a key={i} href={safeHref(a.url)} download={a.name} rel="noopener" className="c-file" style={{textDecoration:"none"}}>
                         <Ico n={a.type==="image"?"file":"file"} size={18}/><span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.name}</span><Ico n="download" size={16}/></a>
                     ))}</div>}
+                  {mode==="sent"&&m.classId&&(()=>{ const recs=(sent||[]).filter(x=>m.bulkId?x.bulkId===m.bulkId:x.fireId===m.fireId);
+                    const got=new Set(recs.map(x=>String(x.recipientNo))); const cd=myCls.find(d=>d.id===m.classId);
+                    const nm=no=>((students||[]).find(x=>String(x.no)===String(no))||{}).name||String(no);
+                    const miss=cd?(students||[]).filter(x=>!x.isAdmin&&inClass(cd,x.no)&&!got.has(String(x.no))):[];
+                    return(<div data-sent-recips="1" style={{marginTop:10,fontSize:12.5,lineHeight:1.7,color:"var(--text2)"}}>
+                      <div data-sent-got={got.size}>✅ {W("Gihîşt","Delivered")} ({got.size}): {[...got].map(nm).sort((x,y)=>x.localeCompare(y)).join(", ")}</div>
+                      {miss.length>0&&<div data-sent-miss={miss.length} style={{color:"#b45309"}}>⚠ {W("Negihîşt (niha di sinifê de ne)","Not delivered (in the class now)")} ({miss.length}): {miss.map(x=>x.name).sort((x,y)=>x.localeCompare(y)).join(", ")}</div>}
+                    </div>); })()}
                   <button type="button" data-msg-del={m.fireId} onClick={async()=>{ if(!window.confirm(W("Ev peyam were jêbirin?","Delete this message?"))) return; try{ const ids=m.bulkId?(sent||[]).filter(x=>x.bulkId===m.bulkId).map(x=>x.fireId).filter(Boolean):[m.fireId]; for(const id of ids) await window.__FB.deleteMessage(id); setOpen(null); toast("🗑 "+W("Peyam hat jêbirin","Message deleted")); }catch(e){ toast("❌ "+(e.code||e.message)); } }} style={{marginTop:12,padding:"8px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--red)",fontWeight:700,fontSize:12.5,cursor:"pointer"}}>🗑 {W("Jê bibe","Delete")}</button>
                   {mode==="inbox"&&m.fromType==="student"&&(m.fromNo&&!m.anonymous?(
                     <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:8}}>
@@ -9756,38 +9758,6 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
   const gMatch=(g,q)=>{ q=(q||"").trim().toLocaleLowerCase(); if(!q) return true; const d=q.replace(/\D/g,"");
     return (g.name||"").toLocaleLowerCase().includes(q)||String(g.no).includes(q)||(d.length>=3&&String(g.phone||"").replace(/\D/g,"").includes(d)); };
   const teacherOf=no=>kteach.find(t=>t.no===no);
-  // Kardeş paneli: mevcut kardeşler (✂ ayır) + listeden yeni kardeş bağla. Çocuk kartında ve düzenleme formunda aynı.
-  const sibPanel=(k,inForm)=>{
-    if(!k) return null;
-    const sp=(sibPick&&sibPick.kidId===k.fireId)?sibPick:{kidId:k.fireId,q:"",other:""};
-    const setSp=fn=>setSibPick(x=>fn((x&&x.kidId===k.fireId)?x:{kidId:k.fireId,q:"",other:""}));
-    const sibs=siblingsOf(k), sibIds=sibs.map(o=>o.fireId);
-    const q=(sp.q||"").trim().toLocaleLowerCase(), qd=q.replace(/\D/g,"");
-    const cand=kids.filter(o=>o.fireId!==k.fireId&&!sibIds.includes(o.fireId)&&(!q||(o.name||"").toLocaleLowerCase().includes(q)||String(o.no).includes(q)
-      ||(o.guardianNos||[]).some(g=>{const gg=guardOf(g);return gg&&((gg.name||"").toLocaleLowerCase().includes(q)||(qd.length>=3&&String(gg.phone||"").replace(/\D/g,"").includes(qd)));})));
-    return(<div data-sib-panel={k.no} style={{marginTop:10,padding:10,borderRadius:10,background:"var(--bg2)",border:"1px solid var(--border2)"}}>
-      <div style={{fontWeight:800,color:"var(--text)",fontSize:13.5}}>👨‍👧‍👦 {Z("Xwişk û bira","Siblings")} — {k.name}</div>
-      {sibs.length===0
-        ?<div style={{...small,marginTop:4}}>{Z("Hîn xwişk/bira nehatine girêdan.","No siblings linked yet.")}</div>
-        :<div style={{marginTop:6}}>{sibs.map(o=>(
-          <div key={o.fireId} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px dashed var(--border2)"}}>
-            <span style={{flex:1,minWidth:0,fontSize:13,color:"var(--text)"}}>🎓 {o.name} <span style={small}>#{o.no}</span></span>
-            <button type="button" data-sib-unlink={o.no} disabled={busy} onClick={()=>unlinkSibling(o)} style={{...ghost,padding:"6px 10px",color:"#c0392b"}}>✂️ {Z("Veqetîne","Separate")}</button>
-          </div>))}
-          <button type="button" data-sib-unlink-self={k.no} disabled={busy} onClick={()=>unlinkSibling(k)} style={{...ghost,padding:"6px 10px",marginTop:6,color:"#c0392b"}}>✂️ {Z("Vî zarokî ji malbatê veqetîne","Separate this child from the family")}</button>
-        </div>}
-      <div style={{fontWeight:700,color:"var(--text)",fontSize:13,marginTop:10}}>➕ {Z("Xwişk/bira ji lîsteyê girê bide","Link a sibling from the list")}</div>
-      <input style={{...inp,marginTop:6}} value={sp.q} onChange={e=>{const v=e.target.value;setSp(x=>({...x,q:v}));}} placeholder={"🔎 "+Z("Navê zarokê, jimare an dêûbav","Child name, number or parent")}/>
-      <select aria-label={Z("Xwişk/bira","Sibling")} data-sib-select={k.no} style={{...inp,marginTop:6}} value={sp.other} onChange={e=>{const v=e.target.value;setSp(x=>({...x,other:v}));}}>
-        <option value="">— {cand.length} {Z("zarok","children")} —</option>{cand.slice(0,120).map(o=><option key={o.fireId} value={o.fireId}>{o.name} · #{o.no}</option>)}
-      </select>
-      <div style={{...small,marginTop:6}}>{Z("Piştî girêdanê her dêûbav hemû xwişk û birayan di sepana xwe de dibîne (bi heman jimare û şîfreyê).","After linking, each parent sees all siblings in their app (same number and password).")}</div>
-      <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
-        <button type="button" data-sib-link={k.no} disabled={!sp.other||busy} onClick={()=>{const o=kids.find(x=>x.fireId===sp.other); if(o) linkSiblings(k,o);}} style={btn()}>🔗 {Z("Girê bide","Link")}</button>
-        {!inForm&&<button type="button" onClick={()=>setSibPick(null)} style={ghost}>{Z("Bigire","Close")}</button>}
-      </div>
-    </div>);
-  };
   const areaLabel=a=>{ const z=ZAROK_AREA_NAMES[a]; if(z) return lang==="en"?z[1]:K(z[0]); try{ return areaName(a,lang); }catch(_){ return a||""; } };
   // Hata kodlarını anlaşılır mesaja çevir (ham "auth/..." kodu yerine)
   const err=e=>{
@@ -9911,11 +9881,8 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
         const patch={name:d.kidName.trim(),dob:d.kidDob||"",school:d.school||"",health:d.health||"",
           consentPhoto:!!d.consentPhoto,consentShare:!!d.consentShare,pickups:(d.pickupsText||"").split("\n").map(s=>s.trim()).filter(Boolean).slice(0,8)};
         if(d.photo&&d.photo!==form.orig.photo) patch.photo=d.photo;
-        // canlı kayıt: form açıkken kardeş bağlama/ayırma yapılmışsa eski listeye dönülmesin
-        const liveK=kids.find(x=>x.fireId===form.id)||form.orig;
-        let gnos=(liveK.guardianNos||[]).filter(g=>!(d.removeGuardians||[]).includes(g));
+        let gnos=[...(form.orig.guardianNos||[])];
         if(d.addGuardian&&!gnos.includes(d.addGuardian)) gnos.push(d.addGuardian);
-        if(!gnos.length){ toast("⚠ "+Z("Divê herî kêm dêûbavek girêdayî bimîne","At least one parent must stay linked"),6000); setBusy(false); return; }
         patch.guardianNos=gnos;
         await F.updateDoc(F.doc(F.db,"kids",form.id),{...patch,updatedAt:F.serverTimestamp()});
         toast(Z("✅ Hate tomarkirin","✅ Saved")); setForm(null);
@@ -9989,52 +9956,9 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
     const fam=kids.filter(k=>k.fireId===a.fireId||k.fireId===b.fireId||(k.guardianNos||[]).some(g=>gs.includes(g)));
     if(!window.confirm(Z("Van zarokan wek xwişk û bira girê bide? Hemû dêûbav dê hemû zarokan bibînin:","Link these children as siblings? All parents will see all children:")+"\n"+fam.map(k=>"• "+k.name).join("\n"))) return;
     try{
-      // ownGuardianNos: birleştirmeden önceki kendi velileri → "ayır" bunlara geri döner
-      for(const k of fam) await F.updateDoc(F.doc(F.db,"kids",k.fireId),{guardianNos:gs,ownGuardianNos:(k.ownGuardianNos&&k.ownGuardianNos.length?k.ownGuardianNos:(k.guardianNos||[])),updatedAt:F.serverTimestamp()});
+      for(const k of fam) await F.updateDoc(F.doc(F.db,"kids",k.fireId),{guardianNos:gs,updatedAt:F.serverTimestamp()});
       toast("✅ "+Z("Xwişk û bira hatin girêdan","Siblings linked")); setSibPick(null);
     }catch(e){ err(e); }
-  }
-  // Bir çocuğun kendi velileri: kendi giriş hesabı (veli no = çocuk no) ya da bağlanmadan önceki veliler
-  const ownGuardiansOf=k=>{
-    const cur=k.guardianNos||[];
-    if(guards.some(g=>g.no===k.no)&&cur.includes(k.no)) return [k.no];
-    // başka bir çocuğun kendi girişi (veli no = o çocuğun no) bu çocuğun "kendi" velisi sayılmaz
-    return (k.ownGuardianNos||[]).filter(g=>cur.includes(g)&&!kids.some(o=>o.fireId!==k.fireId&&o.no===g));
-  };
-  // Kardeşi aileden ayır: çocuk kendi velisine döner, diğerleri onun velisini artık görmez.
-  // Kendi girişi yoksa çocuğa yeni bir veli girişi (numara = çocuk no) açılır.
-  async function unlinkSibling(k){
-    const others=siblingsOf(k);
-    if(!others.length){ toast(Z("Ev zarok bi kesî re nehatiye girêdan","This child isn't linked to anyone")); return; }
-    if(busy) return;
-    let own=ownGuardiansOf(k);
-    const needLogin=!own.length;
-    const removed=needLogin?[]:own;
-    const stuck=others.find(o=>!(o.guardianNos||[]).some(g=>!removed.includes(g)));
-    if(stuck){ toast("⚠ "+Z("Têketina "+stuck.name+" a xwe tune — pêşî wî/wê veqetîne","«"+stuck.name+"» has no login of their own — separate them first"),7000); return; }
-    if(!window.confirm(Z("«"+k.name+"» ji xwişk û birayan were veqetandin?","Separate «"+k.name+"» from the siblings?")+"\n"+others.map(o=>"• "+o.name).join("\n")+"\n\n"
-      +(needLogin?Z("Ji bo vî zarokî têketineke dêûbav a nû tê vekirin (jimare = jimara zarokê).","A new parent login is created for this child (number = child number)."):Z("Dêûbavên din êdî vî zarokî nabînin.","The other parents will no longer see this child.")))) return;
-    setBusy(true);
-    try{
-      let created=null;
-      if(needLogin){
-        if(guards.some(g=>g.no===k.no)) throw Object.assign(new Error("exists"),{code:"auth/email-already-in-use"});
-        const pass=genAutoPassword();
-        await F.createAuthUser(k.no,pass,"guardian");
-        const g={no:k.no,name:k.name||"",phone:"",phone2:"",email:"",relation:""};
-        await F.setDoc(F.doc(F.db,"guardians",k.no),{...g,createdAt:F.serverTimestamp()});
-        await F.setDoc(F.doc(F.db,"idx_guardians",k.no),{no:k.no,updatedAt:F.serverTimestamp()});
-        own=[k.no]; created={pass,g};
-      }
-      await F.updateDoc(F.doc(F.db,"kids",k.fireId),{guardianNos:own,ownGuardianNos:own,updatedAt:F.serverTimestamp()});
-      for(const o of others){
-        const left=(o.guardianNos||[]).filter(g=>!removed.includes(g));
-        if(left.length!==(o.guardianNos||[]).length) await F.updateDoc(F.doc(F.db,"kids",o.fireId),{guardianNos:left,updatedAt:F.serverTimestamp()});
-      }
-      toast("✅ "+Z("Hate veqetandin","Separated"));
-      if(created) setCreds({title:Z("Têketina dêûbav a nû","New parent login"),kid:k.name,kno:k.no,no:k.no,name:created.g.name,pass:created.pass,mailed:false});
-    }catch(e){ err(e); }
-    setBusy(false);
   }
   async function delKid(k){
     if(!window.confirm(Z("Tomara zarokê were jêbirin?","Delete this child's record?"))) return;
@@ -10354,7 +10278,7 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
         </div>
         {form&&form.type==="kid"&&(
           <div style={{...box,border:"2px solid var(--accent)"}}>
-            <div style={{fontWeight:800,color:"var(--text)"}}>{form.id?Z("✏️ Karta zarokê biguherîne","✏️ Edit child card")+" · #"+((form.orig&&form.orig.no)||""):Z("➕ Zarokê nû","➕ New child")}</div>
+            <div style={{fontWeight:800,color:"var(--text)"}}>{form.id?Z("✏️ Zarok biguherîne","✏️ Edit child"):Z("➕ Zarokê nû","➕ New child")}</div>
             <div style={grid2}>
               {fld(Z("Nav û paşnavê zarokê *","Child's full name *"),"kidName")}
               {fld(Z("Roja jidayikbûnê","Date of birth"),"kidDob",{type:"date"})}
@@ -10367,19 +10291,10 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
             {form.id?(<div>
               <label style={lbl}>🚸 {Z("Kesên ku dikarin zarokê bibin (her rêzek yek)","People who may pick up (one per line)")}</label>
               <textarea style={{...inp,minHeight:70}} value={form.data.pickupsText||""} onChange={e=>{const v=e.target.value;setForm(f=>({...f,data:{...f.data,pickupsText:v}}));}}/>
-              <label style={lbl}>👤 {Z("Dêûbavên girêdayî (têketin)","Linked parents (logins)")}</label>
-              <div data-kid-guardians="1" style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                {((kids.find(x=>x.fireId===form.id)||form.orig).guardianNos||[]).map(gno=>{const g=guardOf(gno)||{}; const off=(form.data.removeGuardians||[]).includes(gno);
-                  return <button key={gno} type="button" data-kid-guardian-toggle={gno} onClick={()=>setForm(f=>{const r=f.data.removeGuardians||[];return {...f,data:{...f.data,removeGuardians:r.includes(gno)?r.filter(x=>x!==gno):[...r,gno]}};})}
-                    style={{...ghost,padding:"6px 10px",textDecoration:off?"line-through":"none",opacity:off?.55:1,border:"1px solid "+(off?"#c0392b":"var(--border2)")}}>
-                    {off?"↩":"✖"} {g.name||"?"} · #{gno}</button>;})}
-              </div>
-              <div style={{...small,marginTop:4}}>{Z("Ji bo rakirinê bitikîne (✖); bi «Tomar bike» tê tomarkirin. Herî kêm dêûbavek dimîne.","Tap ✖ to remove; applied on «Save». At least one parent stays.")}</div>
               <label style={lbl}>👨‍👩‍👧 {Z("Dêûbavekî din girê bide","Link another parent")}</label>
               <select style={inp} value={form.data.addGuardian||""} onChange={e=>{const v=e.target.value;setForm(f=>({...f,data:{...f.data,addGuardian:v}}));}}>
-                <option value="">—</option>{guards.filter(g=>!((kids.find(x=>x.fireId===form.id)||form.orig).guardianNos||[]).includes(g.no)).map(g=><option key={g.no} value={g.no}>{g.name} · #{g.no}{g.phone?" · "+g.phone:""}</option>)}
+                <option value="">—</option>{guards.filter(g=>!(form.orig.guardianNos||[]).includes(g.no)).map(g=><option key={g.no} value={g.no}>{g.name} · {g.phone}</option>)}
               </select>
-              {sibPanel(kids.find(x=>x.fireId===form.id)||form.orig,true)}
             </div>):(<div>
               <div style={{fontWeight:800,color:"var(--text)",margin:"14px 0 4px"}}>🔐 {Z("Têketina dêûbav","Parent login")}</div>
               <div data-kid-login-note="1" style={{...small,marginBottom:6}}>{Z("Dêûbav bi jimara zarokê û şîfreyeke otomatîk têdikevin — navê dêûbav û têlefon nayê xwestin.","Parents sign in with the child's number and an automatic password — no parent name or phone needed.")}</div>
@@ -10414,17 +10329,30 @@ function ZarokAdminPanel({lang,toast,user,mode="manage"}){
                 {siblingsOf(k).length>0&&<div style={{...small,marginTop:3}}>👨‍👧‍👦 {Z("Xwişk û bira","Siblings")}: {siblingsOf(k).map(o=>o.name).join(", ")}</div>}
                 <div style={{...small,marginTop:4}}>{k.consentPhoto?"📷 ✔":"📷 ✖"} · {k.consentShare?"🌐 ✔":"🌐 ✖"}{k.health?" · 🩺 "+k.health:""}{(k.pickups||[]).length?" · 🚸 "+k.pickups.join(", "):""}</div>
               </div>
+              <div style={{display:"flex",gap:6,flexShrink:0}}>
+                <button title={Z("Xwişk/bira girê bide (ji lîsteyê)","Link a sibling (from the list)")} onClick={()=>setSibPick(sibPick&&sibPick.kidId===k.fireId?null:{kidId:k.fireId,q:"",other:""})} style={{...ghost,padding:"6px 10px"}}>👨‍👧</button>
+                {(k.guardianNos||[])[0]&&<button data-kid-pw={k.no} title={Z("Şîfreya dêûbav","Parent password")} disabled={busy} onClick={()=>{ const gno=(k.guardianNos||[])[0]; const g=guardOf(gno)||{}; resetPass(gno,"guardian",k.name,g.email); }} style={{...ghost,padding:"6px 10px"}}>🔑</button>}
+                <button title={Z("Kartê çap bike","Print card")} onClick={()=>issueAndPrintCards("kid",[k],lang,toast,{areaLabel,classOf:kidClassOf})} style={{...ghost,padding:"6px 10px"}}>🪪</button>
+                {k.cardToken&&<button title={Z("Karta winda: ya nû çêke","Lost card: issue new")} onClick={()=>{ if(window.confirm(Z("Karteke NÛ were çêkirin? Karta kevn êdî naxebite.","Issue a NEW card? The old card will stop working."))) issueAndPrintCards("kid",[k],lang,toast,{renew:true,areaLabel,classOf:kidClassOf}); }} style={{...ghost,padding:"6px 10px"}}>♻️</button>}
+                <button onClick={()=>setForm({type:"kid",id:k.fireId,orig:k,data:{photo:k.photo||"",kidName:k.name,kidDob:k.dob,area:k.area,school:k.school,health:k.health,consentPhoto:k.consentPhoto,consentShare:k.consentShare,pickupsText:(k.pickups||[]).join("\n")}})} style={{...ghost,padding:"6px 10px"}}><Ico n="edit" solo/></button>
+                <button onClick={()=>delKid(k)} style={{...ghost,padding:"6px 10px"}}><Ico n="trash" solo/></button>
+              </div>
             </div>
-            {/* Eylemler: yazılı düğmeler, dar ekranda alt satıra kayar (simgeler artık gözden kaçmaz) */}
-            <div data-kid-actions={k.no} style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:10}}>
-              <button data-kid-edit={k.no} onClick={()=>{setSibPick(null);setForm({type:"kid",id:k.fireId,orig:k,data:{photo:k.photo||"",kidName:k.name,kidDob:k.dob,area:k.area,school:k.school,health:k.health,consentPhoto:k.consentPhoto,consentShare:k.consentShare,pickupsText:(k.pickups||[]).join("\n")}});try{window.scrollTo({top:0,behavior:"smooth"});}catch(_){}}} style={{...ghost,padding:"7px 11px"}}>✏️ {Z("Kartê biguherîne","Edit card")}</button>
-              <button data-kid-sib={k.no} onClick={()=>setSibPick(sibPick&&sibPick.kidId===k.fireId?null:{kidId:k.fireId,q:"",other:""})} style={{...(sibPick&&sibPick.kidId===k.fireId?btn():ghost),padding:"7px 11px"}}>👨‍👧 {Z("Xwişk/bira","Siblings")}{siblingsOf(k).length?" ("+siblingsOf(k).length+")":""}</button>
-              <button data-kid-card={k.no} title={Z("Kartê çap bike","Print card")} onClick={()=>issueAndPrintCards("kid",[k],lang,toast,{areaLabel,classOf:kidClassOf})} style={{...ghost,padding:"7px 11px"}}>🪪 {Z("Kart","Card")}</button>
-              {k.cardToken&&<button title={Z("Karta winda: ya nû çêke","Lost card: issue new")} onClick={()=>{ if(window.confirm(Z("Karteke NÛ were çêkirin? Karta kevn êdî naxebite.","Issue a NEW card? The old card will stop working."))) issueAndPrintCards("kid",[k],lang,toast,{renew:true,areaLabel,classOf:kidClassOf}); }} style={{...ghost,padding:"7px 11px"}}>♻️ {Z("Karta nû","New card")}</button>}
-              {(k.guardianNos||[])[0]&&<button data-kid-pw={k.no} title={Z("Şîfreya dêûbav","Parent password")} disabled={busy} onClick={()=>{ const gno=(k.guardianNos||[])[0]; const g=guardOf(gno)||{}; resetPass(gno,"guardian",k.name,g.email); }} style={{...ghost,padding:"7px 11px"}}>🔑 {Z("Şîfre","Password")}</button>}
-              <button onClick={()=>delKid(k)} style={{...ghost,padding:"7px 11px",color:"#c0392b"}}><Ico n="trash" size={14}/> {Z("Jê bibe","Delete")}</button>
-            </div>
-            {sibPick&&sibPick.kidId===k.fireId&&!(form&&form.id===k.fireId)&&sibPanel(k,false)}
+            {sibPick&&sibPick.kidId===k.fireId&&(()=>{const sib=siblingsOf(k).map(o=>o.fireId);
+              const q=(sibPick.q||"").trim().toLocaleLowerCase();
+              const cand=kids.filter(o=>o.fireId!==k.fireId&&!sib.includes(o.fireId)&&(!q||(o.name||"").toLocaleLowerCase().includes(q)||String(o.no).includes(q)||(o.guardianNos||[]).some(g=>{const gg=guardOf(g);return gg&&((gg.name||"").toLocaleLowerCase().includes(q)||String(gg.phone||"").replace(/\D/g,"").includes(q.replace(/\D/g,"")||"#"));})));
+              return(<div style={{marginTop:10,padding:10,borderRadius:10,background:"var(--bg2)",border:"1px solid var(--border2)"}}>
+                <div style={{fontWeight:700,color:"var(--text)",fontSize:13}}>👨‍👧 {Z("Xwişk/bira ji lîsteyê girê bide","Link a sibling from the list")}</div>
+                <input style={{...inp,marginTop:6}} value={sibPick.q} onChange={e=>{const v=e.target.value;setSibPick(x=>({...x,q:v}));}} placeholder={"🔎 "+Z("Navê zarokê, jimare an dêûbav","Child name, number or parent")}/>
+                <select aria-label={Z("Xwişk/bira","Sibling")} style={{...inp,marginTop:6}} value={sibPick.other} onChange={e=>{const v=e.target.value;setSibPick(x=>({...x,other:v}));}}>
+                  <option value="">—</option>{cand.slice(0,80).map(o=><option key={o.fireId} value={o.fireId}>{o.name} · #{o.no} · 👤 {(o.guardianNos||[]).map(g=>(guardOf(g)||{}).name||g).join(", ")}</option>)}
+                </select>
+                <div style={{...small,marginTop:6}}>{Z("Dêûbavên her du zarokan dê bibin yek: her dêûbav hemû xwişk û birayan di sepana xwe de dibîne.","Both children's parents are merged: each parent sees all siblings in their app.")}</div>
+                <div style={{display:"flex",gap:8,marginTop:8}}>
+                  <button disabled={!sibPick.other} onClick={()=>{const o=kids.find(x=>x.fireId===sibPick.other); if(o) linkSiblings(k,o);}} style={btn()}>🔗 {Z("Girê bide","Link")}</button>
+                  <button onClick={()=>setSibPick(null)} style={ghost}>{Z("Betal","Cancel")}</button>
+                </div>
+              </div>);})()}
           </div>))}
       </div>)}
 
@@ -10601,7 +10529,7 @@ function RegistrarRoles({teachers,lang,toast}){
     {list.length===0&&<Card><div style={{fontSize:13,color:"var(--text2)",textAlign:"center",padding:12}}>{W2("Mamoste nehat dîtin.","No teachers found.")}</div></Card>}
   </div>);
 }
-function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,onDataChange,onSettings}){
+function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,onDataChange}){
   // ── Bölümler: serledan | qad (kayıt + program + dönem) | sinif | anket | rapor | zarok ──
   const [section,setSection]=useState("serledan");
   const [menuOpen,setMenuOpen]=useState(isPhoneNow);
@@ -10819,8 +10747,8 @@ function RegistrarPanel({user,lang,toast,onLogout,students,teachers,schedule,t,o
       <SideMenu dock={["serledan","qad","sinif","program"]} open={menuOpen} onClose={()=>setMenuOpen(false)} onOpen={()=>setMenuOpen(true)} items={regTabs} activeKey={section}
         onSelect={setSection} user={user}
         roleLabel={lang==="en"?"Student Affairs":K("Karûbarên Xwendekaran")}
-        extraItems={[...(onSettings?[{icon:"⚙️",label:(t&&t.settings)||"Mîheng",onClick:onSettings}]:[]),{icon:"↩",label:(t&&t.logout)||"Derkeve",onClick:onLogout,danger:true}]}/>
-      <SpecialPanelHeader user={user} icon="🗂" lang={lang} onLogout={onLogout} onSettings={onSettings} siteLink={true} onMenu={()=>setMenuOpen(true)}
+        extraItems={[{icon:"↩",label:(t&&t.logout)||"Derkeve",onClick:onLogout,danger:true}]}/>
+      <SpecialPanelHeader user={user} icon="🗂" lang={lang} onLogout={onLogout} siteLink={true} onMenu={()=>setMenuOpen(true)}
         roleLabel={lang==="en"?"Student Affairs":K("Karûbarên Xwendekaran")}
         tabs={regTabs} activeKey={section} onTab={setSection}/>
       <div className="scroll-area" style={{flex:1,overflowY:"auto",padding:"16px 14px 40px"}}>
@@ -16508,6 +16436,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
   const unreadCount=announcements.filter(x=>!readIds.includes(x.fireId||x.id)).length;
 
   const [studentMessages,setStudentMessages]=useState([]);
+  const [msgReload,setMsgReload]=useState(0);
   const [studentMsgRead,setStudentMsgRead]=useState([]);
   const studentMsgUnread=studentMessages.filter(m=>!m.read&&!studentMsgRead.includes(m.fireId||m.id)).length;
 
@@ -16515,6 +16444,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
   useEffect(()=>{
 
     if(!window.__FB||!window.__FB.isConfigured()) return;
+    let alive=true;
     let unsub=()=>{};
     const myId="s_"+student.id;
     const myArea=student.area;
@@ -16531,12 +16461,14 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
           return [...newMsgs,...others].sort((a,b)=>((b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)));
         });
       };
+      // Dinleyici hata ile kapanırsa (ağ kopması, oturum yenileme…) sessizce ölü kalmasın: kısa süre sonra yeniden kurulur
+      const retry=()=>{ if(!alive) return; setTimeout(()=>{ if(alive) setMsgReload(n=>n+1); },4000); };
       const unsubPrivate = window.__FB.onSnapshot(qPrivate, snap=>{
         mergeInto(snap.docs.map(d=>({...d.data(),fireId:d.id})), "private");
-      });
+      }, retry);
       const unsubBulk = window.__FB.onSnapshot(qBulk, snap=>{
         mergeInto(snap.docs.map(d=>({...d.data(),fireId:d.id})), "bulk");
-      });
+      }, retry);
       unsub = ()=>{ unsubPrivate(); unsubBulk(); };
     } catch(e) {
       // Fallback: tüm mesajları al, client tarafında filtrele
@@ -16561,8 +16493,16 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
         });
       } catch(e2){ console.warn("student messages fallback err:",e2); }
     }
-    return ()=>unsub();
-  },[student.id, student.area]);
+    return ()=>{ alive=false; unsub(); };
+  },[student.id, student.area, msgReload]);
+  // Uygulama arka plandan dönünce veya Peyam ekranı açılınca dinleyiciyi tazele (uykuda kalan telefonda mesaj eksik görünmesin)
+  useEffect(()=>{
+    let hiddenAt=0;
+    const onVis=()=>{ if(document.hidden){ hiddenAt=Date.now(); } else if(hiddenAt&&Date.now()-hiddenAt>15000){ hiddenAt=0; setMsgReload(n=>n+1); } };
+    document.addEventListener("visibilitychange",onVis);
+    return ()=>document.removeEventListener("visibilitychange",onVis);
+  },[]);
+  useEffect(()=>{ if(view==="messages") setMsgReload(n=>n+1); },[view]);
 
   const navItems=[
     {key:"home",   icon:"🏠", label:t.home},
@@ -18439,32 +18379,19 @@ function SettingsSheet({open, onClose, dark, onThemeToggle, lang, rawLang, setLa
     try{
       const F=window.__FB;
       const u=F&&F.auth&&F.auth.currentUser;
-      const reg=(window.__AAT_PUSH&&window.__AAT_PUSH.ok)?window.__AAT_PUSH:await F.enablePush((window.__AAT_ROLE||"teacher"),lang,(window.__AAT_AREA||""));
+      const reg=(window.__AAT_PUSH&&window.__AAT_PUSH.ok)?window.__AAT_PUSH:await F.enablePush((window.__AAT_ROLE||"teacher"),lang,"");
       if(!reg||!reg.ok){ toast("⚠ "+(lang==="en"?"This device could not be registered":K("Ev cîhaz nehat tomarkirin"))+" ("+((reg&&reg.reason)||"?")+")",8000); return; }
       const r=await F.pushTest();
       toast(r&&r.count?("✅ "+(lang==="en"?"Test sent — the notification should arrive in a few seconds":K("Test hate şandin — agahdarî di çend saniyeyan de tê"))):("⚠ "+(lang==="en"?"No registered device":K("Cîhazeke tomarkirî tune"))),7000);
     }catch(e){ toast("❌ "+((e&&(e.code||e.message))||e),8000); }
     finally{ setTesting(false); }
   }
-  // Herkes (öğrenci, öğretmen, sorumlu, öğrenci işleri, basın, güvenlik, yönetici) bildirimleri buradan açar.
-  // İzin verilmişse cihaz yeniden kaydedilir (kayıt kopmuşsa onarır).
-  const [notifBusy,setNotifBusy]=useState(false);
-  const noNotifApi=typeof Notification==="undefined";
   async function handleNotifToggle(){
-    const L=(en,ku)=>lang==="en"?en:K(ku);
-    if(noNotifApi){ toast("📲 "+L("To get notifications on iPhone, first add the app to the Home Screen, then open it from there","Ji bo agahdariyan li iPhone, pêşî sepanê li ekrana sereke zêde bike, paşê ji wir veke"),9000); return; }
-    let perm=permission==="granted"?"granted":(typeof Notification!=="undefined"?Notification.permission:permission);
-    if(perm==="denied"){ toast("⚠ "+L("Notifications are blocked — allow them in the phone settings for this app","Agahdarî hatine astengkirin — di mîhengên têlefonê de ji bo vê sepanê destûr bide"),9000); return; }
-    if(perm!=="granted") perm=await requestPermission();
-    if(perm!=="granted"){ toast("⚠ "+L("Permission was not given","Destûr nehat dayîn"),6000); return; }
-    setNotifBusy(true);
-    try{
-      const F=window.__FB;
-      const reg=F&&F.enablePush?await F.enablePush((window.__AAT_ROLE||"teacher"),lang,(window.__AAT_AREA||"")):null;
-      if(reg&&reg.ok) toast("✅ "+L("Notifications are on — this phone is registered","Agahdarî çalak e — ev têlefon hate tomarkirin"),6000);
-      else toast("⚠ "+L("Permission given, but this device could not be registered","Destûr hate dayîn, lê ev cîhaz nehat tomarkirin")+" ("+((reg&&reg.reason)||"?")+")",8000);
-    }catch(e){ toast("❌ "+((e&&(e.code||e.message))||e),8000); }
-    finally{ setNotifBusy(false); }
+    if(permission==="granted"){
+      toast(lang==="en"?"✓ Notifications already enabled – disable in browser settings":K("✓ Agahdarî çalak e – Ji mîhengên geroka neçalak bike"));
+    } else {
+      await requestPermission();
+    }
   }
   
   async function handleInstall(){
@@ -18520,14 +18447,12 @@ function SettingsSheet({open, onClose, dark, onThemeToggle, lang, rawLang, setLa
       
       {settingRow("🔔",
         lang==="en"?"Notifications":K("Agahdarî"),
-        noNotifApi
-          ?(lang==="en"?"iPhone: add to Home Screen first":K("iPhone: pêşî li ekrana sereke zêde bike"))
-          :permission==="granted"
-          ?(lang==="en"?"Enabled · tap to re-register this phone":K("Çalak e · ji bo nûkirina tomarê bitikîne"))
+        permission==="granted"
+          ?(lang==="en"?"Enabled":K("Çalak e"))
           :permission==="denied"
             ?(lang==="en"?"Blocked in browser":K("Di geroka bûye asteng"))
             :(lang==="en"?"Tap to enable":K("Bikirtînin ji bo çalakkirinê")),
-        notifBusy?<span style={{fontSize:16}}>⏳</span>:<Toggle on={permission==="granted"}/>,
+        <Toggle on={permission==="granted"}/>,
         handleNotifToggle
       )}
       {settingRow("🧪",
@@ -18774,7 +18699,6 @@ function App(){
     if(!currentUser||!window.__FB||!window.__FB.enablePush) return;
     const roleOf=t=>t==="student"?"student":["registrar","press","admin","gate","head"].includes(t)?t:"teacher";
     window.__AAT_ROLE=roleOf(currentUser.type);
-    window.__AAT_AREA=currentUser.area||"";
     const go=()=>window.__FB.enablePush(roleOf(currentUser.type),lang,currentUser.area||"");
     if(notifPerm==="granted") go();
     window.addEventListener("aat-notif-granted",go);
@@ -19115,17 +19039,17 @@ function App(){
           onHeadMode={currentUser.isHead&&!isKidArea(currentUser.area)?()=>setScreen("head"):undefined}/>
       )}
       {screen==="gate"&&currentUser&&(
-        <GatePanel user={currentUser} lang={lang} toast={toast} onLogout={handleLogout} onSettings={()=>setShowSettings(true)}/>
+        <GatePanel user={currentUser} lang={lang} toast={toast} onLogout={handleLogout}/>
       )}
       {screen==="head"&&currentUser&&(
         <HeadPanel user={currentUser} students={students} teachers={teachers} schedule={schedule} t={t} lang={lang} toast={toast} onLogout={handleLogout} onSettings={()=>setShowSettings(true)} onDataChange={onDataChange}
           onTeachMode={currentUser.isHead&&!isKidArea(currentUser.area)?()=>setScreen("teacher"):undefined}/>
       )}
       {screen==="press"&&currentUser&&(
-        <PressPanel user={currentUser} lang={lang} toast={toast} onLogout={handleLogout} onSettings={()=>setShowSettings(true)}/>
+        <PressPanel user={currentUser} lang={lang} toast={toast} onLogout={handleLogout}/>
       )}
       {screen==="registrar"&&currentUser&&(
-        <RegistrarPanel user={currentUser} lang={lang} toast={toast} onLogout={handleLogout} onSettings={()=>setShowSettings(true)} students={students} teachers={teachers} schedule={schedule} t={t} onDataChange={onDataChange}/>
+        <RegistrarPanel user={currentUser} lang={lang} toast={toast} onLogout={handleLogout} students={students} teachers={teachers} schedule={schedule} t={t} onDataChange={onDataChange}/>
       )}
       {screen==="student"&&currentUser&&(
         <StudentPanel student={currentUser} schedule={schedule} t={t} lang={lang} toast={toast} onLogout={handleLogout} onDataChange={onDataChange} onSettings={()=>setShowSettings(true)}/>

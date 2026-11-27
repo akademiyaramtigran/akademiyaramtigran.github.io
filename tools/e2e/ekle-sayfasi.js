@@ -29,7 +29,7 @@ async function routes(ctx) {
   });
 }
 
-// E2E: "Ana ekrana ekle" sayfası (zarok/app/ekle.html): cihazı tanır — iPhone: 5 adım; uygulama içi tarayıcı: Safari uyarısı; Android: tek dokunuşluk düğme; bilgisayar: telefon için QR; dil seçimi
+// E2E: "Ana ekrana ekle" sayfası (zarok/app/ekle.html): cihazı tanır — iPhone: 3 adım; uygulama içi tarayıcı: Safari uyarısı; Android: tek dokunuşluk düğme; bilgisayar: telefon için QR; dil seçimi
 (async () => {
   const out = []; const ok = (n, c, x) => { const l = (c ? '✅ ' : '❌ ') + n + (x ? ' — ' + x : ''); out.push(l); console.log('STEP ' + l); };
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined }); const errs = [];
@@ -41,7 +41,7 @@ async function routes(ctx) {
   const AND = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
   const DESK = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
   let p = await page(IOS);
-  ok('iPhone Safari: 5 adımlı anlatım (⋯ → Paylaş → Daha Fazla → Ana Ekrana Ekle → Ekle)', (await p.locator('[data-state="ios"] .steps li').count()) === 5 && (await p.locator('[data-state="ios-inapp"]').count()) === 0);
+  ok('iPhone Safari: 3 adımlı anlatım (Paylaş → Ana Ekrana Ekle → Ekle)', (await p.locator('[data-state="ios"] .steps li').count()) === 3 && (await p.locator('[data-state="ios-inapp"]').count()) === 0);
   ok('iPhone: bağlantıyı kopyala düğmesi var', (await p.locator('#copy').count()) === 1);
   await p.click('[data-l="tr"]'); await p.waitForTimeout(300);
   const trTxt = await p.evaluate(() => document.body.innerText);

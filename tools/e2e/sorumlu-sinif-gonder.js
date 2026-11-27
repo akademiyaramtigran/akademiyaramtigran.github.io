@@ -92,6 +92,7 @@ const goA = (pg, k) => pg.evaluate(k => document.querySelector('.pano-tile[data-
   const rows = await hp.evaluate(() => [...document.querySelectorAll('.card')].filter(r => r.textContent.includes('Ji bo sinifê')).length);
   ok('Sınıf mesajı "Şandî"de tek satır', rows === 1, String(rows));
   await hp.evaluate(() => { const c = [...document.querySelectorAll('.card')].find(r => r.textContent.includes('Ji bo sinifê')); c.firstElementChild.click(); }); await hp.waitForTimeout(500);
+  ok('Gönderilenler: kime ulaştı listesi (2 kişi), ulaşmayan yok', (await hp.locator('[data-sent-got="2"]').count()) === 1 && (await hp.locator('[data-sent-miss]').count()) === 0, await hp.evaluate(() => (document.querySelector('[data-sent-recips]') || {}).textContent || ''));
   await hp.evaluate(() => document.querySelector('[data-msg-del]').click()); await hp.waitForTimeout(2500);
   m = (await msgs()).map(sv).filter(x => x.subject === 'Ji bo sinifê');
   ok('Silince sınıfa giden bütün kayıtlar silinir', m.length === 0, String(m.length));

@@ -41,19 +41,19 @@ h1{font-size:22px;margin:12px 0 4px}.sub{color:var(--muted);margin:0}
 (function(){
 var TX={
  ku:{title:"Akademiya Zarokan",sub:"Sepanê li ser dîmendera sereke zêde bike",installed:"✅ Sepan berê sazkirî ye",open:"Sepanê veke",add:"Li dîmendera sereke zêde bike",
-  dotsStep:"Li jêr rastê Safariyê sê xalan (⋯) bitikîne",shareStep:"“Parve bike” bitikîne",moreStep:"Li jêr “Bêtir” veke",addStep:"“Li Ekrana Sereke Zêde Bike” hilbijêre",confirmStep:"Li jora rastê “Zêde bike” bitikîne",
+  shareStep:"Li jêrê Safariyê, bişkoja Parvekirinê bitikîne",addStep:"Li ekrana sereke zêde bike hilbijêre",confirmStep:"Li jora rastê “Zêde bike” bitikîne",
   safariOnly:"Ji bo iPhone / iPad divê vê girêdanê di Safariyê de vekî. Girêdanê kopî bike û di Safariyê de bişopîne.",
-  androidSteps:"Li jor rastê Chrome sê xalan (⋮) bitikîne → “Saz bike û kurteriyê çêke” → “Saz bike”",androidWhy:"Ev bişkoj tenê li Chrome / Edge xuya dibe. Heke xuya nebe, ji bo vî tiştî rêbaza jêrîn bi kar bîne:",
+  androidSteps:"Menuya Chrome (⋮) → “Sepanê saz bike” an “Li dîmendera sereke zêde bike”",androidWhy:"Ev bişkoj tenê li Chrome / Edge xuya dibe. Heke xuya nebe, ji bo vî tiştî rêbaza jêrîn bi kar bîne:",
   desktop:"Vê rûpelê bi têlefona xwe vekin: QR bi kamerayê bixwînin.",copy:"Girêdanê kopî bike",copied:"Kopî bû ✓",share:"Parve bike"},
  tr:{title:"Çocuk Akademisi",sub:"Uygulamayı ana ekrana ekleyin",installed:"✅ Uygulama zaten yüklü",open:"Uygulamayı aç",add:"Ana ekrana ekle",
-  dotsStep:"Safari'de sağ alttaki üç noktaya (⋯) dokunun",shareStep:"“Paylaş”a dokunun",moreStep:"Aşağıda “Daha Fazla”yı açın",addStep:"“Ana Ekrana Ekle”yi seçin",confirmStep:"Sağ üstte “Ekle”ye dokunun",
+  shareStep:"Safari'nin alt çubuğunda Paylaş düğmesine dokunun",addStep:"“Ana Ekrana Ekle”yi seçin",confirmStep:"Sağ üstte “Ekle”ye dokunun",
   safariOnly:"iPhone / iPad'de bu bağlantı Safari'de açılmalıdır. Bağlantıyı kopyalayıp Safari'de açın.",
-  androidSteps:"Chrome'da sağ üstteki üç noktaya (⋮) dokunun → “Yükle ve kısayol oluştur” → “Yükle”",androidWhy:"Bu düğme yalnızca Chrome / Edge'de çıkar. Çıkmazsa şu yolu izleyin:",
+  androidSteps:"Chrome menüsü (⋮) → “Uygulamayı yükle” ya da “Ana ekrana ekle”",androidWhy:"Bu düğme yalnızca Chrome / Edge'de çıkar. Çıkmazsa şu yolu izleyin:",
   desktop:"Bu sayfayı telefonunuzdan açın: QR kodu kamerayla okutun.",copy:"Bağlantıyı kopyala",copied:"Kopyalandı ✓",share:"Paylaş"},
  en:{title:"Children's Academy",sub:"Add the app to your home screen",installed:"✅ The app is already installed",open:"Open the app",add:"Add to home screen",
-  dotsStep:"In Safari, tap the three dots (⋯) at the bottom right",shareStep:"Tap “Share”",moreStep:"Open “More” at the bottom",addStep:"Choose “Add to Home Screen”",confirmStep:"Tap “Add” at the top right",
+  shareStep:"Tap the Share button in Safari's bottom bar",addStep:"Choose “Add to Home Screen”",confirmStep:"Tap “Add” at the top right",
   safariOnly:"On iPhone / iPad this link must be opened in Safari. Copy the link and open it in Safari.",
-  androidSteps:"In Chrome, tap the three dots (⋮) at the top right → “Install and create shortcut” → “Install”",androidWhy:"This button only appears in Chrome / Edge. If it doesn't, follow this path:",
+  androidSteps:"Chrome menu (⋮) → “Install app” or “Add to Home screen”",androidWhy:"This button only appears in Chrome / Edge. If it doesn't, follow this path:",
   desktop:"Open this page on your phone: scan the QR code with the camera.",copy:"Copy link",copied:"Copied ✓",share:"Share"}
 };
 var lang=(function(){var q=/[?&]lang=(ku|tr|en)/.exec(location.search);if(q)return q[1];try{var s=localStorage.getItem("zarok-lang");if(s&&TX[s])return s;}catch(e){}var n=(navigator.language||"").slice(0,2);return TX[n]?n:"ku";})();
@@ -82,11 +82,9 @@ function render(){
   }else if(isIOS){
     if(inApp) h+='<div class="warn" data-state="ios-inapp">'+T("safariOnly")+'</div>'+copyBtn();
     h+='<div class="card" data-state="ios"><ol class="steps">'
-      +'<li><span class="n">1</span><span class="ic">⋯</span><span>'+T("dotsStep")+'</span></li>'
-      +'<li><span class="n">2</span><span class="ic">'+SHARE+'</span><span>'+T("shareStep")+'</span></li>'
-      +'<li><span class="n">3</span><span class="ic">⌄</span><span>'+T("moreStep")+'</span></li>'
-      +'<li><span class="n">4</span><span class="ic">'+PLUS+'</span><span>'+T("addStep")+'</span></li>'
-      +'<li><span class="n">5</span><span class="ic">✓</span><span>'+T("confirmStep")+'</span></li></ol></div>'+(inApp?"":copyBtn());
+      +'<li><span class="n">1</span><span class="ic">'+SHARE+'</span><span>'+T("shareStep")+'</span></li>'
+      +'<li><span class="n">2</span><span class="ic">'+PLUS+'</span><span>'+T("addStep")+'</span></li>'
+      +'<li><span class="n">3</span><span class="ic">✓</span><span>'+T("confirmStep")+'</span></li></ol></div>'+(inApp?"":copyBtn());
   }else if(isAndroid){
     if(dp) h+='<button class="btn" id="inst" type="button" data-state="android-prompt">➕ '+T("add")+'</button>';
     h+='<div class="card" data-state="android"><div class="muted" style="margin-bottom:8px">'+(dp?"":T("androidWhy"))+'</div><ol class="steps"><li><span class="n">1</span><span class="ic">'+MENU+'</span><span>'+T("androidSteps")+'</span></li></ol></div>'+copyBtn();
