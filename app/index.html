@@ -8185,6 +8185,14 @@ function HeadMessagesPanel({user,inbox,sent,students,teachers,lang,t,toast}){
                       <a key={i} href={safeHref(a.url)} download={a.name} rel="noopener" className="c-file" style={{textDecoration:"none"}}>
                         <Ico n={a.type==="image"?"file":"file"} size={18}/><span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.name}</span><Ico n="download" size={16}/></a>
                     ))}</div>}
+                  {mode==="sent"&&m.classId&&(()=>{ const recs=(sent||[]).filter(x=>m.bulkId?x.bulkId===m.bulkId:x.fireId===m.fireId);
+                    const got=new Set(recs.map(x=>String(x.recipientNo))); const cd=myCls.find(d=>d.id===m.classId);
+                    const nm=no=>((students||[]).find(x=>String(x.no)===String(no))||{}).name||String(no);
+                    const miss=cd?(students||[]).filter(x=>!x.isAdmin&&inClass(cd,x.no)&&!got.has(String(x.no))):[];
+                    return(<div data-sent-recips="1" style={{marginTop:10,fontSize:12.5,lineHeight:1.7,color:"var(--text2)"}}>
+                      <div data-sent-got={got.size}>✅ {W("Gihîşt","Delivered")} ({got.size}): {[...got].map(nm).sort((x,y)=>x.localeCompare(y)).join(", ")}</div>
+                      {miss.length>0&&<div data-sent-miss={miss.length} style={{color:"#b45309"}}>⚠ {W("Negihîşt (niha di sinifê de ne)","Not delivered (in the class now)")} ({miss.length}): {miss.map(x=>x.name).sort((x,y)=>x.localeCompare(y)).join(", ")}</div>}
+                    </div>); })()}
                   <button type="button" data-msg-del={m.fireId} onClick={async()=>{ if(!window.confirm(W("Ev peyam were jêbirin?","Delete this message?"))) return; try{ const ids=m.bulkId?(sent||[]).filter(x=>x.bulkId===m.bulkId).map(x=>x.fireId).filter(Boolean):[m.fireId]; for(const id of ids) await window.__FB.deleteMessage(id); setOpen(null); toast("🗑 "+W("Peyam hat jêbirin","Message deleted")); }catch(e){ toast("❌ "+(e.code||e.message)); } }} style={{marginTop:12,padding:"8px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--red)",fontWeight:700,fontSize:12.5,cursor:"pointer"}}>🗑 {W("Jê bibe","Delete")}</button>
                   {mode==="inbox"&&m.fromType==="student"&&(m.fromNo&&!m.anonymous?(
                     <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:8}}>
