@@ -314,7 +314,24 @@
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, connectFirestoreEmulator, collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, query, orderBy, where, limit, arrayUnion, deleteField } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getFirestore, connectFirestoreEmulator, collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot as _fsOnSnapshot, serverTimestamp, query, orderBy, where, limit, arrayUnion, deleteField } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  // Canlı dinleyici: geçici hata (ağ / sunucu) ile kapanırsa kendiliğinden yeniden kurulur (3 sn, 6 sn … en çok 30 sn); kural reddi / yanlış sorgu yeniden denenmez.
+  // Böylece mesaj, duyuru ve belge ekranları kopma sonrası sessizce donmaz.
+  function onSnapshot(ref, ...args){
+    if(typeof args[0] !== "function") return _fsOnSnapshot(ref, ...args);
+    const next = args[0], errCb = typeof args[1] === "function" ? args[1] : null;
+    let off = () => {}, dead = false, tries = 0, timer = 0;
+    const start = () => {
+      off = _fsOnSnapshot(ref, snap => { tries = 0; next(snap); }, err => {
+        if(errCb){ try{ errCb(err); }catch(_){} }
+        const c = (err && err.code) || "";
+        if(dead || tries >= 12 || ["permission-denied","unauthenticated","failed-precondition","invalid-argument","not-found"].includes(c)) return;
+        tries++; timer = setTimeout(() => { if(!dead) start(); }, Math.min(3000 * tries, 30000));
+      });
+    };
+    start();
+    return () => { dead = true; clearTimeout(timer); try{ off(); }catch(_){} };
+  }
   import { getAuth, setPersistence, browserLocalPersistence, browserSessionPersistence, connectAuthEmulator, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
 
@@ -713,6 +730,25 @@
       return hiddenFiltered("msg", h => onSnapshot(q, snap => h(snap.docs.map(d=>({...d.data(), fireId:d.id})))), cb);
     },
     // Admin için tüm mesajları dinle (gelen + feedback + sent)
+    // Kişiye ait mesajlar: son 200 genel mesajı çekip süzmek yerine, kişiyi ilgilendiren her koşul için ayrı sorgu (alıcı, gönderen, grup…).
+    // Başkalarının çok mesajı yüzünden kendi mesajların düşmez; toplu gönderim (öğrenci başına ayrı kayıt) listeyi taşırmaz. Sonuçlar birleşir, kişisel silinenler çıkar.
+    // clauses: [[alan, "==" | "in", değer], …] — sayı/metin tür farkı için değer dizisi verilebilir.
+    onMessagesFor(clauses, cb) {
+      return hiddenFiltered("msg", h => {
+        const src = clauses.map(() => []); let ready = 0; const got = new Set(); const offs = [];
+        const emit = () => {
+          const seen = new Set(), all = [];
+          src.forEach(a => a.forEach(m => { if(!seen.has(m.fireId)){ seen.add(m.fireId); all.push(m); } }));
+          all.sort((a,b) => ((b.createdAt && b.createdAt.seconds) || 9e9) - ((a.createdAt && a.createdAt.seconds) || 9e9));
+          h(all);
+        };
+        clauses.forEach((c, i) => {
+          const [f, op, v] = c; const q = query(collection(db,"messages"), where(f, op, v));
+          offs.push(onSnapshot(q, snap => { src[i] = snap.docs.map(d => ({...d.data(), fireId: d.id})); if(!got.has(i)){ got.add(i); ready++; } if(ready === clauses.length) emit(); }, () => { src[i] = []; if(!got.has(i)){ got.add(i); ready++; } if(ready === clauses.length) emit(); }));
+        });
+        return () => offs.forEach(o => { try{ o(); }catch(_){} });
+      }, cb);
+    },
     onAllMessages(cb) {
       return hiddenFiltered("msg", h => {
         try {
@@ -6103,6 +6139,10 @@ function AdminMessagesPanel({students,teachers,lang,t,toast,adminName}){
   );
 }
 
+// Firestore eşitliği tür duyarlıdır: numara hem metin hem sayı olarak kayıtlı olabilir → ikisini de ara
+const msgIdVals=x=>{ const a=[String(x)]; if(/^\d+$/.test(String(x))) a.push(Number(x)); return a; };
+const teacherMsgClauses=teacher=>[["recipientId","==","t_"+teacher.id],["toTeacherNo","in",msgIdVals(teacher.no)],
+  ["recipientGroup","in",["allTeachers","all","area_"+teacher.area]],["senderId","in",msgIdVals(teacher.id)],["fromId","in",msgIdVals(teacher.id)]];
 function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toast}){
   const [mode,setMode]=useState("inbox");
   const [bulkTo,setBulkTo]=useState("all"); // "all" = sınıflarımın tüm öğrencileri | sınıf id
@@ -6123,7 +6163,7 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
     let unsub=()=>{};
     const myId="t_"+teacher.id;
     try {
-      unsub = window.__FB.onAllMessages(allMsgs=>{
+      unsub = window.__FB.onMessagesFor(teacherMsgClauses(teacher), allMsgs=>{
         const myMsgs = allMsgs.map(m=>{
           if((m.senderId==="admin"||m.fromType==="admin"||m.fromType==="head")&&m.recipientId===myId)
             return {...m, direction:"inbox"};
@@ -6235,8 +6275,8 @@ function TeacherMessagesPanel({teacher,myStudents,classGroups,aColor,lang,t,toas
     if(!window.confirm(lang==="en"?"Delete this message?":K("Peyam were jêbirin?"))) return false;
     // Toplu mesaj: aynı bulkId'li bütün öğrenci kayıtları gönderen listesinden kalkar
     const ids=msg.bulkId&&msg.direction==="sent"?messages.filter(m=>m.direction==="sent"&&m.bulkId===msg.bulkId).map(m=>m.fireId).filter(Boolean):[msg.fireId];
-    try{ if(ids.length>1) await window.__FB.hideMessages(ids); else await window.__FB.deleteMessage(msg.fireId); }catch(e){ toast("❌ "+(e.code||e.message)); return false; }
-    setMessages(p=>p.filter(m=>!ids.includes(m.fireId)));
+    const before=messages; setMessages(p=>p.filter(m=>!ids.includes(m.fireId)));   // anında kalkar; sunucu hatasında geri gelir
+    try{ if(ids.length>1) await window.__FB.hideMessages(ids); else await window.__FB.deleteMessage(msg.fireId); }catch(e){ setMessages(before); toast("❌ "+(e.code||e.message)); return false; }
     toast(lang==="en"?"Message deleted":K("Peyam hate jêbirin"));
     return true;
   };
@@ -7889,7 +7929,8 @@ function AatHeadPanel({user,students,teachers,schedule,t,lang,toast,onLogout,onS
   useEffect(()=>{
     if(!window.__FB||!window.__FB.isConfigured()) return;
     let unsub=()=>{};
-    try{ unsub=window.__FB.onAllMessages(all=>setMsgs(all)); }catch(_){}
+    try{ unsub=window.__FB.onMessagesFor([["toArea","==",area],["recipientNo","in",msgIdVals(myNo)],["recipientId","==","h_"+myNo],
+      ["recipientGroup","in",GEN?["allHeads","genHead"]:["allHeads"]],["senderNo","in",msgIdVals(myNo)]],all=>setMsgs(all)); }catch(_){}
     return ()=>unsub();
   },[]);
   const inbox=msgs.filter(m=>String(m.senderNo||"")!==myNo&&((m.toRole==="head"&&m.toArea===area)||m.recipientNo===myNo||m.recipientId==="h_"+myNo
@@ -7960,8 +8001,8 @@ function KidHeadPanel({user,t,lang,toast,onLogout,onSettings,onDataChange}){
   // Yönetimden gelen mesajlar (tüm sorumlulara ya da bu sorumluya özel)
   const [adminMsgs,setAdminMsgs]=useState([]);
   useEffect(()=>{
-    if(!live||!F.onAllMessages) return; let un=()=>{};
-    try{ un=F.onAllMessages(all=>setAdminMsgs(all.filter(m=>m.recipientGroup==="allHeads"||String(m.recipientNo||"")===myNo))); }catch(_){}
+    if(!live||!F.onMessagesFor) return; let un=()=>{};
+    try{ un=F.onMessagesFor([["recipientGroup","==","allHeads"],["recipientNo","in",msgIdVals(myNo)]],all=>setAdminMsgs(all.filter(m=>m.recipientGroup==="allHeads"||String(m.recipientNo||"")===myNo))); }catch(_){}
     return ()=>{ try{un();}catch(_){} };
   },[live,myNo]);
   // Sınıf sorumlusu yalnız KENDİ sınıflarının çocuklarını / velilerini görür
@@ -8193,7 +8234,7 @@ function HeadMessagesPanel({user,inbox,sent,students,teachers,lang,t,toast}){
                       <div data-sent-got={got.size}>✅ {W("Gihîşt","Delivered")} ({got.size}): {[...got].map(nm).sort((x,y)=>x.localeCompare(y)).join(", ")}</div>
                       {miss.length>0&&<div data-sent-miss={miss.length} style={{color:"#b45309"}}>⚠ {W("Negihîşt (niha di sinifê de ne)","Not delivered (in the class now)")} ({miss.length}): {miss.map(x=>x.name).sort((x,y)=>x.localeCompare(y)).join(", ")}</div>}
                     </div>); })()}
-                  <button type="button" data-msg-del={m.fireId} onClick={async()=>{ if(!window.confirm(W("Ev peyam were jêbirin?","Delete this message?"))) return; try{ const ids=m.bulkId?(sent||[]).filter(x=>x.bulkId===m.bulkId).map(x=>x.fireId).filter(Boolean):[m.fireId]; for(const id of ids) await window.__FB.deleteMessage(id); setOpen(null); toast("🗑 "+W("Peyam hat jêbirin","Message deleted")); }catch(e){ toast("❌ "+(e.code||e.message)); } }} style={{marginTop:12,padding:"8px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--red)",fontWeight:700,fontSize:12.5,cursor:"pointer"}}>🗑 {W("Jê bibe","Delete")}</button>
+                  <button type="button" data-msg-del={m.fireId} onClick={async()=>{ if(!window.confirm(W("Ev peyam were jêbirin?","Delete this message?"))) return; try{ const ids=m.bulkId?(sent||[]).filter(x=>x.bulkId===m.bulkId).map(x=>x.fireId).filter(Boolean):[m.fireId]; setOpen(null); await Promise.all(ids.map(id=>window.__FB.deleteMessage(id))); toast("🗑 "+W("Peyam hat jêbirin","Message deleted")); }catch(e){ toast("❌ "+(e.code||e.message)); } }} style={{marginTop:12,padding:"8px 12px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg2)",color:"var(--red)",fontWeight:700,fontSize:12.5,cursor:"pointer"}}>🗑 {W("Jê bibe","Delete")}</button>
                   {mode==="inbox"&&m.fromType==="student"&&(m.fromNo&&!m.anonymous?(
                     <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:8}}>
                       <textarea style={{...inputStyle,minHeight:80,resize:"vertical"}} value={reply} onChange={e=>setReply(e.target.value)} placeholder={W("Bersiva xwe binivîse…","Write your reply…")} id="hm-reply"/>
@@ -15048,7 +15089,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     const myId="t_"+teacher.id;
     let unsub=()=>{};
     try {
-      unsub = window.__FB.onAllMessages(allMsgs=>{
+      unsub = window.__FB.onMessagesFor(teacherMsgClauses(teacher), allMsgs=>{
         const unread = allMsgs.filter(m=>{
           if(m.read) return false;
           if((m.senderId==="admin"||m.fromType==="admin"||m.fromType==="head")&&m.recipientId===myId) return true;
@@ -16438,7 +16479,19 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
   const [studentMessages,setStudentMessages]=useState([]);
   const [msgReload,setMsgReload]=useState(0);
   const [studentMsgRead,setStudentMsgRead]=useState([]);
-  const studentMsgUnread=studentMessages.filter(m=>!m.read&&!studentMsgRead.includes(m.fireId||m.id)).length;
+  // Kişisel silme (userHidden): anında gizlenir, sunucuya yazılır; hata olursa geri gelir
+  const [hidMsgs,setHidMsgs]=useState([]);
+  useEffect(()=>{ const F=window.__FB; if(!F||!F.isConfigured()) return; let u=()=>{};
+    try{ const uid=F.auth&&F.auth.currentUser&&F.auth.currentUser.uid; if(uid) u=F.onSnapshot(F.doc(F.db,"userHidden",uid),sn=>setHidMsgs(((sn.exists()&&sn.data().msgs)||[]).map(String)),()=>{}); }catch(_){}
+    return ()=>{ try{u();}catch(_){} }; },[]);
+  const shownMessages=studentMessages.filter(m=>!hidMsgs.includes(String(m.fireId)));
+  async function delStudentMsg(msg){
+    if(!window.confirm(lang==="en"?"Delete this message?":K("Peyam were jêbirin?"))) return;
+    const id=String(msg.fireId); setHidMsgs(p=>[...new Set([...p,id])]);
+    try{ await window.__FB.deleteMessage(id); toast("🗑 "+(lang==="en"?"Message deleted":K("Peyam hate jêbirin"))); }
+    catch(e){ setHidMsgs(p=>p.filter(x=>x!==id)); toast("❌ "+((e&&e.code)||e)); }
+  }
+  const studentMsgUnread=shownMessages.filter(m=>!m.read&&!studentMsgRead.includes(m.fireId||m.id)).length;
 
   // Firebase realtime — bu öğrenciye gelen mesajlar
   useEffect(()=>{
@@ -16455,20 +16508,22 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
       // 2) Bulk mesajlar (allStudents, area)
       const qBulk = window.__FB.query(window.__FB.collection(window.__FB.db,"messages"),
         window.__FB.where("recipientGroup","in",["allStudents","all","area_"+myArea]), window.__FB.orderBy("createdAt","desc"), window.__FB.limit(50));
+      // Kaynak başına son görüntü tutulur: gönderen sunucuda sildiğinde mesaj öğrencinin listesinden de hemen kalkar
+      const src={private:[],bulk:[]};
       const mergeInto = (newMsgs, key) => {
+        src[key]=newMsgs;
         setStudentMessages(prev=>{
-          const others = prev.filter(m=>!newMsgs.find(nm=>nm.fireId===m.fireId));
-          return [...newMsgs,...others].sort((a,b)=>((b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)));
+          const seen=new Set(), all=[];
+          [...src.private,...src.bulk].forEach(m=>{ if(!seen.has(m.fireId)){ seen.add(m.fireId); const old=prev.find(x=>x.fireId===m.fireId); all.push(old?{...m,_open:old._open,read:m.read||old.read}:m); } });
+          return all.sort((a,b)=>((b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)));
         });
       };
-      // Dinleyici hata ile kapanırsa (ağ kopması, oturum yenileme…) sessizce ölü kalmasın: kısa süre sonra yeniden kurulur
-      const retry=()=>{ if(!alive) return; setTimeout(()=>{ if(alive) setMsgReload(n=>n+1); },4000); };
       const unsubPrivate = window.__FB.onSnapshot(qPrivate, snap=>{
         mergeInto(snap.docs.map(d=>({...d.data(),fireId:d.id})), "private");
-      }, retry);
+      });
       const unsubBulk = window.__FB.onSnapshot(qBulk, snap=>{
         mergeInto(snap.docs.map(d=>({...d.data(),fireId:d.id})), "bulk");
-      }, retry);
+      });
       unsub = ()=>{ unsubPrivate(); unsubBulk(); };
     } catch(e) {
       // Fallback: tüm mesajları al, client tarafında filtrele
@@ -16820,7 +16875,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
                     </div>
                   </div>
                   <div style={{fontSize:13,color:"var(--text)",lineHeight:1.55,paddingLeft:40}}>{ann.msg}</div>
-                  {ann.fireId&&<div style={{textAlign:"right",marginTop:6}}><button type="button" data-ann-del={ann.fireId} onClick={async e=>{ e.stopPropagation(); if(!window.confirm(lang==="en"?"Delete this announcement?":K("Ev ragihandin were jêbirin?"))) return; try{ await window.__FB.deleteAnnouncementForMe(ann.fireId); toast("🗑 "+(lang==="en"?"Deleted":K("Hate jêbirin"))); }catch(er){ toast("❌ "+((er&&er.code)||er)); } }} style={{fontSize:11,padding:"4px 10px",borderRadius:8,background:"var(--bg2)",border:"0.5px solid var(--border2)",cursor:"pointer",color:"var(--red)"}}>🗑 {lang==="en"?"Delete":K("Jê bibe")}</button></div>}
+                  {ann.fireId&&<div style={{textAlign:"right",marginTop:6}}><button type="button" data-ann-del={ann.fireId} onClick={async e=>{ e.stopPropagation(); if(!window.confirm(lang==="en"?"Delete this announcement?":K("Ev ragihandin were jêbirin?"))) return; const aid=String(ann.fireId); setHidAnn(p=>[...new Set([...p,aid])]); try{ await window.__FB.deleteAnnouncementForMe(ann.fireId); toast("🗑 "+(lang==="en"?"Deleted":K("Hate jêbirin"))); }catch(er){ setHidAnn(p=>p.filter(x=>x!==aid)); toast("❌ "+((er&&er.code)||er)); } }} style={{fontSize:11,padding:"4px 10px",borderRadius:8,background:"var(--bg2)",border:"0.5px solid var(--border2)",cursor:"pointer",color:"var(--red)"}}>🗑 {lang==="en"?"Delete":K("Jê bibe")}</button></div>}
                 </div>
               );
             })}
@@ -16832,14 +16887,14 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
           <>
             <SectionHeader>💬 {lang==="en"?"My Messages":K("Peyamên Min")}</SectionHeader>
             <StudentTeacherMessenger student={student} teachers={myTeachers} lang={lang} toast={toast}/>
-            {studentMessages.length===0?(
+            {shownMessages.length===0?(
               <Card><div style={{textAlign:"center",padding:24,color:"var(--text2)",fontSize:13}}>
                 <div style={{fontSize:36,marginBottom:8}}>💬</div>
                 {lang==="en"?"No messages":K("Peyam tune")}
               </div></Card>
             ):(
               <Card>
-                {studentMessages.map((msg,i)=>{
+                {shownMessages.map((msg,i)=>{
                   const isUnread=!msg.read&&!studentMsgRead.includes(msg.fireId||msg.id);
                   const iconColor=msg.fromType==="admin"?"#0f2f38":msg.fromType==="teacher"?a.color:"var(--text)";
                   const iconBg=msg.fromType==="admin"?"var(--bg2)":msg.fromType==="teacher"?a.bg:"rgba(22,163,74,.08)";
@@ -16851,7 +16906,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
                         setStudentMessages(p=>p.map(m=>(m.fireId===msg.fireId||m.id===msg.id)?{...m,_open:!m._open,read:true}:m));
                         if(msg.fireId&&!msg.read){const fb=window.__FB;if(window.__FB &&window.__FB.isConfigured())window.__FB.markRead(msg.fireId).catch(()=>{});}
                       }}
-                      style={{padding:"11px 0",borderBottom:i<studentMessages.length-1?"0.5px solid var(--border)":"none",cursor:"pointer"}}>
+                      style={{padding:"11px 0",borderBottom:i<shownMessages.length-1?"0.5px solid var(--border)":"none",cursor:"pointer"}}>
                       <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
                         <div style={{width:36,height:36,borderRadius:"50%",background:iconBg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>
                           {msg.fromType==="admin"?"🛡":msg.fromType==="teacher"?"👨‍🏫":"💬"}
@@ -16867,6 +16922,7 @@ function StudentPanel({student,schedule,t,lang,toast,onLogout,onDataChange,onSet
                           <div style={{fontSize:12,fontWeight:isUnread?600:400,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{msg.subject}</div>
                           {msg._open?(<>
                             <div style={{fontSize:12,color:"var(--text)",lineHeight:1.6,marginTop:6,paddingTop:8,borderTop:"0.5px solid var(--border)"}}>{msg.body}</div>
+                            <div style={{textAlign:"right",marginTop:8}} onClick={e=>e.stopPropagation()}><button type="button" data-msg-del={msg.fireId} onClick={()=>delStudentMsg(msg)} style={{fontSize:11,padding:"4px 10px",borderRadius:8,background:"var(--bg2)",border:"0.5px solid var(--border2)",cursor:"pointer",color:"var(--red)"}}>🗑 {lang==="en"?"Delete":K("Jê bibe")}</button></div>
                             {(msg.attachments||[]).length>0&&<div data-msg-att="1" onClick={e=>e.stopPropagation()} style={{display:"flex",flexDirection:"column",gap:6,marginTop:8}}>
                               {(msg.attachments||[]).map((a,i)=>{ const h=safeHref(a.url); return h?(
                                 <a key={i} href={h} download={a.name} target="_blank" rel="noopener noreferrer" className="c-file" style={{textDecoration:"none"}}>

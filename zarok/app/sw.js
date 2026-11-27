@@ -1,5 +1,5 @@
 // Akademiya Zarokan (Konservatuara Aram Tîgran) — veli/öğretmen uygulaması Service Worker (kapsam: bu klasör)
-const CACHE = 'zarok-v59';
+const CACHE = 'zarok-v60';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './vendor/jsQR.js', './icons/icon-v2-192.png', './icons/icon-v2-512.png', './icons/apple-v2-180.png'];
 
 self.addEventListener('install', e => {

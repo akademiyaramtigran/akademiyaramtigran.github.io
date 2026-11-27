@@ -348,10 +348,26 @@ const S = {
   drafts: {}, seenAtt: null, lastAnnSeen: +(localStorage.getItem("zarok-ann-seen") || 0), lastMsgSeen: +(localStorage.getItem("zarok-msg-seen") || 0)
 };
 // Kişisel silme: duyuru / mesaj / sınıf paylaşımı yalnız bu kullanıcının listesinden gizlenir (userHidden/{uid}); belge herkes için silinmez
+// Canlı dinleyici: geçici hata (ağ / sunucu) ile kapanırsa kendiliğinden yeniden kurulur; kural reddi yeniden denenmez
+function liveOnSnapshot(fsOn) {
+  return (ref, ...args) => {
+    if (typeof args[0] !== "function") return fsOn(ref, ...args);
+    const next = args[0], errCb = typeof args[1] === "function" ? args[1] : null;
+    let off = () => {}, dead = false, tries = 0, timer = 0;
+    const start = () => { off = fsOn(ref, snap => { tries = 0; next(snap); }, err => {
+      if (errCb) { try { errCb(err); } catch (_) {} }
+      const c = (err && err.code) || "";
+      if (dead || tries >= 12 || ["permission-denied", "unauthenticated", "failed-precondition", "invalid-argument", "not-found"].includes(c)) return;
+      tries++; timer = setTimeout(() => { if (!dead) start(); }, Math.min(3000 * tries, 30000)); }); };
+    start();
+    return () => { dead = true; clearTimeout(timer); try { off(); } catch (_) {} };
+  };
+}
 const V = (arr, k) => { const hd = (S.hid && S.hid[k]) || []; return hd.length ? (arr || []).filter(x => !hd.includes(String(x.id))) : (arr || []); };
 const hideMine = async (k, id) => { const { doc, setDoc, arrayUnion } = FB.fs; await setDoc(doc(FB.db, "userHidden", FB.auth.currentUser.uid), { [k]: arrayUnion(String(id)) }, { merge: true }); };
 const delBtn = (k, id) => h("button", { class: "iconbtn", "data-hide": id, "aria-label": "🗑", style: "width:34px;height:34px;font-size:15px;float:right;margin-left:8px",
-  onclick: async e => { e.stopPropagation(); if (!confirm(T("delQ"))) return; try { await hideMine(k, id); } catch (er) { toast("❌ " + (er.code || er.message)); } } }, "🗑");
+  onclick: async e => { e.stopPropagation(); if (!confirm(T("delQ"))) return; const sid = String(id); S.hid = { ...(S.hid || {}), [k]: [...((S.hid && S.hid[k]) || []), sid] }; render();   // anında kalkar; hata olursa geri gelir
+    try { await hideMine(k, id); } catch (er) { S.hid = { ...S.hid, [k]: ((S.hid && S.hid[k]) || []).filter(x => x !== sid) }; render(); toast("❌ " + (er.code || er.message)); } } }, "🗑");
 let FB = null; // { auth, db, fs:{...}, au:{...} }
 const unsubs = [];
 
@@ -439,7 +455,7 @@ async function onSignedIn(u) {
   S.mode = "guardian";
   const no = email.split("@")[0];
   S.phase = "loading"; S.user = { no }; render();
-  const { doc, getDoc, collection, query, where, orderBy, limit, onSnapshot } = FB.fs;
+  const { doc, getDoc, collection, query, where, orderBy, limit, onSnapshot: _fsOn } = FB.fs; const onSnapshot = liveOnSnapshot(_fsOn);
   try {
     const g = await getDoc(doc(FB.db, "guardians", no));
     if (!g.exists()) throw { code: "permission-denied" };
@@ -488,7 +504,7 @@ async function signOutAll() { S.pano = true; await disablePush(); await FB.au.si
 async function onTeacherSignedIn(u) {
   const email = u.email || "", no = email.split("@")[0], kidT = /@zmamoste\.aat$/i.test(email);
   S.phase = "loading"; S.user = { no }; render();
-  const { doc, getDoc, getDocs, collection, query, where, orderBy, limit, onSnapshot } = FB.fs;
+  const { doc, getDoc, getDocs, collection, query, where, orderBy, limit, onSnapshot: _fsOn } = FB.fs; const onSnapshot = liveOnSnapshot(_fsOn);
   try {
     let name = "";
     // Hem çocuk öğretmeni hem akademi öğretmeni için kidTeachers/<no> kaydı gerekir
